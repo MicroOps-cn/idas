@@ -1,0 +1,43 @@
+syntax = "proto3";
+import public "google/protobuf/duration.proto";
+package idas.config;
+option go_package = "./;config";
+
+message RedisOptions{
+  string url = 1;
+}
+message LdapOptions{
+
+}
+message MySQLOptions{
+  string host = 1;
+  string username = 2;
+  string password = 3;
+  string schema = 4;
+  int32 max_idle = 5;
+  int32 max_idle_connections = 6;
+  int32  max_open_connections = 7;
+  google.protobuf.Duration  max_connection_lifeTime = 8;
+  string charset = 9;
+  string collation = 10;
+  string table_prefix = 11;
+}
+
+
+message Storage{
+  string name = 1;
+  oneof source{
+    MySQLOptions mysql = 11; // MySQL Database Config
+    RedisOptions redis = 12; // Redis Database Config
+    LdapOptions ldap = 13; // LdapDatabaseConfig
+  };
+}
+
+message Storages{
+  repeated Storage user = 1;
+  Storage session = 2;
+}
+
+message Config {
+  Storages storage = 1;
+}
