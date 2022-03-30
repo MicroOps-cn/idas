@@ -203,6 +203,7 @@ func initConfig() {
 		cfgFile = "./idas.yaml"
 	}
 	if err := config.ReloadConfigFromFile(logs.New(logs.MustNewConfig("info", "logfmt")), cfgFile); err != nil {
-		panic(fmt.Errorf("初始化配置失败: %s", err))
+		_, _ = fmt.Fprintf(os.Stderr, "failed to load config: %s\n", err)
+		os.Exit(1)
 	}
 }

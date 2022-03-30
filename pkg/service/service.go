@@ -195,7 +195,7 @@ func New(ctx context.Context) Service {
 			if _, ok := userService[userStorage.GetName()]; ok {
 				panic(any(fmt.Errorf("Failed to init UserService: duplicate datasource: %T ", userStorage.Name)))
 			}
-			switch userSource := userStorage.GetSource().(type) {
+			switch userSource := userStorage.GetStorageSource().(type) {
 			case *config.Storage_Mysql:
 				if client, err := mysql.NewMySQLClient(ctx, userSource.Mysql); err != nil {
 					panic(any(fmt.Errorf("初始化UserService失败: MySQL数据库连接失败: %s", err)))

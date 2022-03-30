@@ -23,10 +23,16 @@ message MySQLOptions{
   string table_prefix = 11;
 }
 
+message StorageRef{
+  Storage Storage = 1;
+  string path = 2;
+  string name = 3;
+}
 
 message Storage{
   string name = 1;
   oneof source{
+    StorageRef ref = 10;
     MySQLOptions mysql = 11; // MySQL Database Config
     RedisOptions redis = 12; // Redis Database Config
     LdapOptions ldap = 13; // LdapDatabaseConfig
