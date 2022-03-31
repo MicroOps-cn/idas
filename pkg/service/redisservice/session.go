@@ -16,6 +16,11 @@ import (
 
 type SessionService struct {
 	*redis.Client
+	name string
+}
+
+func (s SessionService) Name() string {
+	return s.name
 }
 
 func (s SessionService) OAuthAuthorize(ctx context.Context, responseType, clientId, redirectURI string) (redirect string, err error) {
@@ -74,6 +79,6 @@ func (s SessionService) DeleteLoginSession(ctx context.Context, sessionId string
 	return "", nil
 }
 
-func NewSessionService(client *redis.Client) *SessionService {
-	return &SessionService{Client: client}
+func NewSessionService(name string, client *redis.Client) *SessionService {
+	return &SessionService{name: name, Client: client}
 }

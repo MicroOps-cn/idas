@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -14,19 +15,18 @@ import (
 )
 
 func ref(path string, val reflect.Value) interface{} {
+	if val.Kind() == reflect.Ptr {
+		return ref(path, val.Elem())
+	}
 	if len(path) == 0 {
 		return val.Interface()
 	}
-	switch val.Kind() {
-	case reflect.Ptr:
-		return ref(path, val.Elem())
-	}
+
 	if len(path) >= 1 && path[0] == '.' {
 		return ref(path[1:], val.Elem())
 	}
 	typ := val.Type()
 
-	fmt.Println(path, val.Type().Name())
 	idx := strings.IndexAny(path, ".[")
 	if idx >= 0 {
 		var downPath = path[idx:]
@@ -34,7 +34,6 @@ func ref(path string, val reflect.Value) interface{} {
 			downPath = path[idx+1:]
 		} else if path[idx] == '[' && idx == 0 {
 			idx2 := strings.IndexRune(path[idx+1:], ']')
-			fmt.Println(typ.Kind())
 			if idx2 >= 0 && typ.Kind() == reflect.Slice {
 				index, err := strconv.Atoi(path[idx+1 : idx+1+idx2])
 				if err != nil {
@@ -66,7 +65,6 @@ func ref(path string, val reflect.Value) interface{} {
 					jsonName += string([]int32{c})
 				}
 			}
-			fmt.Println(jsonName, path[:idx])
 			if jsonName == path[:idx] {
 				return ref(downPath, sv)
 			}
@@ -74,11 +72,46 @@ func ref(path string, val reflect.Value) interface{} {
 	}
 	return nil
 }
+
+func (x *Storage) findRef(path string, root interface{}) error {
+	target := ref(path, reflect.ValueOf(root))
+	buf := bytes.Buffer{}
+	unmarshaller := jsonpb.Marshaler{}
+	switch s := target.(type) {
+	case Storage:
+		if s.GetRef() != nil {
+			return x.findRef(s.GetRef().Path, root)
+		} else if err := unmarshaller.Marshal(&buf, &s); err != nil {
+			return err
+		}
+	case *Storage:
+		if s.GetRef() != nil {
+			return x.findRef(s.GetRef().Path, root)
+		} else if err := unmarshaller.Marshal(&buf, s); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unknown ref: %s(%T)", path, target)
+	}
+	tmpStorage := new(Storage)
+	if err := jsonpb.Unmarshal(&buf, tmpStorage); err != nil {
+		return err
+	}
+	x.Source = tmpStorage.Source
+	return nil
+}
+
 func (x *Config) Init(logger log.Logger) error {
-	for _, userStorage := range x.Storage.User {
+	for _, userStorage := range append(x.Storage.User, x.Storage.Session) {
 		switch s := userStorage.Source.(type) {
 		case *Storage_Ref:
-			s.Ref.Storage = ref(s.Ref.Path, reflect.ValueOf(x)).(*Storage)
+			if s.Ref.Storage == nil {
+				s.Ref.Storage = new(Storage)
+			}
+			err := s.Ref.Storage.findRef(s.Ref.Path, x)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -98,6 +131,7 @@ func (m *Storage) GetStorageSource() isStorage_Source {
 	}
 	return nil
 }
+
 func (x *MySQLOptions) GetStdMaxConnectionLifeTime() time.Duration {
 	if x != nil {
 		if duration, err := types.DurationFromProto(x.MaxConnectionLifeTime); err == nil {
@@ -107,7 +141,21 @@ func (x *MySQLOptions) GetStdMaxConnectionLifeTime() time.Duration {
 	return time.Second * 30
 }
 
-func (x *MySQLOptions) UnmarshalJSONPB(_ *jsonpb.Unmarshaler, b []byte) error {
+type pbMySQLOptions MySQLOptions
+
+func (p *pbMySQLOptions) Reset() {
+	(*MySQLOptions)(p).Reset()
+}
+
+func (p *pbMySQLOptions) String() string {
+	return (*MySQLOptions)(p).String()
+}
+
+func (p *pbMySQLOptions) ProtoMessage() {
+	(*MySQLOptions)(p).Reset()
+}
+
+func (x *MySQLOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []byte) error {
 	options := NewMySQLOptions()
 	x.Charset = options.Charset
 	x.Collation = options.Collation
@@ -115,7 +163,7 @@ func (x *MySQLOptions) UnmarshalJSONPB(_ *jsonpb.Unmarshaler, b []byte) error {
 	x.MaxOpenConnections = options.MaxOpenConnections
 	x.MaxConnectionLifeTime = options.MaxConnectionLifeTime
 	x.TablePrefix = options.TablePrefix
-	return json.Unmarshal(b, x)
+	return unmarshaller.Unmarshal(bytes.NewReader(b), (*pbMySQLOptions)(x))
 }
 
 func NewMySQLOptions() *MySQLOptions {

@@ -35,19 +35,19 @@ func (l *logContext) LogMode(lvl logger.LogLevel) logger.Interface {
 	return NewLogAdapter(filter)
 }
 
-func (l logContext) Info(ctx context.Context, msg string, data ...interface{}) {
+func (l logContext) Info(_ context.Context, msg string, data ...interface{}) {
 	level.Info(l.logger).Log("caller", utils.FileWithLineNum(), "msg", fmt.Sprintf(msg, data...))
 }
 
-func (l logContext) Warn(ctx context.Context, msg string, data ...interface{}) {
+func (l logContext) Warn(_ context.Context, msg string, data ...interface{}) {
 	level.Warn(l.logger).Log("caller", utils.FileWithLineNum(), "msg", fmt.Sprintf(msg, data...))
 }
 
-func (l logContext) Error(ctx context.Context, msg string, data ...interface{}) {
+func (l logContext) Error(_ context.Context, msg string, data ...interface{}) {
 	level.Error(l.logger).Log("caller", utils.FileWithLineNum(), "msg", fmt.Sprintf(msg, data...))
 }
 
-func (l logContext) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
+func (l logContext) Trace(_ context.Context, begin time.Time, fc func() (string, int64), err error) {
 	elapsed := time.Since(begin)
 	switch {
 	case err != nil && err != gorm.ErrRecordNotFound:

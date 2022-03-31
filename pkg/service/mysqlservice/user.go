@@ -14,7 +14,11 @@ type User struct{}
 
 type UserService struct {
 	*mysql.Client
-	Name string
+	name string
+}
+
+func (s UserService) Name() string {
+	return s.name
 }
 
 func (s UserService) AutoMigrate(ctx context.Context) error {
@@ -34,7 +38,7 @@ func (s UserService) VerifyPassword(ctx context.Context, username string, passwo
 }
 
 func NewUserService(name string, client *mysql.Client) *UserService {
-	return &UserService{Name: name, Client: client}
+	return &UserService{name: name, Client: client}
 }
 
 func (s UserService) GetUsers(ctx context.Context, keyword string, status models.UserStatus, current int64, pageSize int64) (users []*models.User, total int64, err error) {
@@ -48,7 +52,7 @@ func (s UserService) GetUsers(ctx context.Context, keyword string, status models
 		return nil, 0, err
 	} else {
 		for _, user := range users {
-			user.Storage = s.Name
+			user.Storage = s.name
 		}
 		return users, total, nil
 	}

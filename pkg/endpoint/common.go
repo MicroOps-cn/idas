@@ -8,18 +8,6 @@ import (
 	"idas/pkg/errors"
 )
 
-type ResponseCode int
-
-const (
-	ResponseCodeUnknown        ResponseCode = -99
-	ResponseCodeOk             ResponseCode = 0
-	ResponseCodeNotLogin       ResponseCode = 99
-	ResponseCodeParameterError ResponseCode = 400
-	ResponseCodeForbidden      ResponseCode = 403
-	ResponseCodeServerError    ResponseCode = 500
-	ResponseCodeNotFound       ResponseCode = 404
-)
-
 type Lister interface {
 	GetPageSize() int64
 	GetCurrent() int64

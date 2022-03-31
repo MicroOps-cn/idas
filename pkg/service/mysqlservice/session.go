@@ -16,6 +16,11 @@ import (
 
 type SessionService struct {
 	*mysql.Client
+	name string
+}
+
+func (s SessionService) Name() string {
+	return s.name
 }
 
 func (s SessionService) OAuthAuthorize(ctx context.Context, responseType, clientId, redirectURI string) (redirect string, err error) {
@@ -57,8 +62,8 @@ func (s SessionService) SetLoginSession(ctx context.Context, user *models.User) 
 	return fmt.Sprintf("%s=%s; Path=/;Expires=%s", global.LoginSession, sessionId, session.Expiry.Format(global.LoginSessionExpiresFormat)), nil
 }
 
-func NewSessionService(client *mysql.Client) *SessionService {
-	return &SessionService{Client: client}
+func NewSessionService(name string, client *mysql.Client) *SessionService {
+	return &SessionService{name: name, Client: client}
 }
 
 func (s SessionService) GetLoginSession(ctx context.Context, id string) (*models.User, string, error) {

@@ -9,12 +9,12 @@ import (
 
 type AppService struct {
 	*mysql.Client
+	name string
 }
 
-func (a AppService) SetupJoinTable() error {
-	return a.Session(context.Background()).SetupJoinTable(&models.App{}, "User", models.AppUser{})
-}
-
-func NewAppService(client *mysql.Client) *AppService {
-	return &AppService{Client: client}
+func NewAppService(name string, client *mysql.Client) *AppService {
+	if err := client.Session(context.Background()).SetupJoinTable(&models.App{}, "User", models.AppUser{}); err != nil {
+		panic(err)
+	}
+	return &AppService{name: name, Client: client}
 }
