@@ -12,6 +12,7 @@ import (
 var ErrStruct = errors.New("Unmarshal() expects struct input. ")
 
 func MapToURLValues(m map[string]string) (vals url.Values) {
+	vals = make(url.Values)
 	for name, val := range m {
 		vals.Set(name, val)
 	}
@@ -35,6 +36,12 @@ func UnmarshalURLValues(values url.Values, s interface{}) error {
 
 func reflectValueFromTag(values url.Values, val reflect.Value) error {
 	typ := val.Type()
+	if val.Kind() == reflect.Pointer {
+		if val.IsNil() {
+			val.Set(reflect.New(val.Type().Elem()))
+		}
+		return reflectValueFromTag(values, val.Elem())
+	}
 	for i := 0; i < val.NumField(); i++ {
 		kt := typ.Field(i)
 		sv := val.Field(i)

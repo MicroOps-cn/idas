@@ -72,7 +72,6 @@ type CurrentUserRequest struct {
 
 type CurrentUserResponse struct {
 	BaseResponse `json:"-"`
-	*models.User
 }
 
 func MakeCurrentUserEndpoint(_ service.Service) endpoint.Endpoint {
@@ -80,11 +79,11 @@ func MakeCurrentUserEndpoint(_ service.Service) endpoint.Endpoint {
 		req := request.(*CurrentUserRequest)
 		resp := CurrentUserResponse{}
 		if user, ok := req.GetRestfulRequest().Attribute(global.AttrUser).(*models.User); ok {
-			resp.User = user
+			resp.Data = user
 		} else {
 			resp.Error = errors.NotLoginError
 		}
-		return &resp, nil
+		return resp, nil
 	}
 }
 

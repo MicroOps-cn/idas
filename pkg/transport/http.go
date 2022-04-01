@@ -73,7 +73,7 @@ func errorEncoder(ctx context.Context, err error, w http.ResponseWriter) {
 
 type responseWrapper struct {
 	Success      bool        `json:"success"`
-	Data         interface{} `json:"data,inline"`
+	Data         interface{} `json:"data"`
 	ErrorCode    string      `json:"errorCode,omitempty"`
 	ErrorMessage string      `json:"errorMessage,omitempty"`
 	TraceId      string      `json:"traceId"`
@@ -113,11 +113,12 @@ func decodeHTTPRequest[RequestType any](_ context.Context, r *http.Request) (int
 			}
 		}
 	} else if len(contentType) > 0 {
-		logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "caller", log.Caller(6))), logs.Prefix("decode http request: ", true))
+		logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "caller", log.Caller(9))), logs.Prefix("decode http request: ", true))
 		if err = json.NewDecoder(io.TeeReader(r.Body, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Decode(&req); err != nil {
 			return nil, fmt.Errorf("failed to decode request body：%s", err)
 		}
 	}
+	fmt.Println(fmt.Sprintf("%s", httputil.Must[[]byte](json.Marshal(req))))
 	if len(restfulReq.PathParameters()) > 0 {
 		if err = httputil.UnmarshalURLValues(httputil.MapToURLValues(restfulReq.PathParameters()), &req); err != nil {
 			return nil, fmt.Errorf("failed to decode path parameters：%s", err)
@@ -128,7 +129,7 @@ func decodeHTTPRequest[RequestType any](_ context.Context, r *http.Request) (int
 		rr.SetRestfulRequest(restfulReq)
 		rr.SetRestfulResponse(restfulResp)
 	}
-	level.Debug(logger).Log("msg", "decoded http request", "req", fmt.Sprintf("%#v", req))
+	level.Debug(logger).Log("msg", "decoded http request", "req", fmt.Sprintf("%s", httputil.Must[[]byte](json.Marshal(req))))
 	if ok, err := govalidator.ValidateStruct(req); err != nil {
 		return &req, errors.NewServerError(http.StatusBadRequest, err.Error())
 	} else if !ok {
@@ -156,9 +157,14 @@ func encodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response int
 		if t, ok := response.(endpoint.Total); ok {
 			resp.Total = t.GetTotal()
 		}
-		resp.Data = response
+		fmt.Println(response)
+		if t, ok := response.(endpoint.HasData); ok {
+			resp.Data = t.GetData()
+		} else {
+			resp.Data = response
+		}
 	}
 
-	logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "resp", fmt.Sprintf("%#v", resp), "caller", log.Caller(6))), logs.Prefix("encoded http response: ", true))
+	logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "resp", fmt.Sprintf("%#v", resp), "caller", log.Caller(7))), logs.Prefix("encoded http response: ", true))
 	return json.NewEncoder(io.MultiWriter(w, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Encode(resp)
 }

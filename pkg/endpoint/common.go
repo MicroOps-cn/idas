@@ -14,6 +14,9 @@ type Lister interface {
 	GetTotal() int64
 	GetData() interface{}
 }
+type HasData interface {
+	GetData() interface{}
+}
 type Total interface {
 	GetTotal() int64
 }
@@ -55,8 +58,13 @@ type BaseListRequest struct {
 	Keywords string `json:"keywords"`
 }
 type BaseResponse struct {
-	Error        error  `json:"-"`
-	ErrorMessage string `json:"errorMessage"`
+	Error        error       `json:"-"`
+	Data         interface{} `json:"data,omitempty"`
+	ErrorMessage string      `json:"errorMessage"`
+}
+
+func (l BaseResponse) GetData() interface{} {
+	return l.Data
 }
 
 func (l BaseResponse) Failed() error {
