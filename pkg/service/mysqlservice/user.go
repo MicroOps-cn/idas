@@ -123,7 +123,7 @@ func (s UserService) UpdateUser(ctx context.Context, user *models.User, updateCo
 	if len(updateColumns) != 0 {
 		q = q.Select(updateColumns)
 	} else {
-		q = q.Omit("login_time", "password", "salt")
+		q = q.Select("username", "email", "phone_number", "full_name", "avatar")
 	}
 
 	if err := q.Updates(&user).Error; err != nil {

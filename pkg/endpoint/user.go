@@ -166,8 +166,7 @@ func MakeDeleteUsersEndpoint(s service.Service) endpoint.Endpoint {
 
 type UpdateUserRequest struct {
 	BaseRequest
-	User    *models.User `json:",inline"`
-	Storage string       `json:"storage" valid:"required"`
+	*models.User `json:",inline"`
 }
 
 type UpdateUserResponse struct {

@@ -53,6 +53,7 @@ func NewSimpleWebService(rootPath string, doc string) *restful.WebService {
 
 func InstallHTTPApi(logger log.Logger, container *restful.Container, options []httptransport.ServerOption, endpoints endpoint.Set) {
 	container.Filter(HTTPLogging)
+	//container.Router(restful.CurlyRouter{})
 	restful.TraceLogger(stdlog.New(log.NewStdlibAdapter(level.Info(logger)), "[restful]", stdlog.LstdFlags|stdlog.Lshortfile))
 	container.Filter(HTTPLoginAuthentication(endpoints))
 	v1Ws := NewSimpleWebService("/api/v1", "基础接口")
@@ -68,7 +69,8 @@ func InstallHTTPApi(logger log.Logger, container *restful.Container, options []h
 	managerWs.Route(managerWs.DELETE("/users").Doc("批量删除用户").To(NewKitHTTPServer[endpoint.DeleteUsersRequest](endpoints.DeleteUsers, options)))
 	managerWs.Route(managerWs.GET("/users/source").Doc("获取用户存储源").To(NewKitHTTPServer[endpoint.GetUserSourceRequest](endpoints.GetUserSource, options)))
 	managerWs.Route(managerWs.GET("/user/{id}").Doc("获取用户信息").To(NewKitHTTPServer[endpoint.GetUserRequest](endpoints.GetUserInfo, options)))
-	managerWs.Route(managerWs.POST("/user/{id}").Doc("创建/更新用户").To(NewKitHTTPServer[endpoint.CreateUserRequest](endpoints.CreateUser, options)))
+	//managerWs.Route(managerWs.POST("/user/{id}").Doc("更新用户信息（全量）").To(NewKitHTTPServer[endpoint.CreateUserRequest](endpoints.CreateUser, options)))
+	managerWs.Route(managerWs.POST("/user").Doc("创建用户").To(NewKitHTTPServer[endpoint.CreateUserRequest](endpoints.CreateUser, options)))
 	managerWs.Route(managerWs.PUT("/user/{id}").Doc("更新用户信息（全量）").To(NewKitHTTPServer[endpoint.UpdateUserRequest](endpoints.UpdateUser, options)))
 	managerWs.Route(managerWs.PATCH("/user/{id}").Doc("更新用户信息（增量）").To(NewKitHTTPServer[endpoint.PatchUserRequest](endpoints.PatchUser, options)))
 	managerWs.Route(managerWs.DELETE("/user/{id}").Doc("删除用户").To(NewKitHTTPServer[endpoint.DeleteUserRequest](endpoints.DeleteUser, options)))
