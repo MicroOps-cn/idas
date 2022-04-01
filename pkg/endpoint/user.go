@@ -208,8 +208,7 @@ func MakeGetUserInfoEndpoint(s service.Service) endpoint.Endpoint {
 
 type CreateUserRequest struct {
 	BaseRequest
-	User    *models.User `json:",inline"`
-	Storage string       `json:"storage" valid:"required"`
+	*models.User `json:",inline"`
 }
 
 type CreateUserResponse struct {
