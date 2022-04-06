@@ -29,7 +29,7 @@ func ref(path string, val reflect.Value) interface{} {
 
 	idx := strings.IndexAny(path, ".[")
 	if idx >= 0 {
-		var downPath = path[idx:]
+		downPath := path[idx:]
 		if path[idx] == '.' {
 			downPath = path[idx+1:]
 		} else if path[idx] == '[' && idx == 0 {
@@ -102,7 +102,7 @@ func (x *Storage) findRef(path string, root interface{}) error {
 }
 
 func (x *Config) Init(logger log.Logger) error {
-	for _, userStorage := range append(x.Storage.User, x.Storage.Session) {
+	for _, userStorage := range append(append(x.Storage.User, x.Storage.App...), x.Storage.Session) {
 		switch s := userStorage.Source.(type) {
 		case *Storage_Ref:
 			if s.Ref.Storage == nil {
@@ -120,13 +120,14 @@ func (x *Config) Init(logger log.Logger) error {
 func (x *StorageRef) UnmarshalJSONPB(_ *jsonpb.Unmarshaler, b []byte) error {
 	return json.Unmarshal(b, &x.Path)
 }
-func (m *Storage) GetStorageSource() isStorage_Source {
-	if m != nil {
-		switch s := m.Source.(type) {
+
+func (x *Storage) GetStorageSource() isStorage_Source {
+	if x != nil {
+		switch s := x.Source.(type) {
 		case *Storage_Ref:
 			return s.Ref.GetStorage().GetStorageSource()
 		default:
-			return m.Source
+			return x.Source
 		}
 	}
 	return nil
@@ -176,3 +177,32 @@ func NewMySQLOptions() *MySQLOptions {
 		TablePrefix:           "t_",
 	}
 }
+
+//
+//type pbGlobalOptions GlobalOptions
+//
+//func (p *pbGlobalOptions) Reset() {
+//	(*GlobalOptions)(p).Reset()
+//}
+//
+//func (p *pbGlobalOptions) String() string {
+//	return (*GlobalOptions)(p).String()
+//}
+//
+//func (p *pbGlobalOptions) ProtoMessage() {
+//	(*GlobalOptions)(p).Reset()
+//}
+//
+//func (x *GlobalOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []byte) error {
+//	options := NewGlobalOptions()
+//	x.MaxBodySize = options.MaxBodySize
+//	x.MaxUploadSize = options.MaxUploadSize
+//	return unmarshaller.Unmarshal(bytes.NewReader(b), (*pbGlobalOptions)(x))
+//}
+//func NewGlobalOptions() *GlobalOptions {
+//	opts := &GlobalOptions{
+//		MaxUploadSize: &types.UInt32Value{},
+//		MaxBodySize:   "5m",
+//	}
+//	return
+//}

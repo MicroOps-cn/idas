@@ -4,10 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"strings"
-
 	"github.com/asaskevich/govalidator"
 	"github.com/emicklei/go-restful/v3"
 	kitendpoint "github.com/go-kit/kit/endpoint"
@@ -19,6 +15,10 @@ import (
 	"github.com/go-kit/log/level"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	stdzipkin "github.com/openzipkin/zipkin-go"
+	"idas/config"
+	"io"
+	"net/http"
+	"strings"
 
 	"idas/pkg/endpoint"
 	"idas/pkg/errors"
@@ -95,29 +95,39 @@ func decodeHTTPRequest[RequestType any](_ context.Context, r *http.Request) (int
 			return nil, fmt.Errorf("failed to decode url query：%s", err)
 		}
 	}
-	contentType := r.Header.Get("Content-Type")
-	if contentType == "application/x-www-form-urlencoded" {
-		if err = r.ParseForm(); err != nil {
-			return nil, fmt.Errorf("failed to parse form data：%s", err)
-		} else if len(r.Form) > 0 {
-			if err = httputil.UnmarshalURLValues(r.Form, &req); err != nil {
-				return nil, fmt.Errorf("failed to decode form data：%s", err)
+	if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" {
+		contentType := r.Header.Get("Content-Type")
+		if strings.HasPrefix(contentType, "multipart/form-data") {
+			r.Body = http.MaxBytesReader(restfulResp.ResponseWriter, r.Body, config.Get().Global.MaxBodySize.Capacity)
+			if err = r.ParseMultipartForm(config.Get().Global.MaxBodySize.Capacity); err != nil {
+				return nil, errors.NewServerError(http.StatusBadRequest, "request too large")
 			}
-		}
-	} else if strings.HasPrefix(contentType, "multipart/form-data") {
-		if err = r.ParseMultipartForm(1e6); err != nil {
-			return nil, fmt.Errorf("failed to parse multipart form data：%s", err)
-		} else if len(r.Form) > 0 {
-			if err = httputil.UnmarshalURLValues(r.Form, &req); err != nil {
-				return nil, fmt.Errorf("failed to decode multipart form data：%s", err)
+			//if err = r.ParseMultipartForm(1e6); err != nil {
+			//	return nil, fmt.Errorf("failed to parse multipart form data：%s", err)
+			//} else if len(r.Form) > 0 {
+			//	if err = httputil.UnmarshalURLValues(r.Form, &req); err != nil {
+			//		return nil, fmt.Errorf("failed to decode multipart form data：%s", err)
+			//	}
+			//}
+		} else {
+			r.Body = http.MaxBytesReader(restfulResp.ResponseWriter, r.Body, config.Get().Global.MaxBodySize.Capacity)
+			if contentType == "application/x-www-form-urlencoded" {
+				if err = r.ParseForm(); err != nil {
+					return nil, fmt.Errorf("failed to parse form data：%s", err)
+				} else if len(r.Form) > 0 {
+					if err = httputil.UnmarshalURLValues(r.Form, &req); err != nil {
+						return nil, fmt.Errorf("failed to decode form data：%s", err)
+					}
+				}
+			} else if len(contentType) > 0 {
+				logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "caller", log.Caller(9))), logs.Prefix("decode http request: ", true))
+				if err = json.NewDecoder(io.TeeReader(r.Body, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Decode(&req); err != nil {
+					return nil, fmt.Errorf("failed to decode request body：%s", err)
+				}
 			}
-		}
-	} else if len(contentType) > 0 {
-		logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "caller", log.Caller(9))), logs.Prefix("decode http request: ", true))
-		if err = json.NewDecoder(io.TeeReader(r.Body, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Decode(&req); err != nil {
-			return nil, fmt.Errorf("failed to decode request body：%s", err)
 		}
 	}
+
 	fmt.Println(fmt.Sprintf("%s", httputil.Must[[]byte](json.Marshal(req))))
 	if len(restfulReq.PathParameters()) > 0 {
 		if err = httputil.UnmarshalURLValues(httputil.MapToURLValues(restfulReq.PathParameters()), &req); err != nil {

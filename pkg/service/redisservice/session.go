@@ -19,6 +19,14 @@ type SessionService struct {
 	name string
 }
 
+func (s SessionService) DeleteSession(ctx context.Context, id string) (err error) {
+	panic("implement me")
+}
+
+func (s SessionService) GetSessions(ctx context.Context, userId string, current int64, size int64) ([]*models.Session, int64, error) {
+	panic("implement me")
+}
+
 func (s SessionService) Name() string {
 	return s.name
 }
@@ -47,16 +55,16 @@ func (s SessionService) AutoMigrate(ctx context.Context) error {
 	return nil
 }
 
-func (s SessionService) GetLoginSession(ctx context.Context, sessionId string) (user *models.User, msg string, err error) {
+func (s SessionService) GetLoginSession(ctx context.Context, sessionId string) (user *models.User, err error) {
 	user = new(models.User)
 	redisClt := s.Redis(ctx)
 	sessionValue, err := redisClt.Get(fmt.Sprintf("%s:%s", global.LoginSession, sessionId)).Bytes()
 	if err != nil {
-		return nil, "获取用户会话信息失败", err
+		return nil, err
 	} else if err = json.Unmarshal(sessionValue, user); err != nil {
-		return nil, "获取用户会话信息失败", err
+		return nil, err
 	}
-	return user, "", nil
+	return user, nil
 }
 
 func (s SessionService) SetLoginSession(ctx context.Context, user *models.User) (string, error) {

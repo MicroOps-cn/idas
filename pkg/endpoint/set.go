@@ -29,9 +29,21 @@ type UserEndpoints struct {
 	CurrentUser endpoint.Endpoint
 }
 
-type AppEndpoints struct{}
+type AppEndpoints struct {
+	PatchApps,
+	DeleteApps,
+	GetAppSource,
+	GetAppInfo,
+	CreateApp,
+	UpdateApp,
+	PatchApp,
+	DeleteApp,
+	GetApps endpoint.Endpoint
+}
 
-type AuthEndpoints struct {
+type SessionEndpoints struct {
+	GetSessions,
+	DeleteSession,
 	UserLogin,
 	UserLogout,
 	GetLoginSession,
@@ -39,19 +51,27 @@ type AuthEndpoints struct {
 	OAuthAuthorize endpoint.Endpoint
 }
 
+type CommonEndpoints struct {
+	UploadFile endpoint.Endpoint
+}
+
 // Set collects all of the endpoints that compose an add service. It's meant to
 // be used as a helper struct, to collect all of the endpoints into a single
 // parameter.
 type Set struct {
 	UserEndpoints
-	AuthEndpoints
+	SessionEndpoints
 	AppEndpoints
+	CommonEndpoints
 }
 
 // New returns a Set that wraps the provided server, and wires in all of the
 // expected endpoint middlewares via the various parameters.
 func New(svc service.Service, logger log.Logger, duration metrics.Histogram, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer) Set {
 	return Set{
+		CommonEndpoints: CommonEndpoints{
+			UploadFile: InjectEndpoint(logger, "UploadFile", duration, otTracer, zipkinTracer, MakeUploadFileEndpoint(svc)),
+		},
 		UserEndpoints: UserEndpoints{
 			CurrentUser:   InjectEndpoint(logger, "CurrentUser", duration, otTracer, zipkinTracer, MakeCurrentUserEndpoint(svc)),
 			GetUsers:      InjectEndpoint(logger, "GetUsers", duration, otTracer, zipkinTracer, MakeGetUsersEndpoint(svc)),
@@ -62,14 +82,27 @@ func New(svc service.Service, logger log.Logger, duration metrics.Histogram, otT
 			CreateUser:    InjectEndpoint(logger, "CreateUser", duration, otTracer, zipkinTracer, MakeCreateUserEndpoint(svc)),
 			PatchUser:     InjectEndpoint(logger, "PatchUser", duration, otTracer, zipkinTracer, MakePatchUserEndpoint(svc)),
 			DeleteUser:    InjectEndpoint(logger, "DeleteUser", duration, otTracer, zipkinTracer, MakeDeleteUserEndpoint(svc)),
-			GetUserSource: InjectEndpoint(logger, "DeleteUser", duration, otTracer, zipkinTracer, MakeGetUserSourceRequestEndpoint(svc)),
+			GetUserSource: InjectEndpoint(logger, "GetUserSource", duration, otTracer, zipkinTracer, MakeGetUserSourceRequestEndpoint(svc)),
 		},
-		AuthEndpoints: AuthEndpoints{
+		SessionEndpoints: SessionEndpoints{
+			GetSessions:     InjectEndpoint(logger, "GetSessions", duration, otTracer, zipkinTracer, MakeGetSessionsEndpoint(svc)),
+			DeleteSession:   InjectEndpoint(logger, "DeleteSession", duration, otTracer, zipkinTracer, MakeDeleteSessionEndpoint(svc)),
 			UserLogin:       InjectEndpoint(logger, "UserLogin", duration, otTracer, zipkinTracer, MakeUserLoginEndpoint(svc)),
 			UserLogout:      InjectEndpoint(logger, "UserLogout", duration, otTracer, zipkinTracer, MakeUserLogoutEndpoint(svc)),
 			GetLoginSession: InjectEndpoint(logger, "GetLoginSession", duration, otTracer, zipkinTracer, MakeGetLoginSessionEndpoint(svc)),
 			OAuthTokens:     InjectEndpoint(logger, "OAuthTokens", duration, otTracer, zipkinTracer, MakeOAuthTokensEndpoint(svc)),
 			OAuthAuthorize:  InjectEndpoint(logger, "OAuthAuthorize", duration, otTracer, zipkinTracer, MakeOAuthAuthorizeEndpoint(svc)),
+		},
+		AppEndpoints: AppEndpoints{
+			GetApps:      InjectEndpoint(logger, "GetApps", duration, otTracer, zipkinTracer, MakeGetAppsEndpoint(svc)),
+			DeleteApps:   InjectEndpoint(logger, "DeleteApps", duration, otTracer, zipkinTracer, MakeDeleteAppsEndpoint(svc)),
+			PatchApps:    InjectEndpoint(logger, "PatchApps", duration, otTracer, zipkinTracer, MakePatchAppsEndpoint(svc)),
+			UpdateApp:    InjectEndpoint(logger, "UpdateApp", duration, otTracer, zipkinTracer, MakeUpdateAppEndpoint(svc)),
+			GetAppInfo:   InjectEndpoint(logger, "GetAppInfo", duration, otTracer, zipkinTracer, MakeGetAppInfoEndpoint(svc)),
+			CreateApp:    InjectEndpoint(logger, "CreateApp", duration, otTracer, zipkinTracer, MakeCreateAppEndpoint(svc)),
+			PatchApp:     InjectEndpoint(logger, "PatchApp", duration, otTracer, zipkinTracer, MakePatchAppEndpoint(svc)),
+			DeleteApp:    InjectEndpoint(logger, "DeleteApp", duration, otTracer, zipkinTracer, MakeDeleteAppEndpoint(svc)),
+			GetAppSource: InjectEndpoint(logger, "GetAppSource", duration, otTracer, zipkinTracer, MakeGetAppSourceRequestEndpoint(svc)),
 		},
 	}
 }

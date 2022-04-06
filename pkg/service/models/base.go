@@ -28,11 +28,11 @@ func (model *Model) BeforeCreate(db *gorm.DB) error {
 		}
 		db.Statement.SetColumn("Id", id)
 	}
-	if !model.UpdateTime.IsZero() {
-		db.Statement.SetColumn("CreateTime", time.Now().UTC())
-	}
-	if !model.CreateTime.IsZero() {
+	if model.UpdateTime.IsZero() {
 		db.Statement.SetColumn("UpdateTime", time.Now().UTC())
+	}
+	if model.CreateTime.IsZero() {
+		db.Statement.SetColumn("CreateTime", time.Now().UTC())
 	}
 	return nil
 }

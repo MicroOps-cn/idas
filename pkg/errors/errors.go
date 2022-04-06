@@ -49,6 +49,7 @@ var (
 	InternalServerError = NewServerError(http.StatusInternalServerError, "Internal server error")
 	NotLoginError       = NewServerError(http.StatusInternalServerError, "Not logged in")
 	BadRequestError     = NewServerError(http.StatusBadRequest, "Invalid Request")
+	ParameterError      = func(msg string) error { return NewServerError(http.StatusBadRequest, "Parameter Error: "+msg) }
 	UnauthorizedError   = NewServerError(http.StatusUnauthorized, "Invalid identity information")
 	StatusNotFound      = func(name string) ServerError {
 		return NewServerError(http.StatusNotFound, name+" Not Found")

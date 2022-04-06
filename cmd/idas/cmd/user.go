@@ -66,7 +66,7 @@ var userAddCmd = &cobra.Command{
 		if len(password) == 0 {
 			panic("passworld is null")
 		}
-		_, _, err := svc.CreateUser(cmd.Context(), "", &models.User{
+		_, err := svc.CreateUser(cmd.Context(), "", &models.User{
 			Username: username,
 			Password: []byte(password),
 			Email:    email,

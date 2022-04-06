@@ -31,6 +31,7 @@ type LimitedWriter struct {
 }
 
 func (l *LimitedWriter) Write(p []byte) (n int, err error) {
+	var c = len(p)
 	if l.N <= 0 {
 		err = io.EOF
 	} else {
@@ -41,7 +42,7 @@ func (l *LimitedWriter) Write(p []byte) (n int, err error) {
 		l.N -= int64(n)
 	}
 	if l.ignoreError {
-		return len(p), nil
+		return c, nil
 	}
 
 	return

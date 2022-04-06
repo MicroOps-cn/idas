@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"gorm.io/gorm"
+	"idas/pkg/errors"
 	"strings"
 	"time"
 
@@ -17,6 +19,25 @@ import (
 type SessionService struct {
 	*mysql.Client
 	name string
+}
+
+func (s SessionService) DeleteSession(ctx context.Context, id string) (err error) {
+	session := models.Session{Id: id}
+	if err = s.Session(ctx).Delete(&session).Error; err != nil {
+		return err
+	}
+	return
+}
+
+func (s SessionService) GetSessions(ctx context.Context, userId string, current int64, pageSize int64) (sessions []*models.Session, total int64, err error) {
+	query := s.Session(ctx).Where("user_id = ?", userId)
+	if err = query.Order("last_seen").Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).Find(&sessions).Error; err != nil {
+		return nil, 0, err
+	} else if err = query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	} else {
+		return sessions, total, nil
+	}
 }
 
 func (s SessionService) Name() string {
@@ -56,6 +77,7 @@ func (s SessionService) SetLoginSession(ctx context.Context, user *models.User) 
 	}
 	session.Expiry = time.Now().UTC().Add(global.LoginSessionExpiration)
 	session.Key = sessionId
+	session.UserId = user.Id
 	if err = s.Session(ctx).Create(&session).Error; err != nil {
 		return "", err
 	}
@@ -66,25 +88,29 @@ func NewSessionService(name string, client *mysql.Client) *SessionService {
 	return &SessionService{name: name, Client: client}
 }
 
-func (s SessionService) GetLoginSession(ctx context.Context, id string) (*models.User, string, error) {
+func (s SessionService) GetLoginSession(ctx context.Context, id string) (*models.User, error) {
 	session := models.Session{Key: id}
 
-	if err := s.Session(ctx).First(&session).Error; err != nil {
-		return nil, "用户未登录或身份已过期", err
+	if err := s.Session(ctx).Where("`key` = ?", id).Omit("last_seen", "create_time", "user_id").First(&session).Error; err == gorm.ErrRecordNotFound {
+		return nil, errors.NotLoginError
+	} else if err != nil {
+		return nil, err
 	}
 	if session.Expiry.Before(time.Now().UTC()) {
-		return nil, "", fmt.Errorf("用户未登录或身份已过期")
+		return nil, errors.NotLoginError
 	}
+	session.LastSeen = time.Now()
+	_ = s.Session(ctx).Select("last_seen").Updates(&session).Error
 	var user models.User
 	if err := json.Unmarshal(session.Data, &user); err != nil {
-		return nil, "用户未登录或身份已过期", fmt.Errorf("会话数据异常: %s", err)
+		return nil, fmt.Errorf("session data exception: %s", err)
 	}
-	return &user, "", nil
+	return &user, nil
 }
 
 func (s SessionService) DeleteLoginSession(ctx context.Context, id string) (string, error) {
 	session := models.Session{Key: id}
-	if err := s.Session(ctx).Delete(&session).Error; err != nil {
+	if err := s.Session(ctx).Where("`key` = ?", id).Delete(&session).Error; err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("%s=%s; Path=/;Expires=%s", global.LoginSession, id, time.Now().UTC().Format(global.LoginSessionExpiresFormat)), nil

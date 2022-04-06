@@ -3,13 +3,14 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"idas/config"
 	"idas/pkg/client/mysql"
 	"idas/pkg/client/redis"
 	"idas/pkg/service/models"
 	"idas/pkg/service/mysqlservice"
 	"idas/pkg/service/redisservice"
-	"time"
 )
 
 func (s Set) CreateLoginSession(ctx context.Context, username string, password string) (session string, err error) {
@@ -18,7 +19,7 @@ func (s Set) CreateLoginSession(ctx context.Context, username string, password s
 		return "", err
 	}
 	user.LoginTime = time.Now().UTC()
-	if user, _, err = s.GetUserService(user.Storage).UpdateUser(ctx, user, "login_time"); err != nil {
+	if user, err = s.GetUserService(user.Storage).UpdateUser(ctx, user, "login_time"); err != nil {
 		return "", err
 	}
 	return s.SessionService.SetLoginSession(ctx, user)
@@ -28,12 +29,14 @@ type SessionService interface {
 	baseService
 	SetLoginSession(ctx context.Context, user *models.User) (string, error)
 	DeleteLoginSession(ctx context.Context, session string) (string, error)
-	GetLoginSession(ctx context.Context, id string) (*models.User, string, error)
+	GetLoginSession(ctx context.Context, id string) (*models.User, error)
 	OAuthAuthorize(ctx context.Context, responseType, clientId, redirectURI string) (redirect string, err error)
 	GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId, redirectURI string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error)
 	GetOAuthTokenByPassword(ctx context.Context, username string, password string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByPassword(ctx context.Context, token, username, password string) (accessToken, refreshToken string, expiresIn int, err error)
+	GetSessions(ctx context.Context, userId string, current int64, size int64) ([]*models.Session, int64, error)
+	DeleteSession(ctx context.Context, id string) (err error)
 }
 
 func NewSessionService(ctx context.Context) SessionService {

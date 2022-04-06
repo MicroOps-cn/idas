@@ -53,15 +53,18 @@ func NewSimpleWebService(rootPath string, doc string) *restful.WebService {
 
 func InstallHTTPApi(logger log.Logger, container *restful.Container, options []httptransport.ServerOption, endpoints endpoint.Set) {
 	container.Filter(HTTPLogging)
-	//container.Router(restful.CurlyRouter{})
 	restful.TraceLogger(stdlog.New(log.NewStdlibAdapter(level.Info(logger)), "[restful]", stdlog.LstdFlags|stdlog.Lshortfile))
 	container.Filter(HTTPLoginAuthentication(endpoints))
 	v1Ws := NewSimpleWebService("/api/v1", "基础接口")
 	v1Ws.Route(v1Ws.POST("/login").Doc("用户登陆").To(NewKitHTTPServer[endpoint.UserLoginRequest](endpoints.UserLogin, options)).Metadata(global.MetaNeedLogin, false))
 	v1Ws.Route(v1Ws.POST("/logout").Doc("用户退出登录").To(NewKitHTTPServer[endpoint.UserLogoutRequest](endpoints.UserLogout, options)))
 	v1Ws.Route(v1Ws.GET("/user").Doc("获取当前登陆用户信息").To(NewKitHTTPServer[endpoint.CurrentUserRequest](endpoints.CurrentUser, options)))
+
 	container.Add(v1Ws)
 	managerWs := NewWebService("/api", schema.GroupVersion{Group: "manager", Version: "v1"}, "管理接口")
+
+	// 通用接口
+	managerWs.Route(managerWs.POST("/file").Doc("上传文件").To(NewKitHTTPServer[endpoint.FileUploadRequest](endpoints.UploadFile, options)))
 
 	// 用户管理接口
 	managerWs.Route(managerWs.GET("/users").Doc("获取用户列表").To(NewKitHTTPServer[endpoint.GetUsersRequest](endpoints.GetUsers, options)))
@@ -69,20 +72,25 @@ func InstallHTTPApi(logger log.Logger, container *restful.Container, options []h
 	managerWs.Route(managerWs.DELETE("/users").Doc("批量删除用户").To(NewKitHTTPServer[endpoint.DeleteUsersRequest](endpoints.DeleteUsers, options)))
 	managerWs.Route(managerWs.GET("/users/source").Doc("获取用户存储源").To(NewKitHTTPServer[endpoint.GetUserSourceRequest](endpoints.GetUserSource, options)))
 	managerWs.Route(managerWs.GET("/user/{id}").Doc("获取用户信息").To(NewKitHTTPServer[endpoint.GetUserRequest](endpoints.GetUserInfo, options)))
-	//managerWs.Route(managerWs.POST("/user/{id}").Doc("更新用户信息（全量）").To(NewKitHTTPServer[endpoint.CreateUserRequest](endpoints.CreateUser, options)))
 	managerWs.Route(managerWs.POST("/user").Doc("创建用户").To(NewKitHTTPServer[endpoint.CreateUserRequest](endpoints.CreateUser, options)))
 	managerWs.Route(managerWs.PUT("/user/{id}").Doc("更新用户信息（全量）").To(NewKitHTTPServer[endpoint.UpdateUserRequest](endpoints.UpdateUser, options)))
 	managerWs.Route(managerWs.PATCH("/user/{id}").Doc("更新用户信息（增量）").To(NewKitHTTPServer[endpoint.PatchUserRequest](endpoints.PatchUser, options)))
 	managerWs.Route(managerWs.DELETE("/user/{id}").Doc("删除用户").To(NewKitHTTPServer[endpoint.DeleteUserRequest](endpoints.DeleteUser, options)))
 
-	managerWs.Route(managerWs.GET("/apps").Doc("获取应用列表").To(NewKitHTTPServer[endpoint.GetUsersRequest](endpoints.GetUsers, options)))
-	managerWs.Route(managerWs.PATCH("/apps").Doc("批量更新应用信息（增量）").To(NewKitHTTPServer[endpoint.PatchUsersRequest](endpoints.PatchUsers, options)))
-	managerWs.Route(managerWs.DELETE("/apps").Doc("批量删除应用").To(NewKitHTTPServer[endpoint.DeleteUsersRequest](endpoints.DeleteUsers, options)))
-	managerWs.Route(managerWs.GET("/app/{id}").Doc("获取用户信息").To(NewKitHTTPServer[endpoint.GetUserRequest](endpoints.GetUserInfo, options)))
-	managerWs.Route(managerWs.POST("/app/{id}").Doc("创建/更新用户").To(NewKitHTTPServer[endpoint.CreateUserRequest](endpoints.CreateUser, options)))
-	managerWs.Route(managerWs.PUT("/app/{id}").Doc("更新用户信息（全量）").To(NewKitHTTPServer[endpoint.UpdateUserRequest](endpoints.UpdateUser, options)))
-	managerWs.Route(managerWs.PATCH("/app/{id}").Doc("更新用户信息（增量）").To(NewKitHTTPServer[endpoint.PatchUserRequest](endpoints.PatchUser, options)))
-	managerWs.Route(managerWs.DELETE("/app/{id}").Doc("删除用户").To(NewKitHTTPServer[endpoint.DeleteUserRequest](endpoints.DeleteUser, options)))
+	// 会话管理接口
+	managerWs.Route(managerWs.GET("/sessions").Doc("获取会话列表").To(NewKitHTTPServer[endpoint.GetSessionsRequest](endpoints.GetSessions, options)))
+	managerWs.Route(managerWs.DELETE("/session/{id}").Doc("会话过期").To(NewKitHTTPServer[endpoint.DeleteSessionRequest](endpoints.DeleteSession, options)))
+
+	// 应用管理接口
+	managerWs.Route(managerWs.GET("/apps").Doc("获取应用列表").To(NewKitHTTPServer[endpoint.GetAppsRequest](endpoints.GetApps, options)))
+	managerWs.Route(managerWs.PATCH("/apps").Doc("批量更新应用信息（增量）").To(NewKitHTTPServer[endpoint.PatchAppsRequest](endpoints.PatchApps, options)))
+	managerWs.Route(managerWs.DELETE("/apps").Doc("批量删除应用").To(NewKitHTTPServer[endpoint.DeleteAppsRequest](endpoints.DeleteApps, options)))
+	managerWs.Route(managerWs.GET("/apps/source").Doc("获取应用存储源").To(NewKitHTTPServer[endpoint.GetAppSourceRequest](endpoints.GetAppSource, options)))
+	managerWs.Route(managerWs.GET("/app/{id}").Doc("获取应用信息").To(NewKitHTTPServer[endpoint.GetAppRequest](endpoints.GetAppInfo, options)))
+	managerWs.Route(managerWs.POST("/app").Doc("创建应用").To(NewKitHTTPServer[endpoint.CreateAppRequest](endpoints.CreateApp, options)))
+	managerWs.Route(managerWs.PUT("/app/{id}").Doc("更新应用信息（全量）").To(NewKitHTTPServer[endpoint.UpdateAppRequest](endpoints.UpdateApp, options)))
+	managerWs.Route(managerWs.PATCH("/app/{id}").Doc("更新应用信息（增量）").To(NewKitHTTPServer[endpoint.PatchAppRequest](endpoints.PatchApp, options)))
+	managerWs.Route(managerWs.DELETE("/app/{id}").Doc("删除应用").To(NewKitHTTPServer[endpoint.DeleteAppRequest](endpoints.DeleteApp, options)))
 
 	container.Add(managerWs)
 	oauthWs := NewWebService("/api", schema.GroupVersion{Group: "oauth", Version: "v1"}, "OAUTH")

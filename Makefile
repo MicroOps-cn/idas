@@ -28,9 +28,12 @@ endif
 pkgs          = ./...
 
 probuf:
-	protoc -I$(shell go env GOMODCACHE)/github.com/gogo/protobuf@v1.3.2/protobuf/ -I. -I./config -I=$(GOPATH)/src \
-	--go_out=Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types:./config \
-	./config/config.proto
+	protoc --go_out=paths=source_relative:./ ./pkg/utils/capacity/capacity.proto
+	protoc -I$(shell go env GOMODCACHE)/github.com/gogo/protobuf@v1.3.2/protobuf/ \
+		-I./config \
+		-I./pkg/utils/capacity/ \
+		--go_out=Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types\:\./config \
+		./config/config.proto
 
 idas:
 	go build -ldflags="-s -w" -o dist/idas ./cmd/idas

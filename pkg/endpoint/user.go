@@ -125,7 +125,6 @@ func MakeGetUserSourceRequestEndpoint(s service.Service) endpoint.Endpoint {
 type PatchUsersRequest struct {
 	BaseRequest
 	userPatch []map[string]interface{}
-	Storage   string `json:"storage" valid:"required"`
 }
 
 func (p *PatchUsersRequest) UnmarshalJSON(bytes []byte) error {
@@ -140,7 +139,17 @@ func MakePatchUsersEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(*PatchUsersRequest)
 		resp := PatchUsersResponse{}
-		resp.Total, resp.ErrorMessage, resp.Error = s.PatchUsers(ctx, req.Storage, req.userPatch)
+		var storage string
+		for _, patch := range req.userPatch {
+			if ss, ok := patch["storage"].(string); !ok || len(ss) == 0 {
+				return nil, errors.ParameterError("storage is null")
+			} else if patch["storage"] != storage && storage != "" {
+				return nil, errors.ParameterError("storage is inconsistent")
+			} else {
+				storage = ss
+			}
+		}
+		resp.Total, resp.Error = s.PatchUsers(ctx, storage, req.userPatch)
 		return &resp, nil
 	}
 }
@@ -159,7 +168,7 @@ func MakeDeleteUsersEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(*DeleteUsersRequest)
 		resp := DeleteUsersResponse{}
-		resp.Total, resp.ErrorMessage, resp.Error = s.DeleteUsers(ctx, req.Storage, req.Id)
+		resp.Total, resp.Error = s.DeleteUsers(ctx, req.Storage, req.Id)
 		return &resp, nil
 	}
 }
@@ -178,7 +187,7 @@ func MakeUpdateUserEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(*UpdateUserRequest)
 		resp := UpdateUserResponse{}
-		if resp.User, resp.ErrorMessage, resp.Error = s.UpdateUser(ctx, req.Storage, req.User); resp.Error != nil {
+		if resp.User, resp.Error = s.UpdateUser(ctx, req.Storage, req.User); resp.Error != nil {
 			resp.Error = errors.NewServerError(200, resp.Error.Error())
 		}
 		return &resp, nil
@@ -201,14 +210,19 @@ func MakeGetUserInfoEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(GetUserRequest)
 		resp := GetUserResponse{}
-		resp.User, resp.ErrorMessage, resp.Error = s.GetUserInfo(ctx, req.Storage, req.Id, req.Username)
+		resp.User, resp.Error = s.GetUserInfo(ctx, req.Storage, req.Id, req.Username)
 		return &resp, nil
 	}
 }
 
 type CreateUserRequest struct {
 	BaseRequest
-	*models.User `json:",inline"`
+	Username    string `gorm:"type:varchar(20);" json:"username"`
+	Email       string `gorm:"type:varchar(50);" json:"email" `
+	PhoneNumber string `json:"phoneNumber"`
+	FullName    string `gorm:"type:varchar(20);" json:"fullName"`
+	Avatar      string `json:"avatar"`
+	Storage     string `gorm:"-" json:"storage"`
 }
 
 type CreateUserResponse struct {
@@ -220,7 +234,15 @@ func MakeCreateUserEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(*CreateUserRequest)
 		resp := CreateUserResponse{}
-		resp.User, resp.ErrorMessage, resp.Error = s.CreateUser(ctx, req.Storage, req.User)
+		resp.User, resp.Error = s.CreateUser(ctx, req.Storage, &models.User{
+			Username:    req.Username,
+			Email:       req.Email,
+			PhoneNumber: req.PhoneNumber,
+			FullName:    req.FullName,
+			Avatar:      req.Avatar,
+			Storage:     req.Storage,
+			Status:      models.UserStatusNormal,
+		})
 		return &resp, nil
 	}
 }
@@ -249,7 +271,7 @@ func MakePatchUserEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(*PatchUserRequest)
 		resp := PatchUserResponse{}
-		resp.User, resp.ErrorMessage, resp.Error = s.PatchUser(ctx, req.Storage, req.fields)
+		resp.User, resp.Error = s.PatchUser(ctx, req.Storage, req.fields)
 		return &resp, nil
 	}
 }
@@ -268,7 +290,7 @@ func MakeDeleteUserEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(*DeleteUserRequest)
 		resp := DeleteUserResponse{}
-		resp.ErrorMessage, resp.Error = s.DeleteUser(ctx, req.Storage, req.Id)
+		resp.Error = s.DeleteUser(ctx, req.Storage, req.Id)
 		return &resp, nil
 	}
 }
@@ -283,12 +305,48 @@ func MakeGetLoginSessionEndpoint(s service.Service) endpoint.Endpoint {
 		sessionId := request.(string)
 		var resp *models.User
 		if sessionId != "" {
-			if resp, _, err = s.GetLoginSession(ctx, sessionId); err != nil {
+			if resp, err = s.GetLoginSession(ctx, sessionId); err != nil {
 				err = errors.NotLoginError
 			}
 		} else {
 			err = errors.NotLoginError
 		}
 		return resp, err
+	}
+}
+
+type GetSessionsRequest struct {
+	BaseListRequest
+	UserId string `json:"userId" valid:"required"`
+}
+
+type GetSessionsResponse struct {
+	BaseListResponse `json:"-"`
+}
+
+func MakeGetSessionsEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(*GetSessionsRequest)
+		resp := GetSessionsResponse{BaseListResponse: NewBaseListResponse(req.BaseListRequest)}
+		resp.Data, resp.Total, resp.Error = s.GetSessions(ctx, req.UserId, req.Current, req.PageSize)
+		return &resp, nil
+	}
+}
+
+type DeleteSessionRequest struct {
+	BaseRequest
+	Id string `valid:"required"`
+}
+
+type DeleteSessionResponse struct {
+	BaseResponse `json:"-"`
+}
+
+func MakeDeleteSessionEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(*DeleteSessionRequest)
+		resp := DeleteSessionResponse{}
+		resp.Error = s.DeleteSession(ctx, req.Id)
+		return &resp, nil
 	}
 }

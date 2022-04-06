@@ -20,6 +20,8 @@ type App struct {
 	Avatar      string    `gorm:"type:varchar(200)"`
 	GrantType   GrantType `gorm:"type:varchar(20);" json:"grantType"`
 	GrantMode   GrantMode `gorm:"type:varchar(20);" json:"grantMode"`
+	Storage     string    `gorm:"-"`
+	User        []*User   `gorm:"many2many:app_user"`
 }
 
 type AppRole struct {

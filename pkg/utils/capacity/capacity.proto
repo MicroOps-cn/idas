@@ -1,0 +1,7 @@
+syntax = "proto3";
+package idas.pkg.utils;
+option go_package = "idas/pkg/utils/capacity;capacity";
+
+message Capacity {
+    int64 capacity = 1;
+}
