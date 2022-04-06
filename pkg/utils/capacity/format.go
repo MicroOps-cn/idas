@@ -209,3 +209,7 @@ func (c Capacities) MarshalYAML() (interface{}, error) {
 func (x *Capacity) UnmarshalJSONPB(_ *jsonpb.Unmarshaler, b []byte) error {
 	return json.Unmarshal(b, (*Capacities)(&x.Capacity))
 }
+
+func NewCapacity(c int64) *Capacity {
+	return &Capacity{Capacity: c}
+}

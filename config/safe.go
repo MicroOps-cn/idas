@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"sync"
 
@@ -59,17 +60,28 @@ func (sc *safeConfig) GetConfig() *Config {
 	return sc.C
 }
 
-type Converter map[string]interface{}
-
-func (c Converter) ToJSON() io.Reader {
-	jsonReader := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(jsonReader).Encode(c); err != nil {
-		panic(err)
-	}
-	return jsonReader
+type Converter struct {
+	io.ReadWriter
+	name string
 }
 
-func (sc *safeConfig) ReloadConfigFromYamlReader(logger log.Logger, yamlReader io.Reader) (err error) {
+func (c *Converter) Name() string {
+	return c.name
+}
+
+func (c *Converter) UnmarshalYAML(value *yaml.Node) error {
+	var vals = make(map[string]interface{})
+	err := value.Decode(&vals)
+	if err != nil {
+		return err
+	}
+	c.ReadWriter = bytes.NewBuffer(nil)
+	return json.NewEncoder(c.ReadWriter).Encode(vals)
+}
+
+var _ yaml.Unmarshaler = &Converter{}
+
+func (sc *safeConfig) ReloadConfigFromYamlReader(logger log.Logger, yamlReader Reader) (err error) {
 	defer func() {
 		if err != nil {
 			configReloadSuccess.Set(0)
@@ -79,13 +91,19 @@ func (sc *safeConfig) ReloadConfigFromYamlReader(logger log.Logger, yamlReader i
 		}
 	}()
 	cfgConvert := new(Converter)
+	cfgConvert.name = yamlReader.Name()
 	if err = yaml.NewDecoder(yamlReader).Decode(&cfgConvert); err != nil {
 		return fmt.Errorf("error parse config file: %s", err)
 	}
-	return sc.ReloadConfigFromJSONReader(logger, cfgConvert.ToJSON())
+	return sc.ReloadConfigFromJSONReader(logger, cfgConvert)
 }
 
-func (sc *safeConfig) ReloadConfigFromJSONReader(logger log.Logger, reader io.Reader) (err error) {
+type Reader interface {
+	io.Reader
+	Name() string
+}
+
+func (sc *safeConfig) ReloadConfigFromJSONReader(logger log.Logger, reader Reader) (err error) {
 	defer func() {
 		if err != nil {
 			configReloadSuccess.Set(0)
@@ -102,6 +120,9 @@ func (sc *safeConfig) ReloadConfigFromJSONReader(logger log.Logger, reader io.Re
 		return fmt.Errorf("error unmarshal config: %s", err)
 	} else if err = c.Init(logger); err != nil {
 		return fmt.Errorf("error init config: %s", err)
+	}
+	if c.GetWorkspace() == nil {
+		c.SetWorkspace(path.Dir(reader.Name()))
 	}
 	sc.SetConfig(&c)
 	return nil

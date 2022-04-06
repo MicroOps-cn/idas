@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"idas/pkg/utils/capacity"
 	"reflect"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/gogo/protobuf/types"
 	"github.com/golang/protobuf/jsonpb"
+	"github.com/spf13/afero"
 )
 
 func ref(path string, val reflect.Value) interface{} {
@@ -178,31 +180,65 @@ func NewMySQLOptions() *MySQLOptions {
 	}
 }
 
-//
-//type pbGlobalOptions GlobalOptions
-//
-//func (p *pbGlobalOptions) Reset() {
-//	(*GlobalOptions)(p).Reset()
-//}
-//
-//func (p *pbGlobalOptions) String() string {
-//	return (*GlobalOptions)(p).String()
-//}
-//
-//func (p *pbGlobalOptions) ProtoMessage() {
-//	(*GlobalOptions)(p).Reset()
-//}
-//
-//func (x *GlobalOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []byte) error {
-//	options := NewGlobalOptions()
-//	x.MaxBodySize = options.MaxBodySize
-//	x.MaxUploadSize = options.MaxUploadSize
-//	return unmarshaller.Unmarshal(bytes.NewReader(b), (*pbGlobalOptions)(x))
-//}
-//func NewGlobalOptions() *GlobalOptions {
-//	opts := &GlobalOptions{
-//		MaxUploadSize: &types.UInt32Value{},
-//		MaxBodySize:   "5m",
+type pbGlobalOptions GlobalOptions
+
+func (p *pbGlobalOptions) Reset() {
+	(*GlobalOptions)(p).Reset()
+}
+
+func (p *pbGlobalOptions) String() string {
+	return (*GlobalOptions)(p).String()
+}
+
+func (p *pbGlobalOptions) ProtoMessage() {
+	(*GlobalOptions)(p).Reset()
+}
+
+func (x *GlobalOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []byte) error {
+	options := NewGlobalOptions()
+	x.MaxBodySize = options.MaxBodySize
+	x.MaxUploadSize = options.MaxUploadSize
+	x.UploadPath = "uploads"
+	return unmarshaller.Unmarshal(bytes.NewReader(b), (*pbGlobalOptions)(x))
+}
+
+const defaultMaxUploadSize = 1 << 20 * 10
+const defaultMaxBodySize = 1 << 20 * 5
+
+func NewGlobalOptions() *GlobalOptions {
+	return &GlobalOptions{
+		MaxUploadSize: capacity.NewCapacity(defaultMaxUploadSize),
+		MaxBodySize:   capacity.NewCapacity(defaultMaxBodySize),
+	}
+}
+
+func (x *Config) GetUploadDir() afero.Fs {
+	if x.Global != nil {
+		if len(x.Global.UploadPath) != 0 {
+			return afero.NewBasePathFs(x.GetWorkspace(), x.Global.UploadPath)
+		}
+	}
+	return afero.NewBasePathFs(x.GetWorkspace(), "uploads")
+}
+func (x *Config) GetWorkspace() afero.Fs {
+	if x.Global != nil {
+		if len(x.Global.Workspace) != 0 {
+			return afero.NewBasePathFs(afero.NewOsFs(), x.Global.Workspace)
+		}
+	}
+	return nil
+}
+
+func (x *Config) SetWorkspace(path string) {
+	if x.Global == nil {
+		x.Global = new(GlobalOptions)
+	}
+	x.Global.Workspace = path
+}
+
+//func (x *Config) GetMaxBodySize(path string) {
+//	if x.Global == nil {
+//		x.Global = new(GlobalOptions)
 //	}
-//	return
+//	x.Global.Workspace = path
 //}

@@ -53,6 +53,8 @@ message Capacity {
 message GlobalOptions{
   idas.pkg.utils.Capacity max_upload_size = 1;
   idas.pkg.utils.Capacity max_body_size = 2;
+  string upload_path = 3;
+  string workspace = 4;
 }
 
 message Config {

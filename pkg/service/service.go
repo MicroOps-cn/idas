@@ -2,8 +2,14 @@ package service
 
 import (
 	"context"
-
+	"crypto/sha256"
+	"fmt"
+	"idas/config"
+	"idas/pkg/errors"
 	"idas/pkg/service/models"
+	"io"
+	"mime/multipart"
+	"path"
 )
 
 type migrator interface {
@@ -38,12 +44,32 @@ type Service interface {
 	CreateApp(ctx context.Context, storage string, app *models.App) (*models.App, error)
 	PatchApp(ctx context.Context, storage string, fields map[string]interface{}) (app *models.App, err error)
 	DeleteApp(ctx context.Context, storage string, id string) (err error)
+
+	UploadFile(name string, f multipart.File) (fileKey string, err error)
 }
 
 type Set struct {
 	userService UserServices
 	appService  AppServices
 	SessionService
+}
+
+func (s Set) UploadFile(name string, f multipart.File) (fileKey string, err error) {
+	if d := config.Get().GetUploadDir(); d == nil {
+		return "", errors.InternalServerError
+	} else if ff, err := d.Open(name); err != nil {
+		return "", err
+	} else {
+		hash := sha256.New()
+		if _, err = io.Copy(ff, io.TeeReader(f, hash)); err != nil {
+			_ = ff.Close()
+			return "", err
+		} else {
+			_ = ff.Close()
+			dstFileName := fmt.Sprintf("%x%s", hash.Sum(nil), path.Ext(fileKey))
+			return dstFileName, d.Rename(name, dstFileName)
+		}
+	}
 }
 
 func (s Set) AutoMigrate(ctx context.Context) error {

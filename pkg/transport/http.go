@@ -110,6 +110,7 @@ func decodeHTTPRequest[RequestType any](_ context.Context, r *http.Request) (int
 			//	}
 			//}
 		} else {
+			fmt.Println(config.Get())
 			r.Body = http.MaxBytesReader(restfulResp.ResponseWriter, r.Body, config.Get().Global.MaxBodySize.Capacity)
 			if contentType == "application/x-www-form-urlencoded" {
 				if err = r.ParseForm(); err != nil {

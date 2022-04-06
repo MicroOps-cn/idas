@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/go-kit/kit/endpoint"
 	"idas/pkg/service"
+	"mime/multipart"
 )
 
 type FileUploadRequest struct {
@@ -19,16 +20,23 @@ func MakeUploadFileEndpoint(s service.Service) endpoint.Endpoint {
 		req := request.(*FileUploadRequest)
 		resp := FileUploadResponse{}
 		stdReq := req.GetRestfulRequest().Request
-
+		var (
+			f       multipart.File
+			fileKey string
+			data    = make(map[string]string)
+		)
 		for fileName, fhs := range stdReq.MultipartForm.File {
 			if len(fhs) > 0 {
-				f, err := fhs[0].Open()
+				f, err = fhs[0].Open()
 				if err != nil {
 					return nil, err
+				} else if fileKey, err = s.UploadFile(fileName, f); err != nil {
+					return nil, err
 				}
-				var _, _ = fileName, f
+				data[fileName] = fileKey
 			}
 		}
+		resp.Data = data
 		//resp.Data, resp.Total, resp.Error = s.GetUsers(ctx)
 		return &resp, nil
 	}
