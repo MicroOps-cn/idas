@@ -2,14 +2,9 @@ package service
 
 import (
 	"context"
-	"crypto/sha256"
-	"fmt"
-	"idas/config"
-	"idas/pkg/errors"
 	"idas/pkg/service/models"
 	"io"
 	"mime/multipart"
-	"path"
 )
 
 type migrator interface {
@@ -18,12 +13,24 @@ type migrator interface {
 
 type baseService interface {
 	migrator
-	Name() string
 }
 
 type Service interface {
 	baseService
-	SessionService
+
+	SetLoginSession(ctx context.Context, user *models.User) (string, error)
+	DeleteLoginSession(ctx context.Context, session string) (string, error)
+	GetLoginSession(ctx context.Context, id string) (*models.User, error)
+	OAuthAuthorize(ctx context.Context, responseType, clientId, redirectURI string) (redirect string, err error)
+	GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId, redirectURI string) (accessToken, refreshToken string, expiresIn int, err error)
+	RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error)
+	GetOAuthTokenByPassword(ctx context.Context, username string, password string) (accessToken, refreshToken string, expiresIn int, err error)
+	RefreshOAuthTokenByPassword(ctx context.Context, token, username, password string) (accessToken, refreshToken string, expiresIn int, err error)
+	GetSessions(ctx context.Context, userId string, current int64, size int64) ([]*models.Session, int64, error)
+	DeleteSession(ctx context.Context, id string) (err error)
+
+	UploadFile(ctx context.Context, name, contentType string, f multipart.File) (fileKey string, err error)
+
 	GetUsers(ctx context.Context, storage string, keyword string, status models.UserStatus, current int64, pageSize int64) (users []*models.User, total int64, err error)
 	PatchUsers(ctx context.Context, storage string, patch []map[string]interface{}) (count int64, err error)
 	DeleteUsers(ctx context.Context, storage string, id []string) (count int64, err error)
@@ -44,53 +51,40 @@ type Service interface {
 	CreateApp(ctx context.Context, storage string, app *models.App) (*models.App, error)
 	PatchApp(ctx context.Context, storage string, fields map[string]interface{}) (app *models.App, err error)
 	DeleteApp(ctx context.Context, storage string, id string) (err error)
-
-	UploadFile(name string, f multipart.File) (fileKey string, err error)
+	DownloadFile(ctx context.Context, id string) (f io.ReadCloser, mimiType, fileName string, err error)
 }
 
 type Set struct {
-	userService UserServices
-	appService  AppServices
-	SessionService
-}
-
-func (s Set) UploadFile(name string, f multipart.File) (fileKey string, err error) {
-	if d := config.Get().GetUploadDir(); d == nil {
-		return "", errors.InternalServerError
-	} else if ff, err := d.Open(name); err != nil {
-		return "", err
-	} else {
-		hash := sha256.New()
-		if _, err = io.Copy(ff, io.TeeReader(f, hash)); err != nil {
-			_ = ff.Close()
-			return "", err
-		} else {
-			_ = ff.Close()
-			dstFileName := fmt.Sprintf("%x%s", hash.Sum(nil), path.Ext(fileKey))
-			return dstFileName, d.Rename(name, dstFileName)
-		}
-	}
+	userService    UserServices
+	appService     AppServices
+	sessionService SessionService
+	commonService  CommonService
 }
 
 func (s Set) AutoMigrate(ctx context.Context) error {
+	var svcs = []baseService{
+		s.commonService, s.sessionService,
+	}
 	for _, svc := range s.userService {
-		if err := svc.AutoMigrate(ctx); err != nil {
-			return err
-		}
+		svcs = append(svcs, svc)
 	}
 	for _, svc := range s.appService {
+		svcs = append(svcs, svc)
+	}
+	for _, svc := range svcs {
 		if err := svc.AutoMigrate(ctx); err != nil {
 			return err
 		}
 	}
-	return s.SessionService.AutoMigrate(ctx)
+	return nil
 }
 
 // New returns a basic Service with all of the expected middlewares wired in.
 func New(ctx context.Context) Service {
 	return &Set{
 		userService:    NewUserServices(ctx),
-		SessionService: NewSessionService(ctx),
+		sessionService: NewSessionService(ctx),
 		appService:     NewAppService(ctx),
+		commonService:  NewCommonService(ctx),
 	}
 }

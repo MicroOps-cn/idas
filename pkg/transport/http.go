@@ -83,12 +83,13 @@ type responseWrapper struct {
 }
 
 // decodeHTTPRequest Decode HTTP requests into request types
-func decodeHTTPRequest[RequestType any](_ context.Context, r *http.Request) (interface{}, error) {
+func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request) (interface{}, error) {
 	var req RequestType
 	var err error
-	restfulReq := r.Context().Value(global.RestfulRequestContextName).(*restful.Request)
-	restfulResp := r.Context().Value(global.RestfulResponseContextName).(*restful.Response)
-	logger := logs.GetContextLogger(r.Context())
+	restfulReq := stdReq.Context().Value(global.RestfulRequestContextName).(*restful.Request)
+	restfulResp := stdReq.Context().Value(global.RestfulResponseContextName).(*restful.Response)
+	logger := logs.GetContextLogger(stdReq.Context())
+	r := restfulReq.Request
 	query := restfulReq.Request.URL.Query()
 	if len(query) > 0 {
 		if err = httputil.UnmarshalURLValues(query, &req); err != nil {
@@ -98,8 +99,8 @@ func decodeHTTPRequest[RequestType any](_ context.Context, r *http.Request) (int
 	if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" {
 		contentType := r.Header.Get("Content-Type")
 		if strings.HasPrefix(contentType, "multipart/form-data") {
-			r.Body = http.MaxBytesReader(restfulResp.ResponseWriter, r.Body, config.Get().Global.MaxBodySize.Capacity)
-			if err = r.ParseMultipartForm(config.Get().Global.MaxBodySize.Capacity); err != nil {
+			restfulReq.Request.Body = http.MaxBytesReader(restfulResp.ResponseWriter, r.Body, config.Get().Global.MaxBodySize.Capacity)
+			if err = restfulReq.Request.ParseMultipartForm(config.Get().Global.MaxBodySize.Capacity); err != nil {
 				return nil, errors.NewServerError(http.StatusBadRequest, "request too large")
 			}
 			//if err = r.ParseMultipartForm(1e6); err != nil {
@@ -110,7 +111,6 @@ func decodeHTTPRequest[RequestType any](_ context.Context, r *http.Request) (int
 			//	}
 			//}
 		} else {
-			fmt.Println(config.Get())
 			r.Body = http.MaxBytesReader(restfulResp.ResponseWriter, r.Body, config.Get().Global.MaxBodySize.Capacity)
 			if contentType == "application/x-www-form-urlencoded" {
 				if err = r.ParseForm(); err != nil {
@@ -164,7 +164,7 @@ func encodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response int
 		resp.Total = l.GetTotal()
 		resp.PageSize = l.GetPageSize()
 		resp.Current = l.GetCurrent()
-	} else {
+	} else if response != nil {
 		if t, ok := response.(endpoint.Total); ok {
 			resp.Total = t.GetTotal()
 		}

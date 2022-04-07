@@ -24,6 +24,7 @@ func (s UserServices) Include(name string) bool {
 
 type UserService interface {
 	baseService
+	Name() string
 	GetUsers(ctx context.Context, keyword string, status models.UserStatus, current int64, pageSize int64) (users []*models.User, total int64, err error)
 	PatchUsers(ctx context.Context, patch []map[string]interface{}) (count int64, err error)
 	DeleteUsers(ctx context.Context, id []string) (count int64, err error)

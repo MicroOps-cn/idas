@@ -27,7 +27,7 @@ storage:
 
 func TestUnmarshalConfig(t *testing.T) {
 	logger := logs.New(logs.MustNewConfig("info", "json"))
-	err := safeCfg.ReloadConfigFromYamlReader(logger, bytes.NewReader([]byte(conf)))
+	err := safeCfg.ReloadConfigFromYamlReader(logger, NewConverter("./", bytes.NewReader([]byte(conf))))
 	require.NoError(t, err)
 	require.Equal(t, safeCfg.C.Storage.User[0].GetMysql().TablePrefix, "t_idas_")
 }
@@ -55,7 +55,7 @@ func TestMarshalConfig(t *testing.T) {
 
 	t.Log(buf.String())
 	logger := logs.New(logs.MustNewConfig("info", "json"))
-	err = safeCfg.ReloadConfigFromYamlReader(logger, bytes.NewReader([]byte(conf)))
+	err = safeCfg.ReloadConfigFromYamlReader(logger, NewConverter("./", bytes.NewReader([]byte(conf))))
 	require.NoError(t, err)
 	t.Log(safeCfg.C.Storage)
 	require.Equal(t, c.Storage.User[0].GetMysql().TablePrefix, "t_xsadfa9i83")

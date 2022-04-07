@@ -30,8 +30,13 @@ pkgs          = ./...
 probuf:
 	protoc --go_out=paths=source_relative:./ ./pkg/utils/capacity/capacity.proto
 	protoc -I$(shell go env GOMODCACHE)/github.com/gogo/protobuf@v1.3.2/protobuf/ \
+		-I./pkg/utils/fs/ \
+		--go_out=paths=source_relative,Mgoogle/protobuf/any.proto=github.com/gogo/protobuf/types:./pkg/utils/fs/ \
+		./pkg/utils/fs/fs.proto
+	protoc -I$(shell go env GOMODCACHE)/github.com/gogo/protobuf@v1.3.2/protobuf/ \
 		-I./config \
 		-I./pkg/utils/capacity/ \
+		-I./pkg/utils/fs/ \
 		--go_out=Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types\:\./config \
 		./config/config.proto
 

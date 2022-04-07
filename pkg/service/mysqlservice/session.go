@@ -16,6 +16,10 @@ import (
 	"idas/pkg/service/models"
 )
 
+func NewSessionService(name string, client *mysql.Client) *SessionService {
+	return &SessionService{name: name, Client: client}
+}
+
 type SessionService struct {
 	*mysql.Client
 	name string
@@ -82,10 +86,6 @@ func (s SessionService) SetLoginSession(ctx context.Context, user *models.User) 
 		return "", err
 	}
 	return fmt.Sprintf("%s=%s; Path=/;Expires=%s", global.LoginSession, sessionId, session.Expiry.Format(global.LoginSessionExpiresFormat)), nil
-}
-
-func NewSessionService(name string, client *mysql.Client) *SessionService {
-	return &SessionService{name: name, Client: client}
 }
 
 func (s SessionService) GetLoginSession(ctx context.Context, id string) (*models.User, error) {

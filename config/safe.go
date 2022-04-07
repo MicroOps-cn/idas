@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/go-kit/log/level"
 	"io"
 	"os"
 	"path"
@@ -61,7 +62,7 @@ func (sc *safeConfig) GetConfig() *Config {
 }
 
 type Converter struct {
-	io.ReadWriter
+	io.Reader
 	name string
 }
 
@@ -75,11 +76,16 @@ func (c *Converter) UnmarshalYAML(value *yaml.Node) error {
 	if err != nil {
 		return err
 	}
-	c.ReadWriter = bytes.NewBuffer(nil)
-	return json.NewEncoder(c.ReadWriter).Encode(vals)
+	buf := bytes.NewBuffer(nil)
+	c.Reader = buf
+	return json.NewEncoder(buf).Encode(vals)
 }
 
 var _ yaml.Unmarshaler = &Converter{}
+
+func NewConverter(name string, r io.Reader) *Converter {
+	return &Converter{name: name, Reader: r}
+}
 
 func (sc *safeConfig) ReloadConfigFromYamlReader(logger log.Logger, yamlReader Reader) (err error) {
 	defer func() {
@@ -122,7 +128,14 @@ func (sc *safeConfig) ReloadConfigFromJSONReader(logger log.Logger, reader Reade
 		return fmt.Errorf("error init config: %s", err)
 	}
 	if c.GetWorkspace() == nil {
-		c.SetWorkspace(path.Dir(reader.Name()))
+		if absPath, err := filepath.Abs(path.Dir(reader.Name())); err != nil {
+			c.SetWorkspace(path.Dir(reader.Name()))
+			level.Info(logger).Log("workspace", path.Dir(reader.Name()))
+		} else {
+			c.SetWorkspace(absPath)
+			level.Info(logger).Log("workspace", absPath)
+		}
+
 	}
 	sc.SetConfig(&c)
 	return nil

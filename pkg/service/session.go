@@ -22,7 +22,7 @@ func (s Set) CreateLoginSession(ctx context.Context, username string, password s
 	if user, err = s.GetUserService(user.Storage).UpdateUser(ctx, user, "login_time"); err != nil {
 		return "", err
 	}
-	return s.SessionService.SetLoginSession(ctx, user)
+	return s.sessionService.SetLoginSession(ctx, user)
 }
 
 type SessionService interface {
@@ -59,4 +59,44 @@ func NewSessionService(ctx context.Context) SessionService {
 		panic(any(fmt.Errorf("初始化SessionService失败: 未知的数据源类型: %T", sessionSource)))
 	}
 	return sessionService
+}
+
+func (s Set) SetLoginSession(ctx context.Context, user *models.User) (string, error) {
+	return s.sessionService.SetLoginSession(ctx, user)
+}
+
+func (s Set) DeleteLoginSession(ctx context.Context, session string) (string, error) {
+	return s.sessionService.DeleteLoginSession(ctx, session)
+}
+
+func (s Set) GetLoginSession(ctx context.Context, id string) (*models.User, error) {
+	return s.sessionService.GetLoginSession(ctx, id)
+}
+
+func (s Set) OAuthAuthorize(ctx context.Context, responseType, clientId, redirectURI string) (redirect string, err error) {
+	return s.sessionService.OAuthAuthorize(ctx, responseType, clientId, redirectURI)
+}
+
+func (s Set) GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId, redirectURI string) (accessToken, refreshToken string, expiresIn int, err error) {
+	return s.sessionService.GetOAuthTokenByAuthorizationCode(ctx, code, clientId, redirectURI)
+}
+
+func (s Set) RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error) {
+	return s.sessionService.RefreshOAuthTokenByAuthorizationCode(ctx, token, clientId, clientSecret)
+}
+
+func (s Set) GetOAuthTokenByPassword(ctx context.Context, username, password string) (accessToken, refreshToken string, expiresIn int, err error) {
+	return s.sessionService.GetOAuthTokenByPassword(ctx, username, password)
+}
+
+func (s Set) RefreshOAuthTokenByPassword(ctx context.Context, token, username, password string) (accessToken, refreshToken string, expiresIn int, err error) {
+	return s.sessionService.RefreshOAuthTokenByPassword(ctx, token, username, password)
+}
+
+func (s Set) GetSessions(ctx context.Context, userId string, current, size int64) ([]*models.Session, int64, error) {
+	return s.sessionService.GetSessions(ctx, userId, current, size)
+}
+
+func (s Set) DeleteSession(ctx context.Context, id string) (err error) {
+	return s.sessionService.DeleteSession(ctx, id)
 }

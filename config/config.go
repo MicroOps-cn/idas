@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"idas/pkg/utils/capacity"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -104,8 +105,21 @@ func (x *Storage) findRef(path string, root interface{}) error {
 }
 
 func (x *Config) Init(logger log.Logger) error {
-	for _, userStorage := range append(append(x.Storage.User, x.Storage.App...), x.Storage.Session) {
-		switch s := userStorage.Source.(type) {
+	if x.Storage == nil || x.Storage.Default == nil {
+		return fmt.Errorf("default storage is null")
+	}
+	if len(x.Storage.User) == 0 {
+		x.Storage.User = append(x.Storage.User, x.Storage.Default)
+	}
+	if len(x.Storage.App) == 0 {
+		x.Storage.App = append(x.Storage.App, x.Storage.Default)
+	}
+	if x.Storage.Session == nil {
+		x.Storage.Session = x.Storage.Default
+	}
+	var storages = append(append(x.Storage.User, x.Storage.App...), x.Storage.Session, x.Storage.Default)
+	for _, storage := range storages {
+		switch s := storage.Source.(type) {
 		case *Storage_Ref:
 			if s.Ref.Storage == nil {
 				s.Ref.Storage = new(Storage)
@@ -212,13 +226,32 @@ func NewGlobalOptions() *GlobalOptions {
 	}
 }
 
-func (x *Config) GetUploadDir() afero.Fs {
+func (x *Config) GetUploadDir() (afero.Fs, error) {
+	var (
+		ws         afero.Fs
+		uploadPath = "uploads"
+	)
 	if x.Global != nil {
-		if len(x.Global.UploadPath) != 0 {
-			return afero.NewBasePathFs(x.GetWorkspace(), x.Global.UploadPath)
+		if len(x.Global.UploadPath) > 0 {
+			uploadPath = x.Global.UploadPath
+			if x.Global.UploadPath[0] == '/' {
+				ws = afero.NewOsFs()
+			}
 		}
 	}
-	return afero.NewBasePathFs(x.GetWorkspace(), "uploads")
+	if ws == nil {
+		ws = x.GetWorkspace()
+	}
+	if stat, err := ws.Stat(uploadPath); os.IsNotExist(err) {
+		if err = os.MkdirAll(uploadPath, 0755); err != nil {
+			return nil, err
+		}
+	} else if err != nil {
+		return nil, err
+	} else if !stat.IsDir() {
+		return nil, fmt.Errorf("path `%s` is not directory", x.Global.UploadPath)
+	}
+	return afero.NewBasePathFs(ws, uploadPath), nil
 }
 func (x *Config) GetWorkspace() afero.Fs {
 	if x.Global != nil {

@@ -64,7 +64,8 @@ func InstallHTTPApi(logger log.Logger, container *restful.Container, options []h
 	managerWs := NewWebService("/api", schema.GroupVersion{Group: "manager", Version: "v1"}, "管理接口")
 
 	// 通用接口
-	managerWs.Route(managerWs.POST("/file").Doc("上传文件").To(NewKitHTTPServer[endpoint.FileUploadRequest](endpoints.UploadFile, options)))
+	managerWs.Route(managerWs.POST("/file").Consumes("multipart/form-data").Doc("上传文件").To(NewKitHTTPServer[endpoint.FileUploadRequest](endpoints.UploadFile, options)))
+	managerWs.Route(managerWs.GET("/file/{id}").Doc("下载/查看文件").To(NewKitHTTPServer[endpoint.FileDownloadRequest](endpoints.DownloadFile, options)))
 
 	// 用户管理接口
 	managerWs.Route(managerWs.GET("/users").Doc("获取用户列表").To(NewKitHTTPServer[endpoint.GetUsersRequest](endpoints.GetUsers, options)))

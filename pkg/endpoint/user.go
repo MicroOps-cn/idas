@@ -156,7 +156,7 @@ func MakePatchUsersEndpoint(s service.Service) endpoint.Endpoint {
 
 type DeleteUsersRequest struct {
 	BaseRequest
-	Id      []string `valid:"required,notnull"`
+	Id      []string `json:"id" valid:"required"`
 	Storage string   `json:"storage" valid:"required"`
 }
 

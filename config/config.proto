@@ -41,9 +41,10 @@ message Storage{
 }
 
 message Storages{
-  repeated Storage user = 1;
+  Storage default = 1;
   Storage session = 2;
-  repeated Storage app = 3;
+  repeated Storage user = 3;
+  repeated Storage app = 4;
 }
 
 message Capacity {

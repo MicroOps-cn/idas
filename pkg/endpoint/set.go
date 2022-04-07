@@ -52,7 +52,8 @@ type SessionEndpoints struct {
 }
 
 type CommonEndpoints struct {
-	UploadFile endpoint.Endpoint
+	UploadFile   endpoint.Endpoint
+	DownloadFile endpoint.Endpoint
 }
 
 // Set collects all of the endpoints that compose an add service. It's meant to
@@ -70,7 +71,8 @@ type Set struct {
 func New(svc service.Service, logger log.Logger, duration metrics.Histogram, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer) Set {
 	return Set{
 		CommonEndpoints: CommonEndpoints{
-			UploadFile: InjectEndpoint(logger, "UploadFile", duration, otTracer, zipkinTracer, MakeUploadFileEndpoint(svc)),
+			UploadFile:   InjectEndpoint(logger, "UploadFile", duration, otTracer, zipkinTracer, MakeUploadFileEndpoint(svc)),
+			DownloadFile: InjectEndpoint(logger, "UploadFile", duration, otTracer, zipkinTracer, MakeDownloadFileEndpoint(svc)),
 		},
 		UserEndpoints: UserEndpoints{
 			CurrentUser:   InjectEndpoint(logger, "CurrentUser", duration, otTracer, zipkinTracer, MakeCurrentUserEndpoint(svc)),

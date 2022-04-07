@@ -12,6 +12,7 @@ import (
 
 type AppService interface {
 	baseService
+	Name() string
 	GetApps(ctx context.Context, keywords string, current int64, pageSize int64) (apps []*models.App, total int64, err error)
 	PatchApps(ctx context.Context, patch []map[string]interface{}) (total int64, err error)
 	DeleteApps(ctx context.Context, id []string) (total int64, err error)
