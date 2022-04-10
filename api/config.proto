@@ -1,0 +1,47 @@
+syntax = "proto3";
+import "types/gorm.proto";
+import "types/redis.proto";
+import "types/ldap.proto";
+import "types/capacity.proto";
+package idas.config;
+option go_package = "idas/config;config";
+
+
+message StorageRef{
+  Storage Storage = 1;
+  string path = 2;
+  string name = 3;
+}
+
+message Storage{
+  string name = 1;
+  oneof source{
+    StorageRef ref = 10;
+    idas.client.gorm.MySQLOptions mysql = 11; // MySQL Database Config
+    idas.client.redis.RedisOptions redis = 12; // Redis Database Config
+    idas.client.ldap.LdapOptions ldap = 13; // LdapDatabaseConfig
+    idas.client.gorm.SQLiteOptions sqlite = 14; // MySQL Database Config
+  };
+}
+
+message Storages{
+  Storage default = 1;
+  Storage session = 2;
+  repeated Storage user = 3;
+}
+
+message Capacity {
+  uint64 capacity = 1;
+}
+
+message GlobalOptions{
+  idas.pkg.utils.Capacity max_upload_size = 1;
+  idas.pkg.utils.Capacity max_body_size = 2;
+  string upload_path = 3;
+  string workspace = 4;
+}
+
+message Config {
+  Storages storage = 1;
+  GlobalOptions global = 2;
+}

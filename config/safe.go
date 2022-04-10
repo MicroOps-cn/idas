@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/go-kit/log/level"
 	"io"
 	"os"
 	"path"
@@ -12,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/yaml.v3"
@@ -71,7 +71,7 @@ func (c *Converter) Name() string {
 }
 
 func (c *Converter) UnmarshalYAML(value *yaml.Node) error {
-	var vals = make(map[string]interface{})
+	vals := make(map[string]interface{})
 	err := value.Decode(&vals)
 	if err != nil {
 		return err
@@ -135,7 +135,6 @@ func (sc *safeConfig) ReloadConfigFromJSONReader(logger log.Logger, reader Reade
 			c.SetWorkspace(absPath)
 			level.Info(logger).Log("workspace", absPath)
 		}
-
 	}
 	sc.SetConfig(&c)
 	return nil

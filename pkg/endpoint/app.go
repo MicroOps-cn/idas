@@ -3,6 +3,7 @@ package endpoint
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/go-kit/kit/endpoint"
 
 	"idas/pkg/errors"
@@ -138,11 +139,11 @@ func MakeGetAppInfoEndpoint(s service.Service) endpoint.Endpoint {
 
 type CreateAppRequest struct {
 	BaseRequest
-	Name        string           `json:"name"`
+	Name        string           `json:"name" valid:"required"`
 	Description string           `json:"description"`
 	Avatar      string           `json:"avatar"`
-	Storage     string           `json:"storage"`
-	GrantType   models.GrantType `json:"grantType"`
+	Storage     string           `json:"storage" valid:"required"`
+	GrantType   models.GrantType `json:"grantType" valid:"required"`
 	GrantMode   models.GrantMode `json:"grantMode"`
 }
 

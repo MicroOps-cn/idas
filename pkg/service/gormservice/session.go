@@ -1,27 +1,27 @@
-package mysqlservice
+package gormservice
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"gorm.io/gorm"
-	"idas/pkg/errors"
+	"idas/pkg/client/gorm"
 	"strings"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
+	gogorm "gorm.io/gorm"
 
-	"idas/pkg/client/mysql"
+	"idas/pkg/errors"
 	"idas/pkg/global"
 	"idas/pkg/service/models"
 )
 
-func NewSessionService(name string, client *mysql.Client) *SessionService {
+func NewSessionService(name string, client *gorm.Client) *SessionService {
 	return &SessionService{name: name, Client: client}
 }
 
 type SessionService struct {
-	*mysql.Client
+	*gorm.Client
 	name string
 }
 
@@ -91,7 +91,7 @@ func (s SessionService) SetLoginSession(ctx context.Context, user *models.User) 
 func (s SessionService) GetLoginSession(ctx context.Context, id string) (*models.User, error) {
 	session := models.Session{Key: id}
 
-	if err := s.Session(ctx).Where("`key` = ?", id).Omit("last_seen", "create_time", "user_id").First(&session).Error; err == gorm.ErrRecordNotFound {
+	if err := s.Session(ctx).Where("`key` = ?", id).Omit("last_seen", "create_time", "user_id").First(&session).Error; err == gogorm.ErrRecordNotFound {
 		return nil, errors.NotLoginError
 	} else if err != nil {
 		return nil, err

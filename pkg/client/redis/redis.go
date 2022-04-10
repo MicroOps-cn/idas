@@ -7,7 +7,6 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/go-redis/redis"
 
-	"idas/config"
 	"idas/pkg/logs"
 	"idas/pkg/utils/signals"
 )
@@ -16,7 +15,7 @@ type Client struct {
 	client *redis.Client
 }
 
-func NewRedisClientOrDie(ctx context.Context, options *config.RedisOptions) *Client {
+func NewRedisClientOrDie(ctx context.Context, options *RedisOptions) *Client {
 	client, err := NewRedisClient(ctx, options)
 	if err != nil {
 		panic(any(err))
@@ -25,7 +24,7 @@ func NewRedisClientOrDie(ctx context.Context, options *config.RedisOptions) *Cli
 	return client
 }
 
-func NewRedisClient(ctx context.Context, option *config.RedisOptions) (*Client, error) {
+func NewRedisClient(ctx context.Context, option *RedisOptions) (*Client, error) {
 	var r Client
 	logger := logs.GetContextLogger(ctx)
 	options, err := redis.ParseURL(option.Url)

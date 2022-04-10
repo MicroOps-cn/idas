@@ -3,10 +3,14 @@ package endpoint
 import (
 	"context"
 	"fmt"
-	"github.com/go-kit/kit/endpoint"
-	"idas/pkg/service"
 	"io"
 	"mime/multipart"
+
+	"github.com/go-kit/kit/endpoint"
+	"github.com/go-kit/log/level"
+
+	"idas/pkg/logs"
+	"idas/pkg/service"
 )
 
 type FileUploadRequest struct {
@@ -39,7 +43,6 @@ func MakeUploadFileEndpoint(s service.Service) endpoint.Endpoint {
 			}
 		}
 		resp.Data = data
-		//resp.Data, resp.Total, resp.Error = s.GetUsers(ctx)
 		return &resp, nil
 	}
 }
@@ -52,6 +55,7 @@ type FileDownloadRequest struct {
 
 func MakeDownloadFileEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		logger := logs.GetContextLogger(ctx)
 		req := request.(*FileDownloadRequest)
 		stdResp := req.GetRestfulResponse()
 		var (
@@ -70,8 +74,10 @@ func MakeDownloadFileEndpoint(s service.Service) endpoint.Endpoint {
 		} else if len(mimiType) != 0 {
 			stdResp.Header().Add("Content-Type", mimiType)
 		}
-		io.Copy(stdResp, f)
-		//resp.Data, resp.Total, resp.Error = s.GetUsers(ctx)
+		_, err = io.Copy(stdResp, f)
+		if err != nil {
+			level.Error(logger).Log("msg", "failed to write response", "err", err)
+		}
 		return nil, nil
 	}
 }

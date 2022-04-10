@@ -1,17 +1,17 @@
-package mysqlservice
+package gormservice
 
 import (
 	"context"
 	"fmt"
-	"idas/pkg/errors"
+	"idas/pkg/client/gorm"
 	"reflect"
 
-	"idas/pkg/client/mysql"
+	"idas/pkg/errors"
 	"idas/pkg/service/models"
 )
 
 type AppService struct {
-	*mysql.Client
+	*gorm.Client
 	name string
 }
 
@@ -79,7 +79,7 @@ func (a AppService) UpdateApp(ctx context.Context, app *models.App, updateColumn
 	if len(updateColumns) != 0 {
 		q = q.Select(updateColumns)
 	} else {
-		q = q.Select("name", "description", "avatar", "grant_type", "grant_mode")
+		q = q.Select("name", "description", "avatar", "grant_type", "grant_mode", "status")
 	}
 
 	if err := q.Updates(&app).Error; err != nil {
@@ -94,9 +94,20 @@ func (a AppService) UpdateApp(ctx context.Context, app *models.App, updateColumn
 	return app, nil
 }
 
-func (a AppService) GetAppInfo(ctx context.Context, id string) (app *models.App, err error) {
+func (a AppService) GetAppInfo(ctx context.Context, id string, name string) (app *models.App, err error) {
 	conn := a.Session(ctx)
 	app = new(models.App)
+	query := conn.Model(&models.User{})
+	if len(id) != 0 && len(name) != 0 {
+		subQuery := query.Where("id = ?", id).Or("name = ?", name)
+		query = query.Where(subQuery)
+	} else if len(id) != 0 {
+		query = query.Where("id = ?", id)
+	} else if len(name) != 0 {
+		query = query.Where("name = ?", name)
+	} else {
+		return nil, errors.ParameterError("require id or name")
+	}
 	if err = conn.Where("id = ?", id).First(&app).Error; err != nil {
 		return nil, err
 	}
@@ -153,7 +164,7 @@ func (a AppService) GetApps(ctx context.Context, keywords string, current int64,
 	}
 }
 
-func NewAppService(name string, client *mysql.Client) *AppService {
+func NewAppService(name string, client *gorm.Client) *AppService {
 	if err := client.Session(context.Background()).SetupJoinTable(&models.App{}, "User", models.AppUser{}); err != nil {
 		panic(err)
 	}

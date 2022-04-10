@@ -1,17 +1,18 @@
-package mysqlservice
+package gormservice
 
 import (
 	"context"
-	"idas/pkg/client/mysql"
+	"idas/pkg/client/gorm"
+
 	"idas/pkg/service/models"
 )
 
-func NewCommonService(name string, client *mysql.Client) *CommonService {
+func NewCommonService(name string, client *gorm.Client) *CommonService {
 	return &CommonService{name: name, Client: client}
 }
 
 type CommonService struct {
-	*mysql.Client
+	*gorm.Client
 	name string
 }
 
@@ -32,7 +33,7 @@ func (c CommonService) RecordUploadFile(ctx context.Context, name string, path s
 }
 
 func (c CommonService) GetFileInfoFromId(ctx context.Context, id string) (fileName, mimiType, filePath string, err error) {
-	var file = &models.File{Model: models.Model{Id: id}}
+	file := &models.File{Model: models.Model{Id: id}}
 	if err = c.Session(ctx).First(file).Error; err != nil {
 		return "", "", "", err
 	}

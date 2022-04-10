@@ -1,20 +1,20 @@
-package mysqlservice
+package gormservice
 
 import (
 	"bytes"
 	"context"
 	"fmt"
-	"idas/pkg/errors"
+	"idas/pkg/client/gorm"
 	"reflect"
 
-	"idas/pkg/client/mysql"
+	gogorm "gorm.io/gorm"
+
+	"idas/pkg/errors"
 	"idas/pkg/service/models"
 )
 
-type User struct{}
-
 type UserService struct {
-	*mysql.Client
+	*gorm.Client
 	name string
 }
 
@@ -33,17 +33,27 @@ func (s UserService) VerifyPassword(ctx context.Context, username string, passwo
 	}
 
 	if bytes.Equal(user.GenSecret(password), user.Password) {
-		return nil, fmt.Errorf("用户名或密码错误")
+		return nil, fmt.Errorf("invalid username or password")
 	}
 	return &user, nil
 }
 
-func NewUserService(name string, client *mysql.Client) *UserService {
+func NewUserService(name string, client *gorm.Client) *UserService {
 	return &UserService{name: name, Client: client}
 }
 
 func (s UserService) GetUsers(ctx context.Context, keyword string, status models.UserStatus, current int64, pageSize int64) (users []*models.User, total int64, err error) {
-	query := s.Session(ctx).Where("username like ?", fmt.Sprintf("%%%s%%", keyword))
+
+	query := s.Session(ctx).Where("is_delete = 0")
+	if len(keyword) > 0 {
+		keyword = fmt.Sprintf("%%%s%%", keyword)
+		query = query.Where(
+			query.Where("username like ?", keyword).
+				Or("email like ?", keyword).
+				Or("phone_number like ?", keyword).
+				Or("fullname like ?", keyword),
+		)
+	}
 	if status != models.UserStatusUnknown {
 		query = query.Where("status", status)
 	}
@@ -124,7 +134,7 @@ func (s UserService) UpdateUser(ctx context.Context, user *models.User, updateCo
 	if len(updateColumns) != 0 {
 		q = q.Select(updateColumns)
 	} else {
-		q = q.Select("username", "email", "phone_number", "full_name", "avatar")
+		q = q.Select("username", "email", "phone_number", "full_name", "avatar", "status")
 	}
 
 	if err := q.Updates(&user).Error; err != nil {
@@ -142,7 +152,21 @@ func (s UserService) UpdateUser(ctx context.Context, user *models.User, updateCo
 func (s UserService) GetUserInfo(ctx context.Context, id string, username string) (*models.User, error) {
 	conn := s.Session(ctx)
 	var user models.User
-	if err := conn.Where("id = ? or username = ?", id, username).First(&user).Error; err != nil {
+	query := conn.Model(&models.User{})
+	if len(id) != 0 && len(username) != 0 {
+		subQuery := query.Where("id = ?", id).Or("username = ?", username)
+		query = query.Where(subQuery)
+	} else if len(id) != 0 {
+		query = query.Where("id = ?", id)
+	} else if len(username) != 0 {
+		query = query.Where("username = ?", username)
+	} else {
+		return nil, errors.ParameterError("require id or username")
+	}
+	if err := query.First(&user).Error; err != nil {
+		if err == gogorm.ErrRecordNotFound {
+			return nil, errors.StatusNotFound("user")
+		}
 		return nil, err
 	}
 	return &user, nil

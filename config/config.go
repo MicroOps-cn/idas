@@ -4,17 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"idas/pkg/utils/capacity"
+	"github.com/go-kit/log"
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/spf13/afero"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/go-kit/log"
-	"github.com/gogo/protobuf/types"
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/spf13/afero"
+	"idas/pkg/utils/capacity"
 )
 
 func ref(path string, val reflect.Value) interface{} {
@@ -111,13 +109,10 @@ func (x *Config) Init(logger log.Logger) error {
 	if len(x.Storage.User) == 0 {
 		x.Storage.User = append(x.Storage.User, x.Storage.Default)
 	}
-	if len(x.Storage.App) == 0 {
-		x.Storage.App = append(x.Storage.App, x.Storage.Default)
-	}
 	if x.Storage.Session == nil {
 		x.Storage.Session = x.Storage.Default
 	}
-	var storages = append(append(x.Storage.User, x.Storage.App...), x.Storage.Session, x.Storage.Default)
+	storages := append(x.Storage.User, x.Storage.Session, x.Storage.Default)
 	for _, storage := range storages {
 		switch s := storage.Source.(type) {
 		case *Storage_Ref:
@@ -149,51 +144,6 @@ func (x *Storage) GetStorageSource() isStorage_Source {
 	return nil
 }
 
-func (x *MySQLOptions) GetStdMaxConnectionLifeTime() time.Duration {
-	if x != nil {
-		if duration, err := types.DurationFromProto(x.MaxConnectionLifeTime); err == nil {
-			return duration
-		}
-	}
-	return time.Second * 30
-}
-
-type pbMySQLOptions MySQLOptions
-
-func (p *pbMySQLOptions) Reset() {
-	(*MySQLOptions)(p).Reset()
-}
-
-func (p *pbMySQLOptions) String() string {
-	return (*MySQLOptions)(p).String()
-}
-
-func (p *pbMySQLOptions) ProtoMessage() {
-	(*MySQLOptions)(p).Reset()
-}
-
-func (x *MySQLOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []byte) error {
-	options := NewMySQLOptions()
-	x.Charset = options.Charset
-	x.Collation = options.Collation
-	x.MaxIdleConnections = options.MaxIdleConnections
-	x.MaxOpenConnections = options.MaxOpenConnections
-	x.MaxConnectionLifeTime = options.MaxConnectionLifeTime
-	x.TablePrefix = options.TablePrefix
-	return unmarshaller.Unmarshal(bytes.NewReader(b), (*pbMySQLOptions)(x))
-}
-
-func NewMySQLOptions() *MySQLOptions {
-	return &MySQLOptions{
-		Charset:               "utf8",
-		Collation:             "utf8_general_ci",
-		MaxIdleConnections:    2,
-		MaxOpenConnections:    100,
-		MaxConnectionLifeTime: types.DurationProto(30 * time.Second),
-		TablePrefix:           "t_",
-	}
-}
-
 type pbGlobalOptions GlobalOptions
 
 func (p *pbGlobalOptions) Reset() {
@@ -216,8 +166,10 @@ func (x *GlobalOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []by
 	return unmarshaller.Unmarshal(bytes.NewReader(b), (*pbGlobalOptions)(x))
 }
 
-const defaultMaxUploadSize = 1 << 20 * 10
-const defaultMaxBodySize = 1 << 20 * 5
+const (
+	defaultMaxUploadSize = 1 << 20 * 10
+	defaultMaxBodySize   = 1 << 20 * 5
+)
 
 func NewGlobalOptions() *GlobalOptions {
 	return &GlobalOptions{
@@ -243,6 +195,7 @@ func (x *Config) GetUploadDir() (afero.Fs, error) {
 		ws = x.GetWorkspace()
 	}
 	if stat, err := ws.Stat(uploadPath); os.IsNotExist(err) {
+		//nolint:gofumpt
 		if err = os.MkdirAll(uploadPath, 0755); err != nil {
 			return nil, err
 		}
@@ -253,6 +206,7 @@ func (x *Config) GetUploadDir() (afero.Fs, error) {
 	}
 	return afero.NewBasePathFs(ws, uploadPath), nil
 }
+
 func (x *Config) GetWorkspace() afero.Fs {
 	if x.Global != nil {
 		if len(x.Global.Workspace) != 0 {

@@ -1,45 +1,21 @@
-package mysql
+package gorm
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-
 	"github.com/go-kit/log/level"
+	"github.com/gogo/protobuf/types"
+	"github.com/golang/protobuf/jsonpb"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
-
-	"idas/config"
-	"idas/pkg/global"
 	"idas/pkg/logs"
 	"idas/pkg/utils/signals"
+	"time"
 )
 
-type Database struct {
-	*gorm.DB
-}
-
-type Client struct {
-	database *Database
-}
-
-func (c *Client) Session(ctx context.Context) *Database {
-	logger := logs.GetContextLogger(ctx)
-	session := &gorm.Session{Logger: NewLogAdapter(logger)}
-	if conn := ctx.Value(global.MySQLConnName); conn != nil {
-		switch db := conn.(type) {
-		case *Database:
-			return &Database{DB: db.Session(session)}
-		case *gorm.DB:
-			return &Database{DB: db.Session(session)}
-		default:
-			level.Warn(logger).Log("msg", "未知的上下文属性(global.MySQLConnName)值", global.MySQLConnName, fmt.Sprintf("%#v", conn))
-		}
-	}
-	return &Database{DB: c.database.Session(session)}
-}
-
-func NewMySQLClient(ctx context.Context, options *config.MySQLOptions) (*Client, error) {
+func NewMySQLClient(ctx context.Context, options *MySQLOptions) (*Client, error) {
 	var m Client
 	logger := logs.GetContextLogger(ctx)
 	db, err := gorm.Open(
@@ -92,4 +68,49 @@ func NewMySQLClient(ctx context.Context, options *config.MySQLOptions) (*Client,
 		db,
 	}
 	return &m, nil
+}
+
+func (x *MySQLOptions) GetStdMaxConnectionLifeTime() time.Duration {
+	if x != nil {
+		if duration, err := types.DurationFromProto(x.MaxConnectionLifeTime); err == nil {
+			return duration
+		}
+	}
+	return time.Second * 30
+}
+
+type pbMySQLOptions MySQLOptions
+
+func (p *pbMySQLOptions) Reset() {
+	(*MySQLOptions)(p).Reset()
+}
+
+func (p *pbMySQLOptions) String() string {
+	return (*MySQLOptions)(p).String()
+}
+
+func (p *pbMySQLOptions) ProtoMessage() {
+	(*MySQLOptions)(p).Reset()
+}
+
+func (x *MySQLOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []byte) error {
+	options := NewMySQLOptions()
+	x.Charset = options.Charset
+	x.Collation = options.Collation
+	x.MaxIdleConnections = options.MaxIdleConnections
+	x.MaxOpenConnections = options.MaxOpenConnections
+	x.MaxConnectionLifeTime = options.MaxConnectionLifeTime
+	x.TablePrefix = options.TablePrefix
+	return unmarshaller.Unmarshal(bytes.NewReader(b), (*pbMySQLOptions)(x))
+}
+
+func NewMySQLOptions() *MySQLOptions {
+	return &MySQLOptions{
+		Charset:               "utf8",
+		Collation:             "utf8_general_ci",
+		MaxIdleConnections:    2,
+		MaxOpenConnections:    100,
+		MaxConnectionLifeTime: types.DurationProto(30 * time.Second),
+		TablePrefix:           "t_",
+	}
 }

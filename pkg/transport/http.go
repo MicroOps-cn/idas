@@ -4,6 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"idas/pkg/utils/wrapper"
+	"io"
+	"net/http"
+	"strings"
+
 	"github.com/asaskevich/govalidator"
 	"github.com/emicklei/go-restful/v3"
 	kitendpoint "github.com/go-kit/kit/endpoint"
@@ -15,11 +20,8 @@ import (
 	"github.com/go-kit/log/level"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	stdzipkin "github.com/openzipkin/zipkin-go"
-	"idas/config"
-	"io"
-	"net/http"
-	"strings"
 
+	"idas/config"
 	"idas/pkg/endpoint"
 	"idas/pkg/errors"
 	"idas/pkg/global"
@@ -129,7 +131,7 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 		}
 	}
 
-	fmt.Println(fmt.Sprintf("%s", httputil.Must[[]byte](json.Marshal(req))))
+	fmt.Println(fmt.Sprintf("%s", wrapper.Must[[]byte](json.Marshal(req))))
 	if len(restfulReq.PathParameters()) > 0 {
 		if err = httputil.UnmarshalURLValues(httputil.MapToURLValues(restfulReq.PathParameters()), &req); err != nil {
 			return nil, fmt.Errorf("failed to decode path parameters：%s", err)
@@ -140,7 +142,7 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 		rr.SetRestfulRequest(restfulReq)
 		rr.SetRestfulResponse(restfulResp)
 	}
-	level.Debug(logger).Log("msg", "decoded http request", "req", fmt.Sprintf("%s", httputil.Must[[]byte](json.Marshal(req))))
+	level.Debug(logger).Log("msg", "decoded http request", "req", fmt.Sprintf("%s", wrapper.Must[[]byte](json.Marshal(req))))
 	if ok, err := govalidator.ValidateStruct(req); err != nil {
 		return &req, errors.NewServerError(http.StatusBadRequest, err.Error())
 	} else if !ok {

@@ -63,9 +63,7 @@ var rootCmd = &cobra.Command{
 	Short: "The idas gateway server.",
 	Long:  `The idas gateway server.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		logger := logs.New(&logConfig)
-		logs.SetRootLogger(logger)
-		return Run(context.Background(), logger, signals.SetupSignalHandler(logger))
+		return Run(context.Background(), logs.GetRootLogger(), signals.SetupSignalHandler(logs.GetRootLogger()))
 	},
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
@@ -179,12 +177,12 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(initLogger, initConfig)
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "./idas.yaml", "config file (default is $HOME/.gateway.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "./idas.yaml", "config file (default is ./idas.yaml)")
 
 	// log level and format
 	flag.AddFlags(rootCmd.PersistentFlags(), &logConfig)
@@ -202,8 +200,14 @@ func initConfig() {
 	if cfgFile == "" {
 		cfgFile = "./idas.yaml"
 	}
-	if err := config.ReloadConfigFromFile(logs.New(logs.MustNewConfig("info", "logfmt")), cfgFile); err != nil {
+	if err := config.ReloadConfigFromFile(logs.GetRootLogger(), cfgFile); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "failed to load config: %s\n", err)
 		os.Exit(1)
 	}
+}
+
+// initLogger
+func initLogger() {
+	logger := logs.New(&logConfig)
+	logs.SetRootLogger(logger)
 }

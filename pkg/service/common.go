@@ -3,17 +3,18 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/go-kit/log/level"
-	"idas/config"
-	"idas/pkg/client/mysql"
-	"idas/pkg/errors"
-	"idas/pkg/logs"
-	"idas/pkg/service/mysqlservice"
+	"idas/pkg/client/gorm"
+	"idas/pkg/service/gormservice"
 	"io"
-	"mime/multipart"
 	"os"
 	"path"
 	"time"
+
+	"github.com/go-kit/log/level"
+
+	"idas/config"
+	"idas/pkg/errors"
+	"idas/pkg/logs"
 )
 
 type CommonService interface {
@@ -27,10 +28,10 @@ func NewCommonService(ctx context.Context) CommonService {
 	commonStorage := config.Get().GetStorage().GetDefault()
 	switch commonSource := commonStorage.GetStorageSource().(type) {
 	case *config.Storage_Mysql:
-		if client, err := mysql.NewMySQLClient(ctx, commonSource.Mysql); err != nil {
+		if client, err := gorm.NewMySQLClient(ctx, commonSource.Mysql); err != nil {
 			panic(any(fmt.Errorf("初始化UserService失败: MySQL数据库连接失败: %s", err)))
 		} else {
-			commonService = mysqlservice.NewCommonService(commonStorage.Name, client)
+			commonService = gormservice.NewCommonService(commonStorage.Name, client)
 		}
 	default:
 		panic(any(fmt.Errorf("初始化CommonService失败: 未知的数据源类型: %T", commonSource)))
@@ -38,34 +39,37 @@ func NewCommonService(ctx context.Context) CommonService {
 	return commonService
 }
 
-func (s Set) UploadFile(ctx context.Context, name, contentType string, f multipart.File) (fileKey string, err error) {
+func (s Set) UploadFile(ctx context.Context, name, contentType string, f io.Reader) (fileKey string, err error) {
 	logger := logs.GetContextLogger(ctx)
 	now := time.Now().UTC()
-	if d, err := config.Get().GetUploadDir(); err != nil {
+	d, err := config.Get().GetUploadDir()
+	if err != nil {
 		level.Error(logger).Log("err", err, "msg", "failed to get upload dir")
 		return "", errors.InternalServerError
-	} else {
-		dirName := now.Format("2006-01")
-		if _, err = d.Stat(dirName); os.IsNotExist(err) {
-			if err = d.MkdirAll(dirName, 0755); err != nil {
-				level.Error(logger).Log("msg", "failed to create directory", "err", err)
-			}
-		} else if err != nil {
-			level.Error(logger).Log("msg", "failed to get directory status", "err", err)
-		}
-		filePath := fmt.Sprintf("%s/%d%s", dirName, now.UnixNano(), path.Ext(name))
-		if ff, err := d.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755); err != nil {
-			level.Error(logger).Log("err", err, "msg", "failed to open file", "filePath", filePath)
-			return "", errors.InternalServerError
-		} else {
-			defer ff.Close()
-			size, err := io.Copy(ff, f)
-			if err != nil {
-				return "", err
-			}
-			return s.commonService.RecordUploadFile(ctx, name, filePath, contentType, size)
-		}
 	}
+	dirName := now.Format("2006-01")
+	if _, err = d.Stat(dirName); os.IsNotExist(err) {
+		//nolint:gofumpt
+		if err = d.MkdirAll(dirName, 0755); err != nil {
+			level.Error(logger).Log("msg", "failed to create directory", "err", err)
+		}
+	} else if err != nil {
+		level.Error(logger).Log("msg", "failed to get directory status", "err", err)
+	}
+	filePath := fmt.Sprintf("%s/%d%s", dirName, now.UnixNano(), path.Ext(name))
+
+	var ff io.ReadWriteCloser
+	//nolint:gofumpt
+	if ff, err = d.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644); err != nil {
+		level.Error(logger).Log("err", err, "msg", "failed to open file", "filePath", filePath)
+		return "", errors.InternalServerError
+	}
+	defer ff.Close()
+	size, err := io.Copy(ff, f)
+	if err != nil {
+		return "", err
+	}
+	return s.commonService.RecordUploadFile(ctx, name, filePath, contentType, size)
 }
 
 func (s Set) DownloadFile(ctx context.Context, id string) (f io.ReadCloser, mimiType, fileName string, err error) {
@@ -75,14 +79,14 @@ func (s Set) DownloadFile(ctx context.Context, id string) (f io.ReadCloser, mimi
 		return nil, "", "", err
 	}
 	logger := logs.GetContextLogger(ctx)
-	if d, err := config.Get().GetUploadDir(); err != nil {
+	d, err := config.Get().GetUploadDir()
+	if err != nil {
 		level.Error(logger).Log("err", err, "msg", "failed to get upload dir")
 		return nil, "", "", errors.InternalServerError
-	} else {
-		if f, err = d.Open(filePath); err != nil {
-			level.Error(logger).Log("err", err, "msg", "failed to open file", "filePath", filePath)
-			return nil, "", "", errors.InternalServerError
-		}
-		return f, mimiType, fileName, nil
 	}
+	if f, err = d.Open(filePath); err != nil {
+		level.Error(logger).Log("err", err, "msg", "failed to open file", "filePath", filePath)
+		return nil, "", "", errors.InternalServerError
+	}
+	return f, mimiType, fileName, nil
 }

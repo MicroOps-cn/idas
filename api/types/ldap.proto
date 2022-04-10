@@ -1,0 +1,14 @@
+syntax = "proto3";
+package idas.client.ldap;
+option go_package = "idas/pkg/client/ldap;ldap";
+
+
+message LdapOptions{
+  string host = 1;
+  string manager_dn = 2;
+  string manager_password = 3;
+  string user_search_base = 4;
+  string user_search_filter = 5;
+  string group_search_base =6;
+  string group_search_filter =7;
+}

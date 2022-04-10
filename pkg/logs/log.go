@@ -231,6 +231,9 @@ func SetRootLogger(logger log.Logger) {
 }
 
 func GetRootLogger() log.Logger {
+	if rootLogger == nil {
+		panic("root logger is uninitialized")
+	}
 	return rootLogger
 }
 

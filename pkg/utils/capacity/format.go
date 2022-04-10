@@ -3,9 +3,10 @@ package capacity
 import (
 	"encoding/json"
 	"errors"
-	"github.com/golang/protobuf/jsonpb"
 	"strconv"
 	"strings"
+
+	"github.com/golang/protobuf/jsonpb"
 )
 
 var unitMap = map[string]int64{

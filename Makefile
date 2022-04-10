@@ -1,16 +1,22 @@
-
 GO           ?= go
 GOFMT        ?= $(GO)fmt
 FIRST_GOPATH := $(firstword $(subst :, ,$(shell $(GO) env GOPATH)))
 GOOPTS       ?=
 GOHOSTOS     ?= $(shell $(GO) env GOHOSTOS)
 GOHOSTARCH   ?= $(shell $(GO) env GOHOSTARCH)
+GOMODULENAME   ?= $(shell $(GO) list -m)
 GO_VERSION        ?= $(shell $(GO) version)
 GO_VERSION_NUMBER ?= $(word 3, $(GO_VERSION))
 
 GOLANGCI_LINT :=
 GOLANGCI_LINT_OPTS ?=
 GOLANGCI_LINT_VERSION ?= v1.45.2
+
+PROTOC       ?= protoc
+PROTOC_OPTS ?= --go_opt=Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types
+PROTOC_OPTS := $(PROTOC_OPTS) -I$(shell go env GOMODCACHE)/github.com/gogo/protobuf@v1.3.2/protobuf/
+PROTOC_OPTS := $(PROTOC_OPTS) -I./api
+
 # golangci-lint only supports linux, darwin and windows platforms on i386/amd64.
 # windows isn't included here because of the path separator being different.
 ifeq ($(GOHOSTOS),$(filter $(GOHOSTOS),linux darwin))
@@ -27,18 +33,20 @@ endif
 
 pkgs          = ./...
 
+
 probuf:
-	protoc --go_out=paths=source_relative:./ ./pkg/utils/capacity/capacity.proto
-	protoc -I$(shell go env GOMODCACHE)/github.com/gogo/protobuf@v1.3.2/protobuf/ \
-		-I./pkg/utils/fs/ \
-		--go_out=paths=source_relative,Mgoogle/protobuf/any.proto=github.com/gogo/protobuf/types:./pkg/utils/fs/ \
-		./pkg/utils/fs/fs.proto
-	protoc -I$(shell go env GOMODCACHE)/github.com/gogo/protobuf@v1.3.2/protobuf/ \
-		-I./config \
-		-I./pkg/utils/capacity/ \
-		-I./pkg/utils/fs/ \
-		--go_out=Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types\:\./config \
-		./config/config.proto
+	for protofile in `find -name "*.proto"`; \
+	do \
+		$(PROTOC) --go_out=module=${GOMODULENAME}:. ${PROTOC_OPTS}  $${protofile}; \
+	done
+#	$(PROTOC) --go_out=module=${GOMODULENAME}:. ./api/types/capacity.proto
+#	protoc -I$(shell go env GOMODCACHE)/github.com/gogo/protobuf@v1.3.2/protobuf/ \
+#		-I./config \
+#		-I./pkg/utils/capacity/ \
+#		-I./pkg/utils/fs/ \
+#		--go_opt=Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types
+#		--go_out=./config \
+#		./config/config.proto
 
 idas:
 	go build -ldflags="-s -w" -o dist/idas ./cmd/idas

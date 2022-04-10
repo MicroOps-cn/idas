@@ -1,0 +1,23 @@
+syntax = "proto3";
+package idas.client.gorm;
+import public "google/protobuf/duration.proto";
+option go_package = "idas/pkg/client/gorm;gorm";
+
+
+message MySQLOptions{
+  string host = 1;
+  string username = 2;
+  string password = 3;
+  string schema = 4;
+  int32 max_idle = 5;
+  int32 max_idle_connections = 6;
+  int32  max_open_connections = 7;
+  google.protobuf.Duration  max_connection_lifeTime = 8;
+  string charset = 9;
+  string collation = 10;
+  string table_prefix = 11;
+}
+
+message SQLiteOptions{
+  string path = 1;
+}

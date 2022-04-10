@@ -3,12 +3,14 @@ package service
 import (
 	"context"
 	"fmt"
+	"idas/pkg/client/gorm"
+	"idas/pkg/client/ldap"
+	"idas/pkg/service/gormservice"
+	"idas/pkg/service/ldapservice"
 
 	"idas/config"
-	"idas/pkg/client/mysql"
 	"idas/pkg/errors"
 	"idas/pkg/service/models"
-	"idas/pkg/service/mysqlservice"
 )
 
 type UserServices []UserService
@@ -46,10 +48,22 @@ func NewUserServices(ctx context.Context) UserServices {
 			}
 			switch userSource := userStorage.GetStorageSource().(type) {
 			case *config.Storage_Mysql:
-				if client, err := mysql.NewMySQLClient(ctx, userSource.Mysql); err != nil {
+				if client, err := gorm.NewMySQLClient(ctx, userSource.Mysql); err != nil {
 					panic(any(fmt.Errorf("初始化UserService失败: MySQL数据库连接失败: %s", err)))
 				} else {
-					userServices = append(userServices, mysqlservice.NewUserService(userStorage.GetName(), client))
+					userServices = append(userServices, gormservice.NewUserService(userStorage.GetName(), client))
+				}
+			case *config.Storage_Sqlite:
+				if client, err := gorm.NewSQLiteClient(ctx, userSource.Sqlite); err != nil {
+					panic(any(fmt.Errorf("初始化UserService失败: MySQL数据库连接失败: %s", err)))
+				} else {
+					userServices = append(userServices, gormservice.NewUserService(userStorage.GetName(), client))
+				}
+			case *config.Storage_Ldap:
+				if client, err := ldap.NewLdapClient(ctx, userSource.Ldap); err != nil {
+					panic(any(fmt.Errorf("初始化UserService失败: MySQL数据库连接失败: %s", err)))
+				} else {
+					userServices = append(userServices, ldapservice.NewUserService(userStorage.GetName(), client))
 				}
 			default:
 				panic(any(fmt.Errorf("Failed to init UserService: Unknown datasource: %T ", userSource)))
@@ -106,9 +120,8 @@ func (s Set) PatchUsers(ctx context.Context, storage string, patch []map[string]
 	if service == nil {
 		err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
 		return
-	} else {
-		return service.PatchUsers(ctx, patch)
 	}
+	return service.PatchUsers(ctx, patch)
 }
 
 func (s Set) DeleteUsers(ctx context.Context, storage string, id []string) (total int64, err error) {
@@ -116,9 +129,8 @@ func (s Set) DeleteUsers(ctx context.Context, storage string, id []string) (tota
 	if service == nil {
 		err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
 		return
-	} else {
-		return service.DeleteUsers(ctx, id)
 	}
+	return service.DeleteUsers(ctx, id)
 }
 
 func (s Set) UpdateUser(ctx context.Context, storage string, user *models.User, updateColumns ...string) (u *models.User, err error) {
@@ -126,9 +138,8 @@ func (s Set) UpdateUser(ctx context.Context, storage string, user *models.User, 
 	if service == nil {
 		err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
 		return
-	} else {
-		return service.UpdateUser(ctx, user, updateColumns...)
 	}
+	return service.UpdateUser(ctx, user, updateColumns...)
 }
 
 func (s Set) GetUserInfo(ctx context.Context, storage string, id string, username string) (user *models.User, err error) {
@@ -136,9 +147,8 @@ func (s Set) GetUserInfo(ctx context.Context, storage string, id string, usernam
 	if service == nil {
 		err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
 		return
-	} else {
-		return service.GetUserInfo(ctx, id, username)
 	}
+	return service.GetUserInfo(ctx, id, username)
 }
 
 func (s Set) CreateUser(ctx context.Context, storage string, user *models.User) (u *models.User, err error) {
@@ -146,9 +156,8 @@ func (s Set) CreateUser(ctx context.Context, storage string, user *models.User) 
 	if service == nil {
 		err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
 		return
-	} else {
-		return service.CreateUser(ctx, user)
 	}
+	return service.CreateUser(ctx, user)
 }
 
 func (s Set) PatchUser(ctx context.Context, storage string, user map[string]interface{}) (u *models.User, err error) {
@@ -156,9 +165,8 @@ func (s Set) PatchUser(ctx context.Context, storage string, user map[string]inte
 	if service == nil {
 		err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
 		return
-	} else {
-		return service.PatchUser(ctx, user)
 	}
+	return service.PatchUser(ctx, user)
 }
 
 func (s Set) DeleteUser(ctx context.Context, storage string, id string) (err error) {
@@ -166,9 +174,8 @@ func (s Set) DeleteUser(ctx context.Context, storage string, id string) (err err
 	if service == nil {
 		err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
 		return
-	} else {
-		return service.DeleteUser(ctx, id)
 	}
+	return service.DeleteUser(ctx, id)
 }
 
 func (s Set) VerifyPassword(ctx context.Context, username string, password string) (user *models.User, err error) {

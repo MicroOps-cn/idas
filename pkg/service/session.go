@@ -3,13 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
+	"idas/pkg/client/gorm"
+	"idas/pkg/service/gormservice"
 	"time"
 
 	"idas/config"
-	"idas/pkg/client/mysql"
 	"idas/pkg/client/redis"
 	"idas/pkg/service/models"
-	"idas/pkg/service/mysqlservice"
 	"idas/pkg/service/redisservice"
 )
 
@@ -44,10 +44,10 @@ func NewSessionService(ctx context.Context) SessionService {
 	sessionStorage := config.Get().GetStorage().GetSession()
 	switch sessionSource := sessionStorage.GetStorageSource().(type) {
 	case *config.Storage_Mysql:
-		if client, err := mysql.NewMySQLClient(ctx, sessionSource.Mysql); err != nil {
+		if client, err := gorm.NewMySQLClient(ctx, sessionSource.Mysql); err != nil {
 			panic(any(fmt.Errorf("初始化UserService失败: MySQL数据库连接失败: %s", err)))
 		} else {
-			sessionService = mysqlservice.NewSessionService(sessionStorage.Name, client)
+			sessionService = gormservice.NewSessionService(sessionStorage.Name, client)
 		}
 	case *config.Storage_Redis:
 		if client, err := redis.NewRedisClient(ctx, sessionSource.Redis); err != nil {

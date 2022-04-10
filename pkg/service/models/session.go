@@ -2,9 +2,10 @@ package models
 
 import (
 	"database/sql"
+	"time"
+
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
-	"time"
 )
 
 func (s *Session) BeforeCreate(db *gorm.DB) error {

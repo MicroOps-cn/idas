@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"fmt"
+	"idas/pkg/client/gorm"
 	"testing"
 	"time"
 
@@ -33,7 +34,7 @@ func TestUnmarshalConfig(t *testing.T) {
 }
 
 func TestMarshalConfig(t *testing.T) {
-	mysqlOptions := NewMySQLOptions()
+	mysqlOptions := gorm.NewMySQLOptions()
 	mysqlOptions.TablePrefix = "t_xsadfa9i83"
 	c := Config{
 		Storage: &Storages{

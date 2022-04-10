@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
-	"idas/pkg/service/models"
 	"io"
-	"mime/multipart"
+
+	"idas/pkg/service/models"
 )
 
 type migrator interface {
@@ -29,7 +29,7 @@ type Service interface {
 	GetSessions(ctx context.Context, userId string, current int64, size int64) ([]*models.Session, int64, error)
 	DeleteSession(ctx context.Context, id string) (err error)
 
-	UploadFile(ctx context.Context, name, contentType string, f multipart.File) (fileKey string, err error)
+	UploadFile(ctx context.Context, name, contentType string, f io.Reader) (fileKey string, err error)
 
 	GetUsers(ctx context.Context, storage string, keyword string, status models.UserStatus, current int64, pageSize int64) (users []*models.User, total int64, err error)
 	PatchUsers(ctx context.Context, storage string, patch []map[string]interface{}) (count int64, err error)
@@ -62,7 +62,7 @@ type Set struct {
 }
 
 func (s Set) AutoMigrate(ctx context.Context) error {
-	var svcs = []baseService{
+	svcs := []baseService{
 		s.commonService, s.sessionService,
 	}
 	for _, svc := range s.userService {
