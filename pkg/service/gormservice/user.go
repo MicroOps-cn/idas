@@ -42,17 +42,22 @@ func NewUserService(name string, client *gorm.Client) *UserService {
 	return &UserService{name: name, Client: client}
 }
 
-func (s UserService) GetUsers(ctx context.Context, keyword string, status models.UserStatus, current int64, pageSize int64) (users []*models.User, total int64, err error) {
-
-	query := s.Session(ctx).Where("is_delete = 0")
-	if len(keyword) > 0 {
-		keyword = fmt.Sprintf("%%%s%%", keyword)
+func (s UserService) GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error) {
+	query := s.Session(ctx).Where("t_user.is_delete = 0")
+	if len(keywords) > 0 {
+		keywords = fmt.Sprintf("%%%s%%", keywords)
 		query = query.Where(
-			query.Where("username like ?", keyword).
-				Or("email like ?", keyword).
-				Or("phone_number like ?", keyword).
-				Or("fullname like ?", keyword),
+			query.Where("username like ?", keywords).
+				Or("email like ?", keywords).
+				Or("phone_number like ?", keywords).
+				Or("fullname like ?", keywords),
 		)
+	}
+	fmt.Println(appId)
+	if len(appId) != 0 {
+		query = query.
+			Joins("LEFT JOIN t_app_user ON t_app_user.user_id = t_user.id").
+			Where("t_app_user.app_id = ?", appId)
 	}
 	if status != models.UserStatusUnknown {
 		query = query.Where("status", status)

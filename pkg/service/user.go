@@ -27,7 +27,7 @@ func (s UserServices) Include(name string) bool {
 type UserService interface {
 	baseService
 	Name() string
-	GetUsers(ctx context.Context, keyword string, status models.UserStatus, current int64, pageSize int64) (users []*models.User, total int64, err error)
+	GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error)
 	PatchUsers(ctx context.Context, patch []map[string]interface{}) (count int64, err error)
 	DeleteUsers(ctx context.Context, id []string) (count int64, err error)
 	UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (*models.User, error)
@@ -111,8 +111,8 @@ func (s Set) GetUserSource(_ context.Context) (data map[string]string, total int
 	return
 }
 
-func (s Set) GetUsers(ctx context.Context, storage string, keyword string, status models.UserStatus, current int64, pageSize int64) (users []*models.User, total int64, err error) {
-	return s.SafeGetUserService(storage).GetUsers(ctx, keyword, status, current, pageSize)
+func (s Set) GetUsers(ctx context.Context, storage string, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error) {
+	return s.SafeGetUserService(storage).GetUsers(ctx, keywords, status, appId, current, pageSize)
 }
 
 func (s Set) PatchUsers(ctx context.Context, storage string, patch []map[string]interface{}) (total int64, err error) {

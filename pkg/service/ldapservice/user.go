@@ -33,7 +33,7 @@ func (s UserService) AutoMigrate(ctx context.Context) error {
 	return nil
 }
 
-func (s UserService) GetUsers(ctx context.Context, keywords string, status models.UserStatus, current int64, pageSize int64) (users []*models.User, total int64, err error) {
+func (s UserService) GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	filters := []string{fmt.Sprintf(s.Options().ParseUserSearchFilter())}

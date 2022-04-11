@@ -91,6 +91,7 @@ type GetUsersRequest struct {
 	BaseListRequest
 	Status  models.UserStatus `json:"status"`
 	Storage string            `json:"storage"`
+	App     string            `json:"app"`
 }
 
 type GetUsersResponse struct {
@@ -100,8 +101,9 @@ type GetUsersResponse struct {
 func MakeGetUsersEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(*GetUsersRequest)
-		resp := GetUsersResponse{BaseListResponse: NewBaseListResponse(req.BaseListRequest)}
-		resp.Data, resp.Total, resp.Error = s.GetUsers(ctx, req.Storage, req.Keywords, req.Status, req.Current, req.PageSize)
+		resp := GetUsersResponse{BaseListResponse: NewBaseListResponse(&req.BaseListRequest)}
+
+		resp.Data, resp.Total, resp.Error = s.GetUsers(ctx, req.Storage, req.Keywords, req.Status, req.App, req.Current, req.PageSize)
 		return &resp, nil
 	}
 }
@@ -327,7 +329,7 @@ type GetSessionsResponse struct {
 func MakeGetSessionsEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(*GetSessionsRequest)
-		resp := GetSessionsResponse{BaseListResponse: NewBaseListResponse(req.BaseListRequest)}
+		resp := GetSessionsResponse{BaseListResponse: NewBaseListResponse(&req.BaseListRequest)}
 		resp.Data, resp.Total, resp.Error = s.GetSessions(ctx, req.UserId, req.Current, req.PageSize)
 		return &resp, nil
 	}

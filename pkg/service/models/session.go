@@ -24,10 +24,10 @@ func (s *Session) BeforeCreate(db *gorm.DB) error {
 
 type Session struct {
 	Id         string       `json:"id" gorm:"primary_key;type:char(32)" valid:"required"`
-	CreateTime time.Time    `json:"createTime,omitempty" gorm:"not null;type:datetime;omitempty"`
+	CreateTime time.Time    `json:"createTime,omitempty" gorm:"default:now();not null;type:datetime;omitempty"`
 	UserId     string       `json:"userId" gorm:"not null;type:char(32)"`
 	Key        string       `json:"-" gorm:"not null;type:char(32)"`
 	Data       sql.RawBytes `json:"-" gorm:"not null"`
 	Expiry     time.Time    `json:"expiry,omitempty" gorm:"not null;type:datetime;omitempty"`
-	LastSeen   time.Time    `json:"lastSeen" gorm:"not null;type:datetime;omitempty"`
+	LastSeen   time.Time    `json:"lastSeen" gorm:"default:now();not null;type:datetime;omitempty"`
 }

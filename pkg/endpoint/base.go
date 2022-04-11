@@ -98,7 +98,13 @@ func (b BaseListResponse) GetData() interface{} {
 	return b.Data
 }
 
-func NewBaseListResponse(req BaseListRequest) BaseListResponse {
+func NewBaseListResponse(req *BaseListRequest) BaseListResponse {
+	if req.PageSize == 0 {
+		req.PageSize = 20
+	}
+	if req.Current == 0 {
+		req.Current = 1
+	}
 	return BaseListResponse{
 		PageSize: req.PageSize,
 		Current:  req.Current,

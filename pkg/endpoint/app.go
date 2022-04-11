@@ -23,7 +23,7 @@ type GetAppsResponse struct {
 func MakeGetAppsEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(*GetAppsRequest)
-		resp := GetAppsResponse{BaseListResponse: NewBaseListResponse(req.BaseListRequest)}
+		resp := GetAppsResponse{BaseListResponse: NewBaseListResponse(&req.BaseListRequest)}
 		resp.Data, resp.Total, resp.Error = s.GetApps(ctx, req.Storage, req.Keywords, req.Current, req.PageSize)
 		return &resp, nil
 	}

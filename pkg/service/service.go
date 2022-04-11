@@ -31,7 +31,7 @@ type Service interface {
 
 	UploadFile(ctx context.Context, name, contentType string, f io.Reader) (fileKey string, err error)
 
-	GetUsers(ctx context.Context, storage string, keyword string, status models.UserStatus, current int64, pageSize int64) (users []*models.User, total int64, err error)
+	GetUsers(ctx context.Context, storage string, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error)
 	PatchUsers(ctx context.Context, storage string, patch []map[string]interface{}) (count int64, err error)
 	DeleteUsers(ctx context.Context, storage string, id []string) (count int64, err error)
 	UpdateUser(ctx context.Context, storage string, user *models.User, updateColumns ...string) (*models.User, error)

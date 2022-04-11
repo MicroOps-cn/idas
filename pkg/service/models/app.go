@@ -29,7 +29,7 @@ type App struct {
 	GrantType   GrantType   `gorm:"type:varchar(20);" json:"grantType"`
 	GrantMode   GrantMode   `gorm:"type:varchar(20);" json:"grantMode"`
 	Storage     string      `gorm:"-" json:"storage"`
-	User        []*User     `gorm:"many2many:app_user" json:"user,omitempty"`
+	User        []*User     `gorm:"many2many:t_app_user" json:"user,omitempty"`
 	Status      GroupStatus `gorm:"not null;default:0" json:"status"`
 }
 
