@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	goldap "github.com/go-ldap/ldap"
-	"idas/pkg/client/ldap"
 	"idas/pkg/errors"
 	"idas/pkg/global"
 	"idas/pkg/service/models"
+	"idas/pkg/utils/httputil"
 	"idas/pkg/utils/sets"
 	"idas/pkg/utils/wrapper"
 	"net/http"
@@ -16,20 +16,7 @@ import (
 	"time"
 )
 
-type AppService struct {
-	name string
-	*ldap.Client
-}
-
-func (s AppService) AutoMigrate(ctx context.Context) error {
-	return nil
-}
-
-func (s AppService) Name() string {
-	return s.name
-}
-
-func (s AppService) GetApps(ctx context.Context, keywords string, current int64, pageSize int64) (apps []*models.App, total int64, err error) {
+func (s UserAndAppService) GetApps(ctx context.Context, keywords string, current int64, pageSize int64) (apps []*models.App, total int64, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	filters := []string{fmt.Sprintf(s.Options().ParseGroupSearchFilter())}
@@ -52,7 +39,14 @@ func (s AppService) GetApps(ctx context.Context, keywords string, current int64,
 		return nil, 0, err
 	}
 	total = int64(len(ret.Entries))
-	for _, entry := range ret.Entries[(current-1)*pageSize : current*pageSize] {
+	entrys := ret.Entries
+	if int((current-1)*pageSize) > len(entrys) {
+		return
+	}
+	if int(current*pageSize) < len(entrys) {
+		entrys = ret.Entries[(current-1)*pageSize : current*pageSize]
+	}
+	for _, entry := range entrys {
 		apps = append(apps, &models.App{
 			Model: models.Model{
 				Id:         entry.DN,
@@ -62,8 +56,8 @@ func (s AppService) GetApps(ctx context.Context, keywords string, current int64,
 			Name:        entry.GetAttributeValue("cn"),
 			Description: entry.GetAttributeValue("description"),
 			Avatar:      entry.GetAttributeValue("avatar"),
-			Status:      models.GroupStatus(wrapper.Must[int](strconv.Atoi(entry.GetAttributeValue(GroupStatusName)))),
-			GrantMode:   models.GrantMode(wrapper.Must[int](strconv.Atoi(entry.GetAttributeValue("grantMode")))),
+			Status:      models.GroupStatus(wrapper.Must[int](httputil.NewValue(entry.GetAttributeValue(GroupStatusName)).Default("0").Int())),
+			GrantMode:   models.GrantMode(wrapper.Must[int](httputil.NewValue(entry.GetAttributeValue("grantMode")).Default("0").Int())),
 			GrantType:   models.GrantType(entry.GetAttributeValue("grantType")),
 			Storage:     s.name,
 		})
@@ -73,7 +67,7 @@ func (s AppService) GetApps(ctx context.Context, keywords string, current int64,
 
 const GroupStatusName = "status"
 
-func (s AppService) PatchApps(ctx context.Context, patch []map[string]interface{}) (total int64, err error) {
+func (s UserAndAppService) PatchApps(ctx context.Context, patch []map[string]interface{}) (total int64, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	for _, patchInfo := range patch {
@@ -102,7 +96,7 @@ func (s AppService) PatchApps(ctx context.Context, patch []map[string]interface{
 	return
 }
 
-func (s AppService) DeleteApps(ctx context.Context, id []string) (total int64, err error) {
+func (s UserAndAppService) DeleteApps(ctx context.Context, id []string) (total int64, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	for _, dn := range id {
@@ -123,7 +117,7 @@ type ldapUpdateColumn struct {
 	val            []string
 }
 
-func (s AppService) UpdateApp(ctx context.Context, app *models.App, updateColumns ...string) (*models.App, error) {
+func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updateColumns ...string) (*models.App, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 
@@ -162,7 +156,7 @@ func (s AppService) UpdateApp(ctx context.Context, app *models.App, updateColumn
 	return newAppInfo, nil
 }
 
-func (s AppService) GetAppInfo(ctx context.Context, id string, name string) (app *models.App, err error) {
+func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name string) (app *models.App, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	if len(id) == 0 && len(name) == 0 {
@@ -219,14 +213,14 @@ func (s AppService) GetAppInfo(ctx context.Context, id string, name string) (app
 		Name:        appEntry.GetAttributeValue("cn"),
 		Description: appEntry.GetAttributeValue("description"),
 		Avatar:      appEntry.GetAttributeValue("avatar"),
-		Status:      models.GroupStatus(wrapper.Must[int](strconv.Atoi(appEntry.GetAttributeValue(GroupStatusName)))),
-		GrantMode:   models.GrantMode(wrapper.Must[int](strconv.Atoi(appEntry.GetAttributeValue("grantMode")))),
+		Status:      models.GroupStatus(wrapper.Must[int](httputil.NewValue(appEntry.GetAttributeValue(GroupStatusName)).Default("0").Int())),
+		GrantMode:   models.GrantMode(wrapper.Must[int](httputil.NewValue(appEntry.GetAttributeValue("grantMode")).Default("0").Int())),
 		GrantType:   models.GrantType(appEntry.GetAttributeValue("grantType")),
 		Storage:     s.name,
 	}, nil
 }
 
-func (s AppService) CreateApp(ctx context.Context, app *models.App) (*models.App, error) {
+func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*models.App, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	app.Id = fmt.Sprintf("cn=%s,%s", app.Name, s.Options().GroupSearchBase)
@@ -254,7 +248,7 @@ func (s AppService) CreateApp(ctx context.Context, app *models.App) (*models.App
 	return newAppInfo, nil
 }
 
-func (s AppService) PatchApp(ctx context.Context, fields map[string]interface{}) (app *models.App, err error) {
+func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]interface{}) (app *models.App, err error) {
 	id, ok := fields["id"].(string)
 	if !ok {
 		return nil, errors.ParameterError("unknown id")
@@ -290,10 +284,6 @@ func (s AppService) PatchApp(ctx context.Context, fields map[string]interface{})
 	return newAppInfo, nil
 }
 
-func (s AppService) DeleteApp(ctx context.Context, id string) (err error) {
+func (s UserAndAppService) DeleteApp(ctx context.Context, id string) (err error) {
 	return wrapper.Error[int64](s.DeleteApps(ctx, []string{id}))
-}
-
-func NewAppService(name string, client *ldap.Client) *AppService {
-	return &AppService{name: name, Client: client}
 }

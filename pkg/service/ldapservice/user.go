@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"idas/pkg/errors"
 	"idas/pkg/global"
+	"idas/pkg/utils/httputil"
 	"idas/pkg/utils/sets"
 	"idas/pkg/utils/wrapper"
 	"net/http"
@@ -20,20 +21,20 @@ import (
 
 const UserStatusName = "status"
 
-func NewUserService(name string, client *ldap.Client) *UserService {
-	return &UserService{name: name, Client: client}
+func NewUserAndAppService(name string, client *ldap.Client) *UserAndAppService {
+	return &UserAndAppService{name: name, Client: client}
 }
 
-type UserService struct {
+type UserAndAppService struct {
 	*ldap.Client
 	name string
 }
 
-func (s UserService) AutoMigrate(ctx context.Context) error {
+func (s UserAndAppService) AutoMigrate(ctx context.Context) error {
 	return nil
 }
 
-func (s UserService) GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error) {
+func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	filters := []string{fmt.Sprintf(s.Options().ParseUserSearchFilter())}
@@ -59,7 +60,14 @@ func (s UserService) GetUsers(ctx context.Context, keywords string, status model
 		return nil, 0, err
 	}
 	total = int64(len(ret.Entries))
-	for _, entry := range ret.Entries[(current-1)*pageSize : current*pageSize] {
+	entrys := ret.Entries
+	if int((current-1)*pageSize) > len(entrys) {
+		return
+	}
+	if int(current*pageSize) < len(entrys) {
+		entrys = ret.Entries[(current-1)*pageSize : current*pageSize]
+	}
+	for _, entry := range entrys {
 		users = append(users, &models.User{
 			Model: models.Model{
 				Id:         entry.DN,
@@ -71,14 +79,14 @@ func (s UserService) GetUsers(ctx context.Context, keywords string, status model
 			PhoneNumber: entry.GetAttributeValue("telephoneNumber"),
 			FullName:    entry.GetAttributeValue("cn"),
 			Avatar:      entry.GetAttributeValue("avatar"),
-			Status:      models.UserStatus(wrapper.Must[int](strconv.Atoi(entry.GetAttributeValue(UserStatusName)))),
+			Status:      models.UserStatus(wrapper.Must[int](httputil.NewValue(entry.GetAttributeValue(UserStatusName)).Default("0").Int())),
 			Storage:     s.name,
 		})
 	}
 	return
 }
 
-func (s UserService) PatchUsers(ctx context.Context, patch []map[string]interface{}) (count int64, err error) {
+func (s UserAndAppService) PatchUsers(ctx context.Context, patch []map[string]interface{}) (count int64, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	for _, patchInfo := range patch {
@@ -107,7 +115,7 @@ func (s UserService) PatchUsers(ctx context.Context, patch []map[string]interfac
 	return
 }
 
-func (s UserService) DeleteUsers(ctx context.Context, id []string) (count int64, err error) {
+func (s UserAndAppService) DeleteUsers(ctx context.Context, id []string) (count int64, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	for _, dn := range id {
@@ -122,7 +130,7 @@ func (s UserService) DeleteUsers(ctx context.Context, id []string) (count int64,
 	return
 }
 
-func (s UserService) UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (*models.User, error) {
+func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (*models.User, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 
@@ -162,7 +170,7 @@ func (s UserService) UpdateUser(ctx context.Context, user *models.User, updateCo
 	return newUserInfo, nil
 }
 
-func (s UserService) GetUserInfo(ctx context.Context, id string, username string) (*models.User, error) {
+func (s UserAndAppService) GetUserInfo(ctx context.Context, id string, username string) (*models.User, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	if len(id) == 0 && len(username) == 0 {
@@ -221,26 +229,30 @@ func (s UserService) GetUserInfo(ctx context.Context, id string, username string
 		PhoneNumber: userEntry.GetAttributeValue("telephoneNumber"),
 		FullName:    userEntry.GetAttributeValue("cn"),
 		Avatar:      userEntry.GetAttributeValue("avatar"),
-		Status:      models.UserStatus(wrapper.Must[int](strconv.Atoi(userEntry.GetAttributeValue(UserStatusName)))),
+		Status:      models.UserStatus(wrapper.Must[int](httputil.NewValue(userEntry.GetAttributeValue(UserStatusName)).Default("0").Int())),
 		Storage:     s.name,
 	}, nil
 }
 
-func (s UserService) CreateUser(ctx context.Context, user *models.User) (*models.User, error) {
+func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*models.User, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	user.Id = fmt.Sprintf("uid=%s,%s", user.Username, s.Options().UserSearchBase)
 	req := goldap.NewAddRequest(user.Id, nil)
 	var attrs = map[string][]string{
 		"uid":             {user.Username},
-		"email":           {user.Email},
+		"mail":            {user.Email},
 		"telephoneNumber": {user.PhoneNumber},
-		"cn":              {user.FullName},
+		"cn":              {user.Username},
+		"sn":              {user.FullName},
 		"avatar":          {user.Avatar},
 		"status":          {strconv.Itoa(int(user.Status))},
+		"objectClass":     {"idasCore", "inetOrgPerson", "organizationalPerson", "person", "top"},
 	}
 	for name, value := range attrs {
-		req.Attribute(name, value)
+		if value[0] != "" {
+			req.Attribute(name, value)
+		}
 	}
 	if err := conn.Add(req); err != nil {
 		return nil, err
@@ -255,7 +267,7 @@ func (s UserService) CreateUser(ctx context.Context, user *models.User) (*models
 	return newUserInfo, nil
 }
 
-func (s UserService) PatchUser(ctx context.Context, user map[string]interface{}) (*models.User, error) {
+func (s UserAndAppService) PatchUser(ctx context.Context, user map[string]interface{}) (*models.User, error) {
 	id, ok := user["id"].(string)
 	if !ok {
 		return nil, errors.ParameterError("unknown id")
@@ -291,11 +303,11 @@ func (s UserService) PatchUser(ctx context.Context, user map[string]interface{})
 	return newUserInfo, nil
 }
 
-func (s UserService) DeleteUser(ctx context.Context, id string) error {
+func (s UserAndAppService) DeleteUser(ctx context.Context, id string) error {
 	return wrapper.Error[int64](s.DeleteUsers(ctx, []string{id}))
 }
 
-func (s UserService) VerifyPassword(ctx context.Context, username string, password string) (*models.User, error) {
+func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) (*models.User, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 
@@ -312,6 +324,6 @@ func (s UserService) VerifyPassword(ctx context.Context, username string, passwo
 	return userInfo, nil
 }
 
-func (s UserService) Name() string {
+func (s UserAndAppService) Name() string {
 	return s.name
 }

@@ -13,20 +13,16 @@ import (
 	"idas/pkg/service/models"
 )
 
-type UserService struct {
+type UserAndAppService struct {
 	*gorm.Client
 	name string
 }
 
-func (s UserService) Name() string {
+func (s UserAndAppService) Name() string {
 	return s.name
 }
 
-func (s UserService) AutoMigrate(ctx context.Context) error {
-	return s.Session(ctx).AutoMigrate(&models.User{})
-}
-
-func (s UserService) VerifyPassword(ctx context.Context, username string, password string) (*models.User, error) {
+func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) (*models.User, error) {
 	var user models.User
 	if err := s.Session(ctx).Where("username = ? or email = ?", username, username).First(&user).Error; err != nil {
 		return nil, err
@@ -38,11 +34,7 @@ func (s UserService) VerifyPassword(ctx context.Context, username string, passwo
 	return &user, nil
 }
 
-func NewUserService(name string, client *gorm.Client) *UserService {
-	return &UserService{name: name, Client: client}
-}
-
-func (s UserService) GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error) {
+func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error) {
 	query := s.Session(ctx).Where("t_user.is_delete = 0")
 	if len(keywords) > 0 {
 		keywords = fmt.Sprintf("%%%s%%", keywords)
@@ -74,7 +66,7 @@ func (s UserService) GetUsers(ctx context.Context, keywords string, status model
 	}
 }
 
-func (s UserService) PatchUsers(ctx context.Context, patch []map[string]interface{}) (int64, error) {
+func (s UserAndAppService) PatchUsers(ctx context.Context, patch []map[string]interface{}) (int64, error) {
 	var patchCount int64
 	tx := s.Session(ctx).Begin()
 	defer tx.Rollback()
@@ -124,7 +116,7 @@ func (s UserService) PatchUsers(ctx context.Context, patch []map[string]interfac
 	return patchCount, nil
 }
 
-func (s UserService) DeleteUsers(ctx context.Context, id []string) (int64, error) {
+func (s UserAndAppService) DeleteUsers(ctx context.Context, id []string) (int64, error) {
 	deleted := s.Session(ctx).Model(&models.User{}).Where("id in ?", id).Update("is_delete", true)
 	if err := deleted.Error; err != nil {
 		return deleted.RowsAffected, err
@@ -132,7 +124,7 @@ func (s UserService) DeleteUsers(ctx context.Context, id []string) (int64, error
 	return deleted.RowsAffected, nil
 }
 
-func (s UserService) UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (*models.User, error) {
+func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (*models.User, error) {
 	tx := s.Session(ctx).Begin()
 	defer tx.Rollback()
 	q := tx.Omit("create_time")
@@ -154,7 +146,7 @@ func (s UserService) UpdateUser(ctx context.Context, user *models.User, updateCo
 	return user, nil
 }
 
-func (s UserService) GetUserInfo(ctx context.Context, id string, username string) (*models.User, error) {
+func (s UserAndAppService) GetUserInfo(ctx context.Context, id string, username string) (*models.User, error) {
 	conn := s.Session(ctx)
 	var user models.User
 	query := conn.Model(&models.User{})
@@ -177,7 +169,7 @@ func (s UserService) GetUserInfo(ctx context.Context, id string, username string
 	return &user, nil
 }
 
-func (s UserService) CreateUser(ctx context.Context, user *models.User) (*models.User, error) {
+func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*models.User, error) {
 	conn := s.Session(ctx)
 	if err := conn.Create(user).Error; err != nil {
 		return nil, err
@@ -185,7 +177,7 @@ func (s UserService) CreateUser(ctx context.Context, user *models.User) (*models
 	return user, nil
 }
 
-func (s UserService) PatchUser(ctx context.Context, patch map[string]interface{}) (*models.User, error) {
+func (s UserAndAppService) PatchUser(ctx context.Context, patch map[string]interface{}) (*models.User, error) {
 	if id, ok := patch["id"].(string); ok {
 		tx := s.Session(ctx).Begin()
 		user := models.User{Model: models.Model{Id: id}}
@@ -200,7 +192,7 @@ func (s UserService) PatchUser(ctx context.Context, patch map[string]interface{}
 	return nil, errors.ParameterError("id is null")
 }
 
-func (s UserService) DeleteUser(ctx context.Context, id string) (err error) {
+func (s UserAndAppService) DeleteUser(ctx context.Context, id string) (err error) {
 	_, err = s.DeleteUsers(ctx, []string{id})
 	return err
 }

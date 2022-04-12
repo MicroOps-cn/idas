@@ -216,14 +216,3 @@ func (v Values) Strings() (vals []string) {
 	}
 	return vals
 }
-
-func Must[T any](v T, err error) T {
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-func SafeMust[T any](v T, err error) T {
-	return v
-}

@@ -19,7 +19,7 @@ func (s Set) CreateLoginSession(ctx context.Context, username string, password s
 		return "", err
 	}
 	user.LoginTime = time.Now().UTC()
-	if user, err = s.GetUserService(user.Storage).UpdateUser(ctx, user, "login_time"); err != nil {
+	if user, err = s.GetUserAndAppService(user.Storage).UpdateUser(ctx, user, "login_time"); err != nil {
 		return "", err
 	}
 	return s.sessionService.SetLoginSession(ctx, user)

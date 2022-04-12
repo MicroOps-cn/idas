@@ -10,13 +10,8 @@ import (
 	"idas/pkg/service/models"
 )
 
-type AppService struct {
-	*gorm.Client
-	name string
-}
-
-func (a AppService) PatchApps(ctx context.Context, patch []map[string]interface{}) (total int64, err error) {
-	tx := a.Session(ctx).Begin()
+func (s UserAndAppService) PatchApps(ctx context.Context, patch []map[string]interface{}) (total int64, err error) {
+	tx := s.Session(ctx).Begin()
 	defer tx.Rollback()
 	updateQuery := tx.Model(&models.App{}).Select("is_delete", "status")
 	var newPatch map[string]interface{}
@@ -64,16 +59,16 @@ func (a AppService) PatchApps(ctx context.Context, patch []map[string]interface{
 	return total, nil
 }
 
-func (a AppService) DeleteApps(ctx context.Context, id []string) (total int64, err error) {
-	deleted := a.Session(ctx).Model(&models.App{}).Where("id in ?", id).Update("is_delete", true)
+func (s UserAndAppService) DeleteApps(ctx context.Context, id []string) (total int64, err error) {
+	deleted := s.Session(ctx).Model(&models.App{}).Where("id in ?", id).Update("is_delete", true)
 	if err = deleted.Error; err != nil {
 		return deleted.RowsAffected, err
 	}
 	return deleted.RowsAffected, nil
 }
 
-func (a AppService) UpdateApp(ctx context.Context, app *models.App, updateColumns ...string) (*models.App, error) {
-	tx := a.Session(ctx).Begin()
+func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updateColumns ...string) (*models.App, error) {
+	tx := s.Session(ctx).Begin()
 	defer tx.Rollback()
 	q := tx.Omit("create_time")
 	if len(updateColumns) != 0 {
@@ -94,8 +89,8 @@ func (a AppService) UpdateApp(ctx context.Context, app *models.App, updateColumn
 	return app, nil
 }
 
-func (a AppService) GetAppInfo(ctx context.Context, id string, name string) (app *models.App, err error) {
-	conn := a.Session(ctx)
+func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name string) (app *models.App, err error) {
+	conn := s.Session(ctx)
 	app = new(models.App)
 	query := conn.Model(&models.User{})
 	if len(id) != 0 && len(name) != 0 {
@@ -114,17 +109,17 @@ func (a AppService) GetAppInfo(ctx context.Context, id string, name string) (app
 	return
 }
 
-func (a AppService) CreateApp(ctx context.Context, app *models.App) (*models.App, error) {
-	conn := a.Session(ctx)
+func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*models.App, error) {
+	conn := s.Session(ctx)
 	if err := conn.Create(app).Error; err != nil {
 		return nil, err
 	}
 	return app, nil
 }
 
-func (a AppService) PatchApp(ctx context.Context, fields map[string]interface{}) (app *models.App, err error) {
+func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]interface{}) (app *models.App, err error) {
 	if id, ok := fields["id"].(string); ok {
-		tx := a.Session(ctx).Begin()
+		tx := s.Session(ctx).Begin()
 		app = &models.App{Model: models.Model{Id: id}}
 		if err = tx.Model(&models.User{}).Where("id = ?", id).Updates(fields).Error; err != nil {
 			return nil, err
@@ -137,17 +132,13 @@ func (a AppService) PatchApp(ctx context.Context, fields map[string]interface{})
 	return nil, errors.ParameterError("id is null")
 }
 
-func (a AppService) DeleteApp(ctx context.Context, id string) (err error) {
-	_, err = a.DeleteApps(ctx, []string{id})
+func (s UserAndAppService) DeleteApp(ctx context.Context, id string) (err error) {
+	_, err = s.DeleteApps(ctx, []string{id})
 	return err
 }
 
-func (a AppService) Name() string {
-	return a.name
-}
-
-func (a AppService) GetApps(ctx context.Context, keywords string, current int64, pageSize int64) (apps []*models.App, total int64, err error) {
-	query := a.Session(ctx).Model(&models.App{})
+func (s UserAndAppService) GetApps(ctx context.Context, keywords string, current int64, pageSize int64) (apps []*models.App, total int64, err error) {
+	query := s.Session(ctx).Model(&models.App{})
 	if len(keywords) > 0 {
 		keywords = fmt.Sprintf("%%%s%%", keywords)
 		query = query.Where("name like ? or description like ?", keywords, keywords)
@@ -158,19 +149,19 @@ func (a AppService) GetApps(ctx context.Context, keywords string, current int64,
 		return nil, 0, err
 	} else {
 		for _, app := range apps {
-			app.Storage = a.name
+			app.Storage = s.name
 		}
 		return apps, total, nil
 	}
 }
 
-func NewAppService(name string, client *gorm.Client) *AppService {
+func NewUserAndAppService(name string, client *gorm.Client) *UserAndAppService {
 	if err := client.Session(context.Background()).SetupJoinTable(&models.App{}, "User", models.AppUser{}); err != nil {
 		panic(err)
 	}
-	return &AppService{name: name, Client: client}
+	return &UserAndAppService{name: name, Client: client}
 }
 
-func (a AppService) AutoMigrate(ctx context.Context) error {
-	return a.Session(ctx).AutoMigrate(&models.App{}, &models.AppUser{})
+func (s UserAndAppService) AutoMigrate(ctx context.Context) error {
+	return s.Session(ctx).AutoMigrate(&models.App{}, &models.AppUser{}, &models.User{})
 }

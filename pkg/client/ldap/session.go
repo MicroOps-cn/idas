@@ -3,9 +3,11 @@ package ldap
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"github.com/go-kit/log/level"
 	"github.com/go-ldap/ldap"
 	"idas/pkg/logs"
+	"idas/pkg/utils/wrapper"
 	"time"
 )
 
@@ -59,7 +61,7 @@ func (s *Session) Add(addRequest *ldap.AddRequest) error {
 		return s.err
 	}
 	logger := logs.GetContextLogger(s.ctx)
-	level.Debug(logger).Log("msg", "create ldap object", "dn", addRequest.DN)
+	level.Debug(logger).Log("msg", "create ldap object", "dn", addRequest.DN, "attributes", string(wrapper.Must[[]byte](json.Marshal(addRequest.Attributes))))
 	return s.c.Add(addRequest)
 }
 

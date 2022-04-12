@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"idas/pkg/client/gorm"
+	"idas/pkg/utils/wrapper"
 	"testing"
 	"time"
 
@@ -64,6 +65,6 @@ func TestMarshalConfig(t *testing.T) {
 }
 
 func TestValues(t *testing.T) {
-	ints := httputil.Must[[]time.Duration](httputil.NewValue("10s,2m,60s,30a0m").Split().Durations())
+	ints := wrapper.Must[[]time.Duration](httputil.NewValue("10s,2m,60s,30a0m").Split().Durations())
 	fmt.Println(ints)
 }
