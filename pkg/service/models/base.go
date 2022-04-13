@@ -15,8 +15,8 @@ func NewId() string {
 
 type Model struct {
 	Id         string    `json:"id" gorm:"primary_key;type:char(32)" valid:"required"`
-	CreateTime time.Time `json:"createTime,omitempty" gorm:"type:datetime;omitempty"`
-	UpdateTime time.Time `json:"updateTime,omitempty" gorm:"type:datetime;omitempty"`
+	CreateTime time.Time `json:"createTime,omitempty" gorm:"type:datetime;not null;omitempty"`
+	UpdateTime time.Time `json:"updateTime,omitempty" gorm:"type:datetime;not null;omitempty"`
 	IsDelete   bool      `json:"isDelete" gorm:"not null;default:0"`
 }
 

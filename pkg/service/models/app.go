@@ -23,7 +23,7 @@ const (
 
 type App struct {
 	Model
-	Name        string      `gorm:"type:varchar(50);" json:"name"`
+	Name        string      `gorm:"type:varchar(50);not null" json:"name"`
 	Description string      `gorm:"type:varchar(200);" json:"description"`
 	Avatar      string      `gorm:"type:varchar(200)" json:"avatar"`
 	GrantType   GrantType   `gorm:"type:varchar(20);" json:"grantType"`
@@ -41,8 +41,9 @@ type AppRole struct {
 
 type AppUser struct {
 	Model
-	AppId  string `json:"appId" gorm:"type:char(32)" json:"appId"`
+	AppId  string `json:"appId" gorm:"type:char(32);not null" json:"appId"`
 	App    *App   `json:"app,omitempty"`
-	UserId string `json:"userId" gorm:"type:char(32)" json:"userId"`
+	UserId string `json:"userId" gorm:"type:char(32);not null" json:"userId"`
 	User   *User  `json:"user,omitempty"`
+	Role   string `json:"role" gorm:"default: '';not null"`
 }
