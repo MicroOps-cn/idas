@@ -82,6 +82,7 @@ func (s SessionService) SetLoginSession(ctx context.Context, user *models.User) 
 	session.Expiry = time.Now().UTC().Add(global.LoginSessionExpiration)
 	session.Key = sessionId
 	session.UserId = user.Id
+	session.LastSeen = time.Now()
 	if err = s.Session(ctx).Create(&session).Error; err != nil {
 		return "", err
 	}
