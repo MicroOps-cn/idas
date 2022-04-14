@@ -42,7 +42,7 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 			query.Where("username like ?", keywords).
 				Or("email like ?", keywords).
 				Or("phone_number like ?", keywords).
-				Or("fullname like ?", keywords),
+				Or("full_name like ?", keywords),
 		)
 	}
 	fmt.Println(appId)
