@@ -138,7 +138,7 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 		{columnName: "status", ldapColumnName: "status", val: []string{strconv.Itoa(int(app.Status))}},
 	}
 	for _, value := range replace {
-		if columns.Has(value.columnName) {
+		if columns.Has(value.columnName) && len(value.val) > 0 && len(value.val[0]) > 0 {
 			req.Replace(value.ldapColumnName, value.val)
 		}
 	}
@@ -231,9 +231,12 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 		"grantType":   {string(app.GrantType)},
 		"grantMode":   {strconv.Itoa(int(app.GrantMode))},
 		"status":      {strconv.Itoa(int(app.Status))},
+		"objectClass": {"groupOfUniqueNames", "idasApp", "idasCore", "top"},
 	}
 	for name, value := range attrs {
-		req.Attribute(name, value)
+		if len(value) > 0 {
+			req.Attribute(name, value)
+		}
 	}
 	if err := conn.Add(req); err != nil {
 		return nil, err

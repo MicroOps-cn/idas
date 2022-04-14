@@ -79,7 +79,7 @@ func (s *Session) Modify(modifyRequest *ldap.ModifyRequest) error {
 		return s.err
 	}
 	logger := logs.GetContextLogger(s.ctx)
-	level.Debug(logger).Log("msg", "modify ldap object", "dn", modifyRequest.DN)
+	level.Debug(logger).Log("msg", "modify ldap object", "dn", modifyRequest.DN, "attributes", string(wrapper.Must[[]byte](json.Marshal(modifyRequest.Changes))))
 	return s.c.Modify(modifyRequest)
 }
 
