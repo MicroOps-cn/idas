@@ -3,9 +3,12 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/go-kit/log"
 	"idas/config"
 	"idas/pkg/client/gorm"
 	"idas/pkg/client/ldap"
+	"idas/pkg/global"
+	"idas/pkg/logs"
 	"idas/pkg/service/gormservice"
 	"idas/pkg/service/ldapservice"
 	"io"
@@ -126,34 +129,35 @@ func (s UserAndAppServices) Include(name string) bool {
 }
 
 func NewUserAndAppService(ctx context.Context) UserAndAppServices {
+	logger := log.With(logs.GetContextLogger(ctx), "service", "userAndApp")
+	ctx = context.WithValue(ctx, global.LoggerName, logger)
 	var userServices UserAndAppServices
 	if len(config.Get().GetStorage().GetUser()) > 0 {
 		for _, userStorage := range config.Get().GetStorage().GetUser() {
-
 			if userServices.Include(userStorage.GetName()) {
-				panic(any(fmt.Errorf("Failed to init UserService: duplicate datasource: %T ", userStorage.Name)))
+				panic(any(fmt.Errorf("Failed to init UserAndAppService: duplicate datasource: %T ", userStorage.Name)))
 			}
 			switch userSource := userStorage.GetStorageSource().(type) {
 			case *config.Storage_Mysql:
 				if client, err := gorm.NewMySQLClient(ctx, userSource.Mysql); err != nil {
-					panic(any(fmt.Errorf("初始化UserService失败: MySQL数据库连接失败: %s", err)))
+					panic(any(fmt.Errorf("Failed to init UserAndAppService: Failed to connect to mysql: %s ", err)))
 				} else {
 					userServices = append(userServices, gormservice.NewUserAndAppService(userStorage.GetName(), client))
 				}
 			case *config.Storage_Sqlite:
 				if client, err := gorm.NewSQLiteClient(ctx, userSource.Sqlite); err != nil {
-					panic(any(fmt.Errorf("初始化UserService失败: MySQL数据库连接失败: %s", err)))
+					panic(any(fmt.Errorf("Failed to init UserAndAppService: Failed to connect to sqlite: %s ", err)))
 				} else {
 					userServices = append(userServices, gormservice.NewUserAndAppService(userStorage.GetName(), client))
 				}
 			case *config.Storage_Ldap:
 				if client, err := ldap.NewLdapClient(ctx, userSource.Ldap); err != nil {
-					panic(any(fmt.Errorf("初始化UserService失败: MySQL数据库连接失败: %s", err)))
+					panic(any(fmt.Errorf("Failed to init UserAndAppService: Failed to connect to LDAP: %s ", err)))
 				} else {
 					userServices = append(userServices, ldapservice.NewUserAndAppService(userStorage.GetName(), client))
 				}
 			default:
-				panic(any(fmt.Errorf("Failed to init UserService: Unknown datasource: %T ", userSource)))
+				panic(any(fmt.Errorf("Failed to init UserAndAppService: Unknown datasource: %T ", userSource)))
 			}
 		}
 	}

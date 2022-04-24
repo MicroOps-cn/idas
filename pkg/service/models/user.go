@@ -32,8 +32,9 @@ type User struct {
 	FullName    string       `gorm:"type:varchar(20);" json:"fullName"`
 	Avatar      string       `json:"avatar"`
 	Status      UserStatus   `gorm:"not null;default:0" json:"status"`
-	LoginTime   time.Time    `json:"loginTime"`
-	Role        UserRole     `json:"role"`
+	LoginTime   *time.Time   `json:"loginTime,omitempty"`
+	RoleId      string       `json:"roleId,omitempty"`
+	Role        UserRole     `json:"role,omitempty"`
 	App         []*App       `gorm:"many2many:t_app_user" json:"app,omitempty"`
 	Storage     string       `gorm:"-" json:"storage"`
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/spf13/afero"
+	"google.golang.org/protobuf/proto"
 	"os"
 	"reflect"
 	"strconv"
@@ -76,29 +77,22 @@ func ref(path string, val reflect.Value) interface{} {
 
 func (x *Storage) findRef(path string, root interface{}) error {
 	target := ref(path, reflect.ValueOf(root))
-	buf := bytes.Buffer{}
-	unmarshaller := jsonpb.Marshaler{}
+	var tmpStorage *Storage
 	switch s := target.(type) {
 	case Storage:
 		if s.GetRef() != nil {
 			return x.findRef(s.GetRef().Path, root)
-		} else if err := unmarshaller.Marshal(&buf, &s); err != nil {
-			return err
 		}
+		tmpStorage = proto.Clone(&s).(*Storage)
 	case *Storage:
 		if s.GetRef() != nil {
 			return x.findRef(s.GetRef().Path, root)
-		} else if err := unmarshaller.Marshal(&buf, s); err != nil {
-			return err
 		}
+		tmpStorage = proto.Clone(s).(*Storage)
 	default:
 		return fmt.Errorf("unknown ref: %s(%T)", path, target)
 	}
-	tmpStorage := new(Storage)
-	if err := jsonpb.Unmarshal(&buf, tmpStorage); err != nil {
-		return err
-	}
-	x.Source = tmpStorage.Source
+	x.Source = tmpStorage.GetStorageSource()
 	return nil
 }
 
@@ -119,7 +113,8 @@ func (x *Config) Init(logger log.Logger) error {
 			if s.Ref.Storage == nil {
 				s.Ref.Storage = new(Storage)
 			}
-			err := s.Ref.Storage.findRef(s.Ref.Path, x)
+			//err := s.Ref.Storage.findRef(s.Ref.Path, x)
+			err := storage.findRef(s.Ref.Path, x)
 			if err != nil {
 				return err
 			}
@@ -155,7 +150,7 @@ func (p *pbGlobalOptions) String() string {
 }
 
 func (p *pbGlobalOptions) ProtoMessage() {
-	(*GlobalOptions)(p).Reset()
+	(*GlobalOptions)(p).ProtoMessage()
 }
 
 func (x *GlobalOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []byte) error {

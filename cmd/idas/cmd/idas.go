@@ -16,8 +16,12 @@ limitations under the License.
 package cmd
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/gogo/protobuf/jsonpb"
+	"gopkg.in/yaml.v3"
 	"net"
 	"net/http"
 	"os"
@@ -48,6 +52,7 @@ import (
 
 var (
 	cfgFile        string
+	configDisplay  bool
 	logConfig      logs.Config
 	debugAddr      string
 	httpAddr       string
@@ -182,7 +187,8 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "./idas.yaml", "config file (default is ./idas.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "./idas.yaml", "config file")
+	rootCmd.PersistentFlags().BoolVar(&configDisplay, "config.display", false, "display config")
 
 	// log level and format
 	flag.AddFlags(rootCmd.PersistentFlags(), &logConfig)
@@ -200,9 +206,31 @@ func initConfig() {
 	if cfgFile == "" {
 		cfgFile = "./idas.yaml"
 	}
+	logger := logs.GetRootLogger()
 	if err := config.ReloadConfigFromFile(logs.GetRootLogger(), cfgFile); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "failed to load config: %s\n", err)
+		level.Error(logger).Log("msg", "failed to load config", "err", err)
 		os.Exit(1)
+	}
+	if configDisplay {
+		var buf bytes.Buffer
+		err := (&jsonpb.Marshaler{OrigName: true}).Marshal(&buf, config.Get())
+		if err != nil {
+			level.Error(logger).Log("msg", "failed to marshaller config", "err", err)
+			os.Exit(1)
+		}
+		var tmpObj map[string]interface{}
+		err = json.NewDecoder(&buf).Decode(&tmpObj)
+		if err != nil {
+			level.Error(logger).Log("msg", "failed to marshaller config", "err", err)
+			os.Exit(1)
+		}
+		encoder := yaml.NewEncoder(os.Stdout)
+		encoder.SetIndent(2)
+		if err := encoder.Encode(tmpObj); err != nil {
+			level.Error(logger).Log("msg", "failed to encode config", "err", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
 	}
 }
 

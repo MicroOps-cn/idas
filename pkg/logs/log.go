@@ -242,11 +242,15 @@ func NewTraceLogger() log.Logger {
 	return log.With(rootLogger, global.TraceIdName, traceId)
 }
 
-func GetContextLogger(ctx context.Context) log.Logger {
-	if lgr, ok := ctx.Value(global.LoggerName).(log.Logger); ok {
-		return lgr
+func GetContextLogger(ctx context.Context, options ...Option) log.Logger {
+	l, ok := ctx.Value(global.LoggerName).(log.Logger)
+	if !ok {
+		l = NewTraceLogger()
 	}
-	return NewTraceLogger()
+	for _, option := range options {
+		l = option(l)
+	}
+	return l
 }
 
 type WriterAdapter struct {

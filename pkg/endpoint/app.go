@@ -103,14 +103,13 @@ type UpdateAppRequest struct {
 
 type UpdateAppResponse struct {
 	BaseResponse `json:"-"`
-	App          *models.App `json:",inline"`
 }
 
 func MakeUpdateAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(*UpdateAppRequest)
 		resp := UpdateAppResponse{}
-		if resp.App, resp.Error = s.UpdateApp(ctx, req.Storage, req.App); resp.Error != nil {
+		if resp.Data, resp.Error = s.UpdateApp(ctx, req.Storage, req.App); resp.Error != nil {
 			resp.Error = errors.NewServerError(200, resp.Error.Error())
 		}
 		return &resp, nil
@@ -119,32 +118,33 @@ func MakeUpdateAppEndpoint(s service.Service) endpoint.Endpoint {
 
 type GetAppRequest struct {
 	BaseRequest
-	Id      string
+	Id      string `json:"id" valid:"required"`
 	Storage string `json:"storage" valid:"required"`
 }
 
 type GetAppResponse struct {
 	BaseResponse `json:"-"`
-	App          *models.App `json:",inline"`
 }
 
 func MakeGetAppInfoEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(GetAppRequest)
+		req := request.(*GetAppRequest)
 		resp := GetAppResponse{}
-		resp.App, resp.Error = s.GetAppInfo(ctx, req.Storage, req.Id)
+		resp.Data, resp.Error = s.GetAppInfo(ctx, req.Storage, req.Id)
 		return &resp, nil
 	}
 }
 
 type CreateAppRequest struct {
 	BaseRequest
-	Name        string           `json:"name" valid:"required"`
-	Description string           `json:"description"`
-	Avatar      string           `json:"avatar"`
-	Storage     string           `json:"storage" valid:"required"`
-	GrantType   models.GrantType `json:"grantType" valid:"required"`
-	GrantMode   models.GrantMode `json:"grantMode"`
+	Name        string            `json:"name" valid:"required"`
+	Description string            `json:"description"`
+	Avatar      string            `json:"avatar"`
+	Storage     string            `json:"storage" valid:"required"`
+	GrantType   models.GrantType  `json:"grantType" valid:"required"`
+	GrantMode   models.GrantMode  `json:"grantMode"`
+	User        []*models.User    `gorm:"many2many:t_app_user" json:"user,omitempty"`
+	Role        []*models.AppRole `gorm:"-" json:"role,omitempty"`
 }
 
 type CreateAppResponse struct {
@@ -163,6 +163,8 @@ func MakeCreateAppEndpoint(s service.Service) endpoint.Endpoint {
 			GrantType:   req.GrantType,
 			GrantMode:   req.GrantMode,
 			Storage:     req.Storage,
+			User:        req.User,
+			Role:        req.Role,
 		})
 		return &resp, nil
 	}

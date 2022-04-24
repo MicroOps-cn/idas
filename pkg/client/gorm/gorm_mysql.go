@@ -18,6 +18,11 @@ import (
 func NewMySQLClient(ctx context.Context, options *MySQLOptions) (*Client, error) {
 	var m Client
 	logger := logs.GetContextLogger(ctx)
+	level.Debug(logger).Log("msg", "connect to mysql server",
+		"host", options.Host, "username", options.Username,
+		"schema", options.Schema,
+		"charset", options.Charset,
+		"collation", options.Collation)
 	db, err := gorm.Open(
 		mysql.New(mysql.Config{
 			DSN: fmt.Sprintf(
@@ -38,13 +43,15 @@ func NewMySQLClient(ctx context.Context, options *MySQLOptions) (*Client, error)
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("连接MySQL数据库[%s@%s]失败(%s)", options.Username, options.Host, err)
+		level.Error(logger).Log("msg", fmt.Errorf("failed to connect to mysql server: [%s@%s]", options.Username, options.Host), "err", err)
+		return nil, err
 	}
 
 	{
 		sqlDB, err := db.DB()
 		if err != nil {
-			return nil, fmt.Errorf("连接MySQL数据库[%s@%s]失败(%s)", options.Username, options.Host, err)
+			level.Error(logger).Log("msg", fmt.Errorf("failed to connect to mysql server: [%s@%s]", options.Username, options.Host), "err", err)
+			return nil, err
 		}
 		sqlDB.SetMaxIdleConns(int(options.MaxIdleConnections))
 		sqlDB.SetConnMaxLifetime(options.GetStdMaxConnectionLifeTime())
@@ -58,12 +65,17 @@ func NewMySQLClient(ctx context.Context, options *MySQLOptions) (*Client, error)
 		stopCh.WaitRequest()
 		if sqlDB, err := db.DB(); err == nil {
 			if err = sqlDB.Close(); err != nil {
-				level.Warn(logger).Log("msg", "关闭MySQL数据库连接失败", "err", err)
+				level.Warn(logger).Log("msg", fmt.Errorf("failed to close mysql connect: [%s@%s]", options.Username, options.Host), "err", err)
 			}
 		}
 		stopCh.Done()
 	}()
 
+	level.Debug(logger).Log("msg", "connected to mysql server",
+		"host", options.Host, "username", options.Username,
+		"schema", options.Schema,
+		"charset", options.Charset,
+		"collation", options.Collation)
 	m.database = &Database{
 		db,
 	}

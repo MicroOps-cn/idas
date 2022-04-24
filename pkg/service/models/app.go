@@ -28,15 +28,18 @@ type App struct {
 	Avatar      string      `gorm:"type:varchar(200)" json:"avatar"`
 	GrantType   GrantType   `gorm:"type:varchar(20);" json:"grantType"`
 	GrantMode   GrantMode   `gorm:"type:varchar(20);" json:"grantMode"`
-	Storage     string      `gorm:"-" json:"storage"`
-	User        []*User     `gorm:"many2many:t_app_user" json:"user,omitempty"`
 	Status      GroupStatus `gorm:"not null;default:0" json:"status"`
+	User        []*User     `gorm:"many2many:t_app_user" json:"user,omitempty"`
+	Role        []*AppRole  `gorm:"-" json:"role,omitempty"`
+	Storage     string      `gorm:"-" json:"storage"`
 }
 
 type AppRole struct {
 	Model
-	Name        string `gorm:"type:varchar(50);"`
-	Description string `gorm:"type:varchar(50);"`
+	Name string `gorm:"type:varchar(50);" json:"name"`
+	//Description string  `gorm:"type:varchar(50);" json:"description"`
+	User      []*User `gorm:"-" json:"user,omitempty"`
+	IsDefault bool    `json:"isDefault" gorm:"not null;default:0"`
 }
 
 type AppUser struct {

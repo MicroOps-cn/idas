@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/go-kit/log"
 	"idas/pkg/client/gorm"
+	"idas/pkg/global"
 	"idas/pkg/service/gormservice"
 	"io"
 	"os"
@@ -24,6 +26,8 @@ type CommonService interface {
 }
 
 func NewCommonService(ctx context.Context) CommonService {
+	logger := log.With(logs.GetContextLogger(ctx), "service", "common")
+	ctx = context.WithValue(ctx, global.LoggerName, logger)
 	var commonService CommonService
 	commonStorage := config.Get().GetStorage().GetDefault()
 	switch commonSource := commonStorage.GetStorageSource().(type) {

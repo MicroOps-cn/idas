@@ -11,4 +11,8 @@ message LdapOptions{
   string user_search_filter = 5;
   string group_search_base =6;
   string group_search_filter =7;
+  string attr_username = 8;
+  string attr_email = 9;
+  string attr_user_display_name = 10;
+  string attr_user_phone_no = 11;
 }

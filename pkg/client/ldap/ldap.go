@@ -15,6 +15,7 @@
  limitations under the License.
 
 */
+
 package ldap
 
 import (
@@ -31,6 +32,11 @@ import (
 
 func NewLdapClient(ctx context.Context, options *LdapOptions) (clinet *Client, err error) {
 	logger := logs.GetContextLogger(ctx)
+	if err = options.Valid(); err != nil {
+		return nil, err
+	}
+
+	level.Debug(logger).Log("msg", "connect to ldap server", "host", options.Host, "manager_dn", options.ManagerDn)
 	pool, err := NewChannelPool(ctx, 2, 64, "ldap", func(s string) (c ldap.Client, err error) {
 		conn, err := (&net.Dialer{Timeout: ldap.DefaultTimeout}).DialContext(ctx, "tcp", options.Host)
 		if err != nil {
@@ -49,7 +55,9 @@ func NewLdapClient(ctx context.Context, options *LdapOptions) (clinet *Client, e
 		pool:    pool,
 		options: options,
 	}
-
+	if err = client.Session(ctx).(*Session).Error(); err != nil {
+		return nil, err
+	}
 	stopCh := signals.SetupSignalHandler(logger)
 	stopCh.Add(1)
 	go func() {
@@ -61,6 +69,7 @@ func NewLdapClient(ctx context.Context, options *LdapOptions) (clinet *Client, e
 		stopCh.Done()
 	}()
 
+	level.Debug(logger).Log("msg", "connected to ldap server: "+options.Host)
 	return client, nil
 }
 
@@ -72,11 +81,18 @@ type Client struct {
 func (l Client) Close() {
 	l.pool.Close()
 }
+
+type NopCloser struct {
+	ldap.Client
+}
+
+func (NopCloser) Close() {}
+
 func (l *Client) Session(ctx context.Context) ldap.Client {
 	if conn := ctx.Value(global.LDAPConnName); conn != nil {
 		switch db := conn.(type) {
 		case ldap.Client:
-			return db
+			return &NopCloser{Client: db}
 		default:
 			logger := logs.GetContextLogger(ctx)
 			level.Warn(logger).Log("msg", "未知的上下文属性(global.LDAPConnName)值", global.MySQLConnName, fmt.Sprintf("%#v", conn))
@@ -107,4 +123,22 @@ func (l *Client) Options() *LdapOptions {
 
 func init() {
 	ldap.DefaultTimeout = 3 * time.Second
+}
+
+func IsLdapError(err error, errCode ...uint16) bool {
+	if err == nil {
+		return false
+	}
+	ldapErr, ok := err.(*ldap.Error)
+	if !ok {
+		return false
+	} else if len(errCode) == 0 {
+		return true
+	}
+	for _, code := range errCode {
+		if ldapErr.ResultCode == code {
+			return true
+		}
+	}
+	return false
 }

@@ -3,7 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/go-kit/log"
 	"idas/pkg/client/gorm"
+	"idas/pkg/global"
+	"idas/pkg/logs"
 	"idas/pkg/service/gormservice"
 	"time"
 
@@ -18,7 +21,8 @@ func (s Set) CreateLoginSession(ctx context.Context, username string, password s
 	if user == nil {
 		return "", err
 	}
-	user.LoginTime = time.Now().UTC()
+	user.LoginTime = new(time.Time)
+	*user.LoginTime = time.Now().UTC()
 	if user, err = s.GetUserAndAppService(user.Storage).UpdateUser(ctx, user, "login_time"); err != nil {
 		return "", err
 	}
@@ -40,6 +44,8 @@ type SessionService interface {
 }
 
 func NewSessionService(ctx context.Context) SessionService {
+	logger := log.With(logs.GetContextLogger(ctx), "service", "session")
+	ctx = context.WithValue(ctx, global.LoggerName, logger)
 	var sessionService SessionService
 	sessionStorage := config.Get().GetStorage().GetSession()
 	switch sessionSource := sessionStorage.GetStorageSource().(type) {
