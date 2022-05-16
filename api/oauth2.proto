@@ -1,0 +1,32 @@
+syntax = "proto3";
+package idas.oauth2;
+option go_package = "idas/pkg/endpoint;endpoint";
+
+message OAuthAuthorizeRequest{
+   enum ResponseType {
+       default = 0;
+       code = 1;
+       token =2;
+   }
+   ResponseType response_type = 1;
+   string client_id = 2;
+   string redirect_uri = 3;
+   string state = 4;
+}
+
+message OAuthTokenRequest {
+  enum GrantType{
+      RefreshToken = 0;
+      AuthorizationCode = 1;
+      Password = 2;
+      ClientCredentials = 3;
+  }
+  GrantType grant_type = 1;
+  string code = 2;
+  string redirect_uri = 3;
+  string client_id = 4;
+  string client_secret = 5;
+  string username = 7;
+  string password = 6;
+  string refresh_token = 8;
+}

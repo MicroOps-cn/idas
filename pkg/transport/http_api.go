@@ -97,6 +97,7 @@ func InstallHTTPApi(logger log.Logger, container *restful.Container, options []h
 	oauthWs := NewWebService("/api", schema.GroupVersion{Group: "oauth", Version: "v1"}, "OAUTH")
 	// https://www.ruanyifeng.com/blog/2019/04/oauth-grant-types.html
 	oauthWs.Route(oauthWs.POST("/token").Doc("获取令牌").To(NewKitHTTPServer[endpoint.OAuthTokenRequest](endpoints.UserLogout, options)).Metadata(global.MetaNeedLogin, false))
-	oauthWs.Route(oauthWs.POST("/authorize").Doc("应用授权").To(NewKitHTTPServer[endpoint.OAuthAuthorizeRequest](endpoints.OAuthAuthorize, options)).Metadata(global.MetaNeedLogin, false))
+	oauthWs.Route(oauthWs.POST("/authorize").Doc("应用授权").To(NewKitHTTPServer[endpoint.OAuthAuthorizeRequest](endpoints.OAuthAuthorize, options)).Metadata(global.MetaAutoRedirectToLoginPage, true))
+	oauthWs.Route(oauthWs.GET("/authorize").Doc("应用授权").To(NewKitHTTPServer[endpoint.OAuthAuthorizeRequest](endpoints.OAuthAuthorize, options)).Metadata(global.MetaAutoRedirectToLoginPage, true))
 	container.Add(oauthWs)
 }

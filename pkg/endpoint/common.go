@@ -13,19 +13,15 @@ import (
 	"idas/pkg/service"
 )
 
-type FileUploadRequest struct {
-	BaseRequest
-}
+type FileUploadRequest struct{}
 
-type FileUploadResponse struct {
-	BaseResponse
-}
+type FileUploadResponse map[string]string
 
 func MakeUploadFileEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(*FileUploadRequest)
-		resp := FileUploadResponse{}
-		stdReq := req.GetRestfulRequest().Request
+		//req := request.(Requester).GetRequestData().(*FileUploadRequest)
+		resp := BaseResponse[FileUploadResponse]{}
+		stdReq := request.(RestfulRequester).GetRestfulRequest().Request
 		var (
 			f       multipart.File
 			fileKey string
@@ -48,7 +44,6 @@ func MakeUploadFileEndpoint(s service.Service) endpoint.Endpoint {
 }
 
 type FileDownloadRequest struct {
-	BaseRequest
 	Id       string `json:"id"`
 	Download bool   `json:"download"`
 }
@@ -56,8 +51,8 @@ type FileDownloadRequest struct {
 func MakeDownloadFileEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		logger := logs.GetContextLogger(ctx)
-		req := request.(*FileDownloadRequest)
-		stdResp := req.GetRestfulResponse()
+		req := request.(Requester).GetRequestData().(*FileDownloadRequest)
+		stdResp := request.(RestfulRequester).GetRestfulResponse()
 		var (
 			f        io.ReadCloser
 			mimiType string

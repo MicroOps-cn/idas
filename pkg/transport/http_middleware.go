@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"idas/pkg/service/models"
 	"net/http"
+	"net/url"
 	"runtime"
 	"strings"
 	"time"
@@ -31,20 +33,24 @@ func HTTPLoginAuthentication(endpoints endpoint.Set) restful.FilterFunction {
 			return
 		}
 
+		errorHandler := errorEncoder
+
 		loginSessionID, err := req.Request.Cookie(global.LoginSession)
-		if err != nil {
-			errorEncoder(req.Request.Context(), errors.NewServerError(http.StatusForbidden, "Not logged in or identity expired"), resp)
-			return
-		} else if user, err := endpoints.GetLoginSession(req.Request.Context(), loginSessionID.Value); err != nil {
-			errorEncoder(req.Request.Context(), errors.NewServerError(http.StatusForbidden, "Not logged in or identity expired"), resp)
-			return
-		} else if user == nil {
-			errorEncoder(req.Request.Context(), errors.NewServerError(http.StatusForbidden, "Not logged in or identity expired"), resp)
-			return
-		} else {
-			req.SetAttribute(global.AttrUser, user)
-			filterChan.ProcessFilter(req, resp)
+		if err == nil {
+			if user, err := endpoints.GetLoginSession(req.Request.Context(), strings.Split(loginSessionID.Value, ",")); err == nil {
+				if len(user.([]*models.User)) >= 0 {
+					req.SetAttribute(global.AttrUser, user)
+					filterChan.ProcessFilter(req, resp)
+					return
+				}
+			}
 		}
+		if autoRedirectToLoginPage, ok := req.SelectedRoute().Metadata()[global.MetaAutoRedirectToLoginPage].(bool); ok && autoRedirectToLoginPage {
+			resp.Header().Set("Location", fmt.Sprintf("/admin/user/login?redirect_uri=%s", url.QueryEscape(req.Request.RequestURI)))
+			resp.WriteHeader(302)
+			return
+		}
+		errorHandler(req.Request.Context(), errors.NewServerError(http.StatusForbidden, "Not logged in or identity expired"), resp)
 		return
 	}
 }

@@ -28,10 +28,10 @@ type Service interface {
 	baseService
 
 	SetLoginSession(ctx context.Context, user *models.User) (string, error)
-	DeleteLoginSession(ctx context.Context, session string) (string, error)
-	GetLoginSession(ctx context.Context, id string) (*models.User, error)
-	OAuthAuthorize(ctx context.Context, responseType, clientId, redirectURI string) (redirect string, err error)
-	GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId, redirectURI string) (accessToken, refreshToken string, expiresIn int, err error)
+	DeleteLoginSession(ctx context.Context, session string) error
+	GetLoginSession(ctx context.Context, ids []string) ([]*models.User, error)
+	OAuthAuthorize(ctx context.Context, clientId string) (code string, err error)
+	GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error)
 	GetOAuthTokenByPassword(ctx context.Context, username string, password string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByPassword(ctx context.Context, token, username, password string) (accessToken, refreshToken string, expiresIn int, err error)
@@ -48,7 +48,7 @@ type Service interface {
 	CreateUser(ctx context.Context, storage string, user *models.User) (*models.User, error)
 	PatchUser(ctx context.Context, storage string, user map[string]interface{}) (*models.User, error)
 	DeleteUser(ctx context.Context, storage string, id string) error
-	CreateLoginSession(ctx context.Context, username string, password string) (string, error)
+	CreateLoginSession(ctx context.Context, username string, password string) ([]string, error)
 	GetUserSource(ctx context.Context) (data map[string]string, total int64, err error)
 
 	GetApps(ctx context.Context, storage string, keywords string, current int64, pageSize int64) (apps []*models.App, total int64, err error)

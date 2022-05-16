@@ -3,6 +3,7 @@ package httputil
 import (
 	"errors"
 	"fmt"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -75,7 +76,7 @@ func reflectValueFromTag(values url.Values, val reflect.Value) error {
 			}([]byte(kt.Name))
 		}
 
-		fmt.Println(jsonName, values, sv.Kind())
+		//fmt.Println(jsonName, values, sv.Kind())
 		switch sv.Kind() {
 		case reflect.Struct:
 			if err := reflectValueFromTag(values, sv); err != nil {
@@ -108,6 +109,21 @@ func reflectValueFromTag(values url.Values, val reflect.Value) error {
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			n, err := strconv.ParseInt(uv, 10, 64)
 			if err != nil || sv.OverflowInt(n) {
+				if enum, ok := sv.Interface().(protoreflect.Enum); ok {
+					if enumVal := enum.Descriptor().Values().ByName(protoreflect.Name(uv)); enumVal != nil {
+						sv.SetInt(int64(enumVal.Number()))
+						continue
+					} else if enumVal = enum.Descriptor().Values().ByName(protoreflect.Name(strings.ToLower(uv))); enumVal != nil {
+						sv.SetInt(int64(enumVal.Number()))
+						continue
+					} else if enumVal = enum.Descriptor().Values().ByName(protoreflect.Name(strings.ToUpper(uv))); enumVal != nil {
+						sv.SetInt(int64(enumVal.Number()))
+						continue
+					} else if enumVal = enum.Descriptor().Values().ByName(protoreflect.Name(strings.ToTitle(uv))); enumVal != nil {
+						sv.SetInt(int64(enumVal.Number()))
+						continue
+					}
+				}
 				return fmt.Errorf("cast int has error, expect type: %v ,val: %v ,query key: %v", sv.Type(), uv, jsonName)
 			}
 			sv.SetInt(n)

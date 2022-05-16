@@ -3,32 +3,12 @@ package endpoint
 import (
 	"context"
 	"fmt"
-
 	"github.com/go-kit/kit/endpoint"
-
+	"idas/pkg/errors"
 	"idas/pkg/service"
+	"net/url"
+	"strconv"
 )
-
-type OAuthGrantType string
-
-const (
-	OAuthTypeRefreshToken      OAuthGrantType = "refresh_token"
-	OAuthTypeAuthorizationCode OAuthGrantType = "authorization_code"
-	OAuthTypePassword          OAuthGrantType = "password"
-	OAuthTypeClientCredentials OAuthGrantType = "client_credentials"
-)
-
-type OAuthTokenRequest struct {
-	BaseRequest
-	Code         string         `json:"code"`
-	GrantType    OAuthGrantType `json:"grant_type"`
-	RedirectURI  string         `json:"redirect_uri"`
-	ClientId     string         `json:"client_id"`
-	ClientSecret string         `json:"client_secret"`
-	Password     string         `json:"password"`
-	Username     string         `json:"username"`
-	RefreshToken string         `json:"refresh_token"`
-}
 
 type OAuthTokenResponse struct {
 	Error        string `json:"error"`
@@ -40,23 +20,23 @@ type OAuthTokenResponse struct {
 
 func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(*OAuthTokenRequest)
+		req := request.(Requester).GetRequestData().(*OAuthTokenRequest)
 		resp := OAuthTokenResponse{TokenType: "Bearer"}
-		if restfulReq := req.GetRestfulRequest(); restfulReq != nil {
+		if restfulReq := request.(RestfulRequester).GetRestfulRequest(); restfulReq != nil {
 			err = fmt.Errorf("invalid_grant")
 		} else {
 			switch req.GrantType {
-			case OAuthTypeAuthorizationCode:
-				resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.GetOAuthTokenByAuthorizationCode(ctx, req.Code, req.ClientId, req.RedirectURI)
-			case OAuthTypePassword:
+			case OAuthTokenRequest_AuthorizationCode:
+				resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.GetOAuthTokenByAuthorizationCode(ctx, req.Code, req.ClientId)
+			case OAuthTokenRequest_Password:
 				resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.GetOAuthTokenByPassword(ctx, req.Username, req.Password)
-			case OAuthTypeClientCredentials:
+			case OAuthTokenRequest_ClientCredentials:
 				if username, password, ok := restfulReq.Request.BasicAuth(); ok {
 					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.GetOAuthTokenByPassword(ctx, username, password)
 				} else {
 					err = fmt.Errorf("invalid_request")
 				}
-			case OAuthTypeRefreshToken:
+			case OAuthTokenRequest_RefreshToken:
 				if username, password, ok := restfulReq.Request.BasicAuth(); ok {
 					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByPassword(ctx, req.RefreshToken, username, password)
 				} else if len(req.Username) != 0 && len(req.Password) != 0 {
@@ -71,7 +51,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 
 		if err != nil {
 			resp.Error = err.Error()
-			if restfulResp := req.GetRestfulResponse(); restfulResp != nil {
+			if restfulResp := request.(RestfulRequester).GetRestfulResponse(); restfulResp != nil {
 				restfulResp.WriteHeader(400)
 			}
 		}
@@ -79,29 +59,46 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
-type OAuthAuthorizeRequest struct {
-	BaseRequest
-	ResponseType string `json:"response_type"`
-	ClientId     string `json:"client_id"`
-	RedirectURI  string `json:"redirect_uri"`
-}
-
-type OAuthAuthorizeResponse struct {
-	BaseResponse `json:",inline"`
-}
-
 func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(*OAuthAuthorizeRequest)
-		resp := OAuthAuthorizeResponse{}
-		var redirect string
-		if redirect, err = s.OAuthAuthorize(ctx, req.ResponseType, req.ClientId, req.RedirectURI); err == nil {
-			if req.GetRestfulResponse() != nil && len(redirect) > 0 {
-				req.GetRestfulResponse().AddHeader("Location", redirect)
-				req.GetRestfulResponse().ResponseWriter.WriteHeader(302)
+		req := request.(Requester).GetRequestData().(*OAuthAuthorizeRequest)
+		resp := BaseResponse[interface{}]{}
+		var code string
+
+		stdResp := request.(RestfulRequester).GetRestfulResponse()
+		//user, ok := request.(RestfulRequester).GetRestfulRequest().Attribute(global.AttrUser).(*models.User)
+		//if !ok {
+		//	resp.Error = errors.NotLoginError
+		//	return resp, nil
+		//}
+		if len(req.ClientId) == 0 {
+			return nil, errors.ParameterError("client_id")
+		}
+		uri, err := url.Parse(req.RedirectUri)
+		if err != nil {
+			return nil, errors.ParameterError("redirect_uri")
+		}
+		if code, err = s.OAuthAuthorize(ctx, req.ClientId); err != nil {
+			return nil, err
+		}
+		query := uri.Query()
+		switch req.ResponseType {
+		case OAuthAuthorizeRequest_code, OAuthAuthorizeRequest_default:
+			query.Add("code", code)
+			uri.RawQuery = query.Encode()
+			stdResp.AddHeader("Location", uri.String())
+			stdResp.ResponseWriter.WriteHeader(302)
+		case OAuthAuthorizeRequest_token:
+			accessToken, refreshToken, expiresIn, err := s.GetOAuthTokenByAuthorizationCode(ctx, code, req.ClientId)
+			if err != nil {
+				return nil, err
 			}
-		} else {
-			resp.Error = err
+			query.Add("access_token", accessToken)
+			query.Add("refresh_token", refreshToken)
+			query.Add("expires_in", strconv.Itoa(expiresIn))
+			uri.RawQuery = query.Encode()
+			stdResp.AddHeader("Location", uri.String())
+			stdResp.ResponseWriter.WriteHeader(302)
 		}
 		return &resp, nil
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-kit/log"
 	"idas/pkg/client/gorm"
+	"idas/pkg/errors"
 	"idas/pkg/global"
 	"idas/pkg/logs"
 	"idas/pkg/service/gormservice"
@@ -16,26 +17,34 @@ import (
 	"idas/pkg/service/redisservice"
 )
 
-func (s Set) CreateLoginSession(ctx context.Context, username string, password string) (session string, err error) {
-	user, err := s.VerifyPassword(ctx, username, password)
-	if user == nil {
-		return "", err
+func (s Set) CreateLoginSession(ctx context.Context, username string, password string) (session []string, err error) {
+	users, err := s.VerifyPassword(ctx, username, password)
+	if len(users) == 0 {
+		return nil, errors.UnauthorizedError
 	}
-	user.LoginTime = new(time.Time)
-	*user.LoginTime = time.Now().UTC()
-	if user, err = s.GetUserAndAppService(user.Storage).UpdateUser(ctx, user, "login_time"); err != nil {
-		return "", err
+	for _, user := range users {
+		user.LoginTime = new(time.Time)
+		*user.LoginTime = time.Now().UTC()
+		if user, err = s.GetUserAndAppService(user.Storage).UpdateUser(ctx, user, "login_time"); err != nil {
+			return nil, err
+		}
+
+		loginSession, err := s.sessionService.SetLoginSession(ctx, user)
+		if err != nil {
+			return nil, err
+		}
+		session = append(session, loginSession)
 	}
-	return s.sessionService.SetLoginSession(ctx, user)
+	return
 }
 
 type SessionService interface {
 	baseService
 	SetLoginSession(ctx context.Context, user *models.User) (string, error)
-	DeleteLoginSession(ctx context.Context, session string) (string, error)
-	GetLoginSession(ctx context.Context, id string) (*models.User, error)
-	OAuthAuthorize(ctx context.Context, responseType, clientId, redirectURI string) (redirect string, err error)
-	GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId, redirectURI string) (accessToken, refreshToken string, expiresIn int, err error)
+	DeleteLoginSession(ctx context.Context, session string) error
+	GetLoginSession(ctx context.Context, sessionIds []string) ([]*models.User, error)
+	OAuthAuthorize(ctx context.Context, clientId string) (code string, err error)
+	GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error)
 	GetOAuthTokenByPassword(ctx context.Context, username string, password string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByPassword(ctx context.Context, token, username, password string) (accessToken, refreshToken string, expiresIn int, err error)
@@ -71,20 +80,20 @@ func (s Set) SetLoginSession(ctx context.Context, user *models.User) (string, er
 	return s.sessionService.SetLoginSession(ctx, user)
 }
 
-func (s Set) DeleteLoginSession(ctx context.Context, session string) (string, error) {
+func (s Set) DeleteLoginSession(ctx context.Context, session string) error {
 	return s.sessionService.DeleteLoginSession(ctx, session)
 }
 
-func (s Set) GetLoginSession(ctx context.Context, id string) (*models.User, error) {
-	return s.sessionService.GetLoginSession(ctx, id)
+func (s Set) GetLoginSession(ctx context.Context, ids []string) ([]*models.User, error) {
+	return s.sessionService.GetLoginSession(ctx, ids)
 }
 
-func (s Set) OAuthAuthorize(ctx context.Context, responseType, clientId, redirectURI string) (redirect string, err error) {
-	return s.sessionService.OAuthAuthorize(ctx, responseType, clientId, redirectURI)
+func (s Set) OAuthAuthorize(ctx context.Context, clientId string) (code string, err error) {
+	return s.sessionService.OAuthAuthorize(ctx, clientId)
 }
 
-func (s Set) GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId, redirectURI string) (accessToken, refreshToken string, expiresIn int, err error) {
-	return s.sessionService.GetOAuthTokenByAuthorizationCode(ctx, code, clientId, redirectURI)
+func (s Set) GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId string) (accessToken, refreshToken string, expiresIn int, err error) {
+	return s.sessionService.GetOAuthTokenByAuthorizationCode(ctx, code, clientId)
 }
 
 func (s Set) RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error) {

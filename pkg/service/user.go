@@ -91,13 +91,13 @@ func (s Set) DeleteUser(ctx context.Context, storage string, id string) (err err
 	return service.DeleteUser(ctx, id)
 }
 
-func (s Set) VerifyPassword(ctx context.Context, username string, password string) (user *models.User, err error) {
+func (s Set) VerifyPassword(ctx context.Context, username string, password string) (users []*models.User, err error) {
 	for _, userService := range s.userAndAppService {
-		user, err = userService.VerifyPassword(ctx, username, password)
+		user, err := userService.VerifyPassword(ctx, username, password)
 		if err == nil {
 			user.Storage = userService.Name()
-			return user, nil
+			users = append(users, user)
 		}
 	}
-	return nil, errors.UnauthorizedError
+	return users, nil
 }

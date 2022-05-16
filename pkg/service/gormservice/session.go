@@ -48,11 +48,11 @@ func (s SessionService) Name() string {
 	return s.name
 }
 
-func (s SessionService) OAuthAuthorize(ctx context.Context, responseType, clientId, redirectURI string) (redirect string, err error) {
+func (s SessionService) OAuthAuthorize(ctx context.Context, clientId string) (code string, err error) {
 	panic("implement me")
 }
 
-func (s SessionService) GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId, redirectURI string) (accessToken, refreshToken string, expiresIn int, err error) {
+func (s SessionService) GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId string) (accessToken, refreshToken string, expiresIn int, err error) {
 	panic("implement me")
 }
 
@@ -89,30 +89,30 @@ func (s SessionService) SetLoginSession(ctx context.Context, user *models.User) 
 	return fmt.Sprintf("%s=%s; Path=/;Expires=%s", global.LoginSession, sessionId, session.Expiry.Format(global.LoginSessionExpiresFormat)), nil
 }
 
-func (s SessionService) GetLoginSession(ctx context.Context, id string) (*models.User, error) {
-	session := models.Session{Key: id}
+func (s SessionService) GetLoginSession(ctx context.Context, ids []string) (users []*models.User, err error) {
+	for _, id := range ids {
+		session := models.Session{Key: id}
+		if err := s.Session(ctx).Where("`key` = ?", id).Omit("last_seen", "create_time", "user_id").First(&session).Error; err == gogorm.ErrRecordNotFound {
+			return nil, errors.NotLoginError
+		} else if err != nil {
+			return nil, err
+		}
+		if session.Expiry.Before(time.Now().UTC()) {
+			return nil, errors.NotLoginError
+		}
+		session.LastSeen = time.Now()
+		_ = s.Session(ctx).Select("last_seen").Updates(&session).Error
+		var user models.User
+		if err := json.Unmarshal(session.Data, &user); err != nil {
+			return nil, fmt.Errorf("session data exception: %s", err)
+		}
+		users = append(users, &user)
+	}
 
-	if err := s.Session(ctx).Where("`key` = ?", id).Omit("last_seen", "create_time", "user_id").First(&session).Error; err == gogorm.ErrRecordNotFound {
-		return nil, errors.NotLoginError
-	} else if err != nil {
-		return nil, err
-	}
-	if session.Expiry.Before(time.Now().UTC()) {
-		return nil, errors.NotLoginError
-	}
-	session.LastSeen = time.Now()
-	_ = s.Session(ctx).Select("last_seen").Updates(&session).Error
-	var user models.User
-	if err := json.Unmarshal(session.Data, &user); err != nil {
-		return nil, fmt.Errorf("session data exception: %s", err)
-	}
-	return &user, nil
+	return users, nil
 }
 
-func (s SessionService) DeleteLoginSession(ctx context.Context, id string) (string, error) {
+func (s SessionService) DeleteLoginSession(ctx context.Context, id string) error {
 	session := models.Session{Key: id}
-	if err := s.Session(ctx).Where("`key` = ?", id).Delete(&session).Error; err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s=%s; Path=/;Expires=%s", global.LoginSession, id, time.Now().UTC().Format(global.LoginSessionExpiresFormat)), nil
+	return s.Session(ctx).Where("`key` = ?", id).Delete(&session).Error
 }

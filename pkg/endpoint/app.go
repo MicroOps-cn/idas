@@ -3,7 +3,6 @@ package endpoint
 import (
 	"context"
 	"encoding/json"
-
 	"github.com/go-kit/kit/endpoint"
 
 	"idas/pkg/errors"
@@ -16,37 +15,29 @@ type GetAppsRequest struct {
 	Storage string `json:"storage"`
 }
 
-type GetAppsResponse struct {
-	BaseListResponse `json:"-"`
-}
-
 func MakeGetAppsEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(*GetAppsRequest)
-		resp := GetAppsResponse{BaseListResponse: NewBaseListResponse(&req.BaseListRequest)}
-		resp.Data, resp.Total, resp.Error = s.GetApps(ctx, req.Storage, req.Keywords, req.Current, req.PageSize)
+		req := request.(Requester).GetRequestData().(*GetAppsRequest)
+		resp := NewBaseListResponse[[]*models.App](&req.BaseListRequest)
+		resp.BaseResponse.Data, resp.Total, resp.BaseResponse.Error = s.GetApps(ctx, req.Storage, req.Keywords, req.Current, req.PageSize)
 		return &resp, nil
 	}
 }
 
 type GetAppSourceRequest struct {
-	BaseRequest
 }
 
-type GetAppSourceResponse struct {
-	BaseListResponse `json:"-"`
-}
+type GetAppSourceResponse map[string]string
 
 func MakeGetAppSourceRequestEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		resp := GetAppSourceResponse{}
+		resp := BaseTotalResponse[GetAppSourceResponse]{}
 		resp.Data, resp.Total, resp.Error = s.GetAppSource(ctx)
 		return &resp, nil
 	}
 }
 
 type PatchAppsRequest struct {
-	BaseRequest
 	appPatch []map[string]interface{}
 }
 
@@ -55,13 +46,12 @@ func (p *PatchAppsRequest) UnmarshalJSON(bytes []byte) error {
 }
 
 type PatchAppsResponse struct {
-	BaseTotalResponse `json:"-"`
 }
 
 func MakePatchAppsEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(*PatchAppsRequest)
-		resp := PatchAppsResponse{}
+		req := request.(Requester).GetRequestData().(*PatchAppsRequest)
+		resp := BaseTotalResponse[PatchAppsResponse]{}
 		var storage string
 		for _, patch := range req.appPatch {
 			if ss, ok := patch["storage"].(string); !ok || len(ss) == 0 {
@@ -78,37 +68,33 @@ func MakePatchAppsEndpoint(s service.Service) endpoint.Endpoint {
 }
 
 type DeleteAppsRequest struct {
-	BaseRequest
 	Id      []string `valid:"required,notnull"`
 	Storage string   `json:"storage" valid:"required"`
 }
 
 type DeleteAppsResponse struct {
-	BaseTotalResponse `json:"-"`
 }
 
 func MakeDeleteAppsEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(*DeleteAppsRequest)
-		resp := DeleteAppsResponse{}
+		req := request.(Requester).GetRequestData().(*DeleteAppsRequest)
+		resp := BaseTotalResponse[DeleteAppsResponse]{}
 		resp.Total, resp.Error = s.DeleteApps(ctx, req.Storage, req.Id)
 		return &resp, nil
 	}
 }
 
 type UpdateAppRequest struct {
-	BaseRequest
 	*models.App `json:",inline"`
 }
 
 type UpdateAppResponse struct {
-	BaseResponse `json:"-"`
 }
 
 func MakeUpdateAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(*UpdateAppRequest)
-		resp := UpdateAppResponse{}
+		req := request.(Requester).GetRequestData().(*UpdateAppRequest)
+		resp := BaseResponse[interface{}]{}
 		if resp.Data, resp.Error = s.UpdateApp(ctx, req.Storage, req.App); resp.Error != nil {
 			resp.Error = errors.NewServerError(200, resp.Error.Error())
 		}
@@ -117,26 +103,23 @@ func MakeUpdateAppEndpoint(s service.Service) endpoint.Endpoint {
 }
 
 type GetAppRequest struct {
-	BaseRequest
 	Id      string `json:"id" valid:"required"`
 	Storage string `json:"storage" valid:"required"`
 }
 
 type GetAppResponse struct {
-	BaseResponse `json:"-"`
 }
 
 func MakeGetAppInfoEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(*GetAppRequest)
-		resp := GetAppResponse{}
+		req := request.(Requester).GetRequestData().(*GetAppRequest)
+		resp := BaseResponse[*models.App]{}
 		resp.Data, resp.Error = s.GetAppInfo(ctx, req.Storage, req.Id)
 		return &resp, nil
 	}
 }
 
 type CreateAppRequest struct {
-	BaseRequest
 	Name        string            `json:"name" valid:"required"`
 	Description string            `json:"description"`
 	Avatar      string            `json:"avatar"`
@@ -148,15 +131,14 @@ type CreateAppRequest struct {
 }
 
 type CreateAppResponse struct {
-	BaseResponse `json:"-"`
-	App          *models.App `json:",inline"`
+	App *models.App `json:",inline"`
 }
 
 func MakeCreateAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(*CreateAppRequest)
-		resp := CreateAppResponse{}
-		resp.App, resp.Error = s.CreateApp(ctx, req.Storage, &models.App{
+		req := request.(Requester).GetRequestData().(*CreateAppRequest)
+		resp := BaseResponse[*models.App]{}
+		resp.Data, resp.Error = s.CreateApp(ctx, req.Storage, &models.App{
 			Name:        req.Name,
 			Description: req.Description,
 			Avatar:      req.Avatar,
@@ -171,14 +153,11 @@ func MakeCreateAppEndpoint(s service.Service) endpoint.Endpoint {
 }
 
 type PatchAppRequest struct {
-	BaseRequest
 	fields  map[string]interface{}
 	Storage string `json:"storage" valid:"required"`
 }
 
 type PatchAppResponse struct {
-	BaseResponse `json:"-"`
-	App          *models.App `json:",inline"`
 }
 
 func (p *PatchAppRequest) UnmarshalJSON(data []byte) error {
@@ -192,27 +171,25 @@ func (p *PatchAppRequest) UnmarshalJSON(data []byte) error {
 
 func MakePatchAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(*PatchAppRequest)
-		resp := PatchAppResponse{}
-		resp.App, resp.Error = s.PatchApp(ctx, req.Storage, req.fields)
+		req := request.(Requester).GetRequestData().(*PatchAppRequest)
+		resp := BaseResponse[*models.App]{}
+		resp.Data, resp.Error = s.PatchApp(ctx, req.Storage, req.fields)
 		return &resp, nil
 	}
 }
 
 type DeleteAppRequest struct {
-	BaseRequest
 	Id      string `valid:"required"`
 	Storage string `json:"storage" valid:"required"`
 }
 
 type DeleteAppResponse struct {
-	BaseResponse `json:"-"`
 }
 
 func MakeDeleteAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(*DeleteAppRequest)
-		resp := DeleteAppResponse{}
+		req := request.(Requester).GetRequestData().(*DeleteAppRequest)
+		resp := BaseResponse[*DeleteAppResponse]{}
 		resp.Error = s.DeleteApp(ctx, req.Storage, req.Id)
 		return &resp, nil
 	}

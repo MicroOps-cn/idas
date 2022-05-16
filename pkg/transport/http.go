@@ -84,18 +84,38 @@ type responseWrapper struct {
 	Total        int64       `json:"total"`
 }
 
+type HttpRequest[T any] struct {
+	Data            T `json:"data"`
+	restfulRequest  *restful.Request
+	restfulResponse *restful.Response
+}
+
+func (b HttpRequest[T]) GetRequestData() interface{} {
+	return &b.Data
+}
+
+func (b HttpRequest[T]) GetRestfulRequest() *restful.Request {
+	return b.restfulRequest
+}
+
+func (b HttpRequest[T]) GetRestfulResponse() *restful.Response {
+	return b.restfulResponse
+}
+
+var _ endpoint.RestfulRequester = &HttpRequest[any]{}
+
 // decodeHTTPRequest Decode HTTP requests into request types
 func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request) (interface{}, error) {
-	var req RequestType
-	var err error
 	restfulReq := stdReq.Context().Value(global.RestfulRequestContextName).(*restful.Request)
 	restfulResp := stdReq.Context().Value(global.RestfulResponseContextName).(*restful.Response)
+	req := HttpRequest[RequestType]{restfulRequest: restfulReq, restfulResponse: restfulResp}
+	var err error
 	logger := logs.GetContextLogger(stdReq.Context())
 	r := restfulReq.Request
 	query := restfulReq.Request.URL.Query()
 	if len(query) > 0 {
-		if err = httputil.UnmarshalURLValues(query, &req); err != nil {
-			return nil, fmt.Errorf("failed to decode url query：%s", err)
+		if err = httputil.UnmarshalURLValues(query, &req.Data); err != nil {
+			return nil, fmt.Errorf("failed to decode url query: %s", err)
 		}
 	}
 	if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" {
@@ -108,7 +128,7 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 			//if err = r.ParseMultipartForm(1e6); err != nil {
 			//	return nil, fmt.Errorf("failed to parse multipart form data：%s", err)
 			//} else if len(r.Form) > 0 {
-			//	if err = httputil.UnmarshalURLValues(r.Form, &req); err != nil {
+			//	if err = httputil.UnmarshalURLValues(r.Form, &req.Data); err != nil {
 			//		return nil, fmt.Errorf("failed to decode multipart form data：%s", err)
 			//	}
 			//}
@@ -118,32 +138,30 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 				if err = r.ParseForm(); err != nil {
 					return nil, fmt.Errorf("failed to parse form data：%s", err)
 				} else if len(r.Form) > 0 {
-					if err = httputil.UnmarshalURLValues(r.Form, &req); err != nil {
+					if err = httputil.UnmarshalURLValues(r.Form, &req.Data); err != nil {
 						return nil, fmt.Errorf("failed to decode form data：%s", err)
 					}
 				}
 			} else if len(contentType) > 0 {
 				logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "caller", log.Caller(9))), logs.Prefix("decode http request: ", true))
-				if err = json.NewDecoder(io.TeeReader(r.Body, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Decode(&req); err != nil {
+
+				if err = json.NewDecoder(io.TeeReader(r.Body, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Decode(&req.Data); err != nil {
 					return nil, fmt.Errorf("failed to decode request body：%s", err)
 				}
 			}
 		}
 	}
 
-	fmt.Println(fmt.Sprintf("%s", wrapper.Must[[]byte](json.Marshal(req))))
 	if len(restfulReq.PathParameters()) > 0 {
 		if err = httputil.UnmarshalURLValues(httputil.MapToURLValues(restfulReq.PathParameters()), &req); err != nil {
 			return nil, fmt.Errorf("failed to decode path parameters：%s", err)
 		}
 	}
 
-	if rr, ok := interface{}(&req).(endpoint.RestfulRequester); ok {
-		rr.SetRestfulRequest(restfulReq)
-		rr.SetRestfulResponse(restfulResp)
-	}
+	req.restfulRequest = restfulReq
+	req.restfulResponse = restfulResp
 	level.Debug(logger).Log("msg", "decoded http request", "req", fmt.Sprintf("%s", wrapper.Must[[]byte](json.Marshal(req))))
-	if ok, err := govalidator.ValidateStruct(req); err != nil {
+	if ok, err := govalidator.ValidateStruct(req.Data); err != nil {
 		return &req, errors.NewServerError(http.StatusBadRequest, err.Error())
 	} else if !ok {
 		return &req, errors.NewServerError(http.StatusBadRequest, "params error")
@@ -163,6 +181,7 @@ func encodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response int
 	resp := responseWrapper{Success: true, TraceId: traceId}
 	if l, ok := response.(endpoint.Lister); ok {
 		resp.Data = l.GetData()
+
 		resp.Total = l.GetTotal()
 		resp.PageSize = l.GetPageSize()
 		resp.Current = l.GetCurrent()
@@ -170,7 +189,7 @@ func encodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response int
 		if t, ok := response.(endpoint.Total); ok {
 			resp.Total = t.GetTotal()
 		}
-		fmt.Println(response)
+		fmt.Println("resp: ", response)
 		if t, ok := response.(endpoint.HasData); ok {
 			resp.Data = t.GetData()
 		} else {

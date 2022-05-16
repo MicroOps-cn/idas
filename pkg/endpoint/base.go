@@ -21,101 +21,74 @@ type Total interface {
 	GetTotal() int64
 }
 
+type Requester interface {
+	GetRequestData() interface{}
+}
+
 type RestfulRequester interface {
+	Requester
 	GetRestfulRequest() *restful.Request
-	SetRestfulRequest(r *restful.Request)
 	GetRestfulResponse() *restful.Response
-	SetRestfulResponse(c *restful.Response)
-}
-
-var _ RestfulRequester = &BaseRequest{}
-
-type BaseRequest struct {
-	restfulRequest  *restful.Request
-	restfulResponse *restful.Response
-}
-
-func (b BaseRequest) GetRestfulRequest() *restful.Request {
-	return b.restfulRequest
-}
-
-func (b *BaseRequest) SetRestfulRequest(r *restful.Request) {
-	b.restfulRequest = r
-}
-
-func (b BaseRequest) GetRestfulResponse() *restful.Response {
-	return b.restfulResponse
-}
-
-func (b *BaseRequest) SetRestfulResponse(r *restful.Response) {
-	b.restfulResponse = r
 }
 
 type BaseListRequest struct {
-	BaseRequest
 	PageSize int64  `json:"pageSize"`
 	Current  int64  `json:"current"`
 	Keywords string `json:"keywords"`
 }
-type BaseResponse struct {
-	Error        error       `json:"-"`
-	Data         interface{} `json:"data,omitempty"`
-	ErrorMessage string      `json:"errorMessage"`
+
+type BaseResponse[T any] struct {
+	Error        error  `json:"-"`
+	Data         T      `json:"data,omitempty"`
+	ErrorMessage string `json:"errorMessage"`
 }
 
-func (l BaseResponse) GetData() interface{} {
+func (l BaseResponse[T]) GetData() interface{} {
 	return l.Data
 }
 
-func (l BaseResponse) Failed() error {
+func (l BaseResponse[T]) Failed() error {
 	if len(l.ErrorMessage) != 0 {
 		return errors.NewServerError(http.StatusOK, l.ErrorMessage)
 	}
 	return l.Error
 }
 
-type BaseListResponse struct {
-	BaseResponse
-	Current  int64       `json:"current,omitempty"`
-	PageSize int64       `json:"pageSize,omitempty"`
-	Total    int64       `json:"total,omitempty"`
-	Data     interface{} `json:"data,omitempty"`
+type BaseListResponse[T any] struct {
+	BaseTotalResponse[T]
+	Current  int64 `json:"current,omitempty"`
+	PageSize int64 `json:"pageSize,omitempty"`
 }
 
-func (b BaseListResponse) GetPageSize() int64 {
+func (b BaseListResponse[T]) GetPageSize() int64 {
 	return b.PageSize
 }
 
-func (b BaseListResponse) GetCurrent() int64 {
+func (b BaseListResponse[T]) GetCurrent() int64 {
 	return b.Current
 }
 
-func (b BaseListResponse) GetTotal() int64 {
-	return b.Total
-}
-
-func (b BaseListResponse) GetData() interface{} {
-	return b.Data
-}
-
-func NewBaseListResponse(req *BaseListRequest) BaseListResponse {
+func NewBaseListResponse[T any](req *BaseListRequest) BaseListResponse[T] {
 	if req.PageSize == 0 {
 		req.PageSize = 20
 	}
 	if req.Current == 0 {
 		req.Current = 1
 	}
-	return BaseListResponse{
+	return BaseListResponse[T]{
 		PageSize: req.PageSize,
 		Current:  req.Current,
+		BaseTotalResponse: BaseTotalResponse[T]{
+			BaseResponse: BaseResponse[T]{},
+		},
 	}
 }
 
-type BaseTotalResponse struct {
-	BaseResponse
+type BaseTotalResponse[T any] struct {
+	BaseResponse[T]
 	Total int64 `json:"total,omitempty"`
 }
 
-func (b BaseTotalResponse) GetTotal() int64 {
+func (b BaseTotalResponse[T]) GetTotal() int64 {
 	return b.Total
 }
