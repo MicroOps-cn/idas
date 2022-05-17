@@ -118,7 +118,7 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 			return nil, fmt.Errorf("failed to decode url query: %s", err)
 		}
 	}
-	if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" {
+	if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" || r.Method == "DELETE" {
 		contentType := r.Header.Get("Content-Type")
 		if strings.HasPrefix(contentType, "multipart/form-data") {
 			restfulReq.Request.Body = http.MaxBytesReader(restfulResp.ResponseWriter, r.Body, config.Get().Global.MaxBodySize.Capacity)

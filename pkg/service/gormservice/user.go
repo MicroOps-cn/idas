@@ -45,7 +45,6 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 				Or("full_name like ?", keywords),
 		)
 	}
-	fmt.Println(appId)
 	if len(appId) != 0 {
 		query = query.
 			Joins("LEFT JOIN t_app_user ON t_app_user.user_id = t_user.id").

@@ -30,7 +30,7 @@ type Service interface {
 	SetLoginSession(ctx context.Context, user *models.User) (string, error)
 	DeleteLoginSession(ctx context.Context, session string) error
 	GetLoginSession(ctx context.Context, ids []string) ([]*models.User, error)
-	OAuthAuthorize(ctx context.Context, clientId string) (code string, err error)
+	GetAuthCodeByClientId(ctx context.Context, clientId string, userId string, storage string) (code string, err error)
 	GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error)
 	GetOAuthTokenByPassword(ctx context.Context, username string, password string) (accessToken, refreshToken string, expiresIn int, err error)
@@ -115,6 +115,8 @@ type UserAndAppService interface {
 	CreateApp(ctx context.Context, app *models.App) (*models.App, error)
 	PatchApp(ctx context.Context, fields map[string]interface{}) (app *models.App, err error)
 	DeleteApp(ctx context.Context, id string) (err error)
+
+	VerifyUserAuthorizationForApp(ctx context.Context, appId string, userId string) (scope string, err error)
 }
 
 type UserAndAppServices []UserAndAppService

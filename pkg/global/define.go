@@ -5,6 +5,7 @@ import "time"
 const (
 	AppName                     = "idas"
 	LoginSession                = "LOGIN_SESSION"
+	AuthCode                    = "AUTH_CODE"
 	LoggerName                  = "__logger__"
 	TraceIdName                 = "traceId"
 	CallerName                  = "caller"
@@ -16,5 +17,6 @@ const (
 	LDAPConnName                = "__ldap_conn__"
 	AttrUser                    = "__user__"
 	LoginSessionExpiration      = 7 * 24 * time.Hour
+	AuthCodeExpiration          = 5 * time.Minute
 	LoginSessionExpiresFormat   = "Mon, 02-Jan-06 15:04:05 MST"
 )

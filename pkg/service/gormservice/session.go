@@ -25,6 +25,14 @@ type SessionService struct {
 	name string
 }
 
+func (s SessionService) CreateAuthCode(ctx context.Context, appId, userId, scope string) (code string, err error) {
+	c := models.AppAuthCode{AppId: appId, UserId: userId, Scope: scope}
+	if err = s.Session(ctx).Create(&c).Error; err != nil {
+		return "", err
+	}
+	return c.Id, nil
+}
+
 func (s SessionService) DeleteSession(ctx context.Context, id string) (err error) {
 	session := models.Session{Id: id}
 	if err = s.Session(ctx).Delete(&session).Error; err != nil {
@@ -46,10 +54,6 @@ func (s SessionService) GetSessions(ctx context.Context, userId string, current 
 
 func (s SessionService) Name() string {
 	return s.name
-}
-
-func (s SessionService) OAuthAuthorize(ctx context.Context, clientId string) (code string, err error) {
-	panic("implement me")
 }
 
 func (s SessionService) GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId string) (accessToken, refreshToken string, expiresIn int, err error) {

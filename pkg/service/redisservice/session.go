@@ -19,6 +19,19 @@ type SessionService struct {
 	name string
 }
 
+func (s SessionService) CreateAuthCode(ctx context.Context, appId, userId, scope string) (code string, err error) {
+	redisClt := s.Redis(ctx)
+	c := models.AppAuthCode{Model: models.Model{Id: models.NewId()}, AppId: appId, UserId: userId, Scope: scope}
+
+	if cc, err := json.Marshal(c); err != nil {
+		return "", err
+	} else if err := redisClt.Set(fmt.Sprintf("%s:%s", global.AuthCode, c.Id), cc, global.AuthCodeExpiration).Err(); err != nil {
+		return "", err
+	} else {
+		return c.Id, nil
+	}
+}
+
 func (s SessionService) DeleteSession(ctx context.Context, id string) (err error) {
 	panic("implement me")
 }
@@ -56,9 +69,9 @@ func (s SessionService) AutoMigrate(ctx context.Context) error {
 }
 
 func (s SessionService) GetLoginSession(ctx context.Context, ids []string) (users []*models.User, err error) {
+	redisClt := s.Redis(ctx)
 	for _, id := range ids {
 		user := new(models.User)
-		redisClt := s.Redis(ctx)
 		sessionValue, err := redisClt.Get(fmt.Sprintf("%s:%s", global.LoginSession, id)).Bytes()
 		if err != nil {
 			return nil, err

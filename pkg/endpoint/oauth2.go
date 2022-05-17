@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/go-kit/kit/endpoint"
 	"idas/pkg/errors"
+	"idas/pkg/global"
 	"idas/pkg/service"
+	"idas/pkg/service/models"
 	"net/url"
 	"strconv"
 )
@@ -66,21 +68,26 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 		var code string
 
 		stdResp := request.(RestfulRequester).GetRestfulResponse()
-		//user, ok := request.(RestfulRequester).GetRestfulRequest().Attribute(global.AttrUser).(*models.User)
-		//if !ok {
-		//	resp.Error = errors.NotLoginError
-		//	return resp, nil
-		//}
+
 		if len(req.ClientId) == 0 {
 			return nil, errors.ParameterError("client_id")
 		}
+		users, ok := request.(RestfulRequester).GetRestfulRequest().Attribute(global.AttrUser).([]*models.User)
+		if !ok || len(users) == 0 {
+			return nil, errors.NotLoginError
+		}
+
 		uri, err := url.Parse(req.RedirectUri)
 		if err != nil {
 			return nil, errors.ParameterError("redirect_uri")
 		}
-		if code, err = s.OAuthAuthorize(ctx, req.ClientId); err != nil {
-			return nil, err
+
+		for _, user := range users {
+			if code, err = s.GetAuthCodeByClientId(ctx, req.ClientId, user.Id, user.Storage); err != nil {
+				return nil, err
+			}
 		}
+
 		query := uri.Query()
 		switch req.ResponseType {
 		case OAuthAuthorizeRequest_code, OAuthAuthorizeRequest_default:

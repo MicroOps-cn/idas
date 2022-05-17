@@ -101,3 +101,15 @@ func (s Set) VerifyPassword(ctx context.Context, username string, password strin
 	}
 	return users, nil
 }
+
+func (s Set) GetAuthCodeByClientId(ctx context.Context, clientId string, userId string, storage string) (code string, err error) {
+	svc := s.GetUserAndAppService(storage)
+	if svc == nil {
+		return "", errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
+	}
+	scope, err := svc.VerifyUserAuthorizationForApp(ctx, clientId, userId)
+	if err != nil {
+		return "", err
+	}
+	return s.sessionService.CreateAuthCode(ctx, clientId, userId, scope)
+}

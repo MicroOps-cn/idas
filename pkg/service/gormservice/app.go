@@ -3,7 +3,9 @@ package gormservice
 import (
 	"context"
 	"fmt"
+	gogorm "gorm.io/gorm"
 	"idas/pkg/client/gorm"
+	"idas/pkg/global"
 	"reflect"
 
 	"idas/pkg/errors"
@@ -67,6 +69,50 @@ func (s UserAndAppService) DeleteApps(ctx context.Context, id []string) (total i
 	return deleted.RowsAffected, nil
 }
 
+func (s UserAndAppService) PatchAppRole(ctx context.Context, role *models.AppRole) error {
+	conn := s.Session(ctx)
+
+	var r models.AppRole
+	if len(role.Id) != 0 {
+		if err := conn.Where("id = ? and app_id = ?", role.Id, role.AppId).First(&r).Error; err == gogorm.ErrRecordNotFound {
+			role.Id = ""
+			if err = conn.Create(&role).Error; err != nil {
+				return err
+			}
+		} else if err != nil {
+			return err
+		} else if role.Name != r.Name || role.Config != r.Config || role.IsDefault != r.IsDefault || role.IsDelete != r.IsDelete {
+			if err = conn.Select("name", "config", "is_delete", "is_default").Updates(&role).Error; err != nil {
+				return err
+			}
+		}
+
+	} else {
+		if err := conn.Create(&role).Error; err != nil {
+			return err
+		}
+	}
+	var userIds []string
+	for _, user := range role.User {
+		user.RoleId = role.Id
+		var appUser = models.AppUser{AppId: role.AppId, UserId: user.Id, RoleId: role.Id}
+		var oldAppUser models.AppUser
+		if err := conn.Where("app_id = ? and user_id = ?", role.AppId, user.Id).First(&oldAppUser).Error; err == gogorm.ErrRecordNotFound {
+			if err = conn.Create(&appUser).Error; err != nil {
+				return err
+			}
+		} else if err != nil {
+			return err
+		} else if oldAppUser.RoleId != role.Id {
+			if err = conn.Model(&models.AppUser{}).Where("app_id = ? and user_id = ?", role.AppId, user.Id).Update("role_id", role.Id).Error; err != nil {
+				return err
+			}
+		}
+		userIds = append(userIds, user.Id)
+	}
+	return conn.Delete(&models.AppUser{}, "app_id = ? and role_id = ? and user_id not in ? ", role.AppId, role.Id, userIds).Error
+}
+
 func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updateColumns ...string) (*models.App, error) {
 	tx := s.Session(ctx).Begin()
 	defer tx.Rollback()
@@ -80,6 +126,26 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 	if err := q.Updates(&app).Error; err != nil {
 		return nil, err
 	}
+
+	if len(app.Role) > 0 {
+		var roleIds []string
+		for _, role := range app.Role {
+			for _, user := range app.User {
+				if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
+					role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
+				}
+			}
+			role.AppId = app.Id
+			if err := s.PatchAppRole(context.WithValue(ctx, global.MySQLConnName, tx), role); err != nil {
+				return nil, err
+			}
+			roleIds = append(roleIds, role.Id)
+		}
+		if err := tx.Delete(&models.AppRole{}, "app_id = ? and id not in ? ", app.Id, roleIds).Error; err != nil {
+			return nil, err
+		}
+	}
+
 	if err := tx.Find(&app).Error; err != nil {
 		return nil, err
 	}
@@ -104,6 +170,17 @@ func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name strin
 		return nil, errors.ParameterError("require id or name")
 	}
 	if err = conn.Where("id = ?", id).First(&app).Error; err != nil {
+		return nil, err
+	}
+	//if err = conn.Model(&app).Association("User").Find(&app.User); err != nil {
+	//	return nil, err
+	//}
+	if err = conn.Model(&models.User{}).Select("`t_user`.`id`,`t_user`.`create_time`,`t_user`.`update_time`,`t_user`.`is_delete`,`t_user`.`username`,`t_user`.`salt`,`t_user`.`password`,`t_user`.`email`,`t_user`.`phone_number`,`t_user`.`full_name`,`t_user`.`avatar`,`t_user`.`status`,`t_user`.`login_time`, `t_app_role`.`name` as role, `t_app_role`.`id` as role_id").
+		Joins("JOIN `t_app_user` ON `t_app_user`.`user_id` = `t_user`.`id` AND `t_app_user`.`app_id` = ?", app.Id).
+		Joins("JOIN `t_app_role` ON `t_app_user`.`role_id` = `t_app_role`.`id`").Find(&app.User).Error; err != nil {
+		return nil, err
+	}
+	if err = conn.Model(&app).Association("Role").Find(&app.Role); err != nil {
 		return nil, err
 	}
 	return
@@ -155,13 +232,34 @@ func (s UserAndAppService) GetApps(ctx context.Context, keywords string, current
 	}
 }
 
+type Scope struct {
+	Scope string
+}
+
+func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, appId string, userId string) (scope string, err error) {
+	var result Scope
+	if err = s.Session(ctx).Model(&models.AppUser{}).Select("t_app_role.name as `scope`").
+		Joins("JOIN `t_app_role` ON `t_app_role`.`id` = `t_app_user`.`role_id`").
+		Where("t_app_user.app_id = ? AND t_app_user.user_id = ?", appId, userId).First(&result).Error; err == gogorm.ErrRecordNotFound {
+		if err = s.Session(ctx).Model(&models.AppUser{}).Select("t_app_role.name as `scope`").
+			Joins(" LEFT JOIN `t_app_role` ON (`t_app`.`id` = `t_app_role`.`app_id`)").
+			Where("`t_app`.`id` = ? and (`t_app_role`.`is_default` = 1 or `t_app_role`.`is_default` is null )", appId).Error; err != nil {
+			return "", err
+		}
+	} else if err != nil {
+		return "", err
+	}
+	return result.Scope, nil
+}
+
 func NewUserAndAppService(name string, client *gorm.Client) *UserAndAppService {
-	if err := client.Session(context.Background()).SetupJoinTable(&models.App{}, "User", models.AppUser{}); err != nil {
+	conn := client.Session(context.Background())
+	if err := conn.SetupJoinTable(&models.App{}, "User", models.AppUser{}); err != nil {
 		panic(err)
 	}
 	return &UserAndAppService{name: name, Client: client}
 }
 
 func (s UserAndAppService) AutoMigrate(ctx context.Context) error {
-	return s.Session(ctx).AutoMigrate(&models.App{}, &models.AppUser{}, &models.User{})
+	return s.Session(ctx).AutoMigrate(&models.App{}, &models.AppUser{}, &models.AppRole{}, &models.User{}, &models.AppAuthCode{})
 }
