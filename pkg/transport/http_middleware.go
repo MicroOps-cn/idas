@@ -25,7 +25,7 @@ import (
 func HTTPLoginAuthentication(endpoints endpoint.Set) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, filterChan *restful.FilterChain) {
 		if req.SelectedRoute() == nil {
-			errorEncoder(req.Request.Context(), errors.NewServerError(http.StatusNotFound, "Not Found"+req.Request.RequestURI), resp)
+			errorEncoder(req.Request.Context(), errors.NewServerError(http.StatusNotFound, "Not Found: "+req.Request.RequestURI), resp)
 			return
 		}
 		if needLogin, ok := req.SelectedRoute().Metadata()[global.MetaNeedLogin].(bool); ok && !needLogin {

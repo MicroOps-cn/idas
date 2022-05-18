@@ -24,21 +24,21 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*OAuthTokenRequest)
 		resp := OAuthTokenResponse{TokenType: "Bearer"}
-		if restfulReq := request.(RestfulRequester).GetRestfulRequest(); restfulReq != nil {
+		if restfulReq := request.(RestfulRequester).GetRestfulRequest(); restfulReq == nil {
 			err = fmt.Errorf("invalid_grant")
 		} else {
 			switch req.GrantType {
-			case OAuthTokenRequest_AuthorizationCode:
+			case OAuthGrantType_authorization_code:
 				resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.GetOAuthTokenByAuthorizationCode(ctx, req.Code, req.ClientId)
-			case OAuthTokenRequest_Password:
+			case OAuthGrantType_password:
 				resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.GetOAuthTokenByPassword(ctx, req.Username, req.Password)
-			case OAuthTokenRequest_ClientCredentials:
+			case OAuthGrantType_client_credentials:
 				if username, password, ok := restfulReq.Request.BasicAuth(); ok {
 					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.GetOAuthTokenByPassword(ctx, username, password)
 				} else {
 					err = fmt.Errorf("invalid_request")
 				}
-			case OAuthTokenRequest_RefreshToken:
+			case OAuthGrantType_refresh_token:
 				if username, password, ok := restfulReq.Request.BasicAuth(); ok {
 					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByPassword(ctx, req.RefreshToken, username, password)
 				} else if len(req.Username) != 0 && len(req.Password) != 0 {
@@ -76,22 +76,27 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 		if !ok || len(users) == 0 {
 			return nil, errors.NotLoginError
 		}
-
+		sessionId, ok := request.(RestfulRequester).GetRestfulRequest().Attribute(global.LoginSession).(string)
+		if !ok || len(users) == 0 {
+			return nil, errors.NotLoginError
+		}
 		uri, err := url.Parse(req.RedirectUri)
 		if err != nil {
 			return nil, errors.ParameterError("redirect_uri")
 		}
 
 		for _, user := range users {
-			if code, err = s.GetAuthCodeByClientId(ctx, req.ClientId, user.Id, user.Storage); err != nil {
+			if code, err = s.GetAuthCodeByClientId(ctx, req.ClientId, user.Id, sessionId, user.Storage); err != nil {
 				return nil, err
 			}
 		}
 
 		query := uri.Query()
+
 		switch req.ResponseType {
 		case OAuthAuthorizeRequest_code, OAuthAuthorizeRequest_default:
 			query.Add("code", code)
+			query.Add("state", req.State)
 			uri.RawQuery = query.Encode()
 			stdResp.AddHeader("Location", uri.String())
 			stdResp.ResponseWriter.WriteHeader(302)

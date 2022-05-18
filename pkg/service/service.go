@@ -30,7 +30,7 @@ type Service interface {
 	SetLoginSession(ctx context.Context, user *models.User) (string, error)
 	DeleteLoginSession(ctx context.Context, session string) error
 	GetLoginSession(ctx context.Context, ids []string) ([]*models.User, error)
-	GetAuthCodeByClientId(ctx context.Context, clientId string, userId string, storage string) (code string, err error)
+	GetAuthCodeByClientId(ctx context.Context, clientId, userId, sessionId, storage string) (code string, err error)
 	GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error)
 	GetOAuthTokenByPassword(ctx context.Context, username string, password string) (accessToken, refreshToken string, expiresIn int, err error)

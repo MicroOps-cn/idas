@@ -123,6 +123,7 @@ func reflectValueFromTag(values url.Values, val reflect.Value) error {
 						sv.SetInt(int64(enumVal.Number()))
 						continue
 					}
+
 				}
 				return fmt.Errorf("cast int has error, expect type: %v ,val: %v ,query key: %v", sv.Type(), uv, jsonName)
 			}

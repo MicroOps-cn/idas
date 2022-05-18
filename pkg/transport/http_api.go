@@ -92,11 +92,11 @@ func InstallHTTPApi(logger log.Logger, container *restful.Container, options []h
 	managerWs.Route(managerWs.PUT("/app/{id}").Doc("更新应用信息（全量）").To(NewKitHTTPServer[endpoint.UpdateAppRequest](endpoints.UpdateApp, options)))
 	managerWs.Route(managerWs.PATCH("/app/{id}").Doc("更新应用信息（增量）").To(NewKitHTTPServer[endpoint.PatchAppRequest](endpoints.PatchApp, options)))
 	managerWs.Route(managerWs.DELETE("/app/{id}").Doc("删除应用").To(NewKitHTTPServer[endpoint.DeleteAppRequest](endpoints.DeleteApp, options)))
-
 	container.Add(managerWs)
-	oauthWs := NewWebService("/api", schema.GroupVersion{Group: "oauth", Version: "v1"}, "OAUTH")
+
+	oauthWs := NewWebService("/api", schema.GroupVersion{Group: "oauth", Version: "v1"}, "OAuth2")
 	// https://www.ruanyifeng.com/blog/2019/04/oauth-grant-types.html
-	oauthWs.Route(oauthWs.POST("/token").Doc("获取令牌").To(NewKitHTTPServer[endpoint.OAuthTokenRequest](endpoints.UserLogout, options)).Metadata(global.MetaNeedLogin, false))
+	oauthWs.Route(oauthWs.POST("/token").Doc("获取令牌").To(NewKitHTTPServer[endpoint.OAuthTokenRequest](endpoints.OAuthTokens, options)).Metadata(global.MetaNeedLogin, false).Consumes("application/x-www-form-urlencoded"))
 	oauthWs.Route(oauthWs.POST("/authorize").Doc("应用授权").To(NewKitHTTPServer[endpoint.OAuthAuthorizeRequest](endpoints.OAuthAuthorize, options)).Metadata(global.MetaAutoRedirectToLoginPage, true))
 	oauthWs.Route(oauthWs.GET("/authorize").Doc("应用授权").To(NewKitHTTPServer[endpoint.OAuthAuthorizeRequest](endpoints.OAuthAuthorize, options)).Metadata(global.MetaAutoRedirectToLoginPage, true))
 	container.Add(oauthWs)

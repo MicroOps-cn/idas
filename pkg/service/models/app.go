@@ -54,7 +54,8 @@ type AppUser struct {
 
 type AppAuthCode struct {
 	Model
-	UserId string `json:"userId" gorm:"type:char(32);not null"`
-	AppId  string `json:"appId" gorm:"type:char(32);not null"`
-	Scope  string `json:"scope" gorm:"type:char(128);not null"`
+	SessionId string `json:"session_id" gorm:"type:varchar(50);not null"`
+	AppId     string `json:"appId" gorm:"type:varchar(50);not null"`
+	Scope     string `json:"scope" gorm:"type:varchar(128);not null"`
+	Storage   string `json:"storage" gorm:"type:varchar(128);not null"`
 }

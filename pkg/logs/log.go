@@ -250,7 +250,7 @@ func GetContextLogger(ctx context.Context, options ...Option) log.Logger {
 	for _, option := range options {
 		l = option(l)
 	}
-	return l
+	return log.With(l)
 }
 
 type WriterAdapter struct {

@@ -139,7 +139,7 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 					return nil, fmt.Errorf("failed to parse form data：%s", err)
 				} else if len(r.Form) > 0 {
 					if err = httputil.UnmarshalURLValues(r.Form, &req.Data); err != nil {
-						return nil, fmt.Errorf("failed to decode form data：%s", err)
+						return nil, fmt.Errorf("failed to decode form data: data=%s, err=%s", r.Form, err)
 					}
 				}
 			} else if len(contentType) > 0 {
