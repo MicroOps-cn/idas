@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-kit/kit/endpoint"
+	"github.com/go-kit/log/level"
 	"idas/pkg/errors"
 	"idas/pkg/global"
+	"idas/pkg/logs"
 	"idas/pkg/service"
 	"idas/pkg/service/models"
 	"net/url"
@@ -63,6 +65,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 
 func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		logger := logs.GetContextLogger(ctx)
 		req := request.(Requester).GetRequestData().(*OAuthAuthorizeRequest)
 		resp := BaseResponse[interface{}]{}
 		var code string
@@ -74,11 +77,13 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 		}
 		users, ok := request.(RestfulRequester).GetRestfulRequest().Attribute(global.AttrUser).([]*models.User)
 		if !ok || len(users) == 0 {
+			level.Warn(logger).Log("msg", "failed to get user from context")
 			resp.Error = errors.NotLoginError
 			return resp, nil
 		}
-		sessionId, ok := request.(RestfulRequester).GetRestfulRequest().Attribute(global.LoginSession).(string)
-		if !ok || len(users) == 0 {
+		sessionId, ok := request.(RestfulRequester).GetRestfulRequest().Attribute(global.LoginSession).([]string)
+		if !ok || len(sessionId) == 0 {
+			level.Warn(logger).Log("msg", "failed to get session from context")
 			resp.Error = errors.NotLoginError
 			return resp, nil
 		}
@@ -87,8 +92,8 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 			return nil, errors.ParameterError("redirect_uri")
 		}
 
-		for _, user := range users {
-			if code, err = s.GetAuthCodeByClientId(ctx, req.ClientId, user.Id, sessionId, user.Storage); err != nil {
+		for idx, user := range users {
+			if code, err = s.GetAuthCodeByClientId(ctx, req.ClientId, user.Id, sessionId[idx], user.Storage); err != nil {
 				return nil, err
 			}
 		}
@@ -101,7 +106,7 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 			query.Add("state", req.State)
 			uri.RawQuery = query.Encode()
 			stdResp.AddHeader("Location", uri.String())
-			stdResp.ResponseWriter.WriteHeader(302)
+			stdResp.WriteHeader(302)
 		case OAuthAuthorizeRequest_token:
 			accessToken, refreshToken, expiresIn, err := s.GetOAuthTokenByAuthorizationCode(ctx, code, req.ClientId)
 			if err != nil {
@@ -112,7 +117,7 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 			query.Add("expires_in", strconv.Itoa(expiresIn))
 			uri.RawQuery = query.Encode()
 			stdResp.AddHeader("Location", uri.String())
-			stdResp.ResponseWriter.WriteHeader(302)
+			stdResp.WriteHeader(302)
 		}
 		return &resp, nil
 	}

@@ -191,7 +191,6 @@ func encodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response int
 		if t, ok := response.(endpoint.Total); ok {
 			resp.Total = t.GetTotal()
 		}
-		fmt.Println("resp: ", response)
 		if t, ok := response.(endpoint.HasData); ok {
 			resp.Data = t.GetData()
 		} else {

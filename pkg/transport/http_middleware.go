@@ -37,6 +37,7 @@ func HTTPLoginAuthentication(endpoints endpoint.Set) restful.FilterFunction {
 
 		loginSessionID, err := req.Request.Cookie(global.LoginSession)
 		if err == nil {
+			req.SetAttribute(global.LoginSession, strings.Split(loginSessionID.Value, ","))
 			if user, err := endpoints.GetLoginSession(req.Request.Context(), strings.Split(loginSessionID.Value, ",")); err == nil {
 				if len(user.([]*models.User)) >= 0 {
 					req.SetAttribute(global.AttrUser, user)
@@ -100,7 +101,6 @@ func HTTPLogging(req *restful.Request, resp *restful.Response, filterChan *restf
 			"[contentType]", resp.Header().Get("Content-Type"),
 			"[contentLength]", resp.ContentLength(),
 		)
-
 		level.Info(logger).Log("[totalTime]", time.Since(start)/time.Millisecond)
 	}()
 	filterChan.ProcessFilter(req, resp)

@@ -242,8 +242,8 @@ func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, ap
 		Joins("JOIN `t_app_role` ON `t_app_role`.`id` = `t_app_user`.`role_id`").
 		Where("t_app_user.app_id = ? AND t_app_user.user_id = ?", appId, userId).First(&result).Error; err == gogorm.ErrRecordNotFound {
 		if err = s.Session(ctx).Model(&models.AppUser{}).Select("t_app_role.name as `scope`").
-			Joins(" LEFT JOIN `t_app_role` ON (`t_app`.`id` = `t_app_role`.`app_id`)").
-			Where("`t_app`.`id` = ? and (`t_app_role`.`is_default` = 1 or `t_app_role`.`is_default` is null )", appId).Error; err != nil {
+			Joins(" LEFT JOIN `t_app_role` ON (`t_app_user`.`app_id` = `t_app_role`.`app_id`)").
+			Where("`t_app_user`.`app_id` = ? and (`t_app_role`.`is_default` = 1 or `t_app_role`.`is_default` is null )", appId).First(&result).Error; err != nil {
 			return "", err
 		}
 	} else if err != nil {

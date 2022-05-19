@@ -128,7 +128,7 @@ func (s SessionService) GetLoginSession(ctx context.Context, ids []string) (user
 		session.LastSeen = time.Now()
 		_ = s.Session(ctx).Select("last_seen").Updates(&session).Error
 		var user models.User
-		if err := json.Unmarshal(session.Data, &user); err != nil {
+		if err = json.Unmarshal(session.Data, &user); err != nil {
 			return nil, fmt.Errorf("session data exception: %s", err)
 		}
 		users = append(users, &user)
