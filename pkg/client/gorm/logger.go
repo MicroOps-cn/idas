@@ -3,6 +3,7 @@ package gorm
 import (
 	"context"
 	"fmt"
+	"idas/pkg/logs"
 	"time"
 
 	"github.com/go-kit/log"
@@ -52,13 +53,13 @@ func (l logContext) Trace(_ context.Context, begin time.Time, fc func() (string,
 	switch {
 	case err != nil && err != gorm.ErrRecordNotFound:
 		sql, rows := fc()
-		level.Error(l.logger).Log("caller", utils.FileWithLineNum(), "msg", "SQL execution exception", "[ErrorMsg]", err, "[sql]", sql, "[ExecTime]", float64(elapsed.Nanoseconds())/1e6, "[RowReturnCount]", rows)
+		level.Error(l.logger).Log("caller", logs.Relative(utils.FileWithLineNum()), "msg", "SQL execution exception", "[ErrorMsg]", err, "[sql]", sql, "[ExecTime]", float64(elapsed.Nanoseconds())/1e6, "[RowReturnCount]", rows)
 	case elapsed > l.SlowThreshold && l.SlowThreshold != 0:
 		sql, rows := fc()
-		level.Warn(l.logger).Log("caller", utils.FileWithLineNum(), "msg", "exec SQL query", "[sql]", sql, "[ExecTime]", float64(elapsed.Nanoseconds())/1e6, "[RowReturnCount]", rows)
+		level.Warn(l.logger).Log("caller", logs.Relative(utils.FileWithLineNum()), "msg", "exec SQL query", "[sql]", sql, "[ExecTime]", float64(elapsed.Nanoseconds())/1e6, "[RowReturnCount]", rows)
 	default:
 		sql, rows := fc()
-		level.Debug(l.logger).Log("caller", utils.FileWithLineNum(), "msg", "exec SQL query", "[sql]", sql, "[ExecTime]", float64(elapsed.Nanoseconds())/1e6, "[RowReturnCount]", rows)
+		level.Debug(l.logger).Log("caller", logs.Relative(utils.FileWithLineNum()), "msg", "exec SQL query", "[sql]", sql, "[ExecTime]", float64(elapsed.Nanoseconds())/1e6, "[RowReturnCount]", rows)
 	}
 }
 

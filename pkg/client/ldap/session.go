@@ -63,7 +63,7 @@ func (s *Session) Add(addRequest *ldap.AddRequest) error {
 	if s.err != nil {
 		return s.err
 	}
-	logger := logs.GetContextLogger(s.ctx, logs.Caller(4))
+	logger := logs.GetContextLogger(s.ctx, logs.WithCaller(4))
 	level.Debug(logger).Log("msg", "create ldap object", "dn", addRequest.DN, "attributes", string(wrapper.Must[[]byte](json.Marshal(addRequest.Attributes))))
 	return s.c.Add(addRequest)
 }
@@ -72,7 +72,7 @@ func (s *Session) Del(delRequest *ldap.DelRequest) error {
 	if s.err != nil {
 		return s.err
 	}
-	logger := logs.GetContextLogger(s.ctx, logs.Caller(4))
+	logger := logs.GetContextLogger(s.ctx, logs.WithCaller(4))
 	level.Debug(logger).Log("msg", "delete ldap object", "dn", delRequest.DN)
 	return s.c.Del(delRequest)
 }
@@ -81,7 +81,7 @@ func (s *Session) Modify(modifyRequest *ldap.ModifyRequest) error {
 	if s.err != nil {
 		return s.err
 	}
-	logger := logs.GetContextLogger(s.ctx, logs.Caller(4))
+	logger := logs.GetContextLogger(s.ctx, logs.WithCaller(4))
 	level.Debug(logger).Log("msg", "modify ldap object", "dn", modifyRequest.DN, "attributes", string(wrapper.Must[[]byte](json.Marshal(modifyRequest.Changes))))
 	return s.c.Modify(modifyRequest)
 }
@@ -90,7 +90,7 @@ func (s *Session) ModifyDN(modifyDNRequest *ldap.ModifyDNRequest) error {
 	if s.err != nil {
 		return s.err
 	}
-	logger := logs.GetContextLogger(s.ctx, logs.Caller(4))
+	logger := logs.GetContextLogger(s.ctx, logs.WithCaller(4))
 	level.Debug(logger).Log("msg", "modify ldap object dn", "dn", modifyDNRequest.DN)
 	return s.c.ModifyDN(modifyDNRequest)
 }
@@ -106,7 +106,7 @@ func (s *Session) PasswordModify(passwordModifyRequest *ldap.PasswordModifyReque
 	if s.err != nil {
 		return nil, s.err
 	}
-	logger := logs.GetContextLogger(s.ctx, logs.Caller(4))
+	logger := logs.GetContextLogger(s.ctx, logs.WithCaller(4))
 	level.Debug(logger).Log("msg", "modify ldap user password", "uid", passwordModifyRequest.UserIdentity)
 	return s.c.PasswordModify(passwordModifyRequest)
 }
@@ -115,7 +115,7 @@ func (s *Session) Search(searchRequest *ldap.SearchRequest) (*ldap.SearchResult,
 	if s.err != nil {
 		return nil, s.err
 	}
-	logger := logs.GetContextLogger(s.ctx, logs.Caller(4))
+	logger := logs.GetContextLogger(s.ctx, logs.WithCaller(4))
 	level.Debug(logger).Log("msg", "ldap search", "baseDN", searchRequest.BaseDN, "filter", searchRequest.Filter)
 	return s.c.Search(searchRequest)
 }

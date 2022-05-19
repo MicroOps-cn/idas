@@ -35,7 +35,7 @@ import (
 func NewHTTPHandler(endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer, logger log.Logger) http.Handler {
 	options := []httptransport.ServerOption{
 		httptransport.ServerErrorEncoder(errorEncoder),
-		httptransport.ServerErrorHandler(transport.NewLogErrorHandler(logger)),
+		httptransport.ServerErrorHandler(transport.NewLogErrorHandler(log.With(logger, "caller", logs.Caller(9)))),
 	}
 
 	if zipkinTracer != nil {
@@ -54,6 +54,8 @@ func NewHTTPHandler(endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipk
 }
 
 func errorEncoder(ctx context.Context, err error, w http.ResponseWriter) {
+	logger := ctx.Value(global.LoggerName).(log.Logger)
+	level.Error(logger).Log("err", err, "msg", "failed to http request")
 	traceId := ctx.Value(global.TraceIdName).(string)
 	resp := responseWrapper{
 		ErrorMessage: err.Error(),
@@ -69,7 +71,7 @@ func errorEncoder(ctx context.Context, err error, w http.ResponseWriter) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 	if err = json.NewEncoder(w).Encode(resp); err != nil {
-		level.Info(ctx.Value(global.LoggerName).(log.Logger)).Log("msg", "failed to write response")
+		level.Info(logger).Log("msg", "failed to write response")
 	}
 }
 
@@ -143,7 +145,7 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 					}
 				}
 			} else if len(contentType) > 0 {
-				logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "caller", log.Caller(9))), logs.Prefix("decode http request: ", true))
+				logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "caller", logs.Caller(9))), logs.Prefix("decode http request: ", true))
 
 				if err = json.NewDecoder(io.TeeReader(r.Body, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Decode(&req.Data); err != nil {
 					return nil, fmt.Errorf("failed to decode request body：%s", err)
@@ -197,6 +199,6 @@ func encodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response int
 		}
 	}
 
-	logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "resp", fmt.Sprintf("%#v", resp), "caller", log.Caller(7))), logs.Prefix("encoded http response: ", true))
+	logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "resp", fmt.Sprintf("%#v", resp), "caller", logs.Caller(7))), logs.Prefix("encoded http response: ", true))
 	return json.NewEncoder(io.MultiWriter(w, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Encode(resp)
 }

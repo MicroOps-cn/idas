@@ -171,7 +171,7 @@ func New(config *Config) log.Logger {
 	if config.Level != nil {
 		l = level.NewFilter(l, config.Level.getOption())
 	}
-	l = log.With(l, "ts", timestampFormat, global.CallerName, log.DefaultCaller)
+	l = log.With(l, "ts", timestampFormat, global.CallerName, DefaultCaller)
 	return l
 }
 
@@ -185,7 +185,7 @@ func newDynamic(config *Config) *logger {
 	} else {
 		l = log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
 	}
-	l = log.With(l, "ts", timestampFormat, global.CallerName, log.DefaultCaller)
+	l = log.With(l, "ts", timestampFormat, global.CallerName, DefaultCaller)
 
 	lo := &logger{
 		base:    l,

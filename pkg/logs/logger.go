@@ -73,8 +73,32 @@ func (l *idasLogger) encodeKeyvals(keyvals ...interface{}) ([]byte, error) {
 	return enc.buf.Bytes(), nil
 }
 
+var sourceDir = func() string {
+	_, currentFile, _, _ := runtime.Caller(0)
+	return strings.TrimSuffix(currentFile, "pkg/logs/logger.go")
+}()
+
+func Relative(file string) string {
+	return strings.TrimPrefix(file, sourceDir)
+}
+
+func Caller(depth int) log.Valuer {
+	return func() interface{} {
+		//for i := 1; i < 15; i++ {
+		//	_, f, l, _ := runtime.Caller(i)
+		//	if strings.HasPrefix(f, sourceDir) {
+		//		fmt.Printf("%d/%d => %s:%d\n", depth, i, f, l)
+		//	}
+		//}
+		_, file, line, _ := runtime.Caller(depth)
+		return strings.TrimPrefix(file, sourceDir) + ":" + strconv.Itoa(line)
+	}
+}
+
+var DefaultCaller = Caller(3)
+
 func (l *idasLogger) Log(keyvals ...interface{}) error {
-	ll := &idasLog{otherKeyMaxLen: 18, caller: log.DefaultCaller}
+	ll := &idasLog{otherKeyMaxLen: 18, caller: DefaultCaller}
 	for i := 0; ; {
 		v := keyvals[i+1]
 		if k, ok := keyvals[i].(string); ok {

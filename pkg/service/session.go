@@ -48,7 +48,6 @@ type SessionService interface {
 	DeleteSession(ctx context.Context, id string) (err error)
 
 	CreateOAuthAuthCode(ctx context.Context, appId, sessionId, scope, storage string) (code string, err error)
-	CreateOAuthAccessToken(ctx context.Context, appId, sessionId, scope, storage string) (code string, err error)
 	GetUserByOAuthAuthorizationCode(ctx context.Context, code, clientId string) (user *models.User, scope string, err error)
 	RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error)
 	GetOAuthTokenByPassword(ctx context.Context, username string, password string) (accessToken, refreshToken string, expiresIn int, err error)
@@ -99,8 +98,8 @@ func (s Set) GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientI
 	if len(user.Id) == 0 {
 		return "", "", 0, errors.BadRequestError
 	}
-	//info, err := s.GetUserInfo(ctx, storage, userId, "")
-	s.sessionService.CreateOAuthAccessToken()
+
+	_, err = s.sessionService.SetLoginSession(ctx, user)
 	return "", "", 0, err
 }
 

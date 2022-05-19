@@ -74,11 +74,13 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 		}
 		users, ok := request.(RestfulRequester).GetRestfulRequest().Attribute(global.AttrUser).([]*models.User)
 		if !ok || len(users) == 0 {
-			return nil, errors.NotLoginError
+			resp.Error = errors.NotLoginError
+			return resp, nil
 		}
 		sessionId, ok := request.(RestfulRequester).GetRestfulRequest().Attribute(global.LoginSession).(string)
 		if !ok || len(users) == 0 {
-			return nil, errors.NotLoginError
+			resp.Error = errors.NotLoginError
+			return resp, nil
 		}
 		uri, err := url.Parse(req.RedirectUri)
 		if err != nil {

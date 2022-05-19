@@ -9,9 +9,9 @@ import (
 
 type Option func(l log.Logger) log.Logger
 
-func Caller(layer int) Option {
+func WithCaller(layer int) Option {
 	return func(l log.Logger) log.Logger {
-		return log.With(l, global.CallerName, log.Caller(layer))
+		return log.With(l, global.CallerName, Caller(layer))
 	}
 }
 
