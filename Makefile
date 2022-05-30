@@ -34,7 +34,7 @@ endif
 pkgs          = ./...
 
 
-probuf:
+proto:
 	for protofile in `find -name "*.proto"`; \
 	do \
 		$(PROTOC) --go_out=module=${GOMODULENAME}:. ${PROTOC_OPTS}  $${protofile}; \

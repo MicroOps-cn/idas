@@ -93,8 +93,7 @@ func (s Set) DeleteUser(ctx context.Context, storage string, id string) (err err
 
 func (s Set) VerifyPassword(ctx context.Context, username string, password string) (users []*models.User, err error) {
 	for _, userService := range s.userAndAppService {
-		user, err := userService.VerifyPassword(ctx, username, password)
-		if err == nil {
+		for _, user := range userService.VerifyPassword(ctx, username, password) {
 			user.Storage = userService.Name()
 			users = append(users, user)
 		}

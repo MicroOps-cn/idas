@@ -1,7 +1,6 @@
 package models
 
 import (
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -10,11 +9,11 @@ import (
 )
 
 func NewId() string {
-	return strings.ReplaceAll(uuid.NewV4().String(), "-", "")
+	return uuid.NewV4().String()
 }
 
 type Model struct {
-	Id         string    `json:"id" gorm:"primary_key;type:char(32)" valid:"required"`
+	Id         string    `json:"id" gorm:"primary_key;type:char(36)" valid:"required"`
 	CreateTime time.Time `json:"createTime,omitempty" gorm:"type:datetime;not null;omitempty"`
 	UpdateTime time.Time `json:"updateTime,omitempty" gorm:"type:datetime;not null;omitempty"`
 	IsDelete   bool      `json:"isDelete" gorm:"not null;default:0"`
@@ -23,7 +22,7 @@ type Model struct {
 func (model *Model) BeforeCreate(db *gorm.DB) error {
 	if model.Id == "" {
 		id := NewId()
-		if len(id) != 32 {
+		if len(id) != 36 {
 			return errors.New("生成ID失败: " + id)
 		}
 		db.Statement.SetColumn("Id", id)

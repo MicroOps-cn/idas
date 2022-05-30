@@ -20,4 +20,5 @@ message MySQLOptions{
 
 message SQLiteOptions{
   string path = 1;
+  string table_prefix = 2;
 }

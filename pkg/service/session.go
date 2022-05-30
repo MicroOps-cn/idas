@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"idas/pkg/client/gorm"
 	"idas/pkg/errors"
 	"idas/pkg/global"
@@ -22,15 +23,18 @@ func (s Set) CreateLoginSession(ctx context.Context, username string, password s
 	if len(users) == 0 {
 		return nil, errors.UnauthorizedError
 	}
+	logger := logs.GetContextLogger(ctx)
 	for _, user := range users {
 		user.LoginTime = new(time.Time)
 		*user.LoginTime = time.Now().UTC()
-		if user, err = s.GetUserAndAppService(user.Storage).UpdateUser(ctx, user, "login_time"); err != nil {
+		if err = s.GetUserAndAppService(user.Storage).UpdateLoginTime(ctx, user.Id); err != nil {
 			return nil, err
 		}
-
+		user.LoginTime = new(time.Time)
+		*(user.LoginTime) = time.Now()
 		loginSession, err := s.sessionService.SetLoginSession(ctx, user)
 		if err != nil {
+			level.Error(logger).Log("err", err, "msg", "failed to create session")
 			return nil, err
 		}
 		session = append(session, loginSession)
@@ -52,6 +56,8 @@ type SessionService interface {
 	RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error)
 	GetOAuthTokenByPassword(ctx context.Context, username string, password string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByPassword(ctx context.Context, token, username, password string) (accessToken, refreshToken string, expiresIn int, err error)
+	VerifyToken(ctx context.Context, token string, relationId string, tokenType models.TokenType) bool
+	CreateToken(ctx context.Context, token *models.Token) error
 }
 
 func NewSessionService(ctx context.Context) SessionService {

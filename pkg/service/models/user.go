@@ -47,7 +47,7 @@ func (u User) MarshalJSON() ([]byte, error) {
 
 func (u User) GenSecret(password ...string) []byte {
 	sha := sha1.New()
-	sha.Write([]byte(u.Salt))
+	sha.Write(u.Salt)
 	if len(password) > 0 {
 		sha.Write([]byte(password[0]))
 	} else {

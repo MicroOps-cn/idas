@@ -261,5 +261,5 @@ func NewUserAndAppService(name string, client *gorm.Client) *UserAndAppService {
 }
 
 func (s UserAndAppService) AutoMigrate(ctx context.Context) error {
-	return s.Session(ctx).AutoMigrate(&models.App{}, &models.AppUser{}, &models.AppRole{}, &models.User{}, &models.AppAuthCode{})
+	return s.Session(ctx).AutoMigrate(&models.AppUser{}, &models.AppRole{}, &models.User{}, &models.AppAuthCode{}, &models.App{})
 }

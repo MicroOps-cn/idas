@@ -111,12 +111,18 @@ func (s *Session) PasswordModify(passwordModifyRequest *ldap.PasswordModifyReque
 	return s.c.PasswordModify(passwordModifyRequest)
 }
 
-func (s *Session) Search(searchRequest *ldap.SearchRequest) (*ldap.SearchResult, error) {
+func (s *Session) Search(searchRequest *ldap.SearchRequest) (result *ldap.SearchResult, err error) {
+	defer func() {
+		logger := logs.GetContextLogger(s.ctx, logs.WithCaller(5))
+		if err != nil {
+			level.Error(logger).Log("msg", "failed to execute ldap search", "[baseDN]", searchRequest.BaseDN, "[filter]", searchRequest.Filter, "[result]", result, "err", err)
+		} else {
+			level.Debug(logger).Log("msg", "ldap search", "[baseDN]", searchRequest.BaseDN, "[filter]", searchRequest.Filter, "[result]", result)
+		}
+	}()
 	if s.err != nil {
 		return nil, s.err
 	}
-	logger := logs.GetContextLogger(s.ctx, logs.WithCaller(4))
-	level.Debug(logger).Log("msg", "ldap search", "baseDN", searchRequest.BaseDN, "filter", searchRequest.Filter)
 	return s.c.Search(searchRequest)
 }
 

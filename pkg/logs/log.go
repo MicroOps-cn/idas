@@ -237,9 +237,12 @@ func GetRootLogger() log.Logger {
 	return rootLogger
 }
 
+func NewTraceId() string {
+	return strings.ReplaceAll(uuid.NewV4().String(), "-", "")
+}
+
 func NewTraceLogger() log.Logger {
-	traceId := strings.ReplaceAll(uuid.NewV4().String(), "-", "")
-	return log.With(rootLogger, global.TraceIdName, traceId)
+	return log.With(rootLogger, global.TraceIdName, NewTraceId())
 }
 
 func GetContextLogger(ctx context.Context, options ...Option) log.Logger {

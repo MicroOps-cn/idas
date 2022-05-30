@@ -14,8 +14,6 @@ import (
 	"github.com/emicklei/go-restful/v3"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	uuid "github.com/satori/go.uuid"
-
 	"idas/pkg/endpoint"
 	"idas/pkg/errors"
 	"idas/pkg/global"
@@ -64,7 +62,7 @@ func HTTPLogging(req *restful.Request, resp *restful.Response, filterChan *restf
 	traceId := req.HeaderParameter("TraceId")
 	if len(traceId) > 36 || len(traceId) <= 0 {
 		if traceId = req.HeaderParameter("X-Request-Id"); len(traceId) > 36 || len(traceId) <= 0 {
-			traceId = strings.ReplaceAll(uuid.NewV4().String(), "-", "")
+			traceId = logs.NewTraceId()
 		}
 	}
 	logger := log.With(logs.GetRootLogger(), global.TraceIdName, traceId)

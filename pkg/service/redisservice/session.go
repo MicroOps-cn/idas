@@ -7,10 +7,7 @@ import (
 	"github.com/go-kit/log/level"
 	"idas/pkg/errors"
 	"idas/pkg/logs"
-	"strings"
 	"time"
-
-	uuid "github.com/satori/go.uuid"
 
 	"idas/pkg/client/redis"
 	"idas/pkg/global"
@@ -20,6 +17,16 @@ import (
 type SessionService struct {
 	*redis.Client
 	name string
+}
+
+func (s SessionService) CreateToken(ctx context.Context, token *models.Token) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s SessionService) VerifyToken(ctx context.Context, token string, relationId string, tokenType models.TokenType) bool {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (s SessionService) DeleteSession(ctx context.Context, id string) (err error) {
@@ -109,7 +116,7 @@ func (s SessionService) GetLoginSession(ctx context.Context, ids []string) (user
 }
 
 func (s SessionService) SetLoginSession(ctx context.Context, user *models.User) (string, error) {
-	sessionId := strings.ReplaceAll(uuid.NewV4().String(), "-", "")
+	sessionId := models.NewId()
 	redisClt := s.Redis(ctx)
 	user.Password = nil
 	user.Salt = nil

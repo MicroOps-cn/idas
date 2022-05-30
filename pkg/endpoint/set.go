@@ -26,6 +26,7 @@ type UserEndpoints struct {
 	PatchUser,
 	DeleteUser,
 	GetUserSource,
+	ResetUserPassword,
 	CurrentUser endpoint.Endpoint
 }
 
@@ -75,16 +76,17 @@ func New(svc service.Service, logger log.Logger, duration metrics.Histogram, otT
 			DownloadFile: InjectEndpoint(logger, "UploadFile", duration, otTracer, zipkinTracer, MakeDownloadFileEndpoint(svc)),
 		},
 		UserEndpoints: UserEndpoints{
-			CurrentUser:   InjectEndpoint(logger, "CurrentUser", duration, otTracer, zipkinTracer, MakeCurrentUserEndpoint(svc)),
-			GetUsers:      InjectEndpoint(logger, "GetUsers", duration, otTracer, zipkinTracer, MakeGetUsersEndpoint(svc)),
-			DeleteUsers:   InjectEndpoint(logger, "DeleteUsers", duration, otTracer, zipkinTracer, MakeDeleteUsersEndpoint(svc)),
-			PatchUsers:    InjectEndpoint(logger, "PatchUsers", duration, otTracer, zipkinTracer, MakePatchUsersEndpoint(svc)),
-			UpdateUser:    InjectEndpoint(logger, "UpdateUser", duration, otTracer, zipkinTracer, MakeUpdateUserEndpoint(svc)),
-			GetUserInfo:   InjectEndpoint(logger, "GetUserInfo", duration, otTracer, zipkinTracer, MakeGetUserInfoEndpoint(svc)),
-			CreateUser:    InjectEndpoint(logger, "CreateUser", duration, otTracer, zipkinTracer, MakeCreateUserEndpoint(svc)),
-			PatchUser:     InjectEndpoint(logger, "PatchUser", duration, otTracer, zipkinTracer, MakePatchUserEndpoint(svc)),
-			DeleteUser:    InjectEndpoint(logger, "DeleteUser", duration, otTracer, zipkinTracer, MakeDeleteUserEndpoint(svc)),
-			GetUserSource: InjectEndpoint(logger, "GetUserSource", duration, otTracer, zipkinTracer, MakeGetUserSourceRequestEndpoint(svc)),
+			CurrentUser:       InjectEndpoint(logger, "CurrentUser", duration, otTracer, zipkinTracer, MakeCurrentUserEndpoint(svc)),
+			ResetUserPassword: InjectEndpoint(logger, "ResetUserPassword", duration, otTracer, zipkinTracer, MakeResetUserPasswordEndpoint(svc)),
+			GetUsers:          InjectEndpoint(logger, "GetUsers", duration, otTracer, zipkinTracer, MakeGetUsersEndpoint(svc)),
+			DeleteUsers:       InjectEndpoint(logger, "DeleteUsers", duration, otTracer, zipkinTracer, MakeDeleteUsersEndpoint(svc)),
+			PatchUsers:        InjectEndpoint(logger, "PatchUsers", duration, otTracer, zipkinTracer, MakePatchUsersEndpoint(svc)),
+			UpdateUser:        InjectEndpoint(logger, "UpdateUser", duration, otTracer, zipkinTracer, MakeUpdateUserEndpoint(svc)),
+			GetUserInfo:       InjectEndpoint(logger, "GetUserInfo", duration, otTracer, zipkinTracer, MakeGetUserInfoEndpoint(svc)),
+			CreateUser:        InjectEndpoint(logger, "CreateUser", duration, otTracer, zipkinTracer, MakeCreateUserEndpoint(svc)),
+			PatchUser:         InjectEndpoint(logger, "PatchUser", duration, otTracer, zipkinTracer, MakePatchUserEndpoint(svc)),
+			DeleteUser:        InjectEndpoint(logger, "DeleteUser", duration, otTracer, zipkinTracer, MakeDeleteUserEndpoint(svc)),
+			GetUserSource:     InjectEndpoint(logger, "GetUserSource", duration, otTracer, zipkinTracer, MakeGetUserSourceRequestEndpoint(svc)),
 		},
 		SessionEndpoints: SessionEndpoints{
 			GetSessions:     InjectEndpoint(logger, "GetSessions", duration, otTracer, zipkinTracer, MakeGetSessionsEndpoint(svc)),

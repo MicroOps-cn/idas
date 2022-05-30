@@ -11,8 +11,6 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-logfmt/logfmt"
-	uuid "github.com/satori/go.uuid"
-
 	"idas/pkg/global"
 )
 
@@ -133,7 +131,7 @@ func (l *idasLogger) Log(keyvals ...interface{}) error {
 		}
 	}
 	if ll.traceId == nil {
-		ll.traceId = strings.ReplaceAll(uuid.NewV4().String(), "-", "")
+		ll.traceId = NewTraceId()
 	}
 	if ll.level == nil {
 		ll.level = LevelInfo

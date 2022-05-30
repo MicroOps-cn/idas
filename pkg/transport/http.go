@@ -146,7 +146,6 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 				}
 			} else if len(contentType) > 0 {
 				logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "caller", logs.Caller(9))), logs.Prefix("decode http request: ", true))
-
 				if err = json.NewDecoder(io.TeeReader(r.Body, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Decode(&req.Data); err != nil {
 					return nil, fmt.Errorf("failed to decode request body：%s", err)
 				}

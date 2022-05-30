@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/go-kit/log/level"
+	uuid "github.com/satori/go.uuid"
 	"idas/pkg/client/gorm"
+	"idas/pkg/logs"
 	"reflect"
+	"time"
 
 	gogorm "gorm.io/gorm"
 
@@ -18,20 +22,39 @@ type UserAndAppService struct {
 	name string
 }
 
+func (s UserAndAppService) ResetPassword(ctx context.Context, id string, password string) error {
+	conn := s.Session(ctx)
+	u := models.User{Model: models.Model{Id: id}, Salt: uuid.NewV4().Bytes()}
+	u.Password = u.GenSecret(password)
+	return conn.Select("password", "salt").Updates(&u).Error
+}
+
+func (s UserAndAppService) UpdateLoginTime(ctx context.Context, id string) error {
+	tx := s.Session(ctx).Begin()
+	defer tx.Rollback()
+	return tx.Model(&models.User{Model: models.Model{Id: id}}).UpdateColumn("login_time", time.Now().UTC()).Error
+}
+
 func (s UserAndAppService) Name() string {
 	return s.name
 }
 
-func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) (*models.User, error) {
+func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) []*models.User {
+	logger := logs.GetContextLogger(ctx)
 	var user models.User
 	if err := s.Session(ctx).Where("username = ? or email = ?", username, username).First(&user).Error; err != nil {
-		return nil, err
+		if err == gogorm.ErrRecordNotFound {
+			level.Debug(logger).Log("msg", "incorrect username", "username", username)
+		} else {
+			level.Error(logger).Log("msg", "unknown error", "username", username, "err", err)
+		}
+		return nil
 	}
-
-	if bytes.Equal(user.GenSecret(password), user.Password) {
-		return nil, fmt.Errorf("invalid username or password")
+	if !bytes.Equal(user.GenSecret(password), user.Password) {
+		level.Debug(logger).Log("msg", "incorrect password", "username", username)
+		return nil
 	}
-	return &user, nil
+	return []*models.User{&user}
 }
 
 func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error) {
@@ -142,6 +165,7 @@ func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, up
 	if err := tx.Commit().Error; err != nil {
 		return nil, err
 	}
+
 	return user, nil
 }
 
@@ -170,6 +194,10 @@ func (s UserAndAppService) GetUserInfo(ctx context.Context, id string, username 
 
 func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*models.User, error) {
 	conn := s.Session(ctx)
+	if len(user.Password) != 0 {
+		user.Salt = uuid.NewV4().Bytes()
+		user.Password = user.GenSecret()
+	}
 	if err := conn.Create(user).Error; err != nil {
 		return nil, err
 	}

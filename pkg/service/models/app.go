@@ -36,7 +36,7 @@ type App struct {
 
 type AppRole struct {
 	Model
-	AppId     string  `json:"appId" gorm:"type:char(32);not null"`
+	AppId     string  `json:"appId" gorm:"type:char(36);not null"`
 	Name      string  `gorm:"type:varchar(50);" json:"name"`
 	Config    string  `json:"config" json:"config"`
 	User      []*User `gorm:"-" json:"user,omitempty"`
@@ -45,17 +45,17 @@ type AppRole struct {
 
 type AppUser struct {
 	Model
-	AppId  string `json:"appId" gorm:"type:char(32);not null"`
+	AppId  string `json:"appId" gorm:"type:char(36);not null"`
 	App    *App   `json:"app,omitempty"`
-	UserId string `json:"userId" gorm:"type:char(32);not null"`
+	UserId string `json:"userId" gorm:"type:char(36);not null"`
 	User   *User  `json:"user,omitempty"`
 	RoleId string `json:"roleId" gorm:"default:'';not null"`
 }
 
 type AppAuthCode struct {
 	Model
-	SessionId string `json:"session_id" gorm:"type:varchar(50);not null"`
-	AppId     string `json:"appId" gorm:"type:varchar(50);not null"`
+	SessionId string `json:"session_id" gorm:"type:CHAR(36);not null"`
+	AppId     string `json:"appId" gorm:"type:CHAR(36);not null"`
 	Scope     string `json:"scope" gorm:"type:varchar(128);not null"`
 	Storage   string `json:"storage" gorm:"type:varchar(128);not null"`
 }

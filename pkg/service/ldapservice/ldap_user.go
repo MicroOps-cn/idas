@@ -3,9 +3,12 @@ package ldapservice
 import (
 	"context"
 	"fmt"
+	"github.com/go-kit/log/level"
 	uuid "github.com/satori/go.uuid"
+	"github.com/tredoe/osutil/user/crypt/sha256_crypt"
 	"idas/pkg/errors"
 	"idas/pkg/global"
+	"idas/pkg/logs"
 	"idas/pkg/utils/httputil"
 	"idas/pkg/utils/sets"
 	"idas/pkg/utils/wrapper"
@@ -29,6 +32,28 @@ func NewUserAndAppService(name string, client *ldap.Client) *UserAndAppService {
 type UserAndAppService struct {
 	*ldap.Client
 	name string
+}
+
+func (s UserAndAppService) ResetPassword(ctx context.Context, id string, password string) error {
+	conn := s.Session(ctx)
+	defer conn.Close()
+	phash, err := hash([]byte(password))
+	if err != nil {
+		logger := logs.GetContextLogger(ctx)
+		level.Error(logger).Log("failed to general password hash")
+		return err
+	}
+	dn, err := s.getUserDnByEntryUUID(ctx, id)
+	if err != nil {
+		return err
+	}
+	req := goldap.NewModifyRequest(dn, nil)
+	req.Replace("userPassword", []string{"{CRYPT}" + phash})
+	return conn.Modify(req)
+}
+
+func (s UserAndAppService) UpdateLoginTime(_ context.Context, _ string) error {
+	return nil
 }
 
 func (s UserAndAppService) AutoMigrate(ctx context.Context) error {
@@ -284,7 +309,7 @@ func (s UserAndAppService) getUserInfoByUsername(ctx context.Context, username s
 	conn := s.Session(ctx)
 	searchReq := goldap.NewSearchRequest(
 		s.Options().UserSearchBase,
-		goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 1, 0, false,
+		goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 2, 0, false,
 		s.Options().ParseUserSearchFilter(username), nil, nil,
 	)
 	return s.getUserInfoByReq(context.WithValue(ctx, global.LDAPConnName, conn), searchReq)
@@ -308,7 +333,14 @@ func (s UserAndAppService) GetUserInfo(ctx context.Context, id string, username 
 	return nil, errors.StatusNotFound("user")
 }
 
+func hash(password []byte) (string, error) {
+	c := sha256_crypt.New()
+	salt := string(uuid.NewV4().Bytes())
+	return c.Generate(password, []byte("$5$"+salt))
+}
+
 func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*models.User, error) {
+	logger := logs.GetContextLogger(ctx)
 	conn := s.Session(ctx)
 	defer conn.Close()
 	dn := fmt.Sprintf("%s=%s,%s", s.Options().GetAttrUsername(), user.Username, s.Options().UserSearchBase)
@@ -322,11 +354,22 @@ func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*
 		"status":                             {strconv.Itoa(int(user.Status))},
 		"objectClass":                        {"idasCore", "inetOrgPerson", "organizationalPerson", "person", "top"},
 	}
+
+	if len(user.Password) > 0 {
+		passwordHash, err := hash(user.Password)
+		if err != nil {
+			level.Error(logger).Log("failed to general password hash")
+		} else {
+			attrs["userPassword"] = []string{"{CRYPT}" + passwordHash} // RFC4519/2307: password of user
+		}
+	}
+
 	for name, value := range attrs {
 		if value[0] != "" {
 			req.Attribute(name, value)
 		}
 	}
+
 	if err := conn.Add(req); err != nil {
 		return nil, err
 	}
@@ -387,21 +430,52 @@ func (s UserAndAppService) DeleteUser(ctx context.Context, id string) error {
 	return wrapper.Error[int64](s.DeleteUsers(ctx, []string{id}))
 }
 
-func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) (*models.User, error) {
+func (s UserAndAppService) getDnsByReq(ctx context.Context, searchReq *goldap.SearchRequest) (dns []string, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
-
-	userInfo, err := s.getUserInfoByUsername(context.WithValue(ctx, global.LDAPConnName, conn), username)
+	search, err := conn.Search(searchReq)
 	if err != nil {
 		return nil, err
-	} else if userInfo == nil {
-		return nil, fmt.Errorf("invalid username or password")
+	}
+	for _, entry := range search.Entries {
+		dns = append(dns, entry.DN)
+	}
+	return dns, err
+}
+
+func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) (users []*models.User) {
+	conn := s.Session(ctx)
+	defer conn.Close()
+	logger := logs.GetContextLogger(ctx)
+	searchReq := goldap.NewSearchRequest(
+		s.Options().UserSearchBase,
+		goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 10, 0, false,
+		s.Options().ParseUserSearchFilter(username), nil, nil,
+	)
+	dns, err := s.getDnsByReq(context.WithValue(ctx, global.LDAPConnName, conn), searchReq)
+	if err != nil {
+		level.Error(logger).Log("msg", "unknown error", "username", username, "err", err)
+		return nil
+	} else if len(dns) == 0 {
+		level.Debug(logger).Log("msg", "no such user", "username", username)
 	}
 
-	if err = conn.Bind(userInfo.Id, password); err != nil {
-		return nil, fmt.Errorf("invalid username or password")
+	for _, dn := range dns {
+		if err = conn.Bind(dn, password); err != nil {
+			level.Debug(logger).Log("msg", "incorrect password", "username", username, "err", err)
+			continue
+		}
+		userInfo, err := s.getUserInfoByDn(context.WithValue(ctx, global.LDAPConnName, conn), dn)
+		if err != nil {
+			level.Error(logger).Log("msg", "failed to get user info", "username", username, "err", err)
+			return nil
+		} else if userInfo == nil {
+			level.Warn(logger).Log("msg", "failed to get user info", "username", username, "err", err)
+			continue
+		}
+		users = append(users, userInfo)
 	}
-	return userInfo, nil
+	return users
 }
 func (s UserAndAppService) GetAuthCodeByClientId() string {
 	return s.name

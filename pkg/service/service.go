@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/go-kit/log"
 	"idas/config"
@@ -11,7 +12,9 @@ import (
 	"idas/pkg/logs"
 	"idas/pkg/service/gormservice"
 	"idas/pkg/service/ldapservice"
+	"idas/pkg/utils/wrapper"
 	"io"
+	"time"
 
 	"idas/pkg/service/models"
 )
@@ -61,12 +64,37 @@ type Service interface {
 	PatchApp(ctx context.Context, storage string, fields map[string]interface{}) (app *models.App, err error)
 	DeleteApp(ctx context.Context, storage string, id string) (err error)
 	DownloadFile(ctx context.Context, id string) (f io.ReadCloser, mimiType, fileName string, err error)
+	ResetPassword(ctx context.Context, id string, storage string, password string) error
+
+	CreateToken(ctx context.Context, relationId string, data interface{}, tokenType models.TokenType) (token string, err error)
+	VerifyToken(ctx context.Context, token string, relationId string, tokenType models.TokenType) bool
 }
 
 type Set struct {
 	userAndAppService UserAndAppServices
 	sessionService    SessionService
 	commonService     CommonService
+}
+
+func (s Set) CreateToken(ctx context.Context, relationId string, data interface{}, tokenType models.TokenType) (token string, err error) {
+	token = models.NewId()
+	tk := &models.Token{Id: token, RelationId: relationId, CreateTime: time.Now(), Expiry: tokenType.GetExpiry(), Type: tokenType}
+	if data != nil {
+		tk.Data = wrapper.Must[[]byte](json.Marshal(tk))
+	}
+	err = s.sessionService.CreateToken(ctx, tk)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+func (s Set) ResetPassword(ctx context.Context, id string, storage string, password string) error {
+	return s.GetUserAndAppService(storage).ResetPassword(ctx, id, password)
+}
+
+func (s Set) VerifyToken(ctx context.Context, token, relationId string, tokenType models.TokenType) bool {
+	return s.sessionService.VerifyToken(ctx, token, relationId, tokenType)
 }
 
 func (s Set) AutoMigrate(ctx context.Context) error {
@@ -101,11 +129,12 @@ type UserAndAppService interface {
 	PatchUsers(ctx context.Context, patch []map[string]interface{}) (count int64, err error)
 	DeleteUsers(ctx context.Context, id []string) (count int64, err error)
 	UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (*models.User, error)
+	UpdateLoginTime(ctx context.Context, id string) error
 	GetUserInfo(ctx context.Context, id string, username string) (*models.User, error)
 	CreateUser(ctx context.Context, user *models.User) (*models.User, error)
 	PatchUser(ctx context.Context, user map[string]interface{}) (*models.User, error)
 	DeleteUser(ctx context.Context, id string) error
-	VerifyPassword(ctx context.Context, username string, password string) (*models.User, error)
+	VerifyPassword(ctx context.Context, username string, password string) []*models.User
 
 	GetApps(ctx context.Context, keywords string, current int64, pageSize int64) (apps []*models.App, total int64, err error)
 	PatchApps(ctx context.Context, patch []map[string]interface{}) (total int64, err error)
@@ -117,6 +146,7 @@ type UserAndAppService interface {
 	DeleteApp(ctx context.Context, id string) (err error)
 
 	VerifyUserAuthorizationForApp(ctx context.Context, appId string, userId string) (scope string, err error)
+	ResetPassword(ctx context.Context, id string, password string) error
 }
 
 type UserAndAppServices []UserAndAppService

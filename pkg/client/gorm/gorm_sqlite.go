@@ -62,11 +62,13 @@ func (p *pbSQLiteOptions) ProtoMessage() {
 func (x *SQLiteOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []byte) error {
 	options := NewSQLiteOptions()
 	x.Path = options.Path
+	x.TablePrefix = options.TablePrefix
 	return unmarshaller.Unmarshal(bytes.NewReader(b), (*pbSQLiteOptions)(x))
 }
 
 func NewSQLiteOptions() *SQLiteOptions {
 	return &SQLiteOptions{
-		Path: "idas.db",
+		Path:        "idas.db",
+		TablePrefix: "t_",
 	}
 }

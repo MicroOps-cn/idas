@@ -7,10 +7,8 @@ import (
 	"github.com/go-kit/log/level"
 	"idas/pkg/client/gorm"
 	"idas/pkg/logs"
-	"strings"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
 	gogorm "gorm.io/gorm"
 
 	"idas/pkg/errors"
@@ -25,6 +23,22 @@ func NewSessionService(name string, client *gorm.Client) *SessionService {
 type SessionService struct {
 	*gorm.Client
 	name string
+}
+
+func (s SessionService) CreateToken(ctx context.Context, token *models.Token) error {
+	return s.Session(ctx).Create(token).Error
+}
+
+func (s SessionService) VerifyToken(ctx context.Context, token string, relationId string, tokenType models.TokenType) bool {
+	conn := s.Session(ctx)
+	tk := &models.Token{}
+	if err := conn.Model(&models.Token{}).Where("id = ? and userId = ? and `type` = ?", token, relationId, tokenType).First(tk).Error; err != nil {
+		return false
+	}
+	if tk.Expiry.After(time.Now().UTC()) {
+		return true
+	}
+	return false
 }
 
 func (s SessionService) DeleteSession(ctx context.Context, id string) (err error) {
@@ -94,18 +108,18 @@ func (s SessionService) RefreshOAuthTokenByPassword(ctx context.Context, token, 
 }
 
 func (s SessionService) AutoMigrate(ctx context.Context) error {
-	return s.Session(ctx).AutoMigrate(&models.Session{})
+	return s.Session(ctx).AutoMigrate(&models.Session{}, &models.Token{})
 }
 
 func (s SessionService) SetLoginSession(ctx context.Context, user *models.User) (cookie string, err error) {
-	sessionId := strings.ReplaceAll(uuid.NewV4().String(), "-", "")
+	sessionId := models.NewId()
 	var session models.Session
 	session.Data, err = user.MarshalJSON()
 	if err != nil {
 		return "", err
 	}
 	session.Expiry = time.Now().UTC().Add(global.LoginSessionExpiration)
-	session.Key = sessionId
+	session.Id = sessionId
 	session.UserId = user.Id
 	session.LastSeen = time.Now()
 	if err = s.Session(ctx).Create(&session).Error; err != nil {
@@ -116,7 +130,7 @@ func (s SessionService) SetLoginSession(ctx context.Context, user *models.User) 
 
 func (s SessionService) GetLoginSession(ctx context.Context, ids []string) (users []*models.User, err error) {
 	for _, id := range ids {
-		session := models.Session{Key: id}
+		session := models.Session{Id: id}
 		if err = s.Session(ctx).Where("`key` = ?", id).Omit("last_seen", "create_time", "user_id").First(&session).Error; err == gogorm.ErrRecordNotFound {
 			return nil, errors.NotLoginError
 		} else if err != nil {
@@ -138,6 +152,6 @@ func (s SessionService) GetLoginSession(ctx context.Context, ids []string) (user
 }
 
 func (s SessionService) DeleteLoginSession(ctx context.Context, id string) error {
-	session := models.Session{Key: id}
+	session := models.Session{Id: id}
 	return s.Session(ctx).Where("`key` = ?", id).Delete(&session).Error
 }

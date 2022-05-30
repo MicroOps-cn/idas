@@ -27,6 +27,7 @@ require (
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
+	github.com/tredoe/osutil v1.0.6
 	golang.org/x/exp v0.0.0-20200224162631-6cc2880d07d6
 	golang.org/x/image v0.0.0-20190802002840-cff245a6509b
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac

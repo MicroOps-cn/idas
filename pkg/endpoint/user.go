@@ -87,6 +87,27 @@ func MakeCurrentUserEndpoint(_ service.Service) endpoint.Endpoint {
 	}
 }
 
+type ResetUserPasswordRequest struct {
+	Token       string `json:"token"`
+	Storage     string `json:"storage"`
+	NewPassword string `json:"new_password"`
+	UserId      string `json:"userId"`
+}
+
+type ResetUserPasswordResponse struct {
+}
+
+func MakeResetUserPasswordEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(Requester).GetRequestData().(*ResetUserPasswordRequest)
+		resp := BaseTotalResponse[interface{}]{}
+		if s.VerifyToken(ctx, req.Token, req.UserId, models.TokenTypeResetPassword) {
+			resp.Error = s.ResetPassword(ctx, req.UserId, req.Storage, req.NewPassword)
+		}
+		return resp, nil
+	}
+}
+
 type GetUsersRequest struct {
 	BaseListRequest
 	Status  models.UserStatus `json:"status"`
