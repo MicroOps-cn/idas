@@ -3,12 +3,13 @@ package gormservice
 import (
 	"context"
 	"fmt"
-	gogorm "gorm.io/gorm"
-	"idas/pkg/client/gorm"
-	"idas/pkg/global"
 	"reflect"
 
+	gogorm "gorm.io/gorm"
+
+	"idas/pkg/client/gorm"
 	"idas/pkg/errors"
+	"idas/pkg/global"
 	"idas/pkg/service/models"
 )
 
@@ -253,13 +254,13 @@ func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, ap
 }
 
 func NewUserAndAppService(name string, client *gorm.Client) *UserAndAppService {
-	conn := client.Session(context.Background())
-	if err := conn.SetupJoinTable(&models.App{}, "User", models.AppUser{}); err != nil {
-		panic(err)
-	}
+	//conn := client.Session(context.Background())
+	//if err := conn.SetupJoinTable(&models.App{}, "User", models.AppUser{}); err != nil {
+	//	panic(err)
+	//}
 	return &UserAndAppService{name: name, Client: client}
 }
 
 func (s UserAndAppService) AutoMigrate(ctx context.Context) error {
-	return s.Session(ctx).AutoMigrate(&models.AppUser{}, &models.AppRole{}, &models.User{}, &models.AppAuthCode{}, &models.App{})
+	return s.Session(ctx).AutoMigrate(&models.App{}, &models.AppUser{}, &models.AppRole{}, &models.User{}, &models.AppAuthCode{})
 }

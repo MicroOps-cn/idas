@@ -126,7 +126,7 @@ type CreateAppRequest struct {
 	Storage     string            `json:"storage" valid:"required"`
 	GrantType   models.GrantType  `json:"grantType" valid:"required"`
 	GrantMode   models.GrantMode  `json:"grantMode"`
-	User        []*models.User    `gorm:"many2many:t_app_user" json:"user,omitempty"`
+	User        []*models.User    `gorm:"many2many:app_user" json:"user,omitempty"`
 	Role        []*models.AppRole `gorm:"-" json:"role,omitempty"`
 }
 

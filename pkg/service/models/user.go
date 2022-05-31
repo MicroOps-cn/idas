@@ -35,7 +35,7 @@ type User struct {
 	LoginTime   *time.Time   `json:"loginTime,omitempty"`
 	RoleId      string       `gorm:"-:migration" json:"roleId,omitempty"`
 	Role        UserRole     `gorm:"-:migration" json:"role,omitempty"`
-	App         []*App       `gorm:"many2many:t_app_user" json:"app,omitempty"`
+	App         []*App       `gorm:"many2many:app_user" json:"app,omitempty"`
 	Storage     string       `gorm:"-" json:"storage"`
 }
 
