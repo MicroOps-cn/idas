@@ -5,7 +5,7 @@ import "types/ldap.proto";
 import "types/capacity.proto";
 import "types/email.proto";
 package idas.config;
-option go_package = "idas/config;config";
+option go_package = "config;config";
 
 
 message StorageRef{

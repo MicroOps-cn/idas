@@ -1,6 +1,6 @@
 syntax = "proto3";
 package idas.client.redis;
-option go_package = "idas/pkg/client/redis;redis";
+option go_package = "pkg/client/redis;redis";
 
 message RedisOptions{
   string url = 1;

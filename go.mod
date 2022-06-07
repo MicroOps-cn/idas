@@ -39,9 +39,6 @@ require (
 	gorm.io/gorm v1.23.3
 	k8s.io/apimachinery v0.23.5
 	sourcegraph.com/sourcegraph/appdash v0.0.0-20211028080628-e2786a622600
-)
-
-require (
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/afex/hystrix-go v0.0.0-20180502004556-fa1af6a1f4f5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -79,5 +76,11 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
 	google.golang.org/grpc v1.43.0 // indirect
+	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect
+	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df // indirect
+)
+
+replace (
+	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df => ./pkg/client/email/gomail.v2
 )

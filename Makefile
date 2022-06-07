@@ -12,10 +12,20 @@ GOLANGCI_LINT :=
 GOLANGCI_LINT_OPTS ?=
 GOLANGCI_LINT_VERSION ?= v1.45.2
 
+DONT_FIND := -name vendor -prune -o -name .git -prune -o -name .cache -prune -o -name .pkg -prune -o
+
 PROTOC       ?= protoc
-PROTOC_OPTS ?= --go_opt=Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types
-PROTOC_OPTS := $(PROTOC_OPTS) -I$(shell go env GOMODCACHE)/github.com/gogo/protobuf@v1.3.2/protobuf/
+#PROTOC_OPTS ?= -I ./vendor/github.com/gogo/protobuf:./api:./:vendor
+#PROTOC_OPTS := $(PROTOC_OPTS) --gogoslick_out=Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types,Mgoogle/protobuf/descriptor.proto=github.com/gogo/protobuf/protoc-gen-gogo/descriptor,plugins=grpc,paths=source_relative:.
+# Protobuf files
+PROTO_DEFS := $(shell find . $(DONT_FIND) -type f -name '*.proto' -print)
+PROTO_GOS := $(patsubst %.proto,%.pb.go,$(PROTO_DEFS))
+
+PROTOC_OPTS ?= --gogo_opt=Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types,Mgoogle/protobuf/descriptor.proto=github.com/gogo/protobuf/protoc-gen-gogo/descriptor
+PROTOC_OPTS := $(PROTOC_OPTS) -I$(shell $(GO) list -f "{{ .Dir }}" -m github.com/gogo/protobuf)/protobuf/
+PROTOC_OPTS := $(PROTOC_OPTS) -I$(shell $(GO) list -f "{{ .Dir }}" -m github.com/gogo/protobuf)/
 PROTOC_OPTS := $(PROTOC_OPTS) -I./api
+PROTOC_OPTS := $(PROTOC_OPTS) --gogo_out=module=${GOMODULENAME}:.
 
 # golangci-lint only supports linux, darwin and windows platforms on i386/amd64.
 # windows isn't included here because of the path separator being different.
@@ -33,20 +43,20 @@ endif
 
 pkgs          = ./...
 
+clean-protos:
+	rm -rf $(PROTO_GOS)
+protos: clean-protos $(PROTO_GOS)
 
-proto:
-	for protofile in `find -name "*.proto"`; \
-	do \
-		$(PROTOC) --go_out=module=${GOMODULENAME}:. ${PROTOC_OPTS}  $${protofile}; \
-	done
-#	$(PROTOC) --go_out=module=${GOMODULENAME}:. ./api/types/capacity.proto
-#	protoc -I$(shell go env GOMODCACHE)/github.com/gogo/protobuf@v1.3.2/protobuf/ \
-#		-I./config \
-#		-I./pkg/utils/capacity/ \
-#		-I./pkg/utils/fs/ \
-#		--go_opt=Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types
-#		--go_out=./config \
-#		./config/config.proto
+%.pb.go:
+	@# The store-gateway RPC is based on Thanos which uses relative references to other protos, so we need
+	@# to configure all such relative paths. `gogo/protobuf` is used by it.
+	case "$@" in	\
+		vendor*)			\
+			;;					\
+		*)						\
+			$(PROTOC) $(PROTOC_OPTS) ./$(patsubst %.pb.go,%.proto,$@); \
+			;;					\
+		esac
 
 idas:
 	go build -ldflags="-s -w" -o dist/idas ./cmd/idas

@@ -1,7 +1,7 @@
 syntax = "proto3";
 package idas.client.gorm;
 import "google/protobuf/duration.proto";
-option go_package = "idas/pkg/client/gorm;gorm";
+option go_package = "pkg/client/gorm;gorm";
 
 
 message MySQLOptions{
