@@ -16,6 +16,10 @@ type CommonService struct {
 	name string
 }
 
+func (c CommonService) SendResetPasswordLink(ctx context.Context, token string) {
+
+}
+
 func (c CommonService) Name() string {
 	return c.name
 }

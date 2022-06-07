@@ -254,10 +254,10 @@ func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, ap
 }
 
 func NewUserAndAppService(name string, client *gorm.Client) *UserAndAppService {
-	//conn := client.Session(context.Background())
-	//if err := conn.SetupJoinTable(&models.App{}, "User", models.AppUser{}); err != nil {
-	//	panic(err)
-	//}
+	conn := client.Session(context.Background())
+	if err := conn.SetupJoinTable(&models.App{}, "User", models.AppUser{}); err != nil {
+		panic(err)
+	}
 	return &UserAndAppService{name: name, Client: client}
 }
 

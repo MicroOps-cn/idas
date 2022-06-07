@@ -16,6 +16,7 @@ limitations under the License.
 package cmd
 
 import (
+	"github.com/go-kit/log/level"
 	"os"
 
 	"github.com/howeyc/gopass"
@@ -32,6 +33,7 @@ var (
 	email    string
 	fullName string
 	role     string
+	storage  string
 )
 
 // migrateCmd represents the migrate command
@@ -48,33 +50,59 @@ var userAddCmd = &cobra.Command{
 	Use:   "add",
 	Short: "create user",
 	Long:  `create user.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Run: func(cmd *cobra.Command, args []string) {
 		logger := logs.New(&logConfig)
 		logs.SetRootLogger(logger)
 		svc := service.New(cmd.Context())
 		if password == "-" {
 			p, err := gopass.GetPasswdPrompt("please input password: ", true, os.Stdin, os.Stderr)
 			if err != nil {
-				return err
+				level.Error(logger).Log("msg", "failed to create user", "err", err)
+				os.Exit(1)
 			}
 			password = string(p)
 
 		}
 		if len(username) == 0 {
-			panic("username is null")
+			level.Error(logger).Log("msg", "username is null")
+			os.Exit(1)
 		}
 		if len(password) == 0 {
-			panic("passworld is null")
+			level.Error(logger).Log("msg", "password is null")
+			os.Exit(1)
 		}
-		_, err := svc.CreateUser(cmd.Context(), "", &models.User{
-			Username: username,
-			Password: []byte(password),
-			Email:    email,
-			FullName: fullName,
-			Role:     models.UserRole(role),
-			Status:   models.UserStatusNormal,
-		})
-		return err
+		var us []string
+		if len(storage) > 0 {
+			us = append(us, storage)
+		} else if uss, _, err := svc.GetUserSource(cmd.Context()); err != nil {
+			level.Error(logger).Log("msg", "failed to get user storage source")
+			os.Exit(1)
+		} else if len(uss) == 0 {
+			level.Error(logger).Log("msg", "can't get user storage source config")
+			os.Exit(1)
+		} else {
+			for _, val := range uss {
+				us = append(us, val)
+			}
+		}
+
+		if len(fullName) == 0 {
+			fullName = username
+		}
+
+		for _, s := range us {
+			_, err := svc.CreateUser(cmd.Context(), s, &models.User{
+				Username: username,
+				Password: []byte(password),
+				Email:    email,
+				FullName: fullName,
+				Role:     models.UserRole(role),
+				Status:   models.UserStatusNormal,
+			})
+			if err != nil {
+				level.Error(logger).Log("msg", "failed to create user", "err", err, "storage", s)
+			}
+		}
 	},
 }
 
@@ -84,6 +112,7 @@ func init() {
 	userCmd.PersistentFlags().StringVarP(&email, "email", "e", "", "user email.")
 	userCmd.PersistentFlags().StringVarP(&fullName, "fullname", "f", "", "user full name.")
 	userCmd.PersistentFlags().StringVarP(&role, "role", "r", "user", "user/admin")
+	userCmd.PersistentFlags().StringVarP(&storage, "storage", "s", "", "user storage source")
 
 	rootCmd.AddCommand(userCmd)
 	userCmd.AddCommand(userAddCmd)

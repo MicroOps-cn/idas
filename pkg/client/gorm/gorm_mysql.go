@@ -18,7 +18,7 @@ import (
 func NewMySQLClient(ctx context.Context, options *MySQLOptions) (*Client, error) {
 	var m Client
 	logger := logs.GetContextLogger(ctx)
-	level.Info(logger).Log("msg", "connect to mysql server",
+	level.Debug(logger).Log("msg", "connect to mysql server",
 		"host", options.Host, "username", options.Username,
 		"schema", options.Schema,
 		"charset", options.Charset,

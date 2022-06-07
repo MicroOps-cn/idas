@@ -33,7 +33,7 @@ func (s SessionService) DeleteSession(ctx context.Context, id string) (err error
 	panic("implement me")
 }
 
-func (s SessionService) GetSessions(ctx context.Context, userId string, current int64, size int64) ([]*models.Session, int64, error) {
+func (s SessionService) GetSessions(ctx context.Context, userId string, current int64, size int64) ([]*models.Token, int64, error) {
 	panic("implement me")
 }
 

@@ -3,6 +3,7 @@ import "types/gorm.proto";
 import "types/redis.proto";
 import "types/ldap.proto";
 import "types/capacity.proto";
+import "types/email.proto";
 package idas.config;
 option go_package = "idas/config;config";
 
@@ -44,4 +45,5 @@ message GlobalOptions{
 message Config {
   Storages storage = 1;
   GlobalOptions global = 2;
+  idas.client.email.SmtpOptions smtp = 3;
 }

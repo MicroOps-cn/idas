@@ -108,6 +108,28 @@ func MakeResetUserPasswordEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
+type ForgotUserPasswordRequest struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+}
+
+func MakeForgotPasswordEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(Requester).GetRequestData().(*ForgotUserPasswordRequest)
+		resp := BaseResponse[interface{}]{}
+		users := s.GetUserInfoByUsernameAndEmail(ctx, req.Username, req.Email)
+		if len(users) > 0 {
+			return resp, nil
+		}
+		token, err := s.CreateToken(ctx, users, models.TokenTypeResetPassword)
+		if err != nil {
+			return resp, nil
+		}
+		s.SendResetPasswordLink(ctx, token)
+		return resp, nil
+	}
+}
+
 type GetUsersRequest struct {
 	BaseListRequest
 	Status  models.UserStatus `json:"status"`

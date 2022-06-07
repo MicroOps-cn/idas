@@ -24,7 +24,7 @@ const (
 
 type User struct {
 	Model
-	Username    string       `gorm:"type:varchar(20);" json:"username"`
+	Username    string       `gorm:"type:varchar(20);unique" json:"username"`
 	Salt        sql.RawBytes `gorm:"type:tinyblob;" json:"-" `
 	Password    sql.RawBytes `gorm:"type:tinyblob;" json:"password,omitempty"`
 	Email       string       `gorm:"type:varchar(50);" json:"email" valid:"email,optional"`

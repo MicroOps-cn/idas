@@ -159,7 +159,7 @@ func (l *idasLogger) Log(keyvals ...interface{}) error {
 			} else {
 				title := []byte(titleBg)
 				idx := (len(title) - len(ll.title)) / 2
-				copy(title[idx:len(ll.title)+idx], []byte(ll.title))
+				copy(title[idx:len(ll.title)+idx], ll.title)
 				buffer.Write(title)
 			}
 		}

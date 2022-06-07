@@ -1,0 +1,23 @@
+syntax = "proto3";
+package idas.client.email;
+import public "github.com/gogo/protobuf/gogoproto/gogo.proto";
+option go_package = "idas/pkg/client/email;email";
+
+message Template{
+  string subject = 1;
+  string template_file = 2;
+  string topic = 3;
+  string set = 4;
+}
+
+message SmtpOptions {
+  string username = 1;
+  string password = 2;
+  string host = 3;
+  int32 port = 4;
+  string from = 5;
+  repeated string to = 6;
+//  repeated Template template = 7[(gogoproto.customtype) = "Stream"];
+  repeated Template template = 7;
+}
+

@@ -1,6 +1,6 @@
 syntax = "proto3";
 package idas.client.gorm;
-import public "google/protobuf/duration.proto";
+import "google/protobuf/duration.proto";
 option go_package = "idas/pkg/client/gorm;gorm";
 
 

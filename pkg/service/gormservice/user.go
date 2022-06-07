@@ -57,6 +57,14 @@ func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, 
 	return []*models.User{&user}
 }
 
+func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (user *models.User, err error) {
+	query := s.Session(ctx).Where("username = ? and email = ? and is_delete = 0", username, email)
+	if err = query.First(user).Error; err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
 func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error) {
 	query := s.Session(ctx).Where("t_user.is_delete = 0")
 	if len(keywords) > 0 {
@@ -198,7 +206,7 @@ func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*
 		user.Salt = uuid.NewV4().Bytes()
 		user.Password = user.GenSecret()
 	}
-	if err := conn.Create(user).Error; err != nil {
+	if err := conn.Omit("role", "role_id").Create(user).Error; err != nil {
 		return nil, err
 	}
 	return user, nil

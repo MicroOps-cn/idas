@@ -34,6 +34,11 @@ type UserAndAppService struct {
 	name string
 }
 
+func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (*models.User, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
 func (s UserAndAppService) ResetPassword(ctx context.Context, id string, password string) error {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -345,11 +350,13 @@ func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*
 	defer conn.Close()
 	dn := fmt.Sprintf("%s=%s,%s", s.Options().GetAttrUsername(), user.Username, s.Options().UserSearchBase)
 	req := goldap.NewAddRequest(dn, nil)
+
 	var attrs = map[string][]string{
 		"mail":                               {user.Email},
 		s.Options().GetAttrUserPhoneNo():     {user.PhoneNumber},
 		s.Options().GetAttrUsername():        {user.Username},
 		s.Options().GetAttrUserDisplayName(): {user.FullName},
+		"sn":                                 {" "},
 		"avatar":                             {user.Avatar},
 		"status":                             {strconv.Itoa(int(user.Status))},
 		"objectClass":                        {"idasCore", "inetOrgPerson", "organizationalPerson", "person", "top"},

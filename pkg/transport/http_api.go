@@ -59,7 +59,8 @@ func InstallHTTPApi(logger log.Logger, container *restful.Container, options []h
 	v1Ws.Route(v1Ws.POST("/login").Doc("用户登陆").To(NewKitHTTPServer[endpoint.UserLoginRequest](endpoints.UserLogin, options)).Metadata(global.MetaNeedLogin, false))
 	v1Ws.Route(v1Ws.POST("/logout").Doc("用户退出登录").To(NewKitHTTPServer[endpoint.UserLogoutRequest](endpoints.UserLogout, options)))
 	v1Ws.Route(v1Ws.GET("/user").Doc("获取当前登陆用户信息").To(NewKitHTTPServer[endpoint.CurrentUserRequest](endpoints.CurrentUser, options)))
-	v1Ws.Route(v1Ws.GET("/resetPassword").Doc("重置用户密码").To(NewKitHTTPServer[endpoint.CurrentUserRequest](endpoints.CurrentUser, options)))
+	v1Ws.Route(v1Ws.POST("/forgotPassword").Doc("忘记用户密码").To(NewKitHTTPServer[endpoint.CurrentUserRequest](endpoints.ForgotPassword, options)).Metadata(global.MetaNeedLogin, false))
+	v1Ws.Route(v1Ws.POST("/resetPassword").Doc("重置用户密码").To(NewKitHTTPServer[endpoint.CurrentUserRequest](endpoints.ResetPassword, options)))
 
 	container.Add(v1Ws)
 	managerWs := NewWebService("/api", schema.GroupVersion{Group: "manager", Version: "v1"}, "管理接口")

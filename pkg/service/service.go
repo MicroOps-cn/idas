@@ -2,21 +2,18 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/go-kit/log"
 	"idas/config"
+	"idas/pkg/client/email"
 	"idas/pkg/client/gorm"
 	"idas/pkg/client/ldap"
 	"idas/pkg/global"
 	"idas/pkg/logs"
 	"idas/pkg/service/gormservice"
 	"idas/pkg/service/ldapservice"
-	"idas/pkg/utils/wrapper"
-	"io"
-	"time"
-
 	"idas/pkg/service/models"
+	"io"
 )
 
 type migrator interface {
@@ -38,7 +35,7 @@ type Service interface {
 	RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error)
 	GetOAuthTokenByPassword(ctx context.Context, username string, password string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByPassword(ctx context.Context, token, username, password string) (accessToken, refreshToken string, expiresIn int, err error)
-	GetSessions(ctx context.Context, userId string, current int64, size int64) ([]*models.Session, int64, error)
+	GetSessions(ctx context.Context, userId string, current int64, size int64) ([]*models.Token, int64, error)
 	DeleteSession(ctx context.Context, id string) (err error)
 
 	UploadFile(ctx context.Context, name, contentType string, f io.Reader) (fileKey string, err error)
@@ -48,6 +45,7 @@ type Service interface {
 	DeleteUsers(ctx context.Context, storage string, id []string) (count int64, err error)
 	UpdateUser(ctx context.Context, storage string, user *models.User, updateColumns ...string) (*models.User, error)
 	GetUserInfo(ctx context.Context, storage string, id string, username string) (user *models.User, err error)
+	GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (user []*models.User)
 	CreateUser(ctx context.Context, storage string, user *models.User) (*models.User, error)
 	PatchUser(ctx context.Context, storage string, user map[string]interface{}) (*models.User, error)
 	DeleteUser(ctx context.Context, storage string, id string) error
@@ -66,21 +64,35 @@ type Service interface {
 	DownloadFile(ctx context.Context, id string) (f io.ReadCloser, mimiType, fileName string, err error)
 	ResetPassword(ctx context.Context, id string, storage string, password string) error
 
-	CreateToken(ctx context.Context, relationId string, data interface{}, tokenType models.TokenType) (token string, err error)
+	CreateToken(ctx context.Context, data interface{}, tokenType models.TokenType) (token string, err error)
 	VerifyToken(ctx context.Context, token string, relationId string, tokenType models.TokenType) bool
+	SendResetPasswordLink(ctx context.Context, token string)
 }
 
 type Set struct {
 	userAndAppService UserAndAppServices
 	sessionService    SessionService
 	commonService     CommonService
+	smtpClient        *email.SmtpClient
 }
 
-func (s Set) CreateToken(ctx context.Context, relationId string, data interface{}, tokenType models.TokenType) (token string, err error) {
-	token = models.NewId()
-	tk := &models.Token{Id: token, RelationId: relationId, CreateTime: time.Now(), Expiry: tokenType.GetExpiry(), Type: tokenType}
-	if data != nil {
-		tk.Data = wrapper.Must[[]byte](json.Marshal(tk))
+func (s Set) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (users []*models.User) {
+	for _, service := range s.userAndAppService {
+		if info, err := service.GetUserInfoByUsernameAndEmail(ctx, username, email); err == nil {
+			users = append(users, info)
+		}
+	}
+	return users
+}
+
+func (s Set) SendResetPasswordLink(ctx context.Context, token string) {
+	s.commonService.SendResetPasswordLink(ctx, token)
+}
+
+func (s Set) CreateToken(ctx context.Context, data interface{}, tokenType models.TokenType) (token string, err error) {
+	tk, err := models.NewToken(tokenType, data)
+	if err != nil {
+		return "", err
 	}
 	err = s.sessionService.CreateToken(ctx, tk)
 	if err != nil {
@@ -114,10 +126,15 @@ func (s Set) AutoMigrate(ctx context.Context) error {
 
 // New returns a basic Service with all of the expected middlewares wired in.
 func New(ctx context.Context) Service {
+	client, err := email.NewSmtpClient(ctx, config.Get().GetSmtp())
+	if err != nil {
+		panic(fmt.Errorf("Failed to init SMTP Client: %s. ", err))
+	}
 	return &Set{
 		userAndAppService: NewUserAndAppService(ctx),
 		sessionService:    NewSessionService(ctx),
 		commonService:     NewCommonService(ctx),
+		smtpClient:        client,
 	}
 }
 
@@ -147,6 +164,7 @@ type UserAndAppService interface {
 
 	VerifyUserAuthorizationForApp(ctx context.Context, appId string, userId string) (scope string, err error)
 	ResetPassword(ctx context.Context, id string, password string) error
+	GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (*models.User, error)
 }
 
 type UserAndAppServices []UserAndAppService

@@ -19,6 +19,10 @@ type Model struct {
 	IsDelete   bool      `json:"isDelete" gorm:"not null;default:0"`
 }
 
+func (model Model) GetId() string {
+	return model.Id
+}
+
 func (model *Model) BeforeCreate(db *gorm.DB) error {
 	if model.Id == "" {
 		id := NewId()

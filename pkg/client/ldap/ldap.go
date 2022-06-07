@@ -36,7 +36,7 @@ func NewLdapClient(ctx context.Context, options *LdapOptions) (clinet *Client, e
 		return nil, err
 	}
 
-	level.Info(logger).Log("msg", "connect to ldap server", "host", options.Host, "manager_dn", options.ManagerDn)
+	level.Debug(logger).Log("msg", "connect to ldap server", "host", options.Host, "manager_dn", options.ManagerDn)
 	pool, err := NewChannelPool(ctx, 2, 64, "ldap", func(s string) (c ldap.Client, err error) {
 		conn, err := (&net.Dialer{Timeout: ldap.DefaultTimeout}).DialContext(ctx, "tcp", options.Host)
 		if err != nil {
