@@ -20,9 +20,11 @@ package ldap
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/go-kit/log/level"
 	"github.com/go-ldap/ldap"
+	"github.com/gogo/protobuf/proto"
 	"idas/pkg/global"
 	"idas/pkg/logs"
 	"idas/pkg/utils/signals"
@@ -30,14 +32,14 @@ import (
 	"time"
 )
 
-func NewLdapClient(ctx context.Context, options *LdapOptions) (clinet *Client, err error) {
+func NewLdapPool(ctx context.Context, options *LdapOptions) (pool Pool, err error) {
 	logger := logs.GetContextLogger(ctx)
 	if err = options.Valid(); err != nil {
 		return nil, err
 	}
 
 	level.Debug(logger).Log("msg", "connect to ldap server", "host", options.Host, "manager_dn", options.ManagerDn)
-	pool, err := NewChannelPool(ctx, 2, 64, "ldap", func(s string) (c ldap.Client, err error) {
+	pool, err = NewChannelPool(ctx, 2, 64, "ldap", func(s string) (c ldap.Client, err error) {
 		conn, err := (&net.Dialer{Timeout: ldap.DefaultTimeout}).DialContext(ctx, "tcp", options.Host)
 		if err != nil {
 			return nil, err
@@ -63,19 +65,76 @@ func NewLdapClient(ctx context.Context, options *LdapOptions) (clinet *Client, e
 	go func() {
 		<-stopCh.Channel()
 		stopCh.WaitRequest()
-		if client.pool != nil {
-			client.pool.Close()
+		if pool != nil {
+			pool.Close()
 		}
 		stopCh.Done()
 	}()
 
 	level.Debug(logger).Log("msg", "connected to ldap server: "+options.Host)
-	return client, nil
+	return pool, nil
 }
 
 type Client struct {
 	pool    Pool
 	options *LdapOptions
+}
+
+// Merge implement proto.Merger
+func (c *Client) Merge(src proto.Message) {
+	if s, ok := src.(*Client); ok {
+		c.options = s.options
+		c.pool = s.pool
+	}
+}
+
+// String implement proto.Message
+func (l Client) String() string {
+	return l.options.String()
+}
+
+// ProtoMessage implement proto.Message
+func (l *Client) ProtoMessage() {
+	l.options.ProtoMessage()
+}
+
+// Reset *implement proto.Message*
+func (l *Client) Reset() {
+	l.options.Reset()
+}
+
+func (l Client) Marshal() ([]byte, error) {
+	return proto.Marshal(l.options)
+}
+
+func (l *Client) Unmarshal(data []byte) (err error) {
+	if l.options == nil {
+		l.options = NewLdapOptions()
+	}
+	if err = proto.Unmarshal(data, l.options); err != nil {
+		return err
+	}
+	if l.pool, err = NewLdapPool(context.Background(), l.options); err != nil {
+		return err
+	}
+	return
+}
+
+func (l Client) MarshalJSON() ([]byte, error) {
+	return json.Marshal(l.options)
+}
+
+func (l *Client) UnmarshalJSON(data []byte) (err error) {
+	if l.options == nil {
+		l.options = NewLdapOptions()
+	}
+	if err = json.Unmarshal(data, l.options); err != nil {
+		return err
+	}
+	if l.pool, err = NewLdapPool(context.Background(), l.options); err != nil {
+		return err
+	}
+	return
 }
 
 func (l Client) Close() {

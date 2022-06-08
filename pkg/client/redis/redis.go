@@ -2,6 +2,8 @@ package redis
 
 import (
 	"context"
+	"encoding/json"
+	"github.com/gogo/protobuf/proto"
 	"time"
 
 	"github.com/go-kit/log/level"
@@ -12,20 +14,68 @@ import (
 )
 
 type Client struct {
-	client *redis.Client
+	client  *redis.Client
+	options *RedisOptions
 }
 
-func NewRedisClientOrDie(ctx context.Context, options *RedisOptions) *Client {
-	client, err := NewRedisClient(ctx, options)
-	if err != nil {
-		panic(any(err))
+// Merge implement proto.Merger
+func (c *Client) Merge(src proto.Message) {
+	if s, ok := src.(*Client); ok {
+		c.options = s.options
+		c.client = s.client
 	}
-
-	return client
 }
 
-func NewRedisClient(ctx context.Context, option *RedisOptions) (*Client, error) {
-	var r Client
+// String implement proto.Message
+func (r Client) String() string {
+	return r.options.String()
+}
+
+// ProtoMessage implement proto.Message
+func (r *Client) ProtoMessage() {
+	r.options.ProtoMessage()
+}
+
+// Reset *implement proto.Message*
+func (r *Client) Reset() {
+	r.options.Reset()
+}
+
+func (r Client) Marshal() ([]byte, error) {
+	return proto.Marshal(r.options)
+}
+
+func (r *Client) Unmarshal(data []byte) (err error) {
+	if r.options == nil {
+		r.options = &RedisOptions{}
+	}
+	if err = proto.Unmarshal(data, r.options); err != nil {
+		return err
+	}
+	if r.client, err = NewRedisClient(context.Background(), r.options); err != nil {
+		return err
+	}
+	return
+}
+
+func (r Client) MarshalJSON() ([]byte, error) {
+	return json.Marshal(r.options)
+}
+
+func (r *Client) UnmarshalJSON(data []byte) (err error) {
+	if r.options == nil {
+		r.options = &RedisOptions{}
+	}
+	if err = json.Unmarshal(data, r.options); err != nil {
+		return err
+	}
+	if r.client, err = NewRedisClient(context.Background(), r.options); err != nil {
+		return err
+	}
+	return
+}
+
+func NewRedisClient(ctx context.Context, option *RedisOptions) (*redis.Client, error) {
 	logger := logs.GetContextLogger(ctx)
 	options, err := redis.ParseURL(option.Url)
 	if err != nil {
@@ -33,10 +83,10 @@ func NewRedisClient(ctx context.Context, option *RedisOptions) (*Client, error) 
 		return nil, err
 	}
 
-	r.client = redis.NewClient(options)
-	if err = r.client.Ping().Err(); err != nil {
+	client := redis.NewClient(options)
+	if err = client.Ping().Err(); err != nil {
 		level.Error(logger).Log("msg", "Redis连接失败", "err", err)
-		_ = r.client.Close()
+		_ = client.Close()
 		return nil, err
 	}
 
@@ -46,7 +96,7 @@ func NewRedisClient(ctx context.Context, option *RedisOptions) (*Client, error) 
 		go func() {
 			<-stopCh.Channel()
 			stopCh.WaitRequest()
-			if err = r.client.Close(); err != nil {
+			if err = client.Close(); err != nil {
 				level.Error(logger).Log("msg", "Redis客户端关闭出错", "err", err)
 				time.Sleep(1 * time.Second)
 			}
@@ -54,7 +104,7 @@ func NewRedisClient(ctx context.Context, option *RedisOptions) (*Client, error) 
 			stopCh.Done()
 		}()
 	}
-	return &r, nil
+	return client, nil
 }
 
 func (r *Client) Redis(ctx context.Context) *redis.Client {

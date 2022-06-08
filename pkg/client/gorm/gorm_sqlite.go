@@ -3,11 +3,13 @@ package gorm
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/gogo/protobuf/proto"
 	"gorm.io/gorm/schema"
 
 	"github.com/go-kit/log/level"
-	"github.com/golang/protobuf/jsonpb"
+	"github.com/gogo/protobuf/jsonpb"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"idas/pkg/logs"
@@ -71,4 +73,66 @@ func NewSQLiteOptions() *SQLiteOptions {
 		Path:        "idas.db",
 		TablePrefix: "t_",
 	}
+}
+
+type SQLiteClient struct {
+	*Client
+	options *SQLiteOptions
+}
+
+// Merge implement proto.Merger
+func (c *SQLiteClient) Merge(src proto.Message) {
+	if s, ok := src.(*SQLiteClient); ok {
+		c.options = s.options
+		c.Client = s.Client
+	}
+}
+
+// Reset *implement proto.Message*
+func (c *SQLiteClient) Reset() {
+	c.options.Reset()
+}
+
+// String implement proto.Message
+func (c SQLiteClient) String() string {
+	return c.options.String()
+}
+
+// ProtoMessage implement proto.Message
+func (c *SQLiteClient) ProtoMessage() {
+	c.options.ProtoMessage()
+}
+
+func (c SQLiteClient) Marshal() ([]byte, error) {
+	return proto.Marshal(c.options)
+}
+
+func (c *SQLiteClient) Unmarshal(data []byte) (err error) {
+	if c.options == nil {
+		c.options = &SQLiteOptions{}
+	}
+	if err = proto.Unmarshal(data, c.options); err != nil {
+		return err
+	}
+	if c.Client, err = NewSQLiteClient(context.Background(), c.options); err != nil {
+		return err
+	}
+	return
+}
+
+func (c SQLiteClient) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.options)
+}
+
+func (c *SQLiteClient) UnmarshalJSON(data []byte) (err error) {
+	if c.options == nil {
+		c.options = &SQLiteOptions{}
+	}
+	if err = json.Unmarshal(data, c.options); err != nil {
+		return err
+	}
+	if c.Client, err = NewSQLiteClient(context.Background(), c.options); err != nil {
+		return err
+	}
+	return
 }

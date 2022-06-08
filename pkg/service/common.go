@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-kit/log"
-	"idas/pkg/client/gorm"
 	"idas/pkg/global"
 	"idas/pkg/service/gormservice"
 	"io"
@@ -33,11 +32,7 @@ func NewCommonService(ctx context.Context) CommonService {
 	commonStorage := config.Get().GetStorage().GetDefault()
 	switch commonSource := commonStorage.GetStorageSource().(type) {
 	case *config.Storage_Mysql:
-		if client, err := gorm.NewMySQLClient(ctx, commonSource.Mysql); err != nil {
-			panic(any(fmt.Errorf("初始化UserService失败: MySQL数据库连接失败: %s", err)))
-		} else {
-			commonService = gormservice.NewCommonService(commonStorage.Name, client)
-		}
+		commonService = gormservice.NewCommonService(commonStorage.Name, commonSource.Mysql.Client)
 	default:
 		panic(any(fmt.Errorf("初始化CommonService失败: 未知的数据源类型: %T", commonSource)))
 	}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"idas/pkg/client/gorm"
 	"idas/pkg/errors"
 	"idas/pkg/global"
 	"idas/pkg/logs"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	"idas/config"
-	"idas/pkg/client/redis"
 	"idas/pkg/service/models"
 	"idas/pkg/service/redisservice"
 )
@@ -67,17 +65,9 @@ func NewSessionService(ctx context.Context) SessionService {
 	sessionStorage := config.Get().GetStorage().GetSession()
 	switch sessionSource := sessionStorage.GetStorageSource().(type) {
 	case *config.Storage_Mysql:
-		if client, err := gorm.NewMySQLClient(ctx, sessionSource.Mysql); err != nil {
-			panic(any(fmt.Errorf("初始化UserService失败: MySQL数据库连接失败: %s", err)))
-		} else {
-			sessionService = gormservice.NewSessionService(sessionStorage.Name, client)
-		}
+		sessionService = gormservice.NewSessionService(sessionStorage.Name, sessionSource.Mysql.Client)
 	case *config.Storage_Redis:
-		if client, err := redis.NewRedisClient(ctx, sessionSource.Redis); err != nil {
-			panic(any(fmt.Errorf("初始化UserService失败: MySQL数据库连接失败: %s", err)))
-		} else {
-			sessionService = redisservice.NewSessionService(sessionStorage.Name, client)
-		}
+		sessionService = redisservice.NewSessionService(sessionStorage.Name, sessionSource.Redis)
 	default:
 		panic(any(fmt.Errorf("初始化SessionService失败: 未知的数据源类型: %T", sessionSource)))
 	}

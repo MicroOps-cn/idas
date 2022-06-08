@@ -25,7 +25,7 @@ PROTOC_OPTS ?= --gogo_opt=Mgoogle/protobuf/duration.proto=github.com/gogo/protob
 PROTOC_OPTS := $(PROTOC_OPTS) -I$(shell $(GO) list -f "{{ .Dir }}" -m github.com/gogo/protobuf)/protobuf/
 PROTOC_OPTS := $(PROTOC_OPTS) -I$(shell $(GO) list -f "{{ .Dir }}" -m github.com/gogo/protobuf)/
 PROTOC_OPTS := $(PROTOC_OPTS) -I./api
-PROTOC_OPTS := $(PROTOC_OPTS) --gogo_out=module=${GOMODULENAME}:.
+PROTOC_OPTS := $(PROTOC_OPTS) --gogo_out=module=${GOMODULENAME}:..
 
 # golangci-lint only supports linux, darwin and windows platforms on i386/amd64.
 # windows isn't included here because of the path separator being different.

@@ -6,8 +6,6 @@ import (
 	"github.com/go-kit/log"
 	"idas/config"
 	"idas/pkg/client/email"
-	"idas/pkg/client/gorm"
-	"idas/pkg/client/ldap"
 	"idas/pkg/global"
 	"idas/pkg/logs"
 	"idas/pkg/service/gormservice"
@@ -189,23 +187,11 @@ func NewUserAndAppService(ctx context.Context) UserAndAppServices {
 			}
 			switch userSource := userStorage.GetStorageSource().(type) {
 			case *config.Storage_Mysql:
-				if client, err := gorm.NewMySQLClient(ctx, userSource.Mysql); err != nil {
-					panic(any(fmt.Errorf("Failed to init UserAndAppService: Failed to connect to mysql: %s ", err)))
-				} else {
-					userServices = append(userServices, gormservice.NewUserAndAppService(userStorage.GetName(), client))
-				}
+				userServices = append(userServices, gormservice.NewUserAndAppService(userStorage.GetName(), userSource.Mysql.Client))
 			case *config.Storage_Sqlite:
-				if client, err := gorm.NewSQLiteClient(ctx, userSource.Sqlite); err != nil {
-					panic(any(fmt.Errorf("Failed to init UserAndAppService: Failed to connect to sqlite: %s ", err)))
-				} else {
-					userServices = append(userServices, gormservice.NewUserAndAppService(userStorage.GetName(), client))
-				}
+				userServices = append(userServices, gormservice.NewUserAndAppService(userStorage.GetName(), userSource.Sqlite.Client))
 			case *config.Storage_Ldap:
-				if client, err := ldap.NewLdapClient(ctx, userSource.Ldap); err != nil {
-					panic(any(fmt.Errorf("Failed to init UserAndAppService: Failed to connect to LDAP: %s ", err)))
-				} else {
-					userServices = append(userServices, ldapservice.NewUserAndAppService(userStorage.GetName(), client))
-				}
+				userServices = append(userServices, ldapservice.NewUserAndAppService(userStorage.GetName(), userSource.Ldap))
 			default:
 				panic(any(fmt.Errorf("Failed to init UserAndAppService: Unknown datasource: %T ", userSource)))
 			}

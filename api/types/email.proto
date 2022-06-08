@@ -1,9 +1,10 @@
 syntax = "proto3";
 package idas.client.email;
 import public "gogoproto/gogo.proto";
-option go_package = "pkg/client/email;email";
+option go_package = "idas/pkg/client/email;email";
+option (gogoproto.sizer_all) = true;
 
-message Template{
+message OriginalTemplate{
   string subject = 1;
   string template_file = 2;
   string topic = 3;
@@ -17,7 +18,7 @@ message SmtpOptions {
   int32 port = 4;
   string from = 5;
   repeated string to = 6;
-  repeated Template template = 7[(gogoproto.customtype) = "EmailTemplate"];
+  repeated OriginalTemplate template = 7[(gogoproto.customtype) = "Template"];
 //  repeated Template template = 7;
 }
 

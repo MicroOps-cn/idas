@@ -1,12 +1,12 @@
 package gorm
 
 import (
-	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/go-kit/log/level"
+	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/types"
-	"github.com/golang/protobuf/jsonpb"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
@@ -91,31 +91,32 @@ func (x *MySQLOptions) GetStdMaxConnectionLifeTime() time.Duration {
 	return time.Second * 30
 }
 
-type pbMySQLOptions MySQLOptions
-
-func (p *pbMySQLOptions) Reset() {
-	(*MySQLOptions)(p).Reset()
-}
-
-func (p *pbMySQLOptions) String() string {
-	return (*MySQLOptions)(p).String()
-}
-
-func (p *pbMySQLOptions) ProtoMessage() {
-	(*MySQLOptions)(p).Reset()
-}
-
-func (x *MySQLOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []byte) error {
-	options := NewMySQLOptions()
-	x.Charset = options.Charset
-	x.Collation = options.Collation
-	x.MaxIdleConnections = options.MaxIdleConnections
-	x.MaxOpenConnections = options.MaxOpenConnections
-	x.MaxConnectionLifeTime = options.MaxConnectionLifeTime
-	x.TablePrefix = options.TablePrefix
-	return unmarshaller.Unmarshal(bytes.NewReader(b), (*pbMySQLOptions)(x))
-}
-
+//
+//type pbMySQLOptions MySQLOptions
+//
+//func (p *pbMySQLOptions) Reset() {
+//	(*MySQLOptions)(p).Reset()
+//}
+//
+//func (p *pbMySQLOptions) String() string {
+//	return (*MySQLOptions)(p).String()
+//}
+//
+//func (p *pbMySQLOptions) ProtoMessage() {
+//	(*MySQLOptions)(p).Reset()
+//}
+//
+//func (m *MySQLOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []byte) error {
+//	options := NewMySQLOptions()
+//	m.Charset = options.Charset
+//	m.Collation = options.Collation
+//	m.MaxIdleConnections = options.MaxIdleConnections
+//	m.MaxOpenConnections = options.MaxOpenConnections
+//	m.MaxConnectionLifeTime = options.MaxConnectionLifeTime
+//	m.TablePrefix = options.TablePrefix
+//	return unmarshaller.Unmarshal(bytes.NewReader(b), (*pbMySQLOptions)(m))
+//}
+//
 func NewMySQLOptions() *MySQLOptions {
 	return &MySQLOptions{
 		Charset:               "utf8",
@@ -125,4 +126,74 @@ func NewMySQLOptions() *MySQLOptions {
 		MaxConnectionLifeTime: types.DurationProto(30 * time.Second),
 		TablePrefix:           "t_",
 	}
+}
+
+type MySQLClient struct {
+	*Client
+	options *MySQLOptions
+}
+
+// Merge implement proto.Merger
+func (c *MySQLClient) Merge(src proto.Message) {
+	if s, ok := src.(*MySQLClient); ok {
+		c.options = s.options
+		c.Client = s.Client
+	}
+}
+
+func (c MySQLClient) Options() MySQLOptions {
+	return *c.options
+}
+
+func (c *MySQLClient) SetOptions(o *MySQLOptions) {
+	c.options = o
+}
+
+// String implement proto.Message
+func (c MySQLClient) String() string {
+	return c.options.String()
+}
+
+// ProtoMessage implement proto.Message
+func (c *MySQLClient) ProtoMessage() {
+	c.options.ProtoMessage()
+}
+
+// Reset *implement proto.Message*
+func (c *MySQLClient) Reset() {
+	c.options.Reset()
+}
+
+func (c MySQLClient) Marshal() ([]byte, error) {
+	return proto.Marshal(c.options)
+}
+
+func (c *MySQLClient) Unmarshal(data []byte) (err error) {
+	if c.options == nil {
+		c.options = NewMySQLOptions()
+	}
+	if err = proto.Unmarshal(data, c.options); err != nil {
+		return err
+	}
+	if c.Client, err = NewMySQLClient(context.Background(), c.options); err != nil {
+		return err
+	}
+	return
+}
+
+func (c MySQLClient) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.options)
+}
+
+func (c *MySQLClient) UnmarshalJSON(data []byte) (err error) {
+	if c.options == nil {
+		c.options = NewMySQLOptions()
+	}
+	if err = json.Unmarshal(data, c.options); err != nil {
+		return err
+	}
+	if c.Client, err = NewMySQLClient(context.Background(), c.options); err != nil {
+		return err
+	}
+	return
 }

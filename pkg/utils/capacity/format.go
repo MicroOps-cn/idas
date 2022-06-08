@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/golang/protobuf/jsonpb"
+	"github.com/gogo/protobuf/jsonpb"
 )
 
 var unitMap = map[string]int64{

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/asaskevich/govalidator"
-	"github.com/golang/protobuf/jsonpb"
+	"github.com/gogo/protobuf/jsonpb"
 	"strings"
 )
 
