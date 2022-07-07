@@ -22,7 +22,6 @@ type CommonService interface {
 	baseService
 	RecordUploadFile(ctx context.Context, name string, path string, contentType string, size int64) (id string, err error)
 	GetFileInfoFromId(ctx context.Context, id string) (fileName, mimiType, filePath string, err error)
-	SendResetPasswordLink(ctx context.Context, token string)
 }
 
 func NewCommonService(ctx context.Context) CommonService {

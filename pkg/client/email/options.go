@@ -66,16 +66,16 @@ func (m *SmtpOptions) getTemplate(topic string, sets ...string) *Template {
 	}
 	return nil
 }
-func (m *SmtpOptions) GetBody(data interface{}, topic string, sets ...string) (body string, err error) {
+func (m *SmtpOptions) GetSubjectAndBody(data interface{}, topic string, sets ...string) (subject, body string, err error) {
 	t := m.getTemplate(topic, sets...)
 	buffer := new(bytes.Buffer)
 	if t.tmpl == nil {
-		return "", fmt.Errorf("template is nil")
+		return "", "", fmt.Errorf("template is nil")
 	}
 	if err = t.tmpl.Execute(buffer, data); err != nil {
-		return "", err
+		return "", "", err
 	}
-	return buffer.String(), nil
+	return t.GetSubject(), buffer.String(), nil
 }
 
 func NewSmtpOptions() *SmtpOptions {

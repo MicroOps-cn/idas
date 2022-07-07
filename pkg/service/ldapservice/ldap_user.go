@@ -35,8 +35,17 @@ type UserAndAppService struct {
 }
 
 func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (*models.User, error) {
-	//TODO implement me
-	panic("implement me")
+	conn := s.Session(ctx)
+
+	searchReq := goldap.NewSearchRequest(
+		s.Options().UserSearchBase,
+		goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 1, 0, false,
+		fmt.Sprintf("(&(%s=*%s*)(%s=*%s*))",
+			s.Options().GetAttrUsername(), username,
+			s.Options().GetAttrEmail(), email),
+		nil, nil,
+	)
+	return s.getUserInfoByReq(context.WithValue(ctx, global.LDAPConnName, conn), searchReq)
 }
 
 func (s UserAndAppService) ResetPassword(ctx context.Context, id string, password string) error {
@@ -68,7 +77,7 @@ func (s UserAndAppService) AutoMigrate(ctx context.Context) error {
 func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
-	filters := []string{fmt.Sprintf(s.Options().ParseUserSearchFilter())}
+	filters := []string{s.Options().ParseUserSearchFilter()}
 	if status != models.UserStatusUnknown {
 		filters = append(filters, fmt.Sprintf("(%s=%d)", UserStatusName, status))
 	}

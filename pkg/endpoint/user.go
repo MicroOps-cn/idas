@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-kit/kit/endpoint"
+	"github.com/go-kit/log/level"
+	"idas/pkg/logs"
 	"net/http"
 	"strings"
 	"time"
@@ -118,14 +120,17 @@ func MakeForgotPasswordEndpoint(s service.Service) endpoint.Endpoint {
 		req := request.(Requester).GetRequestData().(*ForgotUserPasswordRequest)
 		resp := BaseResponse[interface{}]{}
 		users := s.GetUserInfoByUsernameAndEmail(ctx, req.Username, req.Email)
-		if len(users) > 0 {
+		if len(users) == 0 {
 			return resp, nil
 		}
 		token, err := s.CreateToken(ctx, users, models.TokenTypeResetPassword)
 		if err != nil {
-			return resp, nil
+			return resp, err
 		}
-		s.SendResetPasswordLink(ctx, token)
+		err = s.SendResetPasswordLink(ctx, users, token)
+		if err != nil {
+			level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to send email")
+		}
 		return resp, nil
 	}
 }

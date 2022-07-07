@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"idas/config"
 	"idas/pkg/client/email"
+	"idas/pkg/errors"
 	"idas/pkg/global"
 	"idas/pkg/logs"
 	"idas/pkg/service/gormservice"
@@ -64,7 +66,7 @@ type Service interface {
 
 	CreateToken(ctx context.Context, data interface{}, tokenType models.TokenType) (token string, err error)
 	VerifyToken(ctx context.Context, token string, relationId string, tokenType models.TokenType) bool
-	SendResetPasswordLink(ctx context.Context, token string)
+	SendResetPasswordLink(ctx context.Context, users []*models.User, token string) error
 }
 
 type Set struct {
@@ -83,8 +85,26 @@ func (s Set) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email 
 	return users
 }
 
-func (s Set) SendResetPasswordLink(ctx context.Context, token string) {
-	s.commonService.SendResetPasswordLink(ctx, token)
+func (s Set) SendResetPasswordLink(ctx context.Context, users []*models.User, token string) error {
+	smtpConfig := config.Get().GetSmtp()
+	subject, body, err := smtpConfig.GetSubjectAndBody(map[string]interface{}{
+		"user":  users[0],
+		"users": users,
+		"token": token,
+	}, "User:ResetPassword")
+	if err != nil {
+		level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "Failed to get email body: <User:ResetPassword>")
+		return errors.InternalServerError
+	}
+	client, err := email.NewSmtpClient(ctx, smtpConfig)
+	if err != nil {
+		level.Error(logs.GetContextLogger(ctx)).Log("err", fmt.Errorf("failed to create SMTP client: %s", err))
+		return errors.InternalServerError
+	}
+	client.SetSubject(subject)
+	client.SetBody("text/html", body)
+	client.SetTo([]string{fmt.Sprintf("%s<%s>", users[0].FullName, users[0].Email)})
+	return client.Send()
 }
 
 func (s Set) CreateToken(ctx context.Context, data interface{}, tokenType models.TokenType) (token string, err error) {
@@ -96,7 +116,7 @@ func (s Set) CreateToken(ctx context.Context, data interface{}, tokenType models
 	if err != nil {
 		return "", err
 	}
-	return token, nil
+	return tk.Id, nil
 }
 
 func (s Set) ResetPassword(ctx context.Context, id string, storage string, password string) error {
@@ -124,15 +144,10 @@ func (s Set) AutoMigrate(ctx context.Context) error {
 
 // New returns a basic Service with all of the expected middlewares wired in.
 func New(ctx context.Context) Service {
-	client, err := email.NewSmtpClient(ctx, config.Get().GetSmtp())
-	if err != nil {
-		panic(fmt.Errorf("Failed to init SMTP Client: %s. ", err))
-	}
 	return &Set{
 		userAndAppService: NewUserAndAppService(ctx),
 		sessionService:    NewSessionService(ctx),
 		commonService:     NewCommonService(ctx),
-		smtpClient:        client,
 	}
 }
 
