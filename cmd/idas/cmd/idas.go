@@ -51,15 +51,18 @@ import (
 )
 
 var (
-	cfgFile        string
-	configDisplay  bool
-	logConfig      logs.Config
-	debugAddr      string
-	httpAddr       string
-	zipkinURL      string
-	zipkinBridge   bool
-	lightstepToken string
-	appdashAddr    string
+	cfgFile         string
+	configDisplay   bool
+	logConfig       logs.Config
+	debugAddr       string
+	httpAddr        string
+	zipkinURL       string
+	zipkinBridge    bool
+	lightstepToken  string
+	appdashAddr     string
+	openapiPath     string
+	swaggerPath     string
+	swaggerFilePath string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -136,8 +139,22 @@ func Run(ctx context.Context, logger log.Logger, stopCh *signals.StopChan) (err 
 	var (
 		svc         = service.New(ctx)
 		endpoints   = endpoint.New(svc, logger, duration, tracer, zipkinTracer)
-		httpHandler = transport.NewHTTPHandler(endpoints, tracer, zipkinTracer, logger)
+		httpHandler = transport.NewHTTPHandler(endpoints, tracer, zipkinTracer, openapiPath, logger)
+		httpServer  = http.NewServeMux()
 	)
+
+	if len(swaggerPath) > 0 && len(openapiPath) > 0 && len(swaggerFilePath) > 0 {
+		stat, err := os.Stat(swaggerFilePath)
+		if err != nil {
+			level.Error(logger).Log("err", err, "msg", "Failed to get swagger UI directory status, so disable that.")
+		} else if stat.IsDir() {
+			httpServer.Handle(swaggerPath, http.StripPrefix(swaggerPath, http.FileServer(http.Dir(swaggerFilePath))))
+			level.Info(logger).Log("msg", fmt.Sprintf("enable openapi on `%s`", swaggerPath))
+		} else {
+			level.Error(logger).Log("msg", " swagger UI local path is not directory, so disable that.")
+		}
+	}
+
 	var g group.Group
 	{
 		// The debug listener mounts the http.DefaultServeMux, and serves up
@@ -164,10 +181,12 @@ func Run(ctx context.Context, logger log.Logger, stopCh *signals.StopChan) (err 
 		}
 		g.Add(func() error {
 			level.Info(logger).Log("transport", "HTTP", "addr", httpAddr)
-			return http.Serve(httpListener, httpHandler)
+			httpServer.Handle("/", httpHandler)
+			return http.Serve(httpListener, httpServer)
 		}, func(error) {
 			httpListener.Close()
 		})
+
 	}
 	return g.Run()
 }
@@ -194,11 +213,14 @@ func init() {
 	flag.AddFlags(rootCmd.PersistentFlags(), &logConfig)
 
 	rootCmd.Flags().StringVar(&debugAddr, "debug.addr", ":8080", "Debug and metrics listen address")
-	rootCmd.Flags().StringVar(&httpAddr, "http-addr", ":8081", "HTTP listen address")
-	rootCmd.Flags().StringVar(&zipkinURL, "zipkin-url", "", "Enable Zipkin tracing via HTTP reporter URL e.g. http://localhost:9411/api/v2/spans")
-	rootCmd.Flags().BoolVar(&zipkinBridge, "zipkin-ot-bridge", false, "Use Zipkin OpenTracing bridge instead of native implementation")
-	rootCmd.Flags().StringVar(&lightstepToken, "lightstep-token", "", "Enable LightStep tracing via a LightStep access token")
-	rootCmd.Flags().StringVar(&appdashAddr, "appdash-addr", "", "Enable Appdash tracing via an Appdash server host:port")
+	rootCmd.Flags().StringVar(&httpAddr, "http.addr", ":8081", "HTTP listen address")
+	rootCmd.Flags().StringVar(&zipkinURL, "zipkin.url", "", "Enable Zipkin tracing via HTTP reporter URL e.g. http://localhost:9411/api/v2/spans")
+	rootCmd.Flags().BoolVar(&zipkinBridge, "zipkin.ot-bridge", false, "Use Zipkin OpenTracing bridge instead of native implementation")
+	rootCmd.Flags().StringVar(&lightstepToken, "lightstep.token", "", "Enable LightStep tracing via a LightStep access token")
+	rootCmd.Flags().StringVar(&appdashAddr, "appdash.addr", "", "Enable Appdash tracing via an Appdash server host:port")
+	rootCmd.Flags().StringVar(&openapiPath, "http.openapi-path", "", "path of openapi")
+	rootCmd.Flags().StringVar(&swaggerPath, "http.swagger-path", "/apidocs/", "path of swagger ui. If the value is empty, the swagger UI is disabled.")
+	rootCmd.Flags().StringVar(&swaggerFilePath, "swagger.file-path", "", "path of swagger ui local file. If the value is empty, the swagger UI is disabled.")
 }
 
 // initConfig reads in config file and ENV variables if set.

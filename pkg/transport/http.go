@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"idas/pkg/utils/wrapper"
 	"io"
+	stdlog "log"
 	"net/http"
 	"strings"
 
 	"github.com/asaskevich/govalidator"
+	restfulspec "github.com/emicklei/go-restful-openapi/v2"
 	"github.com/emicklei/go-restful/v3"
 	kitendpoint "github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/tracing/opentracing"
@@ -18,6 +20,7 @@ import (
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/go-openapi/spec"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	stdzipkin "github.com/openzipkin/zipkin-go"
 
@@ -32,7 +35,7 @@ import (
 
 // NewHTTPHandler returns an HTTP handler that makes a set of endpoints
 // available on predefined paths.
-func NewHTTPHandler(endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer, logger log.Logger) http.Handler {
+func NewHTTPHandler(endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer, openapiPath string, logger log.Logger) http.Handler {
 	options := []httptransport.ServerOption{
 		httptransport.ServerErrorEncoder(errorEncoder),
 		httptransport.ServerErrorHandler(transport.NewLogErrorHandler(log.With(logger, "caller", logs.Caller(9)))),
@@ -49,7 +52,42 @@ func NewHTTPHandler(endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipk
 
 	m := restful.NewContainer()
 	options = append(options, httptransport.ServerBefore(opentracing.HTTPToContext(otTracer, "Concat", logger)))
-	InstallHTTPApi(logger, m, options, endpoints)
+	restful.TraceLogger(stdlog.New(log.NewStdlibAdapter(level.Info(logger)), "[restful]", stdlog.LstdFlags|stdlog.Lshortfile))
+	m.Filter(HTTPLogging)
+	var serviceGenerators = []func(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService){
+		UserService,
+		AppService,
+		FileService,
+		SessionService,
+		OAuthService,
+		UserAuthService,
+	}
+	var specTags []spec.Tag
+	for _, serviceGenerator := range serviceGenerators {
+		specTag, svcs := serviceGenerator(options, endpoints)
+		for _, svc := range svcs {
+			m.Add(svc)
+		}
+		specTags = append(specTags, specTag)
+	}
+	if openapiPath != "" {
+		level.Info(logger).Log("msg", fmt.Sprintf("enable openapi on `%s`", openapiPath))
+		m.Add(restfulspec.NewOpenAPIService(restfulspec.Config{
+			WebServices: m.RegisteredWebServices(),
+			APIPath:     openapiPath,
+			PostBuildSwaggerObjectHandler: func(swo *spec.Swagger) {
+				swo.Info = &spec.Info{
+					InfoProps: spec.InfoProps{
+						Title:       "ItemTestService",
+						Description: "Resource for managing ItemTests",
+						Version:     "1.0.0",
+					},
+				}
+				swo.Tags = specTags
+			},
+		}))
+	}
+
 	return m
 }
 
