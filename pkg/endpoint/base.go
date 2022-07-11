@@ -31,12 +31,6 @@ type RestfulRequester interface {
 	GetRestfulResponse() *restful.Response
 }
 
-type BaseListRequest struct {
-	PageSize int64  `json:"pageSize"`
-	Current  int64  `json:"current"`
-	Keywords string `json:"keywords"`
-}
-
 type BaseResponse[T any] struct {
 	Error        error  `json:"-"`
 	Data         T      `json:"data,omitempty"`

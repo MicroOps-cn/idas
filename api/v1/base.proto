@@ -1,0 +1,8 @@
+syntax = "proto3";
+package idas.endpoint.base;
+option go_package = "idas/pkg/endpoint;endpoint";
+message BaseListRequest{
+  int64 page_size = 1;
+  int64 current = 2;
+  string keywords = 3;
+}

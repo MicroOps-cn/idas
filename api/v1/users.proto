@@ -1,0 +1,19 @@
+syntax = "proto3";
+package idas.endpoint.users;
+import public "gogoproto/gogo.proto";
+import "v1/base.proto";
+option go_package = "idas/pkg/endpoint;endpoint";
+
+
+
+enum UserStatus{
+  unknown = 0;
+  normal = 1;
+  disable = 2;
+}
+message GetUsersRequest{
+  idas.endpoint.base.BaseListRequest BaseListRequest = 1[(gogoproto.embed) = true,(gogoproto.nullable) = false];
+  string app = 2;
+  string storage = 3;
+  UserStatus status = 4;
+}

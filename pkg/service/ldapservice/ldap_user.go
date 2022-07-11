@@ -199,6 +199,8 @@ func (s UserAndAppService) PatchUsers(ctx context.Context, patch []map[string]in
 			case "status":
 				status := value.(float64)
 				req.Replace(UserStatusName, []string{strconv.Itoa(int(status))})
+			case "isDelete":
+				//
 			}
 		}
 		if len(req.Changes) > 0 {

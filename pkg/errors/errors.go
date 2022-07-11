@@ -3,12 +3,65 @@ package errors
 import (
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type ServerError interface {
 	Code() string
 	StatusCode() int
 	error
+}
+
+func NewMultipleServerError(status int, prefix string, code ...string) *MultipleServerError {
+	var c string
+	if len(code) <= 0 {
+		c = strconv.Itoa(status)
+	} else {
+		c = code[0]
+	}
+	return &MultipleServerError{
+		code:   c,
+		status: status,
+		errs:   []error{},
+		prefix: prefix,
+	}
+}
+
+type MultipleServerError struct {
+	errs   []error
+	code   string
+	status int
+	prefix string
+}
+
+func (m MultipleServerError) Code() string {
+	return m.code
+}
+
+func (m MultipleServerError) StatusCode() int {
+	return m.status
+}
+
+func (m MultipleServerError) Error() string {
+	if len(m.errs) > 0 {
+		if len(m.errs) == 1 {
+			return m.errs[0].Error()
+		} else {
+			var errs []string
+			for _, err := range m.errs {
+				errs = append(errs, err.Error())
+			}
+			return m.prefix + strings.Join(errs, ",")
+		}
+	}
+	return ""
+}
+func (m MultipleServerError) HasError() bool {
+	return len(m.errs) > 0
+}
+
+func (m MultipleServerError) Append(err error) {
+	m.errs = append(m.errs, err)
 }
 
 var _ ServerError = &serverError{}

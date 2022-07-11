@@ -149,7 +149,7 @@ func Run(ctx context.Context, logger log.Logger, stopCh *signals.StopChan) (err 
 			level.Error(logger).Log("err", err, "msg", "Failed to get swagger UI directory status, so disable that.")
 		} else if stat.IsDir() {
 			httpServer.Handle(swaggerPath, http.StripPrefix(swaggerPath, http.FileServer(http.Dir(swaggerFilePath))))
-			level.Info(logger).Log("msg", fmt.Sprintf("enable openapi on `%s`", swaggerPath))
+			level.Info(logger).Log("msg", fmt.Sprintf("enable Swagger UI on `%s`", swaggerPath))
 		} else {
 			level.Error(logger).Log("msg", " swagger UI local path is not directory, so disable that.")
 		}

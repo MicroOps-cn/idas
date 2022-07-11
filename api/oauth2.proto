@@ -1,6 +1,6 @@
 syntax = "proto3";
 package idas.oauth2;
-option go_package = "pkg/endpoint;endpoint";
+option go_package = "idas/pkg/endpoint;endpoint";
 
 message OAuthAuthorizeRequest{
    enum ResponseType {

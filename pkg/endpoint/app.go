@@ -2,7 +2,6 @@ package endpoint
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/go-kit/kit/endpoint"
 
 	"idas/pkg/errors"
@@ -37,13 +36,7 @@ func MakeGetAppSourceRequestEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
-type PatchAppsRequest struct {
-	appPatch []map[string]interface{}
-}
-
-func (p *PatchAppsRequest) UnmarshalJSON(bytes []byte) error {
-	return json.Unmarshal(bytes, &p.appPatch)
-}
+type PatchAppsRequest []PatchAppRequest
 
 type PatchAppsResponse struct {
 }
@@ -52,25 +45,39 @@ func MakePatchAppsEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*PatchAppsRequest)
 		resp := BaseTotalResponse[PatchAppsResponse]{}
-		var storage string
-		for _, patch := range req.appPatch {
-			if ss, ok := patch["storage"].(string); !ok || len(ss) == 0 {
-				return nil, errors.ParameterError("storage is null")
-			} else if patch["storage"] != storage && storage != "" {
-				return nil, errors.ParameterError("storage is inconsistent")
-			} else {
-				storage = ss
+		var patchApps = map[string][]map[string]interface{}{}
+		for _, a := range *req {
+			if len(a.Storage) == 0 {
+				return nil, errors.ParameterError("There is an empty storage in the patch.")
+			}
+			if len(a.Id) == 0 {
+				return nil, errors.ParameterError("There is an empty id in the patch.")
+			}
+			var patch = map[string]interface{}{"id": a.Id}
+			if a.Status != nil {
+				patch["status"] = *a.Status
+			}
+			if a.IsDelete != nil {
+				patch["isDelete"] = *a.IsDelete
+			}
+			patchApps[a.Storage] = append(patchApps[a.Storage], patch)
+		}
+
+		errs := errors.NewMultipleServerError(500, "Multiple errors have occurred: ")
+		for storage, patch := range patchApps {
+			total, err := s.PatchUsers(ctx, storage, patch)
+			resp.Total += total
+			if err != nil {
+				errs.Append(err)
+				resp.Error = err
 			}
 		}
-		resp.Total, resp.Error = s.PatchApps(ctx, storage, req.appPatch)
+
 		return &resp, nil
 	}
 }
 
-type DeleteAppsRequest struct {
-	Id      []string `valid:"required,notnull"`
-	Storage string   `json:"storage" valid:"required"`
-}
+type DeleteAppsRequest []DeleteAppRequest
 
 type DeleteAppsResponse struct {
 }
@@ -79,13 +86,54 @@ func MakeDeleteAppsEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*DeleteAppsRequest)
 		resp := BaseTotalResponse[DeleteAppsResponse]{}
-		resp.Total, resp.Error = s.DeleteApps(ctx, req.Storage, req.Id)
+		var delApps = map[string][]string{}
+		for _, app := range *req {
+			if len(app.Storage) == 0 {
+				return nil, errors.ParameterError("There is an empty storage in the request.")
+			}
+			if len(app.Id) == 0 {
+				return nil, errors.ParameterError("There is an empty id in the request.")
+			}
+			delApps[app.Storage] = append(delApps[app.Storage], app.Id)
+		}
+		errs := errors.NewMultipleServerError(500, "Multiple errors have occurred: ")
+		for storage, ids := range delApps {
+			total, err := s.DeleteApps(ctx, storage, ids)
+			resp.Total += total
+			if err != nil {
+				errs.Append(err)
+				resp.Error = err
+			}
+		}
 		return &resp, nil
 	}
 }
 
 type UpdateAppRequest struct {
-	*models.App `json:",inline"`
+	Id          string             `json:"id" valid:"required"`
+	Name        string             `json:"name" valid:"required"`
+	Description string             `json:"description,omitempty"`
+	Avatar      string             `json:"avatar,omitempty"`
+	Storage     string             `json:"storage" valid:"required"`
+	GrantType   models.GrantType   `json:"grantType" valid:"required"`
+	GrantMode   models.GrantMode   `json:"grantMode" valid:"required"`
+	Status      models.GroupStatus `json:"status,omitempty"`
+	User        []AppUser          `json:"user,omitempty"`
+	Role        []AppRole          `json:"role,omitempty"`
+}
+
+func (r UpdateAppRequest) GetUsers() (users []*models.User) {
+	for _, u := range r.User {
+		users = append(users, &models.User{Model: models.Model{Id: u.Id}, RoleId: u.RoleId})
+	}
+	return users
+}
+
+func (r UpdateAppRequest) GetRoles() (roles []*models.AppRole) {
+	for _, role := range r.Role {
+		roles = append(roles, &models.AppRole{Model: models.Model{Id: role.Id}, Name: role.Name, Config: role.Config, IsDefault: role.IsDefault})
+	}
+	return roles
 }
 
 type UpdateAppResponse struct {
@@ -95,7 +143,17 @@ func MakeUpdateAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*UpdateAppRequest)
 		resp := BaseResponse[interface{}]{}
-		if resp.Data, resp.Error = s.UpdateApp(ctx, req.Storage, req.App); resp.Error != nil {
+		if resp.Data, resp.Error = s.UpdateApp(ctx, req.Storage, &models.App{
+			Model:       models.Model{Id: req.Id},
+			Name:        req.Name,
+			Description: req.Description,
+			Avatar:      req.Avatar,
+			GrantType:   req.GrantType,
+			GrantMode:   req.GrantMode,
+			Storage:     req.Storage,
+			User:        req.GetUsers(),
+			Role:        req.GetRoles(),
+		}); resp.Error != nil {
 			resp.Error = errors.NewServerError(200, resp.Error.Error())
 		}
 		return &resp, nil
@@ -119,15 +177,40 @@ func MakeGetAppInfoEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
+type AppUser struct {
+	Id     string `json:"id" valid:"required"`
+	RoleId string `json:"roleId,omitempty"`
+}
+
+type AppRole struct {
+	Id        string `json:"id,omitempty"`
+	Name      string `json:"name" valid:"required"`
+	Config    string `json:"config,omitempty"`
+	IsDefault bool   `json:"isDefault,omitempty"`
+}
 type CreateAppRequest struct {
-	Name        string            `json:"name" valid:"required"`
-	Description string            `json:"description"`
-	Avatar      string            `json:"avatar"`
-	Storage     string            `json:"storage" valid:"required"`
-	GrantType   models.GrantType  `json:"grantType" valid:"required"`
-	GrantMode   models.GrantMode  `json:"grantMode"`
-	User        []*models.User    `gorm:"many2many:app_user" json:"user,omitempty"`
-	Role        []*models.AppRole `gorm:"-" json:"role,omitempty"`
+	Name        string           `json:"name" valid:"required"`
+	Description string           `json:"description"`
+	Avatar      string           `json:"avatar"`
+	Storage     string           `json:"storage" valid:"required"`
+	GrantType   models.GrantType `json:"grantType" valid:"required"`
+	GrantMode   models.GrantMode `json:"grantMode" valid:"required"`
+	User        []AppUser        `json:"user,omitempty"`
+	Role        []AppRole        `json:"role,omitempty"`
+}
+
+func (r CreateAppRequest) GetUsers() (users []*models.User) {
+	for _, u := range r.User {
+		users = append(users, &models.User{Model: models.Model{Id: u.Id}, RoleId: u.RoleId})
+	}
+	return users
+}
+
+func (r CreateAppRequest) GetRoles() (roles []*models.AppRole) {
+	for _, role := range r.Role {
+		roles = append(roles, &models.AppRole{Model: models.Model{Id: role.Id}, Name: role.Name, Config: role.Config, IsDefault: role.IsDefault})
+	}
+	return roles
 }
 
 type CreateAppResponse struct {
@@ -145,35 +228,57 @@ func MakeCreateAppEndpoint(s service.Service) endpoint.Endpoint {
 			GrantType:   req.GrantType,
 			GrantMode:   req.GrantMode,
 			Storage:     req.Storage,
-			User:        req.User,
-			Role:        req.Role,
+			User:        req.GetUsers(),
+			Role:        req.GetRoles(),
 		})
 		return &resp, nil
 	}
 }
 
 type PatchAppRequest struct {
-	fields  map[string]interface{}
-	Storage string `json:"storage" valid:"required"`
+	Id          string              `json:"id" valid:"required"`
+	Name        *string             `json:"name,omitempty"`
+	Description *string             `json:"description,omitempty"`
+	Avatar      *string             `json:"avatar,omitempty"`
+	GrantType   *models.GrantType   `json:"grantType,omitempty"`
+	GrantMode   *models.GrantMode   `json:"grantMode,omitempty"`
+	Status      *models.GroupStatus `json:"status,omitempty"`
+	Storage     string              `json:"storage" valid:"required"`
+	IsDelete    *bool               `json:"isDelete,omitempty"`
 }
 
 type PatchAppResponse struct {
-}
-
-func (p *PatchAppRequest) UnmarshalJSON(data []byte) error {
-	fields := map[string]interface{}{}
-	if err := json.Unmarshal(data, &fields); err != nil {
-		return err
-	}
-	p.fields = fields
-	return nil
 }
 
 func MakePatchAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*PatchAppRequest)
 		resp := BaseResponse[*models.App]{}
-		resp.Data, resp.Error = s.PatchApp(ctx, req.Storage, req.fields)
+
+		if len(req.Storage) == 0 {
+			return nil, errors.ParameterError("There is an empty storage in the patch.")
+		}
+		if len(req.Id) == 0 {
+			return nil, errors.ParameterError("There is an empty id in the patch.")
+		}
+		var tmpPatch = map[string]interface{}{
+			"id":          req.Id,
+			"storage":     req.Storage,
+			"name":        req.Name,
+			"description": req.Description,
+			"avatar":      req.Avatar,
+			"grantType":   req.GrantType,
+			"grantMode":   req.GrantMode,
+			"status":      req.Status,
+			"isDelete":    req.IsDelete,
+		}
+		var patch = map[string]interface{}{}
+		for name, val := range tmpPatch {
+			if val != nil {
+				patch[name] = val
+			}
+		}
+		resp.Data, resp.Error = s.PatchApp(ctx, req.Storage, patch)
 		return &resp, nil
 	}
 }

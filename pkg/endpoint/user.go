@@ -2,7 +2,6 @@ package endpoint
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log/level"
@@ -90,10 +89,11 @@ func MakeCurrentUserEndpoint(_ service.Service) endpoint.Endpoint {
 }
 
 type ResetUserPasswordRequest struct {
-	Token       string `json:"token"`
-	Storage     string `json:"storage"`
-	NewPassword string `json:"new_password"`
-	UserId      string `json:"userId"`
+	UserId      string `json:"userId" valid:"required"`
+	Storage     string `json:"storage" valid:"required"`
+	Token       string `json:"token,omitempty"`
+	OldPassword string `json:"oldPassword,omitempty"`
+	NewPassword string `json:"newPassword" valid:"required"`
 }
 
 type ResetUserPasswordResponse struct {
@@ -103,16 +103,21 @@ func MakeResetUserPasswordEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*ResetUserPasswordRequest)
 		resp := BaseTotalResponse[interface{}]{}
-		if s.VerifyToken(ctx, req.Token, req.UserId, models.TokenTypeResetPassword) {
-			resp.Error = s.ResetPassword(ctx, req.UserId, req.Storage, req.NewPassword)
+		if len(req.Token) > 0 {
+			if s.VerifyToken(ctx, req.Token, req.UserId, models.TokenTypeResetPassword) {
+				resp.Error = s.ResetPassword(ctx, req.UserId, req.Storage, req.NewPassword)
+			}
+		} else {
+
 		}
+
 		return resp, nil
 	}
 }
 
 type ForgotUserPasswordRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
+	Username string `json:"username" valid:"required"`
+	Email    string `json:"email" valid:"required"`
 }
 
 func MakeForgotPasswordEndpoint(s service.Service) endpoint.Endpoint {
@@ -135,18 +140,15 @@ func MakeForgotPasswordEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
-type GetUsersRequest struct {
-	BaseListRequest
-	Status  models.UserStatus `json:"status"`
-	Storage string            `json:"storage"`
-	App     string            `json:"app"`
-}
-
 func MakeGetUsersEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*GetUsersRequest)
 		resp := NewBaseListResponse[interface{}](&req.BaseListRequest)
-		resp.BaseResponse.Data, resp.Total, resp.BaseResponse.Error = s.GetUsers(ctx, req.Storage, req.Keywords, req.Status, req.App, req.Current, req.PageSize)
+		resp.BaseResponse.Data, resp.Total, resp.BaseResponse.Error = s.GetUsers(
+			ctx, req.Storage, req.Keywords,
+			models.UserStatus(req.Status),
+			req.App, req.Current, req.PageSize,
+		)
 		return &resp, nil
 	}
 }
@@ -164,13 +166,7 @@ func MakeGetUserSourceRequestEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
-type PatchUsersRequest struct {
-	userPatch []map[string]interface{}
-}
-
-func (p *PatchUsersRequest) UnmarshalJSON(bytes []byte) error {
-	return json.Unmarshal(bytes, &p.userPatch)
-}
+type PatchUsersRequest []PatchUserRequest
 
 type PatchUsersResponse struct {
 }
@@ -179,25 +175,39 @@ func MakePatchUsersEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*PatchUsersRequest)
 		resp := BaseTotalResponse[interface{}]{}
-		var storage string
-		for _, patch := range req.userPatch {
-			if ss, ok := patch["storage"].(string); !ok || len(ss) == 0 {
-				return nil, errors.ParameterError("storage is null")
-			} else if patch["storage"] != storage && storage != "" {
-				return nil, errors.ParameterError("storage is inconsistent")
-			} else {
-				storage = ss
+
+		var patchUsers = map[string][]map[string]interface{}{}
+		for _, u := range *req {
+			if len(u.Storage) == 0 {
+				return nil, errors.ParameterError("There is an empty storage in the patch.")
+			}
+			if len(u.Id) == 0 {
+				return nil, errors.ParameterError("There is an empty id in the patch.")
+			}
+			var patch = map[string]interface{}{"id": u.Id}
+			if u.Status != nil {
+				patch["status"] = *u.Status
+			}
+			if u.IsDelete != nil {
+				patch["isDelete"] = *u.IsDelete
+			}
+			patchUsers[u.Storage] = append(patchUsers[u.Storage], patch)
+		}
+		errs := errors.NewMultipleServerError(500, "Multiple errors have occurred: ")
+		for storage, patch := range patchUsers {
+			total, err := s.PatchUsers(ctx, storage, patch)
+			resp.Total += total
+			if err != nil {
+				errs.Append(err)
+				resp.Error = err
 			}
 		}
-		resp.Total, resp.Error = s.PatchUsers(ctx, storage, req.userPatch)
+
 		return &resp, nil
 	}
 }
 
-type DeleteUsersRequest struct {
-	Id      []string `json:"id" valid:"required"`
-	Storage string   `json:"storage" valid:"required"`
-}
+type DeleteUsersRequest []DeleteUserRequest
 
 type DeleteUsersResponse struct {
 }
@@ -206,7 +216,25 @@ func MakeDeleteUsersEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*DeleteUsersRequest)
 		resp := BaseTotalResponse[interface{}]{}
-		resp.Total, resp.Error = s.DeleteUsers(ctx, req.Storage, req.Id)
+		var delUsers = map[string][]string{}
+		for _, u := range *req {
+			if len(u.Storage) == 0 {
+				return nil, errors.ParameterError("There is an empty storage in the request.")
+			}
+			if len(u.Id) == 0 {
+				return nil, errors.ParameterError("There is an empty id in the request.")
+			}
+			delUsers[u.Storage] = append(delUsers[u.Storage], u.Id)
+		}
+		errs := errors.NewMultipleServerError(500, "Multiple errors have occurred: ")
+		for storage, ids := range delUsers {
+			total, err := s.DeleteUsers(ctx, storage, ids)
+			resp.Total += total
+			if err != nil {
+				errs.Append(err)
+				resp.Error = err
+			}
+		}
 		return &resp, nil
 	}
 }
@@ -264,12 +292,12 @@ func MakeGetUserInfoEndpoint(s service.Service) endpoint.Endpoint {
 }
 
 type CreateUserRequest struct {
-	Username    string `gorm:"type:varchar(20);" json:"username"`
-	Email       string `gorm:"type:varchar(50);" json:"email" `
-	PhoneNumber string `json:"phoneNumber"`
-	FullName    string `gorm:"type:varchar(20);" json:"fullName"`
-	Avatar      string `json:"avatar"`
-	Storage     string `gorm:"-" json:"storage"`
+	Username    string `json:"username"`
+	Email       string `json:"email" `
+	PhoneNumber string `json:"phoneNumber,omitempty"`
+	FullName    string `json:"fullName,omitempty"`
+	Avatar      string `json:"avatar,omitempty"`
+	Storage     string `json:"storage"`
 }
 
 func MakeCreateUserEndpoint(s service.Service) endpoint.Endpoint {
@@ -290,34 +318,40 @@ func MakeCreateUserEndpoint(s service.Service) endpoint.Endpoint {
 }
 
 type PatchUserRequest struct {
-	fields  map[string]interface{}
-	Storage string `json:"storage" valid:"required"`
+	Id       string             `json:"id" valid:"required"`
+	Storage  string             `json:"storage" valid:"required"`
+	IsDelete *bool              `json:"isDelete,omitempty"`
+	Status   *models.UserStatus `json:"status,omitempty"`
 }
 
 type PatchUserResponse struct {
 	User *models.User `json:",inline"`
 }
 
-func (p *PatchUserRequest) UnmarshalJSON(data []byte) error {
-	fields := map[string]interface{}{}
-	if err := json.Unmarshal(data, &fields); err != nil {
-		return err
-	}
-	p.fields = fields
-	return nil
-}
-
 func MakePatchUserEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*PatchUserRequest)
 		resp := BaseResponse[interface{}]{}
-		resp.Data, resp.Error = s.PatchUser(ctx, req.Storage, req.fields)
+		if len(req.Storage) == 0 {
+			return nil, errors.ParameterError("There is an empty storage in the patch.")
+		}
+		if len(req.Id) == 0 {
+			return nil, errors.ParameterError("There is an empty id in the patch.")
+		}
+		var patch = map[string]interface{}{"id": req.Id}
+		if req.Status != nil {
+			patch["status"] = *req.Status
+		}
+		if req.IsDelete != nil {
+			patch["isDelete"] = *req.IsDelete
+		}
+		resp.Data, resp.Error = s.PatchUser(ctx, req.Storage, patch)
 		return &resp, nil
 	}
 }
 
 type DeleteUserRequest struct {
-	Id      string `valid:"required"`
+	Id      string `json:"id" valid:"required"`
 	Storage string `json:"storage" valid:"required"`
 }
 

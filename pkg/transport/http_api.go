@@ -78,11 +78,16 @@ loopObjFields:
 			}
 		handleField:
 			jsonTag := strings.Split(field.Tag.Get("json"), ",")
-			if len(jsonTag) > 0 {
-				params = append(params, restful.QueryParameter(
+			if len(jsonTag) > 0 && jsonTag[0] != "-" && jsonTag[0] != "" {
+				param := restful.QueryParameter(
 					jsonTag[0],
-					field.Tag.Get("description")).DataType(field.Type.String()),
-				)
+					field.Tag.Get("description")).DataType(field.Type.String())
+				if len(jsonTag) > 1 && jsonTag[1] == "omitempty" {
+					param.Required(false)
+				} else {
+					param.Required(true)
+				}
+				params = append(params, param)
 			}
 		}
 	}
@@ -93,7 +98,7 @@ loopObjFields:
 func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "users", Description: "Managing users"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, "User Manager")
+	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPLoginAuthentication(endpoints))
 
 	v1ws.Route(v1ws.GET("").
@@ -106,7 +111,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 	v1ws.Route(v1ws.PATCH("").
 		To(NewKitHTTPServer[endpoint.PatchUsersRequest](endpoints.PatchUsers, options)).
 		Operation("patchUsers").
-		Reads([]map[string]endpoint.PatchUsersRequest{}).
+		Reads(endpoint.PatchUsersRequest{}).
 		Doc("批量更新用户信息（增量）").
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
@@ -114,6 +119,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		To(NewKitHTTPServer[endpoint.DeleteUsersRequest](endpoints.DeleteUsers, options)).
 		Operation("deleteUsers").
 		Doc("批量删除用户").
+		Reads(endpoint.DeleteUsersRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
@@ -121,12 +127,15 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		To(NewKitHTTPServer[endpoint.CreateUserRequest](endpoints.CreateUser, options)).
 		Operation("createUser").
 		Doc("创建用户").
+		Reads(endpoint.CreateUserRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
 	v1ws.Route(v1ws.GET("/{id}").
 		To(NewKitHTTPServer[endpoint.GetUserRequest](endpoints.GetUserInfo, options)).
 		Operation("getUserInfo").
 		Param(v1ws.PathParameter("id", "identifier of the user").DataType("string")).
+		Param(v1ws.QueryParameter("username", "username of the user").DataType("string")).
+		Param(v1ws.QueryParameter("storage", "storage of the user").DataType("string")).
 		Doc("获取用户信息").
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
@@ -135,6 +144,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Operation("updateUser").
 		Param(v1ws.PathParameter("id", "identifier of the user").DataType("string")).
 		Doc("更新用户信息（全量）").
+		Reads(endpoint.UpdateUserRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
 	v1ws.Route(v1ws.PATCH("/{id}").
@@ -142,12 +152,14 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Operation("patchUser").
 		Param(v1ws.PathParameter("id", "identifier of the user").DataType("string")).
 		Doc("更新用户信息（增量）").
+		Reads(endpoint.PatchUserRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
 	v1ws.Route(v1ws.DELETE("/{id}").
 		To(NewKitHTTPServer[endpoint.DeleteUserRequest](endpoints.DeleteUser, options)).
 		Operation("deleteUser").
 		Param(v1ws.PathParameter("id", "identifier of the user").DataType("string")).
+		Param(v1ws.QueryParameter("storage", "storage source of the user").DataType("string")).
 		Doc("删除用户").
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
@@ -155,6 +167,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		To(NewKitHTTPServer[endpoint.ForgotUserPasswordRequest](endpoints.ForgotPassword, options)).
 		Operation("forgotPassword").
 		Doc("忘记用户密码").
+		Reads(endpoint.ForgotUserPasswordRequest{}).
 		Metadata(global.MetaNeedLogin, false).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
@@ -162,6 +175,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 	v1ws.Route(v1ws.POST("/resetPassword").
 		To(NewKitHTTPServer[endpoint.ResetUserPasswordRequest](endpoints.ResetPassword, options)).
 		Operation("resetPassword").
+		Reads(endpoint.ResetUserPasswordRequest{}).
 		Doc("重置用户密码").
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
@@ -175,33 +189,37 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 }
 
 func AppService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
-	tag := spec.Tag{TagProps: spec.TagProps{Name: "apps", Description: "Managing users"}}
+	tag := spec.Tag{TagProps: spec.TagProps{Name: "apps", Description: "Application manager"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, "Application manager")
+	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPLoginAuthentication(endpoints))
 
 	v1ws.Route(v1ws.GET("").
 		To(NewKitHTTPServer[endpoint.GetAppsRequest](endpoints.GetApps, options)).
 		Operation("getApps").
 		Doc("获取应用列表").
+		Params(StructToQueryParams(endpoint.GetAppsRequest{})...).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
 	v1ws.Route(v1ws.PATCH("").
 		To(NewKitHTTPServer[endpoint.PatchAppsRequest](endpoints.PatchApps, options)).
 		Operation("patchApps").
 		Doc("批量更新应用信息（增量）").
+		Reads(endpoint.PatchAppsRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
 	v1ws.Route(v1ws.DELETE("").
 		To(NewKitHTTPServer[endpoint.DeleteAppsRequest](endpoints.DeleteApps, options)).
 		Operation("deleteApps").
 		Doc("批量删除应用").
+		Reads(endpoint.DeleteAppsRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
 	v1ws.Route(v1ws.POST("").
 		To(NewKitHTTPServer[endpoint.CreateAppRequest](endpoints.CreateApp, options)).
 		Operation("createApp").
 		Doc("创建应用").
+		Reads(endpoint.CreateAppRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
 	v1ws.Route(v1ws.GET("/source").
@@ -214,24 +232,32 @@ func AppService(options []httptransport.ServerOption, endpoints endpoint.Set) (s
 		To(NewKitHTTPServer[endpoint.GetAppRequest](endpoints.GetAppInfo, options)).
 		Operation("getAppInfo").
 		Doc("获取应用信息").
+		Param(v1ws.PathParameter("id", "identifier of the app").DataType("string")).
+		Param(v1ws.QueryParameter("storage", "storage of the app").DataType("string")).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
 	v1ws.Route(v1ws.PUT("/{id}").
 		To(NewKitHTTPServer[endpoint.UpdateAppRequest](endpoints.UpdateApp, options)).
 		Operation("updateApp").
 		Doc("更新应用信息（全量）").
+		Param(v1ws.PathParameter("id", "identifier of the app").DataType("string")).
+		Reads(endpoint.UpdateAppRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
 	v1ws.Route(v1ws.PATCH("/{id}").
 		To(NewKitHTTPServer[endpoint.PatchAppRequest](endpoints.PatchApp, options)).
 		Operation("patchApp").
 		Doc("更新应用信息（增量）").
+		Param(v1ws.PathParameter("id", "identifier of the app").DataType("string")).
+		Reads(endpoint.PatchAppRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
 	v1ws.Route(v1ws.DELETE("/{id}").
 		To(NewKitHTTPServer[endpoint.DeleteAppRequest](endpoints.DeleteApp, options)).
 		Operation("deleteApp").
 		Doc("删除应用").
+		Param(v1ws.PathParameter("id", "identifier of the app").DataType("string")).
+		Param(v1ws.QueryParameter("storage", "storage source of the app").DataType("string")).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
 
@@ -239,20 +265,22 @@ func AppService(options []httptransport.ServerOption, endpoints endpoint.Set) (s
 }
 
 func FileService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
-	tag := spec.Tag{TagProps: spec.TagProps{Name: "files", Description: "Managing users"}}
+	tag := spec.Tag{TagProps: spec.TagProps{Name: "files", Description: "Managing files"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, "File manager")
+	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPLoginAuthentication(endpoints))
 
 	v1ws.Route(v1ws.POST("").
 		To(NewKitHTTPServer[endpoint.FileUploadRequest](endpoints.UploadFile, options)).
 		Operation("uploadFile").
 		Consumes("multipart/form-data").Doc("上传文件").
+		Param(v1ws.MultiPartFormParameter("files", "files").DataType("file")).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
 	v1ws.Route(v1ws.GET("/{id}").
 		To(NewKitHTTPServer[endpoint.FileDownloadRequest](endpoints.DownloadFile, options)).
 		Operation("downloadFile").
+		Param(v1ws.PathParameter("id", "identifier of the file").DataType("string").Required(true)).
 		Doc("下载/查看文件").
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
@@ -260,20 +288,22 @@ func FileService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 }
 
 func SessionService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
-	tag := spec.Tag{TagProps: spec.TagProps{Name: "sessions", Description: "Managing users"}}
+	tag := spec.Tag{TagProps: spec.TagProps{Name: "sessions", Description: "Managing sessions"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, "File manager")
+	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPLoginAuthentication(endpoints))
 
 	v1ws.Route(v1ws.GET("").
 		To(NewKitHTTPServer[endpoint.GetSessionsRequest](endpoints.GetSessions, options)).
 		Operation("getSessions").
 		Doc("获取会话列表").
+		Params(StructToQueryParams(endpoint.GetSessionsRequest{})...).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
 	v1ws.Route(v1ws.DELETE("/{id}").
 		To(NewKitHTTPServer[endpoint.DeleteSessionRequest](endpoints.DeleteSession, options)).
 		Operation("deleteSession").
+		Param(v1ws.PathParameter("id", "identifier of the session").DataType("string").Required(true)).
 		Doc("会话过期").
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
@@ -281,9 +311,9 @@ func SessionService(options []httptransport.ServerOption, endpoints endpoint.Set
 }
 
 func OAuthService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
-	tag := spec.Tag{TagProps: spec.TagProps{Name: "oauth", Description: "Managing users"}}
+	tag := spec.Tag{TagProps: spec.TagProps{Name: "oauth", Description: "OAuth2.0 Support"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, "File manager")
+	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPLoginAuthentication(endpoints))
 
 	// https://www.ruanyifeng.com/blog/2019/04/oauth-grant-types.html
@@ -292,30 +322,34 @@ func OAuthService(options []httptransport.ServerOption, endpoints endpoint.Set) 
 		Operation("oAuthTokens").
 		Doc("获取令牌").
 		Metadata(global.MetaNeedLogin, false).
-		Consumes("application/x-www-form-urlencoded").
+		Reads(endpoint.OAuthTokenRequest{}).
+		Consumes("application/x-www-form-urlencoded", restful.MIME_JSON).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
 	v1ws.Route(v1ws.POST("/authorize").
 		To(NewKitHTTPServer[endpoint.OAuthAuthorizeRequest](endpoints.OAuthAuthorize, options)).
 		Operation("oAuthAuthorize").
 		Doc("应用授权").
+		Reads(endpoint.OAuthAuthorizeRequest{}).
 		Metadata(global.MetaAutoRedirectToLoginPage, true).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
+
 	v1ws.Route(v1ws.GET("/authorize").
 		To(NewKitHTTPServer[endpoint.OAuthAuthorizeRequest](endpoints.OAuthAuthorize, options)).
 		Operation("oAuthAuthorize").
 		Doc("应用授权").
-		Metadata(global.MetaAutoRedirectToLoginPage, true).
-		Metadata(restfulspec.KeyOpenAPITags, tags),
+		Params(StructToQueryParams(endpoint.OAuthAuthorizeRequest{})...).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Metadata(global.MetaAutoRedirectToLoginPage, true),
 	)
 	return tag, []*restful.WebService{v1ws}
 }
 
 func UserAuthService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
-	tag := spec.Tag{TagProps: spec.TagProps{Name: "user", Description: "Managing users"}}
+	tag := spec.Tag{TagProps: spec.TagProps{Name: "user", Description: "user login service"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, "File manager")
+	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPLoginAuthentication(endpoints))
 
 	v1ws.Route(v1ws.POST("/login").
