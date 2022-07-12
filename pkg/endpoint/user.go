@@ -168,9 +168,6 @@ func MakeGetUserSourceRequestEndpoint(s service.Service) endpoint.Endpoint {
 
 type PatchUsersRequest []PatchUserRequest
 
-type PatchUsersResponse struct {
-}
-
 func MakePatchUsersEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*PatchUsersRequest)
@@ -185,11 +182,11 @@ func MakePatchUsersEndpoint(s service.Service) endpoint.Endpoint {
 				return nil, errors.ParameterError("There is an empty id in the patch.")
 			}
 			var patch = map[string]interface{}{"id": u.Id}
-			if u.Status != nil {
-				patch["status"] = *u.Status
+			if u.Status >= 0 {
+				patch["status"] = u.Status
 			}
-			if u.IsDelete != nil {
-				patch["isDelete"] = *u.IsDelete
+			if u.IsDelete {
+				patch["isDelete"] = u.IsDelete
 			}
 			patchUsers[u.Storage] = append(patchUsers[u.Storage], patch)
 		}
@@ -278,10 +275,6 @@ type GetUserRequest struct {
 	Storage  string `json:"storage" valid:"required"`
 }
 
-type GetUserResponse struct {
-	User *models.User `json:",inline"`
-}
-
 func MakeGetUserInfoEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(GetUserRequest)
@@ -317,13 +310,6 @@ func MakeCreateUserEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
-type PatchUserRequest struct {
-	Id       string             `json:"id" valid:"required"`
-	Storage  string             `json:"storage" valid:"required"`
-	IsDelete *bool              `json:"isDelete,omitempty"`
-	Status   *models.UserStatus `json:"status,omitempty"`
-}
-
 type PatchUserResponse struct {
 	User *models.User `json:",inline"`
 }
@@ -339,11 +325,11 @@ func MakePatchUserEndpoint(s service.Service) endpoint.Endpoint {
 			return nil, errors.ParameterError("There is an empty id in the patch.")
 		}
 		var patch = map[string]interface{}{"id": req.Id}
-		if req.Status != nil {
-			patch["status"] = *req.Status
+		if req.Status > 0 {
+			patch["status"] = req.Status
 		}
-		if req.IsDelete != nil {
-			patch["isDelete"] = *req.IsDelete
+		if req.IsDelete {
+			patch["isDelete"] = req.IsDelete
 		}
 		resp.Data, resp.Error = s.PatchUser(ctx, req.Storage, patch)
 		return &resp, nil

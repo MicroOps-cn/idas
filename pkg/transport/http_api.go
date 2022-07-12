@@ -106,14 +106,16 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Operation("getUsers").
 		Doc("获取用户列表").
 		Params(StructToQueryParams(endpoint.GetUsersRequest{})...).
-		Metadata(restfulspec.KeyOpenAPITags, tags),
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.GetUsersResponse{}),
 	)
 	v1ws.Route(v1ws.PATCH("").
 		To(NewKitHTTPServer[endpoint.PatchUsersRequest](endpoints.PatchUsers, options)).
 		Operation("patchUsers").
 		Reads(endpoint.PatchUsersRequest{}).
 		Doc("批量更新用户信息（增量）").
-		Metadata(restfulspec.KeyOpenAPITags, tags),
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.PatchUsersResponse{}),
 	)
 	v1ws.Route(v1ws.DELETE("").
 		To(NewKitHTTPServer[endpoint.DeleteUsersRequest](endpoints.DeleteUsers, options)).

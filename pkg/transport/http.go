@@ -113,6 +113,10 @@ func errorEncoder(ctx context.Context, err error, w http.ResponseWriter) {
 	}
 }
 
+type ResponseWrapper[T any] struct {
+	Data T `json:"data"`
+}
+
 type responseWrapper struct {
 	Success      bool        `json:"success"`
 	Data         interface{} `json:"data"`
