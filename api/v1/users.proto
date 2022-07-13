@@ -11,6 +11,7 @@ enum UserStatus{
   normal = 1;
   disable = 2;
 }
+
 message GetUsersRequest{
   idas.endpoint.base.BaseListRequest BaseListRequest = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false];
   string app = 2;
