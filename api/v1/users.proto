@@ -15,14 +15,14 @@ message GetUsersRequest{
   idas.endpoint.base.BaseListRequest BaseListRequest = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false];
   string app = 2;
   string storage = 3[(gogoproto.jsontag) = "storage"];
-  UserStatus status = 4;
+  UserStatus status = 4[(gogoproto.moretags) = 'enum:"Unknown|Normal|Disable"'];
 }
 
 
 message UserInfo{
   string id = 1[(gogoproto.jsontag) = "id"];
   string username = 2[(gogoproto.jsontag) = "username"];
-  UserStatus status = 3[(gogoproto.jsontag) = "status"];
+  UserStatus status = 3[(gogoproto.jsontag) = "status",(gogoproto.moretags) = 'enum:"Unknown|Normal|Disable"'];
   string storage = 4[(gogoproto.jsontag) = "storage"];
   string email = 5;
   string fullName = 6;
@@ -56,7 +56,7 @@ message GetUsersResponse{
 
 message PatchUserRequest{
   string id = 1;
-  UserStatus status =2;
+  UserStatus status =2[(gogoproto.moretags) = 'enum:"Unknown|Normal|Disable"'];
   bool isDelete = 3[(gogoproto.nullable) = true];
   string storage = 4[(gogoproto.jsontag) = "storage"];
 }
