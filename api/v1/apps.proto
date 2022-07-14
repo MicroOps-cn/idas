@@ -1,0 +1,128 @@
+syntax = "proto3";
+package idas.endpoint;
+import public "gogoproto/gogo.proto";
+import "v1/base.proto";
+option go_package = "idas/pkg/endpoint;endpoint";
+
+
+
+enum GrantMode{
+  manual = 0;
+  full = 1;
+}
+enum GrantType{
+  grant_type_unknown = 0;
+  authorization_code = 1;
+}
+enum AppStatus{
+  app_status_unknown = 0[(gogoproto.enumvalue_customname) = "unknown"];
+  app_status_normal = 1[(gogoproto.enumvalue_customname) = "normal"];
+  app_status_disable = 2[(gogoproto.enumvalue_customname) = "disable"];
+}
+message AppInfo{
+  string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
+  string name = 2[(gogoproto.jsontag) = "name",(gogoproto.moretags)='valid:"required"'];
+  string description = 3;
+  string storage = 4[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+  string avatar = 5;
+  GrantType grantType = 6[(gogoproto.jsontag) = "grantType",(gogoproto.moretags)='valid:"required"'];
+  GrantMode grantMode = 7[(gogoproto.jsontag) = "grantMode",(gogoproto.moretags)='valid:"required"'];
+  AppStatus status = 8[(gogoproto.jsontag) = "status",(gogoproto.moretags)='valid:"required"'];
+  string updateTime = 12[(gogoproto.jsontag) = "updateTime",(gogoproto.moretags)='valid:"required"'];
+  string createTime = 13[(gogoproto.jsontag) = "createTime",(gogoproto.moretags)='valid:"required"'];
+  bool isDelete = 14[(gogoproto.jsontag) = "isDelete",(gogoproto.moretags)='valid:"required"'];
+}
+
+message GetAppRequest{
+  string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
+  string storage = 2[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+}
+
+message DeleteAppRequest{
+  string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
+  string storage = 2[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+}
+
+message GetAppsRequest{
+  idas.endpoint.BaseListRequest BaseListRequest = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  string storage = 2;
+}
+message GetAppsResponse{
+  idas.endpoint.BaseListResponse BaseListResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated AppInfo data = 2;
+}
+
+message GetAppResponse{
+  idas.endpoint.BaseResponse BaseResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  AppInfo data = 2;
+}
+
+message PatchAppRequest{
+  string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
+  string storage = 2[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+  string description = 3[(gogoproto.customtype) = "string"];
+  string name = 4[(gogoproto.customtype) = "string"];
+  string avatar = 5[(gogoproto.customtype) = "string"];
+  GrantType grantType = 6[(gogoproto.customtype) = "GrantType"];
+  GrantMode grantMode = 7[(gogoproto.customtype) = "GrantMode"];
+  AppStatus status = 8[(gogoproto.customtype) = "AppStatus"];
+  bool isDelete = 14[(gogoproto.customtype) = "bool"];
+}
+
+message PatchAppResponse{
+  idas.endpoint.BaseResponse BaseResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false];
+}
+
+message PatchAppsResponse{
+  idas.endpoint.BaseTotalResponse BaseTotalResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+}
+
+message AppSourceType{
+}
+
+message GetAppSourceResponse{
+  idas.endpoint.BaseTotalResponse BaseTotalResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  AppSourceType data = 8[(gogoproto.customtype) = "map[string]string", (gogoproto.nullable) = false];
+}
+
+message AppUser{
+  string id = 1;
+  string roleId = 2;
+}
+
+message AppRole{
+  string id = 1;
+  string name = 2;
+  string config = 3;
+  bool isDefault = 4;
+}
+
+message CreateAppRequest{
+  string storage = 2[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+  string description = 3;
+  string name = 4[(gogoproto.jsontag) = "name",(gogoproto.moretags)='valid:"required"'];
+  string avatar = 5;
+  GrantType grantType = 6[(gogoproto.jsontag) = "grantType",(gogoproto.moretags)='valid:"required"'];
+  GrantMode grantMode = 7[(gogoproto.jsontag) = "grantMode",(gogoproto.moretags)='valid:"required"'];
+  repeated  AppUser user = 8;
+  repeated  AppRole role = 9;
+}
+
+message UpdateAppRequest{
+  string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
+  string storage = 2[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+  string description = 3;
+  string name = 4[(gogoproto.jsontag) = "name",(gogoproto.moretags)='valid:"required"'];
+  string avatar = 5;
+  GrantType grantType = 6[(gogoproto.jsontag) = "grantType",(gogoproto.moretags)='valid:"required"'];
+  GrantMode grantMode = 7[(gogoproto.jsontag) = "grantMode",(gogoproto.moretags)='valid:"required"'];
+  repeated  AppUser user = 8;
+  repeated  AppRole role = 9;
+  AppStatus status = 10[(gogoproto.jsontag) = "status",(gogoproto.moretags)='valid:"required"'];
+  bool isDelete = 11;
+}
+
+message UpdateAppResponse{
+  idas.endpoint.BaseResponse BaseResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  AppInfo data = 2;
+}

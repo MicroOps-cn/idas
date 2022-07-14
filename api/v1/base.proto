@@ -1,8 +1,32 @@
 syntax = "proto3";
-package idas.endpoint.base;
+package idas.endpoint;
+import public "gogoproto/gogo.proto";
 option go_package = "idas/pkg/endpoint;endpoint";
+
 message BaseListRequest{
   int64 page_size = 1;
   int64 current = 2;
   string keywords = 3;
+}
+
+message errorType {}
+
+message anyType {}
+
+message BaseResponse{
+  string traceId = 1[(gogoproto.jsontag) = "traceId",(gogoproto.moretags)='valid:"required"'];
+  bool success = 2[(gogoproto.jsontag) = "success",(gogoproto.moretags)='valid:"required"'];
+  string errorCode = 3;
+  string errorMessage = 4;
+  errorType error = 5[(gogoproto.customtype) = "error",(gogoproto.nullable) = false];
+}
+message BaseTotalResponse{
+  BaseResponse BaseResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false,(gogoproto.jsontag) = ",omitempty"];
+  int64 total = 8;
+}
+
+message BaseListResponse{
+  BaseTotalResponse BaseTotalResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false,(gogoproto.jsontag) = ",omitempty"];
+  int64 current = 6;
+  int64 pageSize = 7;
 }

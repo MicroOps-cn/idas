@@ -1,0 +1,26 @@
+syntax = "proto3";
+package idas.endpoint;
+import public "gogoproto/gogo.proto";
+import "v1/base.proto";
+option go_package = "idas/pkg/endpoint;endpoint";
+
+message GetSessionsRequest{
+  idas.endpoint.BaseListRequest BaseListRequest = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false];
+  string userId = 2[(gogoproto.moretags) = 'valid:"required"'];
+}
+
+message SessionInfo{
+  string id = 1;
+  string createTime = 2;
+  string expiry = 3;
+  string lastSeen = 4;
+}
+
+message GetSessionsResponse{
+  idas.endpoint.BaseListRequest BaseListResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false];
+  repeated SessionInfo data = 2;
+}
+
+message DeleteSessionRequest{
+  string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
+}

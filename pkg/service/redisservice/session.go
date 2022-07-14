@@ -20,8 +20,12 @@ type SessionService struct {
 }
 
 func (s SessionService) CreateToken(ctx context.Context, token *models.Token) error {
-	//TODO implement me
-	panic("implement me")
+	sessionId := models.NewId()
+	redisClt := s.Redis(ctx)
+	if err := redisClt.Set(fmt.Sprintf("%s:%s", global.LoginSession, sessionId), token, -time.Since(token.Expiry)).Err(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s SessionService) VerifyToken(ctx context.Context, token string, relationId string, tokenType models.TokenType) bool {

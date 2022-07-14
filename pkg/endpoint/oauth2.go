@@ -14,14 +14,6 @@ import (
 	"strconv"
 )
 
-type OAuthTokenResponse struct {
-	Error        string `json:"error"`
-	AccessToken  string `json:"access_token,omitempty"`
-	TokenType    string `json:"token_type,omitempty"`
-	ExpiresIn    int    `json:"expires_in,omitempty"`
-	RefreshToken string `json:"refresh_token,omitempty"`
-}
-
 func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*OAuthTokenRequest)
@@ -67,7 +59,7 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		logger := logs.GetContextLogger(ctx)
 		req := request.(Requester).GetRequestData().(*OAuthAuthorizeRequest)
-		resp := BaseResponse[interface{}]{}
+		resp := SimpleResponseWrapper[interface{}]{}
 		var code string
 
 		stdResp := request.(RestfulRequester).GetRestfulResponse()

@@ -27,7 +27,6 @@ type baseService interface {
 type Service interface {
 	baseService
 
-	SetLoginSession(ctx context.Context, user *models.User) (string, error)
 	DeleteLoginSession(ctx context.Context, session string) error
 	GetLoginSession(ctx context.Context, ids []string) ([]*models.User, error)
 	GetAuthCodeByClientId(ctx context.Context, clientId, userId, sessionId, storage string) (code string, err error)
@@ -49,7 +48,7 @@ type Service interface {
 	CreateUser(ctx context.Context, storage string, user *models.User) (*models.User, error)
 	PatchUser(ctx context.Context, storage string, user map[string]interface{}) (*models.User, error)
 	DeleteUser(ctx context.Context, storage string, id string) error
-	CreateLoginSession(ctx context.Context, username string, password string) ([]string, error)
+	CreateLoginSession(ctx context.Context, username string, password string, rememberMe bool) ([]string, error)
 	GetUserSource(ctx context.Context) (data map[string]string, total int64, err error)
 
 	GetApps(ctx context.Context, storage string, keywords string, current int64, pageSize int64) (apps []*models.App, total int64, err error)
@@ -64,7 +63,7 @@ type Service interface {
 	DownloadFile(ctx context.Context, id string) (f io.ReadCloser, mimiType, fileName string, err error)
 	ResetPassword(ctx context.Context, id string, storage string, password string) error
 
-	CreateToken(ctx context.Context, data interface{}, tokenType models.TokenType) (token string, err error)
+	CreateToken(ctx context.Context, data interface{}, tokenType models.TokenType) (token *models.Token, err error)
 	VerifyToken(ctx context.Context, token string, relationId string, tokenType models.TokenType) bool
 	SendResetPasswordLink(ctx context.Context, users []*models.User, token string) error
 }
@@ -107,16 +106,16 @@ func (s Set) SendResetPasswordLink(ctx context.Context, users []*models.User, to
 	return client.Send()
 }
 
-func (s Set) CreateToken(ctx context.Context, data interface{}, tokenType models.TokenType) (token string, err error) {
+func (s Set) CreateToken(ctx context.Context, data interface{}, tokenType models.TokenType) (token *models.Token, err error) {
 	tk, err := models.NewToken(tokenType, data)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	err = s.sessionService.CreateToken(ctx, tk)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return tk.Id, nil
+	return tk, nil
 }
 
 func (s Set) ResetPassword(ctx context.Context, id string, storage string, password string) error {
