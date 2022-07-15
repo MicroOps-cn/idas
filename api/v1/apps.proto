@@ -6,41 +6,46 @@ option go_package = "idas/pkg/endpoint;endpoint";
 
 
 
-enum GrantMode{
-  manual = 0;
-  full = 1;
-}
-enum GrantType{
-  grant_type_unknown = 0;
-  authorization_code = 1;
-}
-enum AppStatus{
-  app_status_unknown = 0[(gogoproto.enumvalue_customname) = "unknown"];
-  app_status_normal = 1[(gogoproto.enumvalue_customname) = "normal"];
-  app_status_disable = 2[(gogoproto.enumvalue_customname) = "disable"];
-}
+
+
 message AppInfo{
-  string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
-  string name = 2[(gogoproto.jsontag) = "name",(gogoproto.moretags)='valid:"required"'];
+  enum AppStatus{
+    unknown = 0;
+    normal = 1;
+    disable = 2;
+  }
+  enum GrantType{
+    grant_type_unknown = 0;
+    authorization_code = 1;
+  }
+  enum GrantMode{
+    manual = 0;
+    full = 1;
+  }
+
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string name = 2[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
   string description = 3;
-  string storage = 4[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+  string storage = 4[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string avatar = 5;
-  GrantType grantType = 6[(gogoproto.jsontag) = "grantType",(gogoproto.moretags)='valid:"required"'];
-  GrantMode grantMode = 7[(gogoproto.jsontag) = "grantMode",(gogoproto.moretags)='valid:"required"'];
-  AppStatus status = 8[(gogoproto.jsontag) = "status",(gogoproto.moretags)='valid:"required"'];
-  string updateTime = 12[(gogoproto.jsontag) = "updateTime",(gogoproto.moretags)='valid:"required"'];
-  string createTime = 13[(gogoproto.jsontag) = "createTime",(gogoproto.moretags)='valid:"required"'];
-  bool isDelete = 14[(gogoproto.jsontag) = "isDelete",(gogoproto.moretags)='valid:"required"'];
+  GrantType grantType = 6[(gogoproto.jsontag) = "grantType", (gogoproto.moretags) = 'valid:"required"'];
+  GrantMode grantMode = 7[(gogoproto.jsontag) = "grantMode"];
+  AppStatus status = 8[(gogoproto.jsontag) = "status", (gogoproto.moretags) = 'valid:"required"'];
+  string updateTime = 12[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
+  string createTime = 13[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
+  bool isDelete = 14[(gogoproto.jsontag) = "isDelete", (gogoproto.moretags) = 'valid:"required"'];
+  repeated  AppUser user = 15;
+  repeated  AppRole role = 16;
 }
 
 message GetAppRequest{
-  string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
-  string storage = 2[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string storage = 2[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
 }
 
 message DeleteAppRequest{
-  string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
-  string storage = 2[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string storage = 2[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
 }
 
 message GetAppsRequest{
@@ -58,14 +63,14 @@ message GetAppResponse{
 }
 
 message PatchAppRequest{
-  string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
-  string storage = 2[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string storage = 2[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string description = 3[(gogoproto.customtype) = "string"];
   string name = 4[(gogoproto.customtype) = "string"];
   string avatar = 5[(gogoproto.customtype) = "string"];
-  GrantType grantType = 6[(gogoproto.customtype) = "GrantType"];
-  GrantMode grantMode = 7[(gogoproto.customtype) = "GrantMode"];
-  AppStatus status = 8[(gogoproto.customtype) = "AppStatus"];
+  AppInfo.GrantType grantType = 6[(gogoproto.customtype) = "AppInfo_GrantType"];
+  AppInfo.GrantMode grantMode = 7;
+  AppInfo.AppStatus status = 8[(gogoproto.customtype) = "AppInfo_AppStatus"];
   bool isDelete = 14[(gogoproto.customtype) = "bool"];
 }
 
@@ -86,8 +91,9 @@ message GetAppSourceResponse{
 }
 
 message AppUser{
-  string id = 1;
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
   string roleId = 2;
+  string role = 3;
 }
 
 message AppRole{
@@ -98,27 +104,27 @@ message AppRole{
 }
 
 message CreateAppRequest{
-  string storage = 2[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+  string storage = 2[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string description = 3;
-  string name = 4[(gogoproto.jsontag) = "name",(gogoproto.moretags)='valid:"required"'];
+  string name = 4[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
   string avatar = 5;
-  GrantType grantType = 6[(gogoproto.jsontag) = "grantType",(gogoproto.moretags)='valid:"required"'];
-  GrantMode grantMode = 7[(gogoproto.jsontag) = "grantMode",(gogoproto.moretags)='valid:"required"'];
+  AppInfo.GrantType grantType = 6[(gogoproto.jsontag) = "grantType", (gogoproto.moretags) = 'valid:"required"'];
+  AppInfo.GrantMode grantMode = 7[(gogoproto.jsontag) = "grantMode"];
   repeated  AppUser user = 8;
   repeated  AppRole role = 9;
 }
 
 message UpdateAppRequest{
-  string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
-  string storage = 2[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string storage = 2[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string description = 3;
-  string name = 4[(gogoproto.jsontag) = "name",(gogoproto.moretags)='valid:"required"'];
+  string name = 4[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
   string avatar = 5;
-  GrantType grantType = 6[(gogoproto.jsontag) = "grantType",(gogoproto.moretags)='valid:"required"'];
-  GrantMode grantMode = 7[(gogoproto.jsontag) = "grantMode",(gogoproto.moretags)='valid:"required"'];
+  AppInfo.GrantType grantType = 6[(gogoproto.jsontag) = "grantType", (gogoproto.moretags) = 'valid:"required"'];
+  AppInfo.GrantMode grantMode = 7[(gogoproto.jsontag) = "grantMode"];
   repeated  AppUser user = 8;
   repeated  AppRole role = 9;
-  AppStatus status = 10[(gogoproto.jsontag) = "status",(gogoproto.moretags)='valid:"required"'];
+  AppInfo.AppStatus status = 10[(gogoproto.jsontag) = "status", (gogoproto.moretags) = 'valid:"required"'];
   bool isDelete = 11;
 }
 

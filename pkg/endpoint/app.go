@@ -20,7 +20,7 @@ func MakeGetAppsEndpoint(s service.Service) endpoint.Endpoint {
 
 func MakeGetAppSourceRequestEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		resp := GetAppSourceResponse{BaseTotalResponse: BaseTotalResponse{}}
+		resp := TotalResponseWrapper[map[string]string]{}
 		resp.Data, resp.Total, resp.Error = s.GetAppSource(ctx)
 		return &resp, nil
 	}

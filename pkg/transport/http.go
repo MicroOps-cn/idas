@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/gogo/protobuf/jsonpb"
+	"github.com/gogo/protobuf/proto"
 	"idas/pkg/utils/wrapper"
 	"io"
 	stdlog "log"
@@ -148,6 +150,11 @@ func (b HttpRequest[T]) GetRestfulResponse() *restful.Response {
 
 var _ endpoint.RestfulRequester = &HttpRequest[any]{}
 
+func isProtoMessage(v interface{}) (proto.Message, bool) {
+	msg, ok := v.(proto.Message)
+	return msg, ok
+}
+
 // decodeHTTPRequest Decode HTTP requests into request types
 func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request) (interface{}, error) {
 	restfulReq := stdReq.Context().Value(global.RestfulRequestContextName).(*restful.Request)
@@ -187,10 +194,18 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 					}
 				}
 			} else if len(contentType) > 0 {
-				logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "caller", logs.Caller(9))), logs.Prefix("decode http request: ", true))
-				if err = json.NewDecoder(io.TeeReader(r.Body, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Decode(&req.Data); err != nil {
-					return nil, fmt.Errorf("failed to decode request body：%s", err)
+				if data, ok := isProtoMessage(&req.Data); ok {
+					logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "caller", logs.Caller(12))), logs.Prefix("decode http request: ", true))
+					if err = jsonpb.Unmarshal(io.TeeReader(r.Body, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError)), data); err != nil {
+						return nil, fmt.Errorf("failed to decode request body：%s", err)
+					}
+				} else {
+					logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "caller", logs.Caller(9))), logs.Prefix("decode http request: ", true))
+					if err = json.NewDecoder(io.TeeReader(r.Body, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Decode(&req.Data); err != nil {
+						return nil, fmt.Errorf("failed to decode request body：%s", err)
+					}
 				}
+
 			}
 		}
 	}

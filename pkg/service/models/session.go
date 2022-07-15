@@ -30,6 +30,8 @@ func (t TokenType) GetExpiry() time.Time {
 		return time.Now().UTC().Add(global.RefreshTokenExpiration)
 	case TokenTypeResetPassword:
 		return time.Now().UTC().Add(global.ResetPasswordExpiration)
+	case TokenTypeLoginSession:
+		return time.Now().UTC().Add(global.LoginSessionExpiration)
 	default:
 		return time.Now().UTC().Add(time.Minute * 10)
 	}

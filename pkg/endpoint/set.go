@@ -50,7 +50,8 @@ type SessionEndpoints struct {
 	UserLogout,
 	GetLoginSession,
 	OAuthTokens,
-	OAuthAuthorize endpoint.Endpoint
+	OAuthAuthorize,
+	Authentication endpoint.Endpoint
 }
 
 type CommonEndpoints struct {
@@ -94,6 +95,7 @@ func New(svc service.Service, logger log.Logger, duration metrics.Histogram, otT
 			GetSessions:     InjectEndpoint(logger, "GetSessions", duration, otTracer, zipkinTracer, MakeGetSessionsEndpoint(svc)),
 			DeleteSession:   InjectEndpoint(logger, "DeleteSession", duration, otTracer, zipkinTracer, MakeDeleteSessionEndpoint(svc)),
 			UserLogin:       InjectEndpoint(logger, "UserLogin", duration, otTracer, zipkinTracer, MakeUserLoginEndpoint(svc)),
+			Authentication:  InjectEndpoint(logger, "Authentication", duration, otTracer, zipkinTracer, MakeAuthenticationEndpoint(svc)),
 			UserLogout:      InjectEndpoint(logger, "UserLogout", duration, otTracer, zipkinTracer, MakeUserLogoutEndpoint(svc)),
 			GetLoginSession: InjectEndpoint(logger, "GetLoginSession", duration, otTracer, zipkinTracer, MakeGetLoginSessionEndpoint(svc)),
 			OAuthTokens:     InjectEndpoint(logger, "OAuthTokens", duration, otTracer, zipkinTracer, MakeOAuthTokensEndpoint(svc)),

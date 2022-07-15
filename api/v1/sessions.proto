@@ -2,6 +2,7 @@ syntax = "proto3";
 package idas.endpoint;
 import public "gogoproto/gogo.proto";
 import "v1/base.proto";
+import "types/models.proto";
 option go_package = "idas/pkg/endpoint;endpoint";
 
 message GetSessionsRequest{
@@ -10,9 +11,9 @@ message GetSessionsRequest{
 }
 
 message SessionInfo{
-  string id = 1;
-  string createTime = 2;
-  string expiry = 3;
+  string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
+  string createTime = 2[(gogoproto.jsontag) = "createTime",(gogoproto.moretags)='valid:"required"'];
+  string expiry = 3[(gogoproto.jsontag) = "expiry",(gogoproto.moretags)='valid:"required"'];
   string lastSeen = 4;
 }
 
@@ -23,4 +24,21 @@ message GetSessionsResponse{
 
 message DeleteSessionRequest{
   string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
+}
+
+message AuthenticationRequest{
+  string username = 1;
+  string password = 2;
+  idas.service.models.Auth.AuthMethod auth_method = 3;
+  string auth_algorithm = 4[(gogoproto.customtype) = "idas/pkg/service/models.AuthAlgorithm", (gogoproto.nullable) = false];
+  string auth_key = 5;
+  string auth_secret = 6;
+}
+
+
+message UserLoginRequest{
+  string username = 1[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required"'];
+  string password = 2[(gogoproto.jsontag) = "password", (gogoproto.moretags) = 'valid:"required"'];
+  bool autoLogin = 3;
+  string type = 4;
 }

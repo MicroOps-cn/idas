@@ -2,55 +2,14 @@ package endpoint
 
 import (
 	"context"
-	"fmt"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log/level"
-	"idas/pkg/logs"
-	"net/http"
-	"strings"
-	"time"
-
 	"idas/pkg/errors"
 	"idas/pkg/global"
+	"idas/pkg/logs"
 	"idas/pkg/service"
 	"idas/pkg/service/models"
 )
-
-func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(Requester).GetRequestData().(*UserLoginRequest)
-		resp := SimpleResponseWrapper[interface{}]{}
-		if loginCookie, err := s.CreateLoginSession(ctx, req.Username, req.Password, req.RememberMe); err == nil {
-			request.(RestfulRequester).GetRestfulResponse().AddHeader("Set-Cookie", strings.Join(loginCookie, ","))
-		} else {
-			resp.Error = errors.NewServerError(http.StatusUnauthorized, "Wrong user name or password")
-		}
-		return &resp, nil
-	}
-}
-
-func MakeUserLogoutEndpoint(s service.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		//req := request.(Requester).GetRequestData().(*UserLogoutRequest)
-		resp := SimpleResponseWrapper[interface{}]{}
-		cookie, err := request.(RestfulRequester).GetRestfulRequest().Request.Cookie(global.LoginSession)
-		if err != nil {
-			resp.Error = errors.BadRequestError
-		} else if len(cookie.Value) > 0 {
-			for _, id := range strings.Split(cookie.Value, ",") {
-				if err = s.DeleteLoginSession(ctx, id); err != nil {
-					resp.Error = errors.InternalServerError
-					return resp, nil
-				}
-			}
-			loginCookie := fmt.Sprintf("%s=%s; Path=/;Expires=%s", global.LoginSession, cookie.Value, time.Now().UTC().Format(global.LoginSessionExpiresFormat))
-			request.(RestfulRequester).GetRestfulResponse().AddHeader("Set-Cookie", fmt.Sprintf(loginCookie))
-		} else {
-			resp.Error = errors.NewServerError(http.StatusUnauthorized, "Invalid identity information")
-		}
-		return &resp, nil
-	}
-}
 
 func MakeCurrentUserEndpoint(_ service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
@@ -71,13 +30,20 @@ func MakeResetUserPasswordEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*ResetUserPasswordRequest)
 		resp := TotalResponseWrapper[interface{}]{}
-		if auth, ok := req.Auth.(*ResetUserPasswordRequest_Token); ok && len(auth.Token) > 0 {
-			if s.VerifyToken(ctx, auth.Token, req.UserId, models.TokenTypeResetPassword) {
+		if len(req.Token) > 0 {
+			if s.VerifyToken(ctx, req.Token, req.UserId, models.TokenTypeResetPassword) {
 				resp.Error = s.ResetPassword(ctx, req.UserId, req.Storage, req.NewPassword)
 			}
 		} else {
 
 		}
+		//if auth, ok := req.Auth.(*ResetUserPasswordRequest_Token); ok && len(auth.Token) > 0 {
+		//	if s.VerifyToken(ctx, auth.Token, req.UserId, models.TokenTypeResetPassword) {
+		//		resp.Error = s.ResetPassword(ctx, req.UserId, req.Storage, req.NewPassword)
+		//	}
+		//} else {
+		//
+		//}
 
 		return resp, nil
 	}
@@ -118,7 +84,7 @@ func MakeGetUsersEndpoint(s service.Service) endpoint.Endpoint {
 
 func MakeGetUserSourceRequestEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		resp := GetUserSourceResponse{BaseTotalResponse: BaseTotalResponse{}}
+		resp := TotalResponseWrapper[map[string]string]{}
 		resp.Data, resp.Total, resp.BaseResponse.Error = s.GetUserSource(ctx)
 		return &resp, nil
 	}
@@ -271,43 +237,6 @@ func MakeDeleteUserEndpoint(s service.Service) endpoint.Endpoint {
 		req := request.(Requester).GetRequestData().(*DeleteUserRequest)
 		resp := SimpleResponseWrapper[interface{}]{}
 		resp.Error = s.DeleteUser(ctx, req.Storage, req.Id)
-		return &resp, nil
-	}
-}
-
-type GetLoginSession struct {
-	User *models.User `json:",inline"`
-}
-
-func MakeGetLoginSessionEndpoint(s service.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		sessionId := request.([]string)
-		var resp []*models.User
-		if len(sessionId) > 0 {
-			if resp, err = s.GetLoginSession(ctx, sessionId); err != nil {
-				err = errors.NotLoginError
-			}
-		} else {
-			err = errors.NotLoginError
-		}
-		return resp, err
-	}
-}
-
-func MakeGetSessionsEndpoint(s service.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(Requester).GetRequestData().(*GetSessionsRequest)
-		resp := NewBaseListResponse[[]*models.Token](&req.BaseListRequest)
-		resp.Data, resp.Total, resp.BaseResponse.Error = s.GetSessions(ctx, req.UserId, req.Current, req.PageSize)
-		return &resp, nil
-	}
-}
-
-func MakeDeleteSessionEndpoint(s service.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(Requester).GetRequestData().(*DeleteSessionRequest)
-		resp := SimpleResponseWrapper[interface{}]{}
-		resp.Error = s.DeleteSession(ctx, req.Id)
 		return &resp, nil
 	}
 }

@@ -101,6 +101,17 @@ func (s Set) VerifyPassword(ctx context.Context, username string, password strin
 	return users, nil
 }
 
+func (s Set) Authentication(ctx context.Context, method models.Auth_AuthMethod, algorithm models.AuthAlgorithm, key, secret string) ([]*models.User, error) {
+	switch method {
+	case models.Auth_basic:
+		return s.VerifyPassword(ctx, key, secret)
+	case models.Auth_signature:
+
+	default:
+		return nil, errors.ParameterError("unknown auth method")
+	}
+	return nil, errors.ParameterError("unknown auth request")
+}
 func (s Set) GetAuthCodeByClientId(ctx context.Context, clientId, userId, sessionId, storage string) (code string, err error) {
 	svc := s.GetUserAndAppService(storage)
 	if svc == nil {

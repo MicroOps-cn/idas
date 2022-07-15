@@ -11,10 +11,10 @@ enum UserStatus{
 }
 
 message UserInfo{
-  string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
-  string username = 2[(gogoproto.jsontag) = "username",(gogoproto.moretags)='valid:"required"'];
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string username = 2[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required"'];
   UserStatus status = 3;
-  string storage = 4[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+  string storage = 4[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string email = 5;
   string fullName = 6;
   string avatar = 7;
@@ -22,9 +22,9 @@ message UserInfo{
   string role = 9;
   string roleId = 10;
   string loginTime = 11;
-  string updateTime = 12[(gogoproto.jsontag) = "updateTime",(gogoproto.moretags)='valid:"required"'];
-  string createTime = 13[(gogoproto.jsontag) = "createTime",(gogoproto.moretags)='valid:"required"'];
-  bool isDelete = 14[(gogoproto.jsontag) = "isDelete",(gogoproto.moretags)='valid:"required"'];
+  string updateTime = 12[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
+  string createTime = 13[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
+  bool isDelete = 14[(gogoproto.jsontag) = "isDelete", (gogoproto.moretags) = 'valid:"required"'];
 }
 
 message GetUsersRequest{
@@ -48,7 +48,7 @@ message PatchUserRequest{
   string id = 1;
   UserStatus status = 2[(gogoproto.customtype) = "UserStatus"];
   bool isDelete = 3[(gogoproto.customtype) = "bool"];
-  string storage = 4[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+  string storage = 4[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
 }
 
 message PatchUsersResponse{
@@ -66,17 +66,9 @@ message GetUserSourceResponse{
   UserSourceType data = 8[(gogoproto.customtype) = "map[string]string", (gogoproto.nullable) = false];
 }
 
-message UserLoginRequest{
-  string username = 1[(gogoproto.jsontag) = "username",(gogoproto.moretags)='valid:"required"'];
-  string password = 2[(gogoproto.jsontag) = "password",(gogoproto.moretags)='valid:"required"'];
-  bool rememberMe = 3;
-}
-
 message ResetUserPasswordRequest{
-  oneof Auth{
-    string token = 1;
-    string oldPassword = 2;
-  }
+  string token = 1;
+  string oldPassword = 2;
   string userId = 3[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"required"'];
   string storage = 4[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string newPassword = 5[(gogoproto.jsontag) = "newPassword", (gogoproto.moretags) = 'valid:"required"'];
@@ -91,20 +83,20 @@ message DeleteUserRequest{
 }
 
 message UpdateUserRequest{
-  string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
-  string username = 2[(gogoproto.jsontag) = "username",(gogoproto.moretags)='valid:"required"'];
-  UserStatus status = 3[(gogoproto.jsontag) = "isDelete",(gogoproto.moretags)='valid:"required"'];
-  string storage = 4[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string username = 2[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required"'];
+  UserStatus status = 3[(gogoproto.jsontag) = "status", (gogoproto.moretags) = 'valid:"required"'];
+  string storage = 4[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string email = 5;
   string fullName = 6;
   string avatar = 7;
   string phoneNumber = 8;
-  bool isDelete = 9[(gogoproto.jsontag) = "isDelete",(gogoproto.moretags)='valid:"required"'];
+  bool isDelete = 9[(gogoproto.jsontag) = "isDelete", (gogoproto.moretags) = 'valid:"required"'];
 }
 
 message CreateUserRequest{
-  string username = 1[(gogoproto.jsontag) = "username",(gogoproto.moretags)='valid:"required"'];
-  string storage = 2[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+  string username = 1[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required"'];
+  string storage = 2[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string email = 3;
   string fullName = 4;
   string avatar = 5;
@@ -112,7 +104,7 @@ message CreateUserRequest{
 }
 
 message GetUserRequest{
-  string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
   string username = 2[(gogoproto.jsontag) = "-"];
-  string storage = 3[(gogoproto.jsontag) = "storage",(gogoproto.moretags)='valid:"required"'];
+  string storage = 3[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
 }
