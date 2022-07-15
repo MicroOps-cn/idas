@@ -1,0 +1,10 @@
+syntax = "proto3";
+package idas.service.models;
+option go_package = "idas/pkg/service/models;models";
+
+message Auth {
+  enum AuthMethod{
+    basic = 0;
+    signature = 1;
+  };
+}

@@ -19,7 +19,7 @@ PROTOC       ?= protoc
 #PROTOC_OPTS := $(PROTOC_OPTS) --gogoslick_out=Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types,Mgoogle/protobuf/descriptor.proto=github.com/gogo/protobuf/protoc-gen-gogo/descriptor,plugins=grpc,paths=source_relative:.
 # Protobuf files
 PROTO_DEFS := $(shell find . $(DONT_FIND) -type f -name '*.proto' -print)
-PROTO_GOS := $(patsubst %.proto,%.pb.go,$(PROTO_DEFS))
+PROTO_GOS := $(shell find . $(DONT_FIND) -type f -name '*.pb.go' -print)
 
 PROTOC_OPTS ?= --gogo_opt=Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types,Mgoogle/protobuf/descriptor.proto=github.com/gogo/protobuf/protoc-gen-gogo/descriptor
 PROTOC_OPTS := $(PROTOC_OPTS) -I$(shell $(GO) list -f "{{ .Dir }}" -m github.com/gogo/protobuf)/protobuf/
@@ -45,8 +45,26 @@ pkgs          = ./...
 
 clean-protos:
 	rm -rf $(PROTO_GOS)
-protos: clean-protos $(PROTO_GOS)
+protos: clean-protos
+	grep -HoP '(?<=option go_package = ")[^;]+' $(PROTO_DEFS)|awk -F: '{pkgs[$$2]=1;protos[$$1]=$$2}END{for(pkg in pkgs){for(proto in protos){if(pkg==protos[proto]){printf("%s ",proto)}};print("")}}'|while read line; do \
+  		echo "$(PROTOC) $(PROTOC_OPTS) $$line"; \
+  		$(PROTOC) $(PROTOC_OPTS) $$line || exit 1 ;\
+	done
+	find . $(DONT_FIND) -type f -name '*.pb.go' -print|while read line; do \
+  		sed -i ':label;N;s/\nvar E_\S\+ = gogoproto.E_\S\+\n//;b label' $$line; \
+  		sed -i '/gogoproto "github.com\/gogo\/protobuf\/gogoproto/d' $$line; \
+  	done;
 
+#	grep -HoP '(?<=option go_package = ")[^;]+' $(PROTO_DEFS)|awk -F: '{pkgs[#=$$2]=1;protos[$$1]=$$2}END{ \
+#        for(pkg in pkgs){
+#            for(proto in protos){
+#                if(pkg==protos[proto]){
+#                    printf("%s ",proto)
+#                }
+#            }
+#            print("")
+#        }
+#    }'
 %.pb.go:
 	@# The store-gateway RPC is based on Thanos which uses relative references to other protos, so we need
 	@# to configure all such relative paths. `gogo/protobuf` is used by it.

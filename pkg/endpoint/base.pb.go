@@ -21,7 +21,7 @@ var _ = math.Inf
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type BaseListRequest struct {
-	PageSize             int64    `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	PageSize             int64    `protobuf:"varint,1,opt,name=pageSize,proto3" json:"pageSize,omitempty"`
 	Current              int64    `protobuf:"varint,2,opt,name=current,proto3" json:"current,omitempty"`
 	Keywords             string   `protobuf:"bytes,3,opt,name=keywords,proto3" json:"keywords,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -74,23 +74,254 @@ func (m *BaseListRequest) GetKeywords() string {
 	return ""
 }
 
+type ErrorType struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ErrorType) Reset()         { *m = ErrorType{} }
+func (m *ErrorType) String() string { return proto.CompactTextString(m) }
+func (*ErrorType) ProtoMessage()    {}
+func (*ErrorType) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7cadb02d0b0a23f3, []int{1}
+}
+func (m *ErrorType) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ErrorType.Unmarshal(m, b)
+}
+func (m *ErrorType) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ErrorType.Marshal(b, m, deterministic)
+}
+func (m *ErrorType) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ErrorType.Merge(m, src)
+}
+func (m *ErrorType) XXX_Size() int {
+	return xxx_messageInfo_ErrorType.Size(m)
+}
+func (m *ErrorType) XXX_DiscardUnknown() {
+	xxx_messageInfo_ErrorType.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ErrorType proto.InternalMessageInfo
+
+type AnyType struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *AnyType) Reset()         { *m = AnyType{} }
+func (m *AnyType) String() string { return proto.CompactTextString(m) }
+func (*AnyType) ProtoMessage()    {}
+func (*AnyType) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7cadb02d0b0a23f3, []int{2}
+}
+func (m *AnyType) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_AnyType.Unmarshal(m, b)
+}
+func (m *AnyType) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_AnyType.Marshal(b, m, deterministic)
+}
+func (m *AnyType) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AnyType.Merge(m, src)
+}
+func (m *AnyType) XXX_Size() int {
+	return xxx_messageInfo_AnyType.Size(m)
+}
+func (m *AnyType) XXX_DiscardUnknown() {
+	xxx_messageInfo_AnyType.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AnyType proto.InternalMessageInfo
+
+type BaseResponse struct {
+	TraceId              string   `protobuf:"bytes,1,opt,name=traceId,proto3" json:"traceId" valid:"required"`
+	Success              bool     `protobuf:"varint,2,opt,name=success,proto3" json:"success" valid:"required"`
+	ErrorCode            string   `protobuf:"bytes,3,opt,name=errorCode,proto3" json:"errorCode,omitempty"`
+	ErrorMessage         string   `protobuf:"bytes,4,opt,name=errorMessage,proto3" json:"errorMessage,omitempty"`
+	Error                error    `protobuf:"bytes,5,opt,name=error,proto3,customtype=error" json:"-"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *BaseResponse) Reset()         { *m = BaseResponse{} }
+func (m *BaseResponse) String() string { return proto.CompactTextString(m) }
+func (*BaseResponse) ProtoMessage()    {}
+func (*BaseResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7cadb02d0b0a23f3, []int{3}
+}
+func (m *BaseResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BaseResponse.Unmarshal(m, b)
+}
+func (m *BaseResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BaseResponse.Marshal(b, m, deterministic)
+}
+func (m *BaseResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BaseResponse.Merge(m, src)
+}
+func (m *BaseResponse) XXX_Size() int {
+	return xxx_messageInfo_BaseResponse.Size(m)
+}
+func (m *BaseResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_BaseResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BaseResponse proto.InternalMessageInfo
+
+func (m *BaseResponse) GetTraceId() string {
+	if m != nil {
+		return m.TraceId
+	}
+	return ""
+}
+
+func (m *BaseResponse) GetSuccess() bool {
+	if m != nil {
+		return m.Success
+	}
+	return false
+}
+
+func (m *BaseResponse) GetErrorCode() string {
+	if m != nil {
+		return m.ErrorCode
+	}
+	return ""
+}
+
+func (m *BaseResponse) GetErrorMessage() string {
+	if m != nil {
+		return m.ErrorMessage
+	}
+	return ""
+}
+
+type BaseTotalResponse struct {
+	BaseResponse         `protobuf:"bytes,1,opt,name=BaseResponse,proto3,embedded=BaseResponse" json:",omitempty"`
+	Total                int64    `protobuf:"varint,7,opt,name=total,proto3" json:"total"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *BaseTotalResponse) Reset()         { *m = BaseTotalResponse{} }
+func (m *BaseTotalResponse) String() string { return proto.CompactTextString(m) }
+func (*BaseTotalResponse) ProtoMessage()    {}
+func (*BaseTotalResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7cadb02d0b0a23f3, []int{4}
+}
+func (m *BaseTotalResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BaseTotalResponse.Unmarshal(m, b)
+}
+func (m *BaseTotalResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BaseTotalResponse.Marshal(b, m, deterministic)
+}
+func (m *BaseTotalResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BaseTotalResponse.Merge(m, src)
+}
+func (m *BaseTotalResponse) XXX_Size() int {
+	return xxx_messageInfo_BaseTotalResponse.Size(m)
+}
+func (m *BaseTotalResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_BaseTotalResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BaseTotalResponse proto.InternalMessageInfo
+
+func (m *BaseTotalResponse) GetTotal() int64 {
+	if m != nil {
+		return m.Total
+	}
+	return 0
+}
+
+type BaseListResponse struct {
+	BaseTotalResponse    `protobuf:"bytes,1,opt,name=BaseTotalResponse,proto3,embedded=BaseTotalResponse" json:",omitempty"`
+	Current              int64    `protobuf:"varint,6,opt,name=current,proto3" json:"current"`
+	PageSize             int64    `protobuf:"varint,7,opt,name=pageSize,proto3" json:"pageSize"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *BaseListResponse) Reset()         { *m = BaseListResponse{} }
+func (m *BaseListResponse) String() string { return proto.CompactTextString(m) }
+func (*BaseListResponse) ProtoMessage()    {}
+func (*BaseListResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_7cadb02d0b0a23f3, []int{5}
+}
+func (m *BaseListResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BaseListResponse.Unmarshal(m, b)
+}
+func (m *BaseListResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BaseListResponse.Marshal(b, m, deterministic)
+}
+func (m *BaseListResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BaseListResponse.Merge(m, src)
+}
+func (m *BaseListResponse) XXX_Size() int {
+	return xxx_messageInfo_BaseListResponse.Size(m)
+}
+func (m *BaseListResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_BaseListResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BaseListResponse proto.InternalMessageInfo
+
+func (m *BaseListResponse) GetCurrent() int64 {
+	if m != nil {
+		return m.Current
+	}
+	return 0
+}
+
+func (m *BaseListResponse) GetPageSize() int64 {
+	if m != nil {
+		return m.PageSize
+	}
+	return 0
+}
+
 func init() {
-	proto.RegisterType((*BaseListRequest)(nil), "idas.endpoint.base.BaseListRequest")
+	proto.RegisterType((*BaseListRequest)(nil), "idas.endpoint.BaseListRequest")
+	proto.RegisterType((*ErrorType)(nil), "idas.endpoint.errorType")
+	proto.RegisterType((*AnyType)(nil), "idas.endpoint.anyType")
+	proto.RegisterType((*BaseResponse)(nil), "idas.endpoint.BaseResponse")
+	proto.RegisterType((*BaseTotalResponse)(nil), "idas.endpoint.BaseTotalResponse")
+	proto.RegisterType((*BaseListResponse)(nil), "idas.endpoint.BaseListResponse")
 }
 
 func init() { proto.RegisterFile("v1/base.proto", fileDescriptor_7cadb02d0b0a23f3) }
 
 var fileDescriptor_7cadb02d0b0a23f3 = []byte{
-	// 161 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x2d, 0x33, 0xd4, 0x4f,
-	0x4a, 0x2c, 0x4e, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x12, 0xca, 0x4c, 0x49, 0x2c, 0xd6,
-	0x4b, 0xcd, 0x4b, 0x29, 0xc8, 0xcf, 0xcc, 0x2b, 0xd1, 0x03, 0xc9, 0x28, 0xa5, 0x70, 0xf1, 0x3b,
-	0x25, 0x16, 0xa7, 0xfa, 0x64, 0x16, 0x97, 0x04, 0xa5, 0x16, 0x96, 0xa6, 0x16, 0x97, 0x08, 0x49,
-	0x73, 0x71, 0x16, 0x24, 0xa6, 0xa7, 0xc6, 0x17, 0x67, 0x56, 0xa5, 0x4a, 0x30, 0x2a, 0x30, 0x6a,
-	0x30, 0x07, 0x71, 0x80, 0x04, 0x82, 0x33, 0xab, 0x52, 0x85, 0x24, 0xb8, 0xd8, 0x93, 0x4b, 0x8b,
-	0x8a, 0x52, 0xf3, 0x4a, 0x24, 0x98, 0xc0, 0x52, 0x30, 0xae, 0x90, 0x14, 0x17, 0x47, 0x76, 0x6a,
-	0x65, 0x79, 0x7e, 0x51, 0x4a, 0xb1, 0x04, 0xb3, 0x02, 0xa3, 0x06, 0x67, 0x10, 0x9c, 0xef, 0x24,
-	0x13, 0x25, 0x05, 0xb2, 0x5b, 0xbf, 0x20, 0x3b, 0x5d, 0x1f, 0x66, 0xbf, 0x35, 0x8c, 0x91, 0xc4,
-	0x06, 0x76, 0x9e, 0x31, 0x20, 0x00, 0x00, 0xff, 0xff, 0x66, 0x5b, 0x27, 0xca, 0xaf, 0x00, 0x00,
-	0x00,
+	// 446 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x53, 0xcd, 0x6a, 0x14, 0x41,
+	0x10, 0x4e, 0x27, 0x6e, 0x36, 0xd3, 0xbb, 0xc1, 0xd8, 0x88, 0x34, 0x6b, 0xa0, 0x97, 0x06, 0x61,
+	0x0f, 0xba, 0x8b, 0xf1, 0xa4, 0xde, 0xc6, 0x93, 0xa0, 0x20, 0x6d, 0x40, 0xf0, 0xd6, 0x99, 0x29,
+	0x87, 0x21, 0xc9, 0xf4, 0xa4, 0xbb, 0x37, 0xb2, 0x3e, 0x82, 0xe0, 0x7b, 0x09, 0x5e, 0x3c, 0x7b,
+	0xe8, 0x07, 0x98, 0xa3, 0x4f, 0x20, 0xdd, 0xf3, 0xb7, 0x23, 0x9b, 0xd3, 0x54, 0x7d, 0x55, 0x45,
+	0x7d, 0xf5, 0xf5, 0x37, 0xf8, 0xf8, 0xf6, 0xf9, 0xea, 0x42, 0x1a, 0x58, 0x96, 0x5a, 0x59, 0x45,
+	0x8e, 0xf3, 0x54, 0x9a, 0x25, 0x14, 0x69, 0xa9, 0xf2, 0xc2, 0xce, 0x1e, 0x66, 0x2a, 0x53, 0xa1,
+	0xb2, 0xf2, 0x51, 0xdd, 0xc4, 0x13, 0x7c, 0x3f, 0x96, 0x06, 0xde, 0xe5, 0xc6, 0x0a, 0xb8, 0x59,
+	0x83, 0xb1, 0x64, 0x86, 0x8f, 0x4a, 0x99, 0xc1, 0xc7, 0xfc, 0x1b, 0x50, 0x34, 0x47, 0x8b, 0x03,
+	0xd1, 0xe5, 0x84, 0xe2, 0x71, 0xb2, 0xd6, 0x1a, 0x0a, 0x4b, 0xf7, 0x43, 0xa9, 0x4d, 0xfd, 0xd4,
+	0x25, 0x6c, 0xbe, 0x2a, 0x9d, 0x1a, 0x7a, 0x30, 0x47, 0x8b, 0x48, 0x74, 0x39, 0x9f, 0xe0, 0x08,
+	0xb4, 0x56, 0xfa, 0x7c, 0x53, 0x02, 0x8f, 0xf0, 0x58, 0x16, 0x9b, 0x10, 0x7e, 0xdf, 0xc7, 0x53,
+	0xbf, 0x5d, 0x80, 0x29, 0x55, 0x61, 0x80, 0xbc, 0xc4, 0x63, 0xab, 0x65, 0x02, 0x6f, 0xd3, 0xb0,
+	0x39, 0x8a, 0x59, 0xe5, 0x58, 0x0b, 0xfd, 0x75, 0xec, 0xe4, 0x56, 0x5e, 0xe5, 0xe9, 0x2b, 0xae,
+	0xe1, 0x66, 0x9d, 0x6b, 0x48, 0xb9, 0x68, 0x8b, 0x7e, 0xd4, 0xac, 0x93, 0x04, 0x8c, 0x09, 0xcc,
+	0x8e, 0xea, 0xd1, 0x06, 0xda, 0x3d, 0xda, 0x14, 0xc9, 0x69, 0x43, 0xef, 0x8d, 0x4a, 0xa1, 0xe1,
+	0xde, 0x03, 0x84, 0xe3, 0x69, 0x48, 0xde, 0x83, 0x31, 0x32, 0x03, 0x7a, 0x2f, 0x34, 0x0c, 0x30,
+	0x12, 0xe3, 0x51, 0xc8, 0xe9, 0x68, 0x8e, 0x16, 0x93, 0x33, 0xba, 0x1c, 0x48, 0xbf, 0xec, 0x8e,
+	0x8f, 0xc9, 0x4f, 0xc7, 0xf6, 0xfe, 0x38, 0x56, 0xb7, 0x57, 0x8e, 0xa1, 0x67, 0xa2, 0x8e, 0xf9,
+	0x0f, 0x84, 0x1f, 0x78, 0x31, 0xce, 0x95, 0x95, 0x57, 0x9d, 0x22, 0x9f, 0x86, 0x0a, 0x05, 0x59,
+	0x26, 0x67, 0x8f, 0xff, 0x5b, 0xb0, 0xdd, 0x12, 0x3f, 0xf2, 0x3b, 0x7e, 0x3b, 0x86, 0x2a, 0xc7,
+	0xf0, 0x53, 0x75, 0x9d, 0x5b, 0xb8, 0x2e, 0xed, 0x46, 0x0c, 0xa5, 0x66, 0x78, 0x64, 0xfd, 0x26,
+	0x3a, 0xf6, 0xef, 0x18, 0x47, 0x95, 0x63, 0x35, 0x20, 0xea, 0x0f, 0xff, 0x85, 0xf0, 0x49, 0x6f,
+	0x8d, 0x66, 0xea, 0xcb, 0x0e, 0x8e, 0x0d, 0xa7, 0xf9, 0x0e, 0x4e, 0x83, 0xbe, 0x3b, 0x89, 0xed,
+	0x38, 0xfb, 0x49, 0xef, 0xb3, 0xc3, 0xc0, 0x6f, 0xe2, 0x5f, 0xb3, 0x81, 0x7a, 0xd3, 0x2d, 0xb6,
+	0xac, 0x5a, 0xdf, 0x31, 0xad, 0x1c, 0xeb, 0xb0, 0xde, 0xb8, 0xf1, 0xe9, 0xe7, 0x99, 0xa7, 0xb7,
+	0x2a, 0x2f, 0xb3, 0x55, 0x4b, 0xf1, 0x75, 0x1b, 0x7c, 0xd8, 0xbb, 0x38, 0x0c, 0xbf, 0xc3, 0x8b,
+	0x7f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x8c, 0x34, 0xa0, 0x72, 0x44, 0x03, 0x00, 0x00,
 }

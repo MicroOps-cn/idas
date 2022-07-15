@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"idas/pkg/service/models"
+	"idas/pkg/utils/httputil"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -44,12 +45,37 @@ func HTTPLoginAuthentication(endpoints endpoint.Set) restful.FilterFunction {
 				}
 			}
 		}
+
+		authReq := HttpRequest[endpoint.AuthenticationRequest]{}
+		if username, password, ok := req.Request.BasicAuth(); ok {
+			authReq.Data.AuthKey = username
+			authReq.Data.AuthSecret = password
+		} else if auth := req.Request.Header.Get("Authorization"); len(auth) != 0 {
+			errorHandler(req.Request.Context(), errors.NewServerError(http.StatusBadRequest, "unknown authorization method"), resp)
+			return
+		} else {
+			query := req.Request.URL.Query()
+			if query.Get("authKey") != "" {
+				if err = httputil.UnmarshalURLValues(query, &authReq); err != nil {
+					errorHandler(req.Request.Context(), errors.NewServerError(http.StatusBadRequest, "unknown exception"), resp)
+					return
+				}
+			}
+		}
+
+		if user, err := endpoints.Authentication(req.Request.Context(), authReq); err == nil {
+			if len(user.([]*models.User)) >= 0 {
+				req.SetAttribute(global.AttrUser, user)
+				filterChan.ProcessFilter(req, resp)
+				return
+			}
+		}
 		if autoRedirectToLoginPage, ok := req.SelectedRoute().Metadata()[global.MetaAutoRedirectToLoginPage].(bool); ok && autoRedirectToLoginPage {
 			resp.Header().Set("Location", fmt.Sprintf("/admin/user/login?redirect_uri=%s", url.QueryEscape(req.Request.RequestURI)))
 			resp.WriteHeader(302)
 			return
 		}
-		errorHandler(req.Request.Context(), errors.NewServerError(http.StatusForbidden, "Not logged in or identity expired"), resp)
+		errorHandler(req.Request.Context(), errors.NewServerError(http.StatusUnauthorized, "Not logged in or identity expired"), resp)
 		return
 	}
 }

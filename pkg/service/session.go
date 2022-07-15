@@ -16,7 +16,7 @@ import (
 	"idas/pkg/service/redisservice"
 )
 
-func (s Set) CreateLoginSession(ctx context.Context, username string, password string) (session []string, err error) {
+func (s Set) CreateLoginSession(ctx context.Context, username string, password string, rememberMe bool) (session []string, err error) {
 	users, err := s.VerifyPassword(ctx, username, password)
 	if len(users) == 0 {
 		return nil, errors.UnauthorizedError
@@ -30,19 +30,18 @@ func (s Set) CreateLoginSession(ctx context.Context, username string, password s
 		}
 		user.LoginTime = new(time.Time)
 		*(user.LoginTime) = time.Now()
-		loginSession, err := s.sessionService.SetLoginSession(ctx, user)
+		token, err := s.CreateToken(ctx, user, models.TokenTypeLoginSession)
 		if err != nil {
 			level.Error(logger).Log("err", err, "msg", "failed to create session")
 			return nil, err
 		}
-		session = append(session, loginSession)
+		session = append(session, fmt.Sprintf("%s=%s; Path=/;Expires=%s", global.LoginSession, token.Id, token.Expiry.Format(global.LoginSessionExpiresFormat)))
 	}
 	return
 }
 
 type SessionService interface {
 	baseService
-	SetLoginSession(ctx context.Context, user *models.User) (string, error)
 	DeleteLoginSession(ctx context.Context, session string) error
 	GetLoginSession(ctx context.Context, sessionIds []string) ([]*models.User, error)
 
@@ -74,10 +73,6 @@ func NewSessionService(ctx context.Context) SessionService {
 	return sessionService
 }
 
-func (s Set) SetLoginSession(ctx context.Context, user *models.User) (string, error) {
-	return s.sessionService.SetLoginSession(ctx, user)
-}
-
 func (s Set) DeleteLoginSession(ctx context.Context, session string) error {
 	return s.sessionService.DeleteLoginSession(ctx, session)
 }
@@ -95,7 +90,7 @@ func (s Set) GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientI
 		return "", "", 0, errors.BadRequestError
 	}
 
-	_, err = s.sessionService.SetLoginSession(ctx, user)
+	_, err = s.CreateToken(ctx, user, models.TokenTypeToken)
 	return "", "", 0, err
 }
 

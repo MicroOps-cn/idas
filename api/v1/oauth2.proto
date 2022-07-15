@@ -1,17 +1,27 @@
 syntax = "proto3";
 package idas.oauth2;
+import "v1/base.proto";
 option go_package = "idas/pkg/endpoint;endpoint";
 
+message OAuthTokenResponse{
+  string access_token = 1;
+  string token_type = 2;
+
+  int32 expires_in = 3[(gogoproto.customtype) = "int",(gogoproto.nullable) = false];
+  string refresh_token = 4;
+  string error = 5;
+}
+
 message OAuthAuthorizeRequest{
-   enum ResponseType {
-       default = 0;
-       code = 1;
-       token =2;
-   }
-   ResponseType response_type = 1;
-   string client_id = 2;
-   string redirect_uri = 3;
-   string state = 4;
+  enum ResponseType {
+    default = 0;
+    code = 1;
+    token = 2;
+  }
+  ResponseType response_type = 1;
+  string client_id = 2;
+  string redirect_uri = 3;
+  string state = 4;
 }
 
 enum OAuthGrantType{

@@ -31,58 +31,57 @@ type RestfulRequester interface {
 	GetRestfulResponse() *restful.Response
 }
 
-type BaseResponse[T any] struct {
-	Error        error  `json:"-"`
-	Data         T      `json:"data,omitempty"`
-	ErrorMessage string `json:"errorMessage"`
-}
-
-func (l BaseResponse[T]) GetData() interface{} {
-	return l.Data
-}
-
-func (l BaseResponse[T]) Failed() error {
+func (l BaseResponse) Failed() error {
 	if len(l.ErrorMessage) != 0 {
 		return errors.NewServerError(http.StatusOK, l.ErrorMessage)
 	}
 	return l.Error
 }
 
-type BaseListResponse[T any] struct {
-	BaseTotalResponse[T]
-	Current  int64 `json:"current,omitempty"`
-	PageSize int64 `json:"pageSize,omitempty"`
-}
-
-func (b BaseListResponse[T]) GetPageSize() int64 {
-	return b.PageSize
-}
-
-func (b BaseListResponse[T]) GetCurrent() int64 {
-	return b.Current
-}
-
-func NewBaseListResponse[T any](req *BaseListRequest) BaseListResponse[T] {
+func NewBaseListResponse[T any](req *BaseListRequest) ListResponseWrapper[T] {
+	if req == nil {
+		req = &BaseListRequest{}
+	}
 	if req.PageSize == 0 {
 		req.PageSize = 20
 	}
 	if req.Current == 0 {
 		req.Current = 1
 	}
-	return BaseListResponse[T]{
-		PageSize: req.PageSize,
-		Current:  req.Current,
-		BaseTotalResponse: BaseTotalResponse[T]{
-			BaseResponse: BaseResponse[T]{},
+	return ListResponseWrapper[T]{
+		BaseListResponse: BaseListResponse{
+			PageSize: req.PageSize,
+			Current:  req.Current,
+			BaseTotalResponse: BaseTotalResponse{
+				BaseResponse: BaseResponse{},
+			},
 		},
 	}
 }
 
-type BaseTotalResponse[T any] struct {
-	BaseResponse[T]
-	Total int64 `json:"total,omitempty"`
+type SimpleResponseWrapper[DataType any] struct {
+	BaseResponse
+	Data DataType
 }
 
-func (b BaseTotalResponse[T]) GetTotal() int64 {
-	return b.Total
+func (l SimpleResponseWrapper[T]) GetData() interface{} {
+	return l.Data
+}
+
+type TotalResponseWrapper[DataType any] struct {
+	BaseTotalResponse
+	Data DataType
+}
+
+func (l TotalResponseWrapper[T]) GetData() interface{} {
+	return l.Data
+}
+
+type ListResponseWrapper[DataType any] struct {
+	BaseListResponse
+	Data DataType
+}
+
+func (l ListResponseWrapper[T]) GetData() interface{} {
+	return l.Data
 }

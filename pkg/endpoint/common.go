@@ -20,7 +20,7 @@ type FileUploadResponse map[string]string
 func MakeUploadFileEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		//req := request.(Requester).GetRequestData().(*FileUploadRequest)
-		resp := BaseResponse[FileUploadResponse]{}
+		resp := SimpleResponseWrapper[interface{}]{}
 		stdReq := request.(RestfulRequester).GetRestfulRequest().Request
 		var (
 			f       multipart.File
