@@ -37,12 +37,15 @@ func HTTPLoginAuthentication(endpoints endpoint.Set) restful.FilterFunction {
 		loginSessionID, err := req.Request.Cookie(global.LoginSession)
 		if err == nil {
 			req.SetAttribute(global.LoginSession, strings.Split(loginSessionID.Value, ","))
-			if user, err := endpoints.GetLoginSession(req.Request.Context(), strings.Split(loginSessionID.Value, ",")); err == nil {
+			if user, err := endpoints.GetLoginSession(req.Request.Context(), loginSessionID.Value); err == nil {
+				fmt.Println(user, err)
 				if len(user.([]*models.User)) >= 0 {
 					req.SetAttribute(global.AttrUser, user)
 					filterChan.ProcessFilter(req, resp)
 					return
 				}
+			} else {
+				fmt.Println(user, err)
 			}
 		}
 

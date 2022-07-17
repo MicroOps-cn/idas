@@ -2,6 +2,7 @@ syntax = "proto3";
 package idas.endpoint;
 import public "gogoproto/gogo.proto";
 import "v1/base.proto";
+import "types/models.proto";
 option go_package = "idas/pkg/endpoint;endpoint";
 
 
@@ -9,28 +10,14 @@ option go_package = "idas/pkg/endpoint;endpoint";
 
 
 message AppInfo{
-  enum AppStatus{
-    unknown = 0;
-    normal = 1;
-    disable = 2;
-  }
-  enum GrantType{
-    grant_type_unknown = 0;
-    authorization_code = 1;
-  }
-  enum GrantMode{
-    manual = 0;
-    full = 1;
-  }
-
   string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
   string name = 2[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
   string description = 3;
   string storage = 4[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string avatar = 5;
-  GrantType grantType = 6[(gogoproto.jsontag) = "grantType", (gogoproto.moretags) = 'valid:"required"'];
-  GrantMode grantMode = 7[(gogoproto.jsontag) = "grantMode"];
-  AppStatus status = 8[(gogoproto.jsontag) = "status", (gogoproto.moretags) = 'valid:"required"'];
+  idas.service.models.AppMeta.GrantType grantType = 6[(gogoproto.jsontag) = "grantType", (gogoproto.moretags) = 'valid:"required"'];
+  idas.service.models.AppMeta.GrantMode grantMode = 7[(gogoproto.jsontag) = "grantMode"];
+  idas.service.models.AppMeta.Status status = 8[(gogoproto.jsontag) = "status", (gogoproto.moretags) = 'valid:"required"'];
   string updateTime = 12[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
   string createTime = 13[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
   bool isDelete = 14[(gogoproto.jsontag) = "isDelete", (gogoproto.moretags) = 'valid:"required"'];
@@ -68,9 +55,9 @@ message PatchAppRequest{
   string description = 3[(gogoproto.customtype) = "string"];
   string name = 4[(gogoproto.customtype) = "string"];
   string avatar = 5[(gogoproto.customtype) = "string"];
-  AppInfo.GrantType grantType = 6[(gogoproto.customtype) = "AppInfo_GrantType"];
-  AppInfo.GrantMode grantMode = 7;
-  AppInfo.AppStatus status = 8[(gogoproto.customtype) = "AppInfo_AppStatus"];
+  idas.service.models.AppMeta.GrantType grantType = 6[(gogoproto.customtype) = "idas/pkg/service/models.AppMeta_GrantType"];
+  idas.service.models.AppMeta.GrantMode grantMode = 7 [(gogoproto.customtype) = "idas/pkg/service/models.AppMeta_GrantType"];
+  idas.service.models.AppMeta.Status status = 8[(gogoproto.customtype) = "idas/pkg/service/models.AppMeta_Status"];
   bool isDelete = 14[(gogoproto.customtype) = "bool"];
 }
 
@@ -108,8 +95,8 @@ message CreateAppRequest{
   string description = 3;
   string name = 4[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
   string avatar = 5;
-  AppInfo.GrantType grantType = 6[(gogoproto.jsontag) = "grantType", (gogoproto.moretags) = 'valid:"required"'];
-  AppInfo.GrantMode grantMode = 7[(gogoproto.jsontag) = "grantMode"];
+  idas.service.models.AppMeta.GrantType grantType = 6;
+  idas.service.models.AppMeta.GrantMode grantMode = 7;
   repeated  AppUser user = 8;
   repeated  AppRole role = 9;
 }
@@ -120,11 +107,11 @@ message UpdateAppRequest{
   string description = 3;
   string name = 4[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
   string avatar = 5;
-  AppInfo.GrantType grantType = 6[(gogoproto.jsontag) = "grantType", (gogoproto.moretags) = 'valid:"required"'];
-  AppInfo.GrantMode grantMode = 7[(gogoproto.jsontag) = "grantMode"];
+  idas.service.models.AppMeta.GrantType grantType = 6;
+  idas.service.models.AppMeta.GrantMode grantMode = 7;
   repeated  AppUser user = 8;
   repeated  AppRole role = 9;
-  AppInfo.AppStatus status = 10[(gogoproto.jsontag) = "status", (gogoproto.moretags) = 'valid:"required"'];
+  idas.service.models.AppMeta.Status status = 10[(gogoproto.jsontag) = "status", (gogoproto.moretags) = 'valid:"required"'];
   bool isDelete = 11;
 }
 

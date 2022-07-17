@@ -9,6 +9,7 @@ import (
 	"idas/pkg/logs"
 	"idas/pkg/service"
 	"idas/pkg/service/models"
+	"idas/pkg/utils/wrapper"
 )
 
 func MakeCurrentUserEndpoint(_ service.Service) endpoint.Endpoint {
@@ -55,13 +56,15 @@ func MakeForgotPasswordEndpoint(s service.Service) endpoint.Endpoint {
 		resp := SimpleResponseWrapper[interface{}]{}
 		users := s.GetUserInfoByUsernameAndEmail(ctx, req.Username, req.Email)
 		if len(users) == 0 {
+			level.Warn(logs.GetContextLogger(ctx)).Log("err", "user not found", "msg", "failed to reset password", "username", req.Username, "email", req.Email)
 			return resp, nil
 		}
-		token, err := s.CreateToken(ctx, users, models.TokenTypeResetPassword)
+
+		token, err := s.CreateToken(ctx, models.TokenTypeResetPassword, wrapper.ToInterfaces[*models.User](users)...)
 		if err != nil {
 			return resp, err
 		}
-		err = s.SendResetPasswordLink(ctx, users, token.Id)
+		err = s.SendResetPasswordLink(ctx, users, token)
 		if err != nil {
 			level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to send email")
 		}

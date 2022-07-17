@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"idas/pkg/errors"
 	"idas/pkg/global"
 	"idas/pkg/logs"
 	"idas/pkg/service/gormservice"
+	"idas/pkg/utils/wrapper"
 	"time"
 
 	"idas/config"
@@ -16,34 +16,30 @@ import (
 	"idas/pkg/service/redisservice"
 )
 
-func (s Set) CreateLoginSession(ctx context.Context, username string, password string, rememberMe bool) (session []string, err error) {
+func (s Set) CreateLoginSession(ctx context.Context, username string, password string, rememberMe bool) (session string, err error) {
 	users, err := s.VerifyPassword(ctx, username, password)
 	if len(users) == 0 {
-		return nil, errors.UnauthorizedError
+		return "", errors.UnauthorizedError
 	}
-	logger := logs.GetContextLogger(ctx)
 	for _, user := range users {
 		user.LoginTime = new(time.Time)
 		*user.LoginTime = time.Now().UTC()
 		if err = s.GetUserAndAppService(user.Storage).UpdateLoginTime(ctx, user.Id); err != nil {
-			return nil, err
+			return "", err
 		}
-		user.LoginTime = new(time.Time)
-		*(user.LoginTime) = time.Now()
-		token, err := s.CreateToken(ctx, user, models.TokenTypeLoginSession)
-		if err != nil {
-			level.Error(logger).Log("err", err, "msg", "failed to create session")
-			return nil, err
-		}
-		session = append(session, fmt.Sprintf("%s=%s; Path=/;Expires=%s", global.LoginSession, token.Id, token.Expiry.Format(global.LoginSessionExpiresFormat)))
 	}
+	token, err := s.CreateToken(ctx, models.TokenTypeLoginSession, wrapper.ToInterfaces[*models.User](users)...)
+	if err != nil {
+		return "", err
+	}
+	session = fmt.Sprintf("%s=%s; Path=/;Expires=%s", global.LoginSession, token.Id, token.Expiry.Format(global.LoginSessionExpiresFormat))
 	return
 }
 
 type SessionService interface {
 	baseService
 	DeleteLoginSession(ctx context.Context, session string) error
-	GetLoginSession(ctx context.Context, sessionIds []string) ([]*models.User, error)
+	GetLoginSession(ctx context.Context, sessionIds string) ([]*models.User, error)
 
 	GetSessions(ctx context.Context, userId string, current int64, size int64) ([]*models.Token, int64, error)
 	DeleteSession(ctx context.Context, id string) (err error)
@@ -77,7 +73,7 @@ func (s Set) DeleteLoginSession(ctx context.Context, session string) error {
 	return s.sessionService.DeleteLoginSession(ctx, session)
 }
 
-func (s Set) GetLoginSession(ctx context.Context, ids []string) ([]*models.User, error) {
+func (s Set) GetLoginSession(ctx context.Context, ids string) ([]*models.User, error) {
 	return s.sessionService.GetLoginSession(ctx, ids)
 }
 
@@ -90,7 +86,7 @@ func (s Set) GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientI
 		return "", "", 0, errors.BadRequestError
 	}
 
-	_, err = s.CreateToken(ctx, user, models.TokenTypeToken)
+	_, err = s.CreateToken(ctx, models.TokenTypeToken, user)
 	return "", "", 0, err
 }
 

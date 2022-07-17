@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"gorm.io/gorm"
 	"net/http"
 	"strconv"
 	"strings"
@@ -107,4 +108,14 @@ var (
 	StatusNotFound      = func(name string) ServerError {
 		return NewServerError(http.StatusNotFound, name+" Not Found")
 	}
+	NotFoundError = NewServerError(404, "record not found")
 )
+
+func IsNotFount(err error) bool {
+	if err == NotFoundError || err == gorm.ErrRecordNotFound {
+		return true
+	} else if e, ok := err.(ServerError); ok && e.StatusCode() == 404 {
+		return true
+	}
+	return false
+}

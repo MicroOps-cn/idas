@@ -205,7 +205,6 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 						return nil, fmt.Errorf("failed to decode request body：%s", err)
 					}
 				}
-
 			}
 		}
 	}

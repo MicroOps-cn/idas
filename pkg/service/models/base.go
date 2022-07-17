@@ -20,6 +20,7 @@ type Model struct {
 }
 
 func (model Model) GetId() string {
+
 	return model.Id
 }
 

@@ -70,7 +70,7 @@ message ResetUserPasswordRequest{
   string token = 1;
   string oldPassword = 2;
   string userId = 3[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"required"'];
-  string storage = 4[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
+  string storage = 4;
   string newPassword = 5[(gogoproto.jsontag) = "newPassword", (gogoproto.moretags) = 'valid:"required"'];
 }
 message ForgotUserPasswordRequest{

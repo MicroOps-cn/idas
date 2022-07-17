@@ -61,7 +61,6 @@ var userAddCmd = &cobra.Command{
 				os.Exit(1)
 			}
 			password = string(p)
-
 		}
 		if len(username) == 0 {
 			level.Error(logger).Log("msg", "username is null")

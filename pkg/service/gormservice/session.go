@@ -32,8 +32,13 @@ func (s SessionService) CreateToken(ctx context.Context, token *models.Token) er
 func (s SessionService) VerifyToken(ctx context.Context, token string, relationId string, tokenType models.TokenType) bool {
 	conn := s.Session(ctx)
 	tk := &models.Token{}
-	if err := conn.Model(&models.Token{}).Where("id = ? and userId = ? and `type` = ?", token, relationId, tokenType).First(tk).Error; err != nil {
+	if err := conn.Model(&models.Token{}).Where("id = ? and relation_id = ? and `type` = ?", token, relationId, tokenType).First(tk).Error; err != nil {
 		return false
+	}
+	if tokenType == models.TokenTypeResetPassword {
+		if err := conn.Delete(tk).Error; err != nil {
+			return false
+		}
 	}
 	if tk.Expiry.After(time.Now().UTC()) {
 		return true
@@ -84,7 +89,7 @@ func (s SessionService) GetUserByOAuthAuthorizationCode(ctx context.Context, cod
 		level.Error(logger).Log("msg", "failed to remove auth code", "err", err)
 		return
 	}
-	if users, err := s.GetLoginSession(ctx, []string{c.SessionId}); err != nil {
+	if users, err := s.GetLoginSession(ctx, c.SessionId); err != nil {
 		level.Error(logger).Log("msg", "failed to get session info", "err", err)
 		return nil, "", errors.BadRequestError
 	} else if len(users) < 0 {
@@ -122,26 +127,21 @@ func (s SessionService) SetLoginSession(ctx context.Context, user *models.User) 
 	return fmt.Sprintf("%s=%s; Path=/;Expires=%s", global.LoginSession, session.Id, session.Expiry.Format(global.LoginSessionExpiresFormat)), nil
 }
 
-func (s SessionService) GetLoginSession(ctx context.Context, ids []string) (users []*models.User, err error) {
-	for _, id := range ids {
-		session := models.Token{Id: id}
-		if err = s.Session(ctx).Where("`type` = ?", models.TokenTypeLoginSession).Omit("last_seen", "create_time", "user_id").First(&session).Error; err == gogorm.ErrRecordNotFound {
-			return nil, errors.NotLoginError
-		} else if err != nil {
-			return nil, err
-		}
-		if session.Expiry.Before(time.Now().UTC()) {
-			return nil, errors.NotLoginError
-		}
-		session.LastSeen = time.Now()
-		_ = s.Session(ctx).Select("last_seen").Updates(&session).Error
-		var user models.User
-		if err = json.Unmarshal(session.Data, &user); err != nil {
-			return nil, fmt.Errorf("session data exception: %s", err)
-		}
-		users = append(users, &user)
+func (s SessionService) GetLoginSession(ctx context.Context, id string) (users []*models.User, err error) {
+	session := models.Token{Id: id}
+	if err = s.Session(ctx).Where("`type` = ?", models.TokenTypeLoginSession).Omit("last_seen", "create_time", "user_id").First(&session).Error; err == gogorm.ErrRecordNotFound {
+		return nil, errors.NotLoginError
+	} else if err != nil {
+		return nil, err
 	}
-
+	if session.Expiry.Before(time.Now().UTC()) {
+		return nil, errors.NotLoginError
+	}
+	session.LastSeen = time.Now()
+	_ = s.Session(ctx).Select("last_seen").Updates(&session).Error
+	if err = json.Unmarshal(session.Data, &users); err != nil {
+		return nil, fmt.Errorf("session data exception: %s", err)
+	}
 	return users, nil
 }
 

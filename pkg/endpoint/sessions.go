@@ -18,7 +18,7 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 		req := request.(Requester).GetRequestData().(*UserLoginRequest)
 		resp := SimpleResponseWrapper[interface{}]{}
 		if loginCookie, err := s.CreateLoginSession(ctx, req.Username, req.Password, req.AutoLogin); err == nil {
-			request.(RestfulRequester).GetRestfulResponse().AddHeader("Set-Cookie", strings.Join(loginCookie, ","))
+			request.(RestfulRequester).GetRestfulResponse().AddHeader("Set-Cookie", loginCookie)
 		} else {
 			resp.Error = errors.NewServerError(http.StatusUnauthorized, "Wrong user name or password")
 		}
@@ -58,10 +58,11 @@ func MakeAuthenticationEndpoint(s service.Service) endpoint.Endpoint {
 
 func MakeGetLoginSessionEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		sessionId := request.([]string)
+		sessionId := request.(string)
 		var resp []*models.User
 		if len(sessionId) > 0 {
 			if resp, err = s.GetLoginSession(ctx, sessionId); err != nil {
+				fmt.Println(err)
 				err = errors.NotLoginError
 			}
 		} else {

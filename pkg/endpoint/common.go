@@ -15,8 +15,6 @@ import (
 
 type FileUploadRequest struct{}
 
-type FileUploadResponse map[string]string
-
 func MakeUploadFileEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		//req := request.(Requester).GetRequestData().(*FileUploadRequest)
@@ -59,7 +57,9 @@ func MakeDownloadFileEndpoint(s service.Service) endpoint.Endpoint {
 			fileName string
 		)
 		f, mimiType, fileName, err = s.DownloadFile(ctx, req.Id)
-		defer f.Close()
+		if f != nil {
+			defer f.Close()
+		}
 		if err != nil {
 			return nil, err
 		}

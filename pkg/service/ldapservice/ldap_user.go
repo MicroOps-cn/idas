@@ -25,7 +25,7 @@ import (
 
 const UserStatusName = "status"
 
-func NewUserAndAppService(name string, client *ldap.Client) *UserAndAppService {
+func NewUserAndAppService(ctx context.Context, name string, client *ldap.Client) *UserAndAppService {
 	return &UserAndAppService{name: name, Client: client}
 }
 

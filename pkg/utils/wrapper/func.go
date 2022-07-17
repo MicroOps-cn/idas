@@ -10,3 +10,11 @@ func Must[T any](v T, err error) T {
 func Error[T any](_ T, err error) error {
 	return err
 }
+
+func ToInterfaces[T any](objs []T) []interface{} {
+	var newObjs []interface{}
+	for _, obj := range objs {
+		newObjs = append(newObjs, obj)
+	}
+	return newObjs
+}

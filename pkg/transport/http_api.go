@@ -289,11 +289,11 @@ func FileService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 	v1ws.Filter(HTTPLoginAuthentication(endpoints))
 
 	v1ws.Route(v1ws.POST("").
-		To(NewKitHTTPServer[endpoint.FileUploadRequest](endpoints.UploadFile, options)).
+		To(NewKitHTTPServer[struct{}](endpoints.UploadFile, options)).
 		Operation("uploadFile").
 		Consumes("multipart/form-data").
 		Doc("上传文件").
-		Param(v1ws.MultiPartFormParameter("files", "files").DataType("file")).
+		Param(v1ws.MultiPartFormParameter("files", "files").AllowMultiple(true).DataType("file")).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.FileUploadResponse{}),
 	)

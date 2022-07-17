@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -26,9 +27,9 @@ type baseService interface {
 
 type Service interface {
 	baseService
-
+	InitData(ctx context.Context) error
 	DeleteLoginSession(ctx context.Context, session string) error
-	GetLoginSession(ctx context.Context, ids []string) ([]*models.User, error)
+	GetLoginSession(ctx context.Context, ids string) ([]*models.User, error)
 	GetAuthCodeByClientId(ctx context.Context, clientId, userId, sessionId, storage string) (code string, err error)
 	GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error)
@@ -48,7 +49,7 @@ type Service interface {
 	CreateUser(ctx context.Context, storage string, user *models.User) (*models.User, error)
 	PatchUser(ctx context.Context, storage string, user map[string]interface{}) (*models.User, error)
 	DeleteUser(ctx context.Context, storage string, id string) error
-	CreateLoginSession(ctx context.Context, username string, password string, rememberMe bool) ([]string, error)
+	CreateLoginSession(ctx context.Context, username string, password string, rememberMe bool) (string, error)
 	GetUserSource(ctx context.Context) (data map[string]string, total int64, err error)
 	Authentication(ctx context.Context, method models.Auth_AuthMethod, algorithm models.AuthAlgorithm, key, secret string) ([]*models.User, error)
 
@@ -64,9 +65,9 @@ type Service interface {
 	DownloadFile(ctx context.Context, id string) (f io.ReadCloser, mimiType, fileName string, err error)
 	ResetPassword(ctx context.Context, id string, storage string, password string) error
 
-	CreateToken(ctx context.Context, data interface{}, tokenType models.TokenType) (token *models.Token, err error)
+	CreateToken(ctx context.Context, tokenType models.TokenType, data ...interface{}) (token *models.Token, err error)
 	VerifyToken(ctx context.Context, token string, relationId string, tokenType models.TokenType) bool
-	SendResetPasswordLink(ctx context.Context, users []*models.User, token string) error
+	SendResetPasswordLink(ctx context.Context, users []*models.User, token *models.Token) error
 }
 
 type Set struct {
@@ -80,12 +81,14 @@ func (s Set) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email 
 	for _, service := range s.userAndAppService {
 		if info, err := service.GetUserInfoByUsernameAndEmail(ctx, username, email); err == nil {
 			users = append(users, info)
+		} else {
+			level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "Failed to get user from username and email")
 		}
 	}
 	return users
 }
 
-func (s Set) SendResetPasswordLink(ctx context.Context, users []*models.User, token string) error {
+func (s Set) SendResetPasswordLink(ctx context.Context, users []*models.User, token *models.Token) error {
 	smtpConfig := config.Get().GetSmtp()
 	subject, body, err := smtpConfig.GetSubjectAndBody(map[string]interface{}{
 		"user":  users[0],
@@ -107,8 +110,8 @@ func (s Set) SendResetPasswordLink(ctx context.Context, users []*models.User, to
 	return client.Send()
 }
 
-func (s Set) CreateToken(ctx context.Context, data interface{}, tokenType models.TokenType) (token *models.Token, err error) {
-	tk, err := models.NewToken(tokenType, data)
+func (s Set) CreateToken(ctx context.Context, tokenType models.TokenType, data ...interface{}) (token *models.Token, err error) {
+	tk, err := models.NewToken(tokenType, data...)
 	if err != nil {
 		return nil, err
 	}
@@ -120,6 +123,14 @@ func (s Set) CreateToken(ctx context.Context, data interface{}, tokenType models
 }
 
 func (s Set) ResetPassword(ctx context.Context, id string, storage string, password string) error {
+	if len(storage) == 0 {
+		for _, service := range s.userAndAppService {
+			if err := service.ResetPassword(ctx, id, password); err != nil {
+				level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "Failed to reset password", "userId", id)
+			}
+			return nil
+		}
+	}
 	return s.GetUserAndAppService(storage).ResetPassword(ctx, id, password)
 }
 
@@ -127,6 +138,58 @@ func (s Set) VerifyToken(ctx context.Context, token, relationId string, tokenTyp
 	return s.sessionService.VerifyToken(ctx, token, relationId, tokenType)
 }
 
+const idasAppId = "9919a15a-cfb4-4116-b866-3b8ea81b5446"
+
+func (s Set) InitData(ctx context.Context) error {
+	for _, svc := range s.userAndAppService {
+		adminUser, err := svc.GetUserInfo(ctx, "", "admin")
+		if errors.IsNotFount(err) {
+			adminUser = &models.User{
+				Username: "admin",
+				Password: sql.RawBytes("idas"),
+			}
+			adminUser, err = svc.CreateUser(ctx, adminUser)
+			if err != nil {
+				return err
+			}
+		} else if err != nil {
+			return err
+		}
+		idasApp, err := svc.GetAppInfo(ctx, idasAppId, "")
+		if errors.IsNotFount(err) {
+			idasApp = &models.App{
+				Model:       models.Model{Id: idasAppId},
+				Name:        "IDAS",
+				Description: "Identity authentication service. It is bound to the current service. Please do not delete it at will.",
+				GrantMode:   models.AppMeta_manual,
+				Role: []*models.AppRole{{
+					Name: "admin",
+				}, {
+					Name: "viewer",
+				}},
+				User: []*models.User{{
+					Model:  models.Model{Id: adminUser.Id},
+					RoleId: idasApp.Role.GetRole("admin").GetId(),
+				}},
+			}
+			if idasApp, err = svc.CreateApp(ctx, idasApp); err != nil {
+				return fmt.Errorf("failed to initialize application data：%s", err)
+			}
+		} else if err != nil {
+			return fmt.Errorf("failed to initialize application data：%s", err)
+		}
+		if len(idasApp.User) == 0 {
+			idasApp.User = []*models.User{{
+				Model:  models.Model{Id: adminUser.Id},
+				RoleId: idasApp.Role.GetRole("admin").GetId(),
+			}}
+			if _, err = svc.UpdateApp(ctx, idasApp); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
 func (s Set) AutoMigrate(ctx context.Context) error {
 	svcs := []baseService{
 		s.commonService, s.sessionService,
@@ -202,11 +265,11 @@ func NewUserAndAppService(ctx context.Context) UserAndAppServices {
 			}
 			switch userSource := userStorage.GetStorageSource().(type) {
 			case *config.Storage_Mysql:
-				userServices = append(userServices, gormservice.NewUserAndAppService(userStorage.GetName(), userSource.Mysql.Client))
+				userServices = append(userServices, gormservice.NewUserAndAppService(ctx, userStorage.GetName(), userSource.Mysql.Client))
 			case *config.Storage_Sqlite:
-				userServices = append(userServices, gormservice.NewUserAndAppService(userStorage.GetName(), userSource.Sqlite.Client))
+				userServices = append(userServices, gormservice.NewUserAndAppService(ctx, userStorage.GetName(), userSource.Sqlite.Client))
 			case *config.Storage_Ldap:
-				userServices = append(userServices, ldapservice.NewUserAndAppService(userStorage.GetName(), userSource.Ldap))
+				userServices = append(userServices, ldapservice.NewUserAndAppService(ctx, userStorage.GetName(), userSource.Ldap))
 			default:
 				panic(any(fmt.Errorf("Failed to init UserAndAppService: Unknown datasource: %T ", userSource)))
 			}

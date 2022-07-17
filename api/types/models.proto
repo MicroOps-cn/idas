@@ -8,3 +8,18 @@ message Auth {
     signature = 1;
   };
 }
+message AppMeta{
+  enum Status{
+    unknown = 0;
+    normal = 1;
+    disable = 2;
+  }
+  enum GrantType{
+    none = 0;
+    authorization_code = 1;
+  }
+  enum GrantMode{
+    manual = 0;
+    full = 1;
+  }
+}

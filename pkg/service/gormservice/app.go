@@ -188,8 +188,30 @@ func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name strin
 }
 
 func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*models.App, error) {
-	conn := s.Session(ctx)
-	if err := conn.Create(app).Error; err != nil {
+	tx := s.Session(ctx).Begin()
+	defer tx.Rollback()
+	if err := tx.Create(app).Error; err != nil {
+		return nil, err
+	}
+	if len(app.Role) > 0 {
+		var roleIds []string
+		for _, role := range app.Role {
+			for _, user := range app.User {
+				if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
+					role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
+				}
+			}
+			role.AppId = app.Id
+			if err := s.PatchAppRole(context.WithValue(ctx, global.MySQLConnName, tx), role); err != nil {
+				return nil, err
+			}
+			roleIds = append(roleIds, role.Id)
+		}
+	}
+	if err := tx.Find(&app).Error; err != nil {
+		return nil, err
+	}
+	if err := tx.Commit().Error; err != nil {
 		return nil, err
 	}
 	return app, nil
@@ -253,14 +275,23 @@ func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, ap
 	return result.Scope, nil
 }
 
-func NewUserAndAppService(name string, client *gorm.Client) *UserAndAppService {
-	conn := client.Session(context.Background())
+func NewUserAndAppService(ctx context.Context, name string, client *gorm.Client) *UserAndAppService {
+	conn := client.Session(ctx)
 	if err := conn.SetupJoinTable(&models.App{}, "User", models.AppUser{}); err != nil {
 		panic(err)
 	}
-	return &UserAndAppService{name: name, Client: client}
+	if err := conn.SetupJoinTable(&models.User{}, "App", models.AppUser{}); err != nil {
+		panic(err)
+	}
+	set := &UserAndAppService{name: name, Client: client}
+	return set
 }
 
 func (s UserAndAppService) AutoMigrate(ctx context.Context) error {
-	return s.Session(ctx).AutoMigrate(&models.App{}, &models.AppUser{}, &models.AppRole{}, &models.User{}, &models.AppAuthCode{})
+	err := s.Session(ctx).AutoMigrate(&models.App{}, &models.AppUser{}, &models.AppRole{}, &models.User{}, &models.AppAuthCode{})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

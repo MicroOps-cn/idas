@@ -77,7 +77,7 @@ func (s SessionService) GetUserByOAuthAuthorizationCode(ctx context.Context, cod
 		level.Error(logger).Log("msg", "client id is not match", "err", err)
 		return nil, "", errors.BadRequestError
 	}
-	if users, err := s.GetLoginSession(ctx, []string{c.SessionId}); err != nil {
+	if users, err := s.GetLoginSession(ctx, c.SessionId); err != nil {
 		level.Error(logger).Log("msg", "failed to get session info", "err", err)
 		return nil, "", errors.BadRequestError
 	} else if len(users) < 0 {
@@ -104,18 +104,15 @@ func (s SessionService) AutoMigrate(ctx context.Context) error {
 	return nil
 }
 
-func (s SessionService) GetLoginSession(ctx context.Context, ids []string) (users []*models.User, err error) {
+func (s SessionService) GetLoginSession(ctx context.Context, id string) (users []*models.User, err error) {
 	redisClt := s.Redis(ctx)
-	for _, id := range ids {
-		user := new(models.User)
-		sessionValue, err := redisClt.Get(fmt.Sprintf("%s:%s", global.LoginSession, id)).Bytes()
-		if err != nil {
-			return nil, err
-		} else if err = json.Unmarshal(sessionValue, user); err != nil {
-			return nil, err
-		}
-		users = append(users, user)
+	sessionValue, err := redisClt.Get(fmt.Sprintf("%s:%s", global.LoginSession, id)).Bytes()
+	if err != nil {
+		return nil, err
+	} else if err = json.Unmarshal(sessionValue, &users); err != nil {
+		return nil, err
 	}
+
 	return users, nil
 }
 

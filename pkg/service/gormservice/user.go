@@ -9,6 +9,7 @@ import (
 	"idas/pkg/client/gorm"
 	"idas/pkg/logs"
 	"reflect"
+	"strings"
 	"time"
 
 	gogorm "gorm.io/gorm"
@@ -22,11 +23,18 @@ type UserAndAppService struct {
 	name string
 }
 
-func (s UserAndAppService) ResetPassword(ctx context.Context, id string, password string) error {
-	conn := s.Session(ctx)
-	u := models.User{Model: models.Model{Id: id}, Salt: uuid.NewV4().Bytes()}
-	u.Password = u.GenSecret(password)
-	return conn.Select("password", "salt").Updates(&u).Error
+func (s UserAndAppService) ResetPassword(ctx context.Context, ids string, password string) error {
+	conn := s.Session(ctx).Begin()
+	defer conn.Callback()
+	for _, id := range strings.Split(ids, ",") {
+		u := models.User{Model: models.Model{Id: id}, Salt: uuid.NewV4().Bytes()}
+		u.Password = u.GenSecret(password)
+		if err := conn.Select("password", "salt").Updates(&u).Error; err != nil {
+			return err
+		}
+	}
+
+	return conn.Commit().Error
 }
 
 func (s UserAndAppService) UpdateLoginTime(ctx context.Context, id string) error {
@@ -58,6 +66,7 @@ func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, 
 }
 
 func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (user *models.User, err error) {
+	user = new(models.User)
 	query := s.Session(ctx).Where("username = ? and email = ? and is_delete = 0", username, email)
 	if err = query.First(user).Error; err != nil {
 		return nil, err
