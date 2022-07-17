@@ -39,6 +39,13 @@ type Service interface {
 	DeleteSession(ctx context.Context, id string) (err error)
 
 	UploadFile(ctx context.Context, name, contentType string, f io.Reader) (fileKey string, err error)
+	DownloadFile(ctx context.Context, id string) (f io.ReadCloser, mimiType, fileName string, err error)
+
+	CreateRole(ctx context.Context, name, description string, permission []string) (role *models.Role, err error)
+	UpdateRole(ctx context.Context, id, name, description string, permission []string) (role *models.Role, err error)
+	GetRoles(ctx context.Context, keywords string, current int, pageSize int) (count int64, roles []*models.Role, err error)
+	GetPermissions(ctx context.Context, keywords string, current int, pageSize int) (count int64, permissions []*models.Permission, err error)
+	RemoveRoles(ctx context.Context, ids []string) error
 
 	GetUsers(ctx context.Context, storage string, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error)
 	PatchUsers(ctx context.Context, storage string, patch []map[string]interface{}) (count int64, err error)
@@ -62,7 +69,6 @@ type Service interface {
 	CreateApp(ctx context.Context, storage string, app *models.App) (*models.App, error)
 	PatchApp(ctx context.Context, storage string, fields map[string]interface{}) (app *models.App, err error)
 	DeleteApp(ctx context.Context, storage string, id string) (err error)
-	DownloadFile(ctx context.Context, id string) (f io.ReadCloser, mimiType, fileName string, err error)
 	ResetPassword(ctx context.Context, id string, storage string, password string) error
 
 	CreateToken(ctx context.Context, tokenType models.TokenType, data ...interface{}) (token *models.Token, err error)
@@ -75,6 +81,31 @@ type Set struct {
 	sessionService    SessionService
 	commonService     CommonService
 	smtpClient        *email.SmtpClient
+}
+
+func (s Set) CreateRole(ctx context.Context, name, description string, permission []string) (role *models.Role, err error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s Set) UpdateRole(ctx context.Context, id, name, description string, permission []string) (role *models.Role, err error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s Set) GetRoles(ctx context.Context, keywords string, current int, pageSize int) (count int64, roles []*models.Role, err error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s Set) GetPermissions(ctx context.Context, keywords string, current int, pageSize int) (count int64, permissions []*models.Permission, err error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s Set) RemoveRoles(ctx context.Context, ids []string) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (s Set) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (users []*models.User) {

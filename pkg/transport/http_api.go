@@ -123,7 +123,6 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Doc("批量删除用户").
 		Reads(endpoint.DeleteUsersRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.BaseTotalResponse{}),
 	)
 	v1ws.Route(v1ws.POST("").

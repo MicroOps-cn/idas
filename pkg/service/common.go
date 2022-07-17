@@ -6,6 +6,7 @@ import (
 	"github.com/go-kit/log"
 	"idas/pkg/global"
 	"idas/pkg/service/gormservice"
+	"idas/pkg/service/models"
 	"io"
 	"os"
 	"path"
@@ -22,6 +23,11 @@ type CommonService interface {
 	baseService
 	RecordUploadFile(ctx context.Context, name string, path string, contentType string, size int64) (id string, err error)
 	GetFileInfoFromId(ctx context.Context, id string) (fileName, mimiType, filePath string, err error)
+	CreateRole(ctx context.Context, role *models.Role) (err error)
+	UpdateRole(ctx context.Context, role *models.Role) (err error)
+	GetRoles(ctx context.Context, keywords string, current int, pageSize int) (count int64, roles []*models.Role, err error)
+	GetPermissions(ctx context.Context, keywords string, current int, pageSize int) (count int64, permissions []*models.Permission, err error)
+	RemoveRoles(ctx context.Context, ids []string) error
 }
 
 func NewCommonService(ctx context.Context) CommonService {

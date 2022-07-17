@@ -1,0 +1,71 @@
+syntax = "proto3";
+package idas.endpoint;
+import public "gogoproto/gogo.proto";
+import "v1/base.proto";
+import "types/models.proto";
+option go_package = "idas/pkg/endpoint;endpoint";
+
+
+message Permission{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string updateTime = 2[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
+  string createTime = 3[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
+  string name = 4[(gogoproto.customtype) = "string"];
+  string path = 5[(gogoproto.customtype) = "string"];
+  string parentId = 6[(gogoproto.customtype) = "string"];
+}
+
+message RoleInfo{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string updateTime = 2[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
+  string createTime = 3[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
+  string name = 4[(gogoproto.jsontag) = "name"];
+  string description = 5;
+  repeated Permission permission =6;
+}
+
+message GetRolesRequest{
+  idas.endpoint.BaseListRequest BaseListRequest = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+}
+
+message GetRoleResponse{
+  idas.endpoint.BaseListResponse BaseListResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated RoleInfo data = 2;
+}
+
+message CreateRoleRequest{
+  string name =1[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
+  string description = 2;
+  repeated string permission = 3;
+}
+
+message CreateRoleResponse{
+  idas.endpoint.BaseResponse BaseResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated RoleInfo data = 2;
+}
+
+
+message UpdateRoleRequest{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string name = 2[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
+  string description = 3;
+  repeated string permission = 4;
+}
+
+message UpdateRoleResponse{
+  idas.endpoint.BaseListResponse BaseListResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated RoleInfo data = 2;
+}
+
+message DeleteRoleRequest{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+}
+
+message GetPermissionsRequest{
+  idas.endpoint.BaseListRequest BaseListRequest = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+}
+
+message GetPermissionsResponse{
+  idas.endpoint.BaseListResponse BaseListResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated Permission data = 2;
+}
