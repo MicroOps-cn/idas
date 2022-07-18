@@ -154,7 +154,7 @@ func (l *Client) Session(ctx context.Context) ldap.Client {
 			return &NopCloser{Client: db}
 		default:
 			logger := logs.GetContextLogger(ctx)
-			level.Warn(logger).Log("msg", "未知的上下文属性(global.LDAPConnName)值", global.MySQLConnName, fmt.Sprintf("%#v", conn))
+			level.Warn(logger).Log("msg", "未知的上下文属性(global.LDAPConnName)值", global.LDAPConnName, fmt.Sprintf("%#v", conn))
 		}
 	}
 	s := &Session{ctx: ctx}

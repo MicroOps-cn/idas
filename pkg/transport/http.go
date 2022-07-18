@@ -55,7 +55,7 @@ func NewHTTPHandler(endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipk
 	m := restful.NewContainer()
 	options = append(options, httptransport.ServerBefore(opentracing.HTTPToContext(otTracer, "Concat", logger)))
 	restful.TraceLogger(stdlog.New(log.NewStdlibAdapter(level.Info(logger)), "[restful]", stdlog.LstdFlags|stdlog.Lshortfile))
-	m.Filter(HTTPLogging)
+	m.Filter(HTTPLoggingFilter)
 	var serviceGenerators = []func(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService){
 		UserService,
 		AppService,
@@ -63,6 +63,8 @@ func NewHTTPHandler(endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipk
 		SessionService,
 		OAuthService,
 		UserAuthService,
+		PermissionService,
+		RoleService,
 	}
 	var specTags []spec.Tag
 	for _, serviceGenerator := range serviceGenerators {

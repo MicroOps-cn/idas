@@ -139,7 +139,7 @@ func Run(ctx context.Context, logger log.Logger, stopCh *signals.StopChan) (err 
 	}
 	var (
 		svc         = service.New(ctx)
-		endpoints   = endpoint.New(svc, logger, duration, tracer, zipkinTracer)
+		endpoints   = endpoint.New(ctx, svc, duration, tracer, zipkinTracer)
 		httpHandler = transport.NewHTTPHandler(endpoints, tracer, zipkinTracer, openapiPath, logger)
 		httpServer  = http.NewServeMux()
 	)

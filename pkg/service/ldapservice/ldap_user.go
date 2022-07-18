@@ -74,7 +74,7 @@ func (s UserAndAppService) AutoMigrate(ctx context.Context) error {
 	return nil
 }
 
-func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error) {
+func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	filters := []string{s.Options().ParseUserSearchFilter()}
@@ -101,7 +101,7 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 	)
 	ret, err := conn.Search(req)
 	if err != nil {
-		return nil, 0, err
+		return 0, nil, err
 	}
 	total = int64(len(ret.Entries))
 	entrys := ret.Entries
@@ -371,6 +371,9 @@ func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*
 		"avatar":                             {user.Avatar},
 		"status":                             {strconv.Itoa(int(user.Status))},
 		"objectClass":                        {"idasCore", "inetOrgPerson", "organizationalPerson", "person", "top"},
+	}
+	if len(attrs["cn"]) == 0 || len(attrs["cn"][0]) == 0 {
+		attrs["cn"] = []string{user.Username}
 	}
 
 	if len(user.Password) > 0 {

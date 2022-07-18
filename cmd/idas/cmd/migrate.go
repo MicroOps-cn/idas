@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"context"
+	"idas/pkg/endpoint"
 
 	"github.com/spf13/cobra"
 
@@ -41,6 +42,9 @@ var migrateCmd = &cobra.Command{
 func Migrate(ctx context.Context, stopCh *signals.StopChan) {
 	svc := service.New(ctx)
 	if err := svc.AutoMigrate(ctx); err != nil {
+		panic(err)
+	}
+	if err := svc.RegisterPermission(ctx, endpoint.Set{}.GetPermissionsDefine()); err != nil {
 		panic(err)
 	}
 }

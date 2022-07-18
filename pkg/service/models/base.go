@@ -19,8 +19,7 @@ type Model struct {
 	IsDelete   bool      `json:"isDelete" gorm:"not null;default:0"`
 }
 
-func (model Model) GetId() string {
-
+func (model *Model) GetId() string {
 	return model.Id
 }
 

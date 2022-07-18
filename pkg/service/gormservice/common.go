@@ -21,7 +21,11 @@ func (c CommonService) Name() string {
 }
 
 func (c CommonService) AutoMigrate(ctx context.Context) error {
-	return c.Session(ctx).AutoMigrate(&models.File{})
+	err := c.Session(ctx).AutoMigrate(&models.File{}, &models.Permission{}, &models.Role{})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c CommonService) RecordUploadFile(ctx context.Context, name string, path string, contentType string, size int64) (id string, err error) {

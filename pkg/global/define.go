@@ -11,11 +11,11 @@ const (
 	CallerName                  = "caller"
 	RestfulRequestContextName   = "__restful_request__"
 	RestfulResponseContextName  = "__restful_response__"
+	MetaUser                    = "__user__"
 	MetaNeedLogin               = "__need_login__"
 	MetaAutoRedirectToLoginPage = "__auto_redirect_to_login_page__"
-	MySQLConnName               = "__mysql_conn__"
+	GormConnName                = "__mysql_conn__"
 	LDAPConnName                = "__ldap_conn__"
-	AttrUser                    = "__user__"
 	LoginSessionExpiration      = 7 * 24 * time.Hour
 	AuthCodeExpiration          = 5 * time.Minute
 	TokenExpiration             = 1 * time.Hour

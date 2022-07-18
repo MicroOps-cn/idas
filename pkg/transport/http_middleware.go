@@ -21,8 +21,9 @@ import (
 	"idas/pkg/logs"
 )
 
-func HTTPLoginAuthentication(endpoints endpoint.Set) restful.FilterFunction {
+func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, filterChan *restful.FilterChain) {
+
 		if req.SelectedRoute() == nil {
 			errorEncoder(req.Request.Context(), errors.NewServerError(http.StatusNotFound, "Not Found: "+req.Request.RequestURI), resp)
 			return
@@ -40,7 +41,7 @@ func HTTPLoginAuthentication(endpoints endpoint.Set) restful.FilterFunction {
 			if user, err := endpoints.GetLoginSession(req.Request.Context(), loginSessionID.Value); err == nil {
 				fmt.Println(user, err)
 				if len(user.([]*models.User)) >= 0 {
-					req.SetAttribute(global.AttrUser, user)
+					req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), global.MetaUser, user))
 					filterChan.ProcessFilter(req, resp)
 					return
 				}
@@ -68,7 +69,7 @@ func HTTPLoginAuthentication(endpoints endpoint.Set) restful.FilterFunction {
 
 		if user, err := endpoints.Authentication(req.Request.Context(), authReq); err == nil {
 			if len(user.([]*models.User)) >= 0 {
-				req.SetAttribute(global.AttrUser, user)
+				req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), global.MetaUser, user))
 				filterChan.ProcessFilter(req, resp)
 				return
 			}
@@ -83,7 +84,7 @@ func HTTPLoginAuthentication(endpoints endpoint.Set) restful.FilterFunction {
 	}
 }
 
-func HTTPLogging(req *restful.Request, resp *restful.Response, filterChan *restful.FilterChain) {
+func HTTPLoggingFilter(req *restful.Request, resp *restful.Response, filterChan *restful.FilterChain) {
 	ctx := req.Request.Context()
 	if ctx == nil {
 		ctx = context.Background()

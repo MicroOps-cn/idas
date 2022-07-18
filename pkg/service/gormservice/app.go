@@ -137,7 +137,7 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 				}
 			}
 			role.AppId = app.Id
-			if err := s.PatchAppRole(context.WithValue(ctx, global.MySQLConnName, tx), role); err != nil {
+			if err := s.PatchAppRole(context.WithValue(ctx, global.GormConnName, tx), role); err != nil {
 				return nil, err
 			}
 			roleIds = append(roleIds, role.Id)
@@ -159,7 +159,7 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name string) (app *models.App, err error) {
 	conn := s.Session(ctx)
 	app = new(models.App)
-	query := conn.Model(&models.User{})
+	query := conn.Model(&models.App{})
 	if len(id) != 0 && len(name) != 0 {
 		subQuery := query.Where("id = ?", id).Or("name = ?", name)
 		query = query.Where(subQuery)
@@ -170,7 +170,7 @@ func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name strin
 	} else {
 		return nil, errors.ParameterError("require id or name")
 	}
-	if err = conn.Where("id = ?", id).First(&app).Error; err != nil {
+	if err = query.First(&app).Error; err != nil {
 		return nil, err
 	}
 	//if err = conn.Model(&app).Association("User").Find(&app.User); err != nil {
@@ -190,7 +190,7 @@ func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name strin
 func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*models.App, error) {
 	tx := s.Session(ctx).Begin()
 	defer tx.Rollback()
-	if err := tx.Create(app).Error; err != nil {
+	if err := tx.Omit("User").Create(app).Error; err != nil {
 		return nil, err
 	}
 	if len(app.Role) > 0 {
@@ -202,7 +202,7 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 				}
 			}
 			role.AppId = app.Id
-			if err := s.PatchAppRole(context.WithValue(ctx, global.MySQLConnName, tx), role); err != nil {
+			if err := s.PatchAppRole(context.WithValue(ctx, global.GormConnName, tx), role); err != nil {
 				return nil, err
 			}
 			roleIds = append(roleIds, role.Id)
@@ -237,21 +237,21 @@ func (s UserAndAppService) DeleteApp(ctx context.Context, id string) (err error)
 	return err
 }
 
-func (s UserAndAppService) GetApps(ctx context.Context, keywords string, current int64, pageSize int64) (apps []*models.App, total int64, err error) {
+func (s UserAndAppService) GetApps(ctx context.Context, keywords string, current, pageSize int64) (total int64, apps []*models.App, err error) {
 	query := s.Session(ctx).Model(&models.App{})
 	if len(keywords) > 0 {
 		keywords = fmt.Sprintf("%%%s%%", keywords)
 		query = query.Where("name like ? or description like ?", keywords, keywords)
 	}
 	if err = query.Order("name,id").Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).Find(&apps).Error; err != nil {
-		return nil, 0, err
+		return 0, nil, err
 	} else if err = query.Count(&total).Error; err != nil {
-		return nil, 0, err
+		return 0, nil, err
 	} else {
 		for _, app := range apps {
 			app.Storage = s.name
 		}
-		return apps, total, nil
+		return total, apps, nil
 	}
 }
 

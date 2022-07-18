@@ -54,14 +54,14 @@ func (s SessionService) DeleteSession(ctx context.Context, id string) (err error
 	return
 }
 
-func (s SessionService) GetSessions(ctx context.Context, userId string, current int64, pageSize int64) (sessions []*models.Token, total int64, err error) {
+func (s SessionService) GetSessions(ctx context.Context, userId string, current, pageSize int64) (total int64, sessions []*models.Token, err error) {
 	query := s.Session(ctx).Where("relation_id = ?", userId)
 	if err = query.Order("last_seen").Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).Find(&sessions).Error; err != nil {
-		return nil, 0, err
+		return 0, nil, err
 	} else if err = query.Count(&total).Error; err != nil {
-		return nil, 0, err
+		return 0, nil, err
 	} else {
-		return sessions, total, nil
+		return total, sessions, nil
 	}
 }
 

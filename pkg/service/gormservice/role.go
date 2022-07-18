@@ -3,33 +3,51 @@ package gormservice
 import (
 	"context"
 	"fmt"
+	gogorm "gorm.io/gorm"
+	"idas/pkg/global"
 	"idas/pkg/service/models"
 )
 
-func (c *CommonService) CreateRole(ctx context.Context, role *models.Role) (err error) {
+func (c *CommonService) CreateRole(ctx context.Context, role *models.Role) (newRole *models.Role, err error) {
 	conn := c.Session(ctx)
 	tx := conn.Begin()
 	defer tx.Rollback()
 	if err = tx.Create(role).Error; err != nil {
-		return err
+		return nil, err
 	}
 	for _, permission := range role.Permission {
 		if err = tx.Model(role).Association("Permission").Append(permission); err != nil {
-			return fmt.Errorf("failed to insert permission relationship: %s", err)
+			return nil, fmt.Errorf("failed to insert permission relationship: %s", err)
 		}
 	}
-	return tx.Commit().Error
+	newRole = &models.Role{Model: models.Model{Id: role.Id}}
+	err = tx.First(newRole).Error
+	if err != nil {
+		return nil, err
+	} else if err = tx.Commit().Error; err != nil {
+		return nil, err
+	}
+
+	return newRole, nil
 }
 
-func (c *CommonService) UpdateRole(ctx context.Context, role *models.Role) (err error) {
+func (c *CommonService) UpdateRole(ctx context.Context, role *models.Role) (newRole *models.Role, err error) {
 	conn := c.Session(ctx)
 	tx := conn.Begin()
 	defer tx.Rollback()
 	if err = tx.Model(role).Association("Permission").Replace(role.Permission); err != nil {
-		return err
+		return nil, err
 	}
 
-	return tx.Commit().Error
+	newRole = &models.Role{Model: models.Model{Id: role.Id}}
+	err = tx.First(newRole).Error
+	if err != nil {
+		return nil, err
+	} else if err = tx.Commit().Error; err != nil {
+		return nil, err
+	}
+
+	return newRole, nil
 }
 
 const sqlGetRolesPermission = `
@@ -45,7 +63,7 @@ WHERE
     T1.role_id IN (?)
 `
 
-func (c *CommonService) GetRoles(ctx context.Context, keywords string, current int, pageSize int) (count int64, roles []*models.Role, err error) {
+func (c *CommonService) GetRoles(ctx context.Context, keywords string, current, pageSize int64) (count int64, roles []*models.Role, err error) {
 	conn := c.Session(ctx)
 	tb := conn.Model(&models.Role{})
 	if keywords != "" {
@@ -56,7 +74,7 @@ func (c *CommonService) GetRoles(ctx context.Context, keywords string, current i
 	} else if count == 0 {
 		return 0, nil, nil
 	}
-	if err = tb.Limit(pageSize).Offset((current - 1) * pageSize).Find(&roles).Error; err != nil {
+	if err = tb.Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).Find(&roles).Error; err != nil {
 		return 0, nil, err
 	}
 	var roleIds []interface{}
@@ -76,7 +94,7 @@ func (c *CommonService) GetRoles(ctx context.Context, keywords string, current i
 	}
 	return count, roles, nil
 }
-func (c CommonService) GetPermissions(ctx context.Context, keywords string, current int, pageSize int) (count int64, permissions []*models.Permission, err error) {
+func (c CommonService) GetPermissions(ctx context.Context, keywords string, current int64, pageSize int64) (count int64, permissions []*models.Permission, err error) {
 	conn := c.Session(ctx)
 	tb := conn.Model(&models.Permission{})
 	if keywords != "" {
@@ -90,10 +108,10 @@ func (c CommonService) GetPermissions(ctx context.Context, keywords string, curr
 	if pageSize == 0 {
 		pageSize = 1000
 	}
-	return count, permissions, tb.Limit(pageSize).Offset((current - 1) * pageSize).Find(&permissions).Error
+	return count, permissions, tb.Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).Find(&permissions).Error
 }
 
-func (c CommonService) RemoveRoles(ctx context.Context, ids []string) error {
+func (c CommonService) DeleteRoles(ctx context.Context, ids []string) error {
 	conn := c.Session(ctx)
 	tx := conn.Begin()
 	defer tx.Rollback()
@@ -104,4 +122,40 @@ func (c CommonService) RemoveRoles(ctx context.Context, ids []string) error {
 	}
 
 	return tx.Commit().Error
+}
+
+func (c CommonService) CreateOrUpdateRoleByName(ctx context.Context, role *models.Role) error {
+	conn := c.Session(ctx)
+	if err := conn.Omit("Permission").FirstOrCreate(&role).Error; err != nil {
+		return err
+	}
+	return conn.Model(role).Association("Permission").Replace(role.Permission)
+}
+func (c CommonService) RegisterPermission(ctx context.Context, permissions models.Permissions) error {
+	conn := c.Session(ctx)
+	for _, p := range permissions {
+		var op models.Permission
+		if err := conn.Where("name = ?", p.Name).First(&op).Error; err == gogorm.ErrRecordNotFound {
+			if err = conn.Create(p).Error; err != nil {
+				return err
+			}
+		} else if err != nil {
+			return err
+		} else {
+			p.Id = op.Id
+			if op.EnableAuth != p.EnableAuth || op.Description != p.Description || op.ParentId != p.ParentId {
+				if err = conn.Select("EnableAuth", "Description", "ParentId").Updates(p).Error; err != nil {
+					return err
+				}
+			}
+		}
+		for _, child := range p.Children {
+			child.ParentId = p.Id
+		}
+		if err := c.RegisterPermission(context.WithValue(ctx, global.GormConnName, conn), p.Children); err != nil {
+			return err
+		}
+		fmt.Println(p.Id)
+	}
+	return nil
 }

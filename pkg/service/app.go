@@ -31,15 +31,17 @@ func (s Set) SafeGetUserAndAppService(name string) UserAndAppService {
 	return nil
 }
 
-func (s Set) GetApps(ctx context.Context, storage string, keywords string, current int64, pageSize int64) (apps []*models.App, total int64, err error) {
+func (s Set) GetApps(ctx context.Context, storage string, keywords string, current, pageSize int64) (total int64, apps []*models.App, err error) {
 	return s.SafeGetUserAndAppService(storage).GetApps(ctx, keywords, current, pageSize)
 }
 
-func (s Set) GetAppSource(ctx context.Context) (data map[string]string, total int64, err error) {
-	data = map[string]string{}
+func (s Set) GetAppSource(ctx context.Context) (total int64, data map[string]string, err error) {
+	total = int64(len(s.userAndAppService))
+	data = make(map[string]string, total)
 	for _, appService := range s.userAndAppService {
 		data[appService.Name()] = appService.Name()
 	}
+
 	return
 }
 

@@ -74,7 +74,7 @@ func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, us
 	return user, nil
 }
 
-func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error) {
+func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error) {
 	query := s.Session(ctx).Where("t_user.is_delete = 0")
 	if len(keywords) > 0 {
 		keywords = fmt.Sprintf("%%%s%%", keywords)
@@ -94,14 +94,14 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 		query = query.Where("status", status)
 	}
 	if err = query.Order("username,id").Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).Find(&users).Error; err != nil {
-		return nil, 0, err
+		return 0, nil, err
 	} else if err = query.Count(&total).Error; err != nil {
-		return nil, 0, err
+		return 0, nil, err
 	} else {
 		for _, user := range users {
 			user.Storage = s.name
 		}
-		return users, total, nil
+		return total, users, nil
 	}
 }
 

@@ -67,7 +67,7 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 		if len(req.ClientId) == 0 {
 			return nil, errors.ParameterError("client_id")
 		}
-		users, ok := request.(RestfulRequester).GetRestfulRequest().Attribute(global.AttrUser).([]*models.User)
+		users, ok := ctx.Value(global.MetaUser).([]*models.User)
 		if !ok || len(users) == 0 {
 			level.Warn(logger).Log("msg", "failed to get user from context")
 			resp.Error = errors.NotLoginError

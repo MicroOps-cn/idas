@@ -2,7 +2,7 @@ package models
 
 type App struct {
 	Model
-	Name        string            `gorm:"type:varchar(50);not null" json:"name"`
+	Name        string            `gorm:"type:varchar(50);not null;unique" json:"name"`
 	Description string            `gorm:"type:varchar(200);" json:"description"`
 	Avatar      string            `gorm:"type:varchar(128)" json:"avatar"`
 	GrantType   AppMeta_GrantType `gorm:"type:TINYINT(3);not null;default:0"  json:"grantType"`

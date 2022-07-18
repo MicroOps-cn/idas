@@ -99,7 +99,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "users", Description: "Managing users"}}
 	tags := []string{tag.Name}
 	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
-	v1ws.Filter(HTTPLoginAuthentication(endpoints))
+	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
 		To(NewKitHTTPServer[endpoint.GetUsersRequest](endpoints.GetUsers, options)).
@@ -201,7 +201,7 @@ func AppService(options []httptransport.ServerOption, endpoints endpoint.Set) (s
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "apps", Description: "Application manager"}}
 	tags := []string{tag.Name}
 	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
-	v1ws.Filter(HTTPLoginAuthentication(endpoints))
+	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
 		To(NewKitHTTPServer[endpoint.GetAppsRequest](endpoints.GetApps, options)).
@@ -285,7 +285,7 @@ func FileService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "files", Description: "Managing files"}}
 	tags := []string{tag.Name}
 	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
-	v1ws.Filter(HTTPLoginAuthentication(endpoints))
+	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.POST("").
 		To(NewKitHTTPServer[struct{}](endpoints.UploadFile, options)).
@@ -311,7 +311,7 @@ func SessionService(options []httptransport.ServerOption, endpoints endpoint.Set
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "sessions", Description: "Managing sessions"}}
 	tags := []string{tag.Name}
 	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
-	v1ws.Filter(HTTPLoginAuthentication(endpoints))
+	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
 		To(NewKitHTTPServer[endpoint.GetSessionsRequest](endpoints.GetSessions, options)).
@@ -336,7 +336,7 @@ func OAuthService(options []httptransport.ServerOption, endpoints endpoint.Set) 
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "oauth", Description: "OAuth2.0 Support"}}
 	tags := []string{tag.Name}
 	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
-	v1ws.Filter(HTTPLoginAuthentication(endpoints))
+	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	// https://www.ruanyifeng.com/blog/2019/04/oauth-grant-types.html
 	v1ws.Route(v1ws.POST("/token").
@@ -375,7 +375,7 @@ func UserAuthService(options []httptransport.ServerOption, endpoints endpoint.Se
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "user", Description: "user login service"}}
 	tags := []string{tag.Name}
 	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
-	v1ws.Filter(HTTPLoginAuthentication(endpoints))
+	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.POST("/login").
 		To(NewKitHTTPServer[endpoint.UserLoginRequest](endpoints.UserLogin, options)).
@@ -401,5 +401,70 @@ func UserAuthService(options []httptransport.ServerOption, endpoints endpoint.Se
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.GetUserResponse{}),
 	)
+	return tag, []*restful.WebService{v1ws}
+}
+func PermissionService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
+	tag := spec.Tag{TagProps: spec.TagProps{Name: "permissions", Description: "permissions service"}}
+	tags := []string{tag.Name}
+	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
+
+	v1ws.Route(v1ws.GET("").
+		To(NewKitHTTPServer[endpoint.GetPermissionsRequest](endpoints.GetPermissions, options)).
+		Operation("getPermissions").
+		Doc("获取权限列表").
+		Params(StructToQueryParams(endpoint.GetPermissionsRequest{})...).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.GetPermissionsResponse{}),
+	)
+	return tag, []*restful.WebService{v1ws}
+}
+func RoleService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
+	tag := spec.Tag{TagProps: spec.TagProps{Name: "roles", Description: "role service"}}
+	tags := []string{tag.Name}
+	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
+
+	v1ws.Route(v1ws.GET("").
+		To(NewKitHTTPServer[endpoint.GetRolesRequest](endpoints.GetRoles, options)).
+		Operation("getRoles").
+		Doc("获取角色列表").
+		Params(StructToQueryParams(endpoint.GetRolesRequest{})...).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.GetRolesResponse{}),
+	)
+	v1ws.Route(v1ws.DELETE("").
+		To(NewKitHTTPServer[endpoint.DeleteRolesRequest](endpoints.DeleteRoles, options)).
+		Operation("deleteRoles").
+		Doc("批量删除角色").
+		Reads(endpoint.DeleteRolesRequest{}).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseTotalResponse{}),
+	)
+	v1ws.Route(v1ws.POST("").
+		To(NewKitHTTPServer[endpoint.CreateRoleRequest](endpoints.CreateRole, options)).
+		Operation("createRole").
+		Doc("创建角色").
+		Reads(endpoint.CreateRoleRequest{}).
+		Metadata(restfulspec.KeyOpenAPITags, tags),
+	)
+	v1ws.Route(v1ws.PUT("/{id}").
+		To(NewKitHTTPServer[endpoint.UpdateRoleRequest](endpoints.UpdateRole, options)).
+		Operation("updateRole").
+		Doc("更新角色信息（全量）").
+		Param(v1ws.PathParameter("id", "identifier of the role").DataType("string")).
+		Reads(endpoint.UpdateRoleRequest{}).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseResponse{}),
+	)
+	v1ws.Route(v1ws.DELETE("/{id}").
+		To(NewKitHTTPServer[endpoint.DeleteRoleRequest](endpoints.DeleteRole, options)).
+		Operation("deleteRole").
+		Doc("删除角色").
+		Param(v1ws.PathParameter("id", "identifier of the role").DataType("string")).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseResponse{}),
+	)
+
 	return tag, []*restful.WebService{v1ws}
 }

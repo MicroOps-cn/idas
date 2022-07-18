@@ -16,15 +16,16 @@ func (s Set) UserServiceDo(name string, f func(service UserAndAppService)) error
 	return nil
 }
 
-func (s Set) GetUserSource(_ context.Context) (data map[string]string, total int64, err error) {
+func (s Set) GetUserSource(_ context.Context) (total int64, data map[string]string, err error) {
 	data = map[string]string{}
 	for _, userService := range s.userAndAppService {
 		data[userService.Name()] = userService.Name()
 	}
+
 	return
 }
 
-func (s Set) GetUsers(ctx context.Context, storage string, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error) {
+func (s Set) GetUsers(ctx context.Context, storage string, keywords string, status models.UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error) {
 	return s.SafeGetUserAndAppService(storage).GetUsers(ctx, keywords, status, appId, current, pageSize)
 }
 
@@ -101,11 +102,11 @@ func (s Set) VerifyPassword(ctx context.Context, username string, password strin
 	return users, nil
 }
 
-func (s Set) Authentication(ctx context.Context, method models.Auth_AuthMethod, algorithm models.AuthAlgorithm, key, secret string) ([]*models.User, error) {
+func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm models.AuthAlgorithm, key, secret string) ([]*models.User, error) {
 	switch method {
-	case models.Auth_basic:
+	case models.AuthMeta_basic:
 		return s.VerifyPassword(ctx, key, secret)
-	case models.Auth_signature:
+	case models.AuthMeta_signature:
 
 	default:
 		return nil, errors.ParameterError("unknown auth method")

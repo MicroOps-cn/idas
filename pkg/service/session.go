@@ -41,7 +41,7 @@ type SessionService interface {
 	DeleteLoginSession(ctx context.Context, session string) error
 	GetLoginSession(ctx context.Context, sessionIds string) ([]*models.User, error)
 
-	GetSessions(ctx context.Context, userId string, current int64, size int64) ([]*models.Token, int64, error)
+	GetSessions(ctx context.Context, userId string, current int64, size int64) (int64, []*models.Token, error)
 	DeleteSession(ctx context.Context, id string) (err error)
 
 	CreateOAuthAuthCode(ctx context.Context, appId, sessionId, scope, storage string) (code string, err error)
@@ -102,7 +102,7 @@ func (s Set) RefreshOAuthTokenByPassword(ctx context.Context, token, username, p
 	return s.sessionService.RefreshOAuthTokenByPassword(ctx, token, username, password)
 }
 
-func (s Set) GetSessions(ctx context.Context, userId string, current, size int64) ([]*models.Token, int64, error) {
+func (s Set) GetSessions(ctx context.Context, userId string, current, size int64) (int64, []*models.Token, error) {
 	return s.sessionService.GetSessions(ctx, userId, current, size)
 }
 

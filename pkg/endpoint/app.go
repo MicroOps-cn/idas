@@ -13,7 +13,7 @@ func MakeGetAppsEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*GetAppsRequest)
 		resp := NewBaseListResponse[[]*models.App](&req.BaseListRequest)
-		resp.Data, resp.Total, resp.BaseResponse.Error = s.GetApps(ctx, req.Storage, req.Keywords, req.Current, req.PageSize)
+		resp.Total, resp.Data, resp.BaseResponse.Error = s.GetApps(ctx, req.Storage, req.Keywords, req.Current, req.PageSize)
 		return &resp, nil
 	}
 }
@@ -21,7 +21,7 @@ func MakeGetAppsEndpoint(s service.Service) endpoint.Endpoint {
 func MakeGetAppSourceRequestEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		resp := TotalResponseWrapper[map[string]string]{}
-		resp.Data, resp.Total, resp.Error = s.GetAppSource(ctx)
+		resp.Total, resp.Data, resp.Error = s.GetAppSource(ctx)
 		return &resp, nil
 	}
 }

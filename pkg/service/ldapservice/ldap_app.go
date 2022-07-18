@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-func (s UserAndAppService) GetApps(ctx context.Context, keywords string, current int64, pageSize int64) (apps []*models.App, total int64, err error) {
+func (s UserAndAppService) GetApps(ctx context.Context, keywords string, current, pageSize int64) (total int64, apps []*models.App, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	filters := []string{fmt.Sprintf(s.Options().ParseGroupSearchFilter())}
@@ -38,7 +38,7 @@ func (s UserAndAppService) GetApps(ctx context.Context, keywords string, current
 	)
 	ret, err := conn.Search(req)
 	if err != nil {
-		return nil, 0, err
+		return 0, nil, err
 	}
 	total = int64(len(ret.Entries))
 	entrys := ret.Entries
@@ -90,6 +90,92 @@ func (s UserAndAppService) getAppDnByEntryUUID(ctx context.Context, id string) (
 		dn = result.Entries[0].DN
 	}
 	return dn, nil
+}
+
+func (s UserAndAppService) getAppInfoByDn(ctx context.Context, dn string) (*models.App, error) {
+	conn := s.Session(ctx)
+	searchReq := goldap.NewSearchRequest(
+		dn, goldap.ScopeBaseObject, goldap.NeverDerefAliases, 1, 0, false,
+		"(objectClass=*)", nil, nil,
+	)
+	return s.getAppInfoByReq(context.WithValue(ctx, global.LDAPConnName, conn), searchReq)
+}
+
+func (s UserAndAppService) getAppInfoByReq(ctx context.Context, searchReq *goldap.SearchRequest) (*models.App, error) {
+	conn := s.Session(ctx)
+	searchReq.Attributes = []string{"entryUUID", "description", "cn", "avatar", "uniqueMember", "createTimestamp", "modifyTimestamp", "grantMode", "grantType", GroupStatusName}
+
+	ret, err := conn.Search(searchReq)
+	if err != nil {
+		return nil, err
+	}
+	if len(ret.Entries) == 0 {
+		return nil, errors.StatusNotFound("user")
+	}
+	appEntry := ret.Entries[0]
+	var users []*models.User
+	var userMap map[string]*models.User
+	var roles []*models.AppRole
+
+	member := appEntry.GetAttributeValues("uniqueMember")
+	if len(member) > 0 {
+		userMap = make(map[string]*models.User, len(member))
+		users = make([]*models.User, len(member))
+		for idx, userDn := range member {
+			userInfo, err := s.getUserInfoByDn(ctx, userDn)
+			if err != nil {
+				return nil, err
+			}
+			userMap[userDn] = userInfo
+			users[idx] = userInfo
+		}
+		searchMemberReq := goldap.NewSearchRequest(
+			appEntry.DN,
+			goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 0, 0, false,
+			"(objectClass=idasRoleGroup)",
+			[]string{"entryUUID", "member", "cn", "isDefault"},
+			nil,
+		)
+		searchMemberRet, err := conn.Search(searchMemberReq)
+		if err != nil {
+			if ldap.IsLdapError(err, goldap.LDAPResultNoSuchObject) {
+				return nil, err
+			}
+		} else {
+			roles = make([]*models.AppRole, len(searchMemberRet.Entries))
+			for idx, entry := range searchMemberRet.Entries {
+				var roleName = entry.GetAttributeValue("cn")
+				roles[idx] = &models.AppRole{Model: models.Model{Id: entry.GetAttributeValue("entryUUID")}, Name: roleName}
+				if strings.ToLower(entry.GetAttributeValue("isDefault")) == "true" {
+					roles[idx].IsDefault = true
+				}
+				for _, m := range entry.GetAttributeValues("member") {
+					for userDn, user := range userMap {
+						if userDn == m {
+							user.Role = models.UserRole(roleName)
+							user.RoleId = entry.GetAttributeValue("entryUUID")
+						}
+					}
+				}
+			}
+		}
+	}
+	return &models.App{
+		Model: models.Model{
+			Id:         appEntry.GetAttributeValue("entryUUID"),
+			CreateTime: wrapper.Must[time.Time](time.Parse("20060102150405Z", appEntry.GetAttributeValue("createTimestamp"))),
+			UpdateTime: wrapper.Must[time.Time](time.Parse("20060102150405Z", appEntry.GetAttributeValue("modifyTimestamp"))),
+		},
+		Name:        appEntry.GetAttributeValue("cn"),
+		Description: appEntry.GetAttributeValue("description"),
+		Avatar:      appEntry.GetAttributeValue("avatar"),
+		Status:      models.AppMeta_Status(wrapper.Must[int](httputil.NewValue(appEntry.GetAttributeValue(GroupStatusName)).Default("0").Int())),
+		GrantMode:   models.AppMeta_GrantMode(wrapper.Must[int](httputil.NewValue(appEntry.GetAttributeValue("grantMode")).Default("0").Int())),
+		GrantType:   models.AppMeta_GrantType(models.AppMeta_GrantType_value[appEntry.GetAttributeValue("grantType")]),
+		Storage:     s.name,
+		Role:        roles,
+		User:        users,
+	}, nil
 }
 
 func (s UserAndAppService) PatchApps(ctx context.Context, patch []map[string]interface{}) (total int64, err error) {
@@ -212,6 +298,7 @@ func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name strin
 	conn := s.Session(ctx)
 	defer conn.Close()
 	if len(id) == 0 && len(name) == 0 {
+		panic("13")
 		return nil, errors.ParameterError("require id or appname")
 	}
 
@@ -336,6 +423,7 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 			return nil, err
 		}
 	}
+
 	var attrs = map[string][]string{
 		"description":  {app.Description},
 		"avatar":       {app.Avatar},
@@ -345,6 +433,11 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 		"objectClass":  {"groupOfUniqueNames", "idasApp", "idasCore", "top"},
 		"uniqueMember": member,
 	}
+
+	if len(app.Id) > 0 {
+		attrs["entryUUID"] = []string{app.Id}
+	}
+
 	for name, value := range attrs {
 		if len(value) > 0 && len(value[0]) > 0 {
 			req.Attribute(name, value)
@@ -367,8 +460,7 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 			}
 		}
 	}
-
-	newAppInfo, err := s.GetAppInfo(context.WithValue(ctx, global.LDAPConnName, conn), app.Id, "")
+	newAppInfo, err := s.getAppInfoByDn(context.WithValue(ctx, global.LDAPConnName, conn), dn)
 	if err != nil {
 		return nil, errors.NewServerError(http.StatusInternalServerError, "Internal Server Error. It may have been created successfully, but the query result failed: "+err.Error())
 	} else if newAppInfo == nil {

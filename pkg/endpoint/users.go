@@ -15,7 +15,7 @@ import (
 func MakeCurrentUserEndpoint(_ service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		resp := SimpleResponseWrapper[interface{}]{}
-		if users, ok := request.(RestfulRequester).GetRestfulRequest().Attribute(global.AttrUser).([]*models.User); ok && len(users) > 0 {
+		if users, ok := ctx.Value(global.MetaUser).([]*models.User); ok && len(users) > 0 {
 			resp.Data = users
 			for _, user := range users {
 				return user, nil
@@ -76,7 +76,7 @@ func MakeGetUsersEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*GetUsersRequest)
 		resp := NewBaseListResponse[[]*models.User](&req.BaseListRequest)
-		resp.Data, resp.Total, resp.Error = s.GetUsers(
+		resp.Total, resp.Data, resp.Error = s.GetUsers(
 			ctx, req.Storage, req.Keywords,
 			models.UserStatus(req.Status),
 			req.App, req.Current, req.PageSize,
@@ -88,7 +88,7 @@ func MakeGetUsersEndpoint(s service.Service) endpoint.Endpoint {
 func MakeGetUserSourceRequestEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		resp := TotalResponseWrapper[map[string]string]{}
-		resp.Data, resp.Total, resp.BaseResponse.Error = s.GetUserSource(ctx)
+		resp.Total, resp.Data, resp.BaseResponse.Error = s.GetUserSource(ctx)
 		return &resp, nil
 	}
 }

@@ -6,7 +6,7 @@ import "types/models.proto";
 option go_package = "idas/pkg/endpoint;endpoint";
 
 
-message Permission{
+message PermissionInfo{
   string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
   string updateTime = 2[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
   string createTime = 3[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
@@ -21,14 +21,14 @@ message RoleInfo{
   string createTime = 3[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
   string name = 4[(gogoproto.jsontag) = "name"];
   string description = 5;
-  repeated Permission permission =6;
+  repeated PermissionInfo permission =6;
 }
 
 message GetRolesRequest{
   idas.endpoint.BaseListRequest BaseListRequest = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
 }
 
-message GetRoleResponse{
+message GetRolesResponse{
   idas.endpoint.BaseListResponse BaseListResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
   repeated RoleInfo data = 2;
 }
@@ -67,5 +67,5 @@ message GetPermissionsRequest{
 
 message GetPermissionsResponse{
   idas.endpoint.BaseListResponse BaseListResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
-  repeated Permission data = 2;
+  repeated PermissionInfo data = 2;
 }

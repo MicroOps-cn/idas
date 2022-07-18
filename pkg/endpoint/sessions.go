@@ -62,7 +62,6 @@ func MakeGetLoginSessionEndpoint(s service.Service) endpoint.Endpoint {
 		var resp []*models.User
 		if len(sessionId) > 0 {
 			if resp, err = s.GetLoginSession(ctx, sessionId); err != nil {
-				fmt.Println(err)
 				err = errors.NotLoginError
 			}
 		} else {
@@ -76,7 +75,7 @@ func MakeGetSessionsEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*GetSessionsRequest)
 		resp := NewBaseListResponse[[]*models.Token](&req.BaseListRequest)
-		resp.Data, resp.Total, resp.BaseResponse.Error = s.GetSessions(ctx, req.UserId, req.Current, req.PageSize)
+		resp.Total, resp.Data, resp.BaseResponse.Error = s.GetSessions(ctx, req.UserId, req.Current, req.PageSize)
 		return &resp, nil
 	}
 }

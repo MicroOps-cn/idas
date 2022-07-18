@@ -35,19 +35,19 @@ type Service interface {
 	RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error)
 	GetOAuthTokenByPassword(ctx context.Context, username string, password string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByPassword(ctx context.Context, token, username, password string) (accessToken, refreshToken string, expiresIn int, err error)
-	GetSessions(ctx context.Context, userId string, current int64, size int64) ([]*models.Token, int64, error)
+	GetSessions(ctx context.Context, userId string, current int64, size int64) (int64, []*models.Token, error)
 	DeleteSession(ctx context.Context, id string) (err error)
 
 	UploadFile(ctx context.Context, name, contentType string, f io.Reader) (fileKey string, err error)
 	DownloadFile(ctx context.Context, id string) (f io.ReadCloser, mimiType, fileName string, err error)
 
-	CreateRole(ctx context.Context, name, description string, permission []string) (role *models.Role, err error)
-	UpdateRole(ctx context.Context, id, name, description string, permission []string) (role *models.Role, err error)
-	GetRoles(ctx context.Context, keywords string, current int, pageSize int) (count int64, roles []*models.Role, err error)
-	GetPermissions(ctx context.Context, keywords string, current int, pageSize int) (count int64, permissions []*models.Permission, err error)
-	RemoveRoles(ctx context.Context, ids []string) error
+	CreateRole(ctx context.Context, role *models.Role) (newRole *models.Role, err error)
+	UpdateRole(ctx context.Context, role *models.Role) (newRole *models.Role, err error)
+	GetRoles(ctx context.Context, keywords string, current, pageSize int64) (count int64, roles []*models.Role, err error)
+	GetPermissions(ctx context.Context, keywords string, current int64, pageSize int64) (count int64, permissions []*models.Permission, err error)
+	DeleteRoles(ctx context.Context, ids []string) error
 
-	GetUsers(ctx context.Context, storage string, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error)
+	GetUsers(ctx context.Context, storage string, keywords string, status models.UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error)
 	PatchUsers(ctx context.Context, storage string, patch []map[string]interface{}) (count int64, err error)
 	DeleteUsers(ctx context.Context, storage string, id []string) (count int64, err error)
 	UpdateUser(ctx context.Context, storage string, user *models.User, updateColumns ...string) (*models.User, error)
@@ -57,11 +57,11 @@ type Service interface {
 	PatchUser(ctx context.Context, storage string, user map[string]interface{}) (*models.User, error)
 	DeleteUser(ctx context.Context, storage string, id string) error
 	CreateLoginSession(ctx context.Context, username string, password string, rememberMe bool) (string, error)
-	GetUserSource(ctx context.Context) (data map[string]string, total int64, err error)
-	Authentication(ctx context.Context, method models.Auth_AuthMethod, algorithm models.AuthAlgorithm, key, secret string) ([]*models.User, error)
+	GetUserSource(ctx context.Context) (total int64, data map[string]string, err error)
+	Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm models.AuthAlgorithm, key, secret string) ([]*models.User, error)
 
-	GetApps(ctx context.Context, storage string, keywords string, current int64, pageSize int64) (apps []*models.App, total int64, err error)
-	GetAppSource(ctx context.Context) (data map[string]string, total int64, err error)
+	GetApps(ctx context.Context, storage string, keywords string, current, pageSize int64) (total int64, apps []*models.App, err error)
+	GetAppSource(ctx context.Context) (total int64, data map[string]string, err error)
 	PatchApps(ctx context.Context, storage string, patch []map[string]interface{}) (total int64, err error)
 	DeleteApps(ctx context.Context, storage string, id []string) (total int64, err error)
 	UpdateApp(ctx context.Context, storage string, app *models.App, updateColumns ...string) (*models.App, error)
@@ -74,6 +74,8 @@ type Service interface {
 	CreateToken(ctx context.Context, tokenType models.TokenType, data ...interface{}) (token *models.Token, err error)
 	VerifyToken(ctx context.Context, token string, relationId string, tokenType models.TokenType) bool
 	SendResetPasswordLink(ctx context.Context, users []*models.User, token *models.Token) error
+	Authorization(ctx context.Context, users []*models.User, method string) bool
+	RegisterPermission(ctx context.Context, permissions models.Permissions) error
 }
 
 type Set struct {
@@ -81,31 +83,6 @@ type Set struct {
 	sessionService    SessionService
 	commonService     CommonService
 	smtpClient        *email.SmtpClient
-}
-
-func (s Set) CreateRole(ctx context.Context, name, description string, permission []string) (role *models.Role, err error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s Set) UpdateRole(ctx context.Context, id, name, description string, permission []string) (role *models.Role, err error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s Set) GetRoles(ctx context.Context, keywords string, current int, pageSize int) (count int64, roles []*models.Role, err error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s Set) GetPermissions(ctx context.Context, keywords string, current int, pageSize int) (count int64, permissions []*models.Permission, err error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (s Set) RemoveRoles(ctx context.Context, ids []string) error {
-	//TODO implement me
-	panic("implement me")
 }
 
 func (s Set) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (users []*models.User) {
@@ -169,7 +146,7 @@ func (s Set) VerifyToken(ctx context.Context, token, relationId string, tokenTyp
 	return s.sessionService.VerifyToken(ctx, token, relationId, tokenType)
 }
 
-const idasAppId = "9919a15a-cfb4-4116-b866-3b8ea81b5446"
+const idasAppName = "IDAS"
 
 func (s Set) InitData(ctx context.Context) error {
 	for _, svc := range s.userAndAppService {
@@ -186,21 +163,20 @@ func (s Set) InitData(ctx context.Context) error {
 		} else if err != nil {
 			return err
 		}
-		idasApp, err := svc.GetAppInfo(ctx, idasAppId, "")
+		idasApp, err := svc.GetAppInfo(ctx, "", idasAppName)
 		if errors.IsNotFount(err) {
 			idasApp = &models.App{
-				Model:       models.Model{Id: idasAppId},
-				Name:        "IDAS",
+				Name:        idasAppName,
 				Description: "Identity authentication service. It is bound to the current service. Please do not delete it at will.",
 				GrantMode:   models.AppMeta_manual,
-				Role: []*models.AppRole{{
+				Role: models.AppRoles{{
 					Name: "admin",
 				}, {
 					Name: "viewer",
 				}},
 				User: []*models.User{{
 					Model:  models.Model{Id: adminUser.Id},
-					RoleId: idasApp.Role.GetRole("admin").GetId(),
+					RoleId: "admin",
 				}},
 			}
 			if idasApp, err = svc.CreateApp(ctx, idasApp); err != nil {
@@ -209,7 +185,22 @@ func (s Set) InitData(ctx context.Context) error {
 		} else if err != nil {
 			return fmt.Errorf("failed to initialize application data：%s", err)
 		}
+		if len(idasApp.Role) == 0 {
+			if len(idasApp.Role) == 0 {
+				idasApp.Role = models.AppRoles{{
+					Name: "admin",
+				}, {
+					Name: "viewer",
+				}}
+			}
+			if _, err = svc.UpdateApp(ctx, idasApp); err != nil {
+				return err
+			}
+		}
+		fmt.Println(svc.Name())
+		fmt.Println(idasApp.Role)
 		if len(idasApp.User) == 0 {
+
 			idasApp.User = []*models.User{{
 				Model:  models.Model{Id: adminUser.Id},
 				RoleId: idasApp.Role.GetRole("admin").GetId(),
@@ -249,7 +240,7 @@ type UserAndAppService interface {
 	baseService
 
 	Name() string
-	GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current int64, pageSize int64) (users []*models.User, total int64, err error)
+	GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error)
 	PatchUsers(ctx context.Context, patch []map[string]interface{}) (count int64, err error)
 	DeleteUsers(ctx context.Context, id []string) (count int64, err error)
 	UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (*models.User, error)
@@ -260,7 +251,7 @@ type UserAndAppService interface {
 	DeleteUser(ctx context.Context, id string) error
 	VerifyPassword(ctx context.Context, username string, password string) []*models.User
 
-	GetApps(ctx context.Context, keywords string, current int64, pageSize int64) (apps []*models.App, total int64, err error)
+	GetApps(ctx context.Context, keywords string, current, pageSize int64) (total int64, apps []*models.App, err error)
 	PatchApps(ctx context.Context, patch []map[string]interface{}) (total int64, err error)
 	DeleteApps(ctx context.Context, id []string) (total int64, err error)
 	UpdateApp(ctx context.Context, app *models.App, updateColumns ...string) (*models.App, error)

@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"context"
+	"idas/pkg/endpoint"
 
 	"github.com/spf13/cobra"
 
@@ -28,7 +29,7 @@ import (
 
 // migrateCmd represents the migrate command
 var initDataCmd = &cobra.Command{
-	Use:   "migrate",
+	Use:   "init",
 	Short: "Data initialization tool",
 	Long:  `The data initialization tool will create a table with missing columns and indexes. And create the required user and application data.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -40,9 +41,12 @@ var initDataCmd = &cobra.Command{
 
 func InitData(ctx context.Context, stopCh *signals.StopChan) {
 	svc := service.New(ctx)
-	//if err := svc.AutoMigrate(ctx); err != nil {
-	//	panic(err)
-	//}
+	if err := svc.AutoMigrate(ctx); err != nil {
+		panic(err)
+	}
+	if err := svc.RegisterPermission(ctx, endpoint.Set{}.GetPermissionsDefine()); err != nil {
+		panic(err)
+	}
 	if err := svc.InitData(ctx); err != nil {
 		panic(err)
 	}

@@ -23,11 +23,13 @@ type CommonService interface {
 	baseService
 	RecordUploadFile(ctx context.Context, name string, path string, contentType string, size int64) (id string, err error)
 	GetFileInfoFromId(ctx context.Context, id string) (fileName, mimiType, filePath string, err error)
-	CreateRole(ctx context.Context, role *models.Role) (err error)
-	UpdateRole(ctx context.Context, role *models.Role) (err error)
-	GetRoles(ctx context.Context, keywords string, current int, pageSize int) (count int64, roles []*models.Role, err error)
-	GetPermissions(ctx context.Context, keywords string, current int, pageSize int) (count int64, permissions []*models.Permission, err error)
-	RemoveRoles(ctx context.Context, ids []string) error
+	CreateRole(ctx context.Context, role *models.Role) (newRole *models.Role, err error)
+	UpdateRole(ctx context.Context, role *models.Role) (newRole *models.Role, err error)
+	GetRoles(ctx context.Context, keywords string, current, pageSize int64) (count int64, roles []*models.Role, err error)
+	GetPermissions(ctx context.Context, keywords string, current int64, pageSize int64) (count int64, permissions []*models.Permission, err error)
+	DeleteRoles(ctx context.Context, ids []string) error
+	RegisterPermission(ctx context.Context, permissions models.Permissions) error
+	CreateOrUpdateRoleByName(ctx context.Context, role *models.Role) error
 }
 
 func NewCommonService(ctx context.Context) CommonService {
@@ -94,4 +96,42 @@ func (s Set) DownloadFile(ctx context.Context, id string) (f io.ReadCloser, mimi
 		return nil, "", "", errors.InternalServerError
 	}
 	return f, mimiType, fileName, nil
+}
+
+func (s Set) CreateRole(ctx context.Context, role *models.Role) (newRole *models.Role, err error) {
+	return s.commonService.CreateRole(ctx, role)
+}
+
+func (s Set) UpdateRole(ctx context.Context, role *models.Role) (newRole *models.Role, err error) {
+	return s.commonService.UpdateRole(ctx, role)
+}
+
+func (s Set) GetRoles(ctx context.Context, keywords string, current, pageSize int64) (count int64, roles []*models.Role, err error) {
+	return s.commonService.GetRoles(ctx, keywords, current, pageSize)
+}
+
+func (s Set) GetPermissions(ctx context.Context, keywords string, current int64, pageSize int64) (count int64, permissions []*models.Permission, err error) {
+	return s.commonService.GetPermissions(ctx, keywords, current, pageSize)
+}
+
+func (s Set) DeleteRoles(ctx context.Context, ids []string) error {
+	return s.commonService.DeleteRoles(ctx, ids)
+}
+
+func (s Set) Authorization(ctx context.Context, users []*models.User, method string) bool {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s Set) RegisterPermission(ctx context.Context, permissions models.Permissions) error {
+	err := s.commonService.RegisterPermission(ctx, permissions)
+	if err != nil {
+		return err
+	}
+	for _, role := range permissions.GetRoles() {
+		if err = s.commonService.CreateOrUpdateRoleByName(ctx, role); err != nil {
+			return err
+		}
+	}
+	return nil
 }

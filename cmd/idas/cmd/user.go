@@ -73,7 +73,7 @@ var userAddCmd = &cobra.Command{
 		var us []string
 		if len(storage) > 0 {
 			us = append(us, storage)
-		} else if uss, _, err := svc.GetUserSource(cmd.Context()); err != nil {
+		} else if _, uss, err := svc.GetUserSource(cmd.Context()); err != nil {
 			level.Error(logger).Log("msg", "failed to get user storage source")
 			os.Exit(1)
 		} else if len(uss) == 0 {

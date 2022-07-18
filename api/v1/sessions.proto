@@ -29,7 +29,7 @@ message DeleteSessionRequest{
 message AuthenticationRequest{
   string username = 1;
   string password = 2;
-  idas.service.models.Auth.AuthMethod auth_method = 3;
+  idas.service.models.AuthMeta.Method auth_method = 3;
   string auth_algorithm = 4[(gogoproto.customtype) = "idas/pkg/service/models.AuthAlgorithm", (gogoproto.nullable) = false];
   string auth_key = 5;
   string auth_secret = 6;
