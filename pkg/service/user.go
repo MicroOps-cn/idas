@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"fmt"
+	uuid "github.com/satori/go.uuid"
 	"idas/pkg/errors"
 	"idas/pkg/service/models"
+	"idas/pkg/utils/sign"
 )
 
 func (s Set) UserServiceDo(name string, f func(service UserAndAppService)) error {
@@ -102,13 +104,48 @@ func (s Set) VerifyPassword(ctx context.Context, username string, password strin
 	return users, nil
 }
 
-func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm models.AuthAlgorithm, key, secret string) ([]*models.User, error) {
+func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm models.AuthAlgorithm, key, secret, payload, signStr string) ([]*models.User, error) {
+	if method == models.AuthMeta_basic {
+		if _, err := uuid.FromString(key); err != nil {
+			return s.VerifyPassword(ctx, key, secret)
+		}
+	}
+	userKey, err := s.commonService.GetUserKey(ctx, key)
+	if err != nil {
+		return nil, err
+	} else if userKey == nil {
+		return nil, nil
+	} else {
+		for _, service := range s.userAndAppService {
+			if info, err := service.GetUserInfo(ctx, userKey.UserId, ""); err != nil {
+				continue
+			} else {
+				userKey.User = info
+				break
+			}
+		}
+	}
+	if userKey.User == nil {
+		return nil, errors.StatusNotFound("user")
+	}
 	switch method {
 	case models.AuthMeta_basic:
-		return s.VerifyPassword(ctx, key, secret)
+		if userKey.Secret == secret {
+			return []*models.User{userKey.User}, nil
+		}
 	case models.AuthMeta_signature:
 		switch algorithm {
 		case "", "HMAC-SHA1":
+			hash := sign.ShaHmac1(payload, userKey.Key)
+			if hash == "" || hash != signStr {
+				return nil, errors.ParameterError("Failed to verify the signature")
+			}
+			return []*models.User{userKey.User}, nil
+		case "ECDSA":
+			if sign.ECDSAVerify(userKey.Key, userKey.Secret, payload, signStr) {
+				return nil, errors.ParameterError("Failed to verify the signature")
+			}
+			return []*models.User{userKey.User}, nil
 		}
 	default:
 		return nil, errors.ParameterError("unknown auth method")

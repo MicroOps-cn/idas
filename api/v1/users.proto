@@ -108,3 +108,15 @@ message GetUserRequest{
   string username = 2[(gogoproto.jsontag) = "-"];
   string storage = 3[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
 }
+
+message UserKeyInfo{
+
+}
+
+message CreateUserKeyRequest{
+}
+
+message CreateUserKeyResponse{
+  idas.endpoint.BaseResponse BaseResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  UserKeyInfo data = 2;
+}

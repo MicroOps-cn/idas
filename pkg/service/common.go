@@ -32,6 +32,9 @@ type CommonService interface {
 	RegisterPermission(ctx context.Context, permissions models.Permissions) error
 	CreateOrUpdateRoleByName(ctx context.Context, role *models.Role) error
 	Authorization(ctx context.Context, roles []string, method string) bool
+
+	GetUserKey(ctx context.Context, key string) (*models.UserKey, error)
+	CreateUserKeyWithId(ctx context.Context, userId string, name string) (userKey *models.UserKey, err error)
 }
 
 func NewCommonService(ctx context.Context) CommonService {

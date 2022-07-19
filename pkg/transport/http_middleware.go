@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"idas/pkg/service/models"
 	"idas/pkg/utils/httputil"
+	"idas/pkg/utils/sets"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -20,6 +21,28 @@ import (
 	"idas/pkg/global"
 	"idas/pkg/logs"
 )
+
+var innerKey = sets.New[string]("authKey", "authSign", "authSecret", "authMethod", "authAlgorithm")
+
+func GetPayload(request *restful.Request) string {
+	var payload = make(url.Values)
+	for key, value := range request.Request.PostForm {
+		sets.New[string]()
+		if !innerKey.Has(key) {
+			for _, v := range value {
+				payload.Add(key, v)
+			}
+		}
+	}
+	for key, value := range request.Request.URL.Query() {
+		if !innerKey.Has(key) {
+			for _, v := range value {
+				payload.Add(key, v)
+			}
+		}
+	}
+	return payload.Encode()
+}
 
 func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, filterChan *restful.FilterChain) {
@@ -67,6 +90,7 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 			}
 		}
 		if len(authReq.Data.AuthKey) > 0 || len(authReq.Data.AuthSecret) > 0 {
+			authReq.Data.Payload = GetPayload(req)
 			if user, err := endpoints.Authentication(req.Request.Context(), authReq); err == nil {
 				if len(user.([]*models.User)) >= 0 {
 					req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), global.MetaUser, user))

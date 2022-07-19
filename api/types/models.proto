@@ -6,6 +6,8 @@ message AuthMeta {
   enum Method{
     basic = 0;
     signature = 1;
+    token = 2;
+    token_signature = 3;
   };
 }
 message AppMeta{

@@ -58,7 +58,7 @@ type Service interface {
 	DeleteUser(ctx context.Context, storage string, id string) error
 	CreateLoginSession(ctx context.Context, username string, password string, rememberMe bool) (string, error)
 	GetUserSource(ctx context.Context) (total int64, data map[string]string, err error)
-	Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm models.AuthAlgorithm, key, secret string) ([]*models.User, error)
+	Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm models.AuthAlgorithm, key, secret, payload, signStr string) ([]*models.User, error)
 
 	GetApps(ctx context.Context, storage string, keywords string, current, pageSize int64) (total int64, apps []*models.App, err error)
 	GetAppSource(ctx context.Context) (total int64, data map[string]string, err error)

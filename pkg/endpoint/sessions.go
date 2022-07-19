@@ -54,7 +54,7 @@ func MakeUserLogoutEndpoint(s service.Service) endpoint.Endpoint {
 func MakeAuthenticationEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*AuthenticationRequest)
-		return s.Authentication(ctx, req.AuthMethod, req.AuthAlgorithm, req.AuthKey, req.AuthSecret)
+		return s.Authentication(ctx, req.AuthMethod, req.AuthAlgorithm, req.AuthKey, req.AuthSecret, req.Payload, req.AuthSign)
 	}
 }
 
