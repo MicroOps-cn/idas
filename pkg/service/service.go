@@ -146,8 +146,6 @@ func (s Set) VerifyToken(ctx context.Context, token, relationId string, tokenTyp
 	return s.sessionService.VerifyToken(ctx, token, relationId, tokenType)
 }
 
-const idasAppName = "IDAS"
-
 func (s Set) InitData(ctx context.Context) error {
 	for _, svc := range s.userAndAppService {
 		adminUser, err := svc.GetUserInfo(ctx, "", "admin")
@@ -163,20 +161,21 @@ func (s Set) InitData(ctx context.Context) error {
 		} else if err != nil {
 			return err
 		}
-		idasApp, err := svc.GetAppInfo(ctx, "", idasAppName)
+		idasApp, err := svc.GetAppInfo(ctx, "", global.IdasAppName)
 		if errors.IsNotFount(err) {
 			idasApp = &models.App{
-				Name:        idasAppName,
+				Name:        global.IdasAppName,
 				Description: "Identity authentication service. It is bound to the current service. Please do not delete it at will.",
 				GrantMode:   models.AppMeta_manual,
 				Role: models.AppRoles{{
 					Name: "admin",
 				}, {
-					Name: "viewer",
+					Name:      "viewer",
+					IsDefault: true,
 				}},
 				User: []*models.User{{
-					Model:  models.Model{Id: adminUser.Id},
-					RoleId: "admin",
+					Model: models.Model{Id: adminUser.Id},
+					Role:  "admin",
 				}},
 			}
 			if idasApp, err = svc.CreateApp(ctx, idasApp); err != nil {
@@ -190,7 +189,8 @@ func (s Set) InitData(ctx context.Context) error {
 				idasApp.Role = models.AppRoles{{
 					Name: "admin",
 				}, {
-					Name: "viewer",
+					Name:      "viewer",
+					IsDefault: true,
 				}}
 			}
 			if _, err = svc.UpdateApp(ctx, idasApp); err != nil {
@@ -200,7 +200,6 @@ func (s Set) InitData(ctx context.Context) error {
 		fmt.Println(svc.Name())
 		fmt.Println(idasApp.Role)
 		if len(idasApp.User) == 0 {
-
 			idasApp.User = []*models.User{{
 				Model:  models.Model{Id: adminUser.Id},
 				RoleId: idasApp.Role.GetRole("admin").GetId(),

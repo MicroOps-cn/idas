@@ -7,6 +7,7 @@ import (
 	"idas/pkg/global"
 	"idas/pkg/service/gormservice"
 	"idas/pkg/service/models"
+	"idas/pkg/utils/sets"
 	"io"
 	"os"
 	"path"
@@ -30,6 +31,7 @@ type CommonService interface {
 	DeleteRoles(ctx context.Context, ids []string) error
 	RegisterPermission(ctx context.Context, permissions models.Permissions) error
 	CreateOrUpdateRoleByName(ctx context.Context, role *models.Role) error
+	Authorization(ctx context.Context, roles []string, method string) bool
 }
 
 func NewCommonService(ctx context.Context) CommonService {
@@ -119,8 +121,11 @@ func (s Set) DeleteRoles(ctx context.Context, ids []string) error {
 }
 
 func (s Set) Authorization(ctx context.Context, users []*models.User, method string) bool {
-	//TODO implement me
-	panic("implement me")
+	var roles = sets.New[string]()
+	for _, user := range users {
+		roles.Insert(string(user.Role))
+	}
+	return s.commonService.Authorization(ctx, roles.List(), method)
 }
 
 func (s Set) RegisterPermission(ctx context.Context, permissions models.Permissions) error {

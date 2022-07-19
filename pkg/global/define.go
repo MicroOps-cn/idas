@@ -4,6 +4,7 @@ import "time"
 
 const (
 	AppName                     = "idas"
+	IdasAppName                 = "IDAS"
 	LoginSession                = "LOGIN_SESSION"
 	AuthCode                    = "AUTH_CODE"
 	LoggerName                  = "__logger__"

@@ -23,30 +23,30 @@ import (
 
 func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, filterChan *restful.FilterChain) {
-
 		if req.SelectedRoute() == nil {
 			errorEncoder(req.Request.Context(), errors.NewServerError(http.StatusNotFound, "Not Found: "+req.Request.RequestURI), resp)
 			return
 		}
-		if needLogin, ok := req.SelectedRoute().Metadata()[global.MetaNeedLogin].(bool); ok && !needLogin {
-			filterChan.ProcessFilter(req, resp)
-			return
+		if needLogin, ok := req.SelectedRoute().Metadata()[global.MetaNeedLogin].(bool); ok {
+			//
+			req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), global.MetaNeedLogin, needLogin))
+			if !needLogin {
+				filterChan.ProcessFilter(req, resp)
+				return
+			}
 		}
 
 		errorHandler := errorEncoder
 
 		loginSessionID, err := req.Request.Cookie(global.LoginSession)
 		if err == nil {
-			req.SetAttribute(global.LoginSession, strings.Split(loginSessionID.Value, ","))
+			req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), global.LoginSession, strings.Split(loginSessionID.Value, ",")))
 			if user, err := endpoints.GetLoginSession(req.Request.Context(), loginSessionID.Value); err == nil {
-				fmt.Println(user, err)
 				if len(user.([]*models.User)) >= 0 {
 					req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), global.MetaUser, user))
 					filterChan.ProcessFilter(req, resp)
 					return
 				}
-			} else {
-				fmt.Println(user, err)
 			}
 		}
 
@@ -66,14 +66,16 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 				}
 			}
 		}
-
-		if user, err := endpoints.Authentication(req.Request.Context(), authReq); err == nil {
-			if len(user.([]*models.User)) >= 0 {
-				req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), global.MetaUser, user))
-				filterChan.ProcessFilter(req, resp)
-				return
+		if len(authReq.Data.AuthKey) > 0 || len(authReq.Data.AuthSecret) > 0 {
+			if user, err := endpoints.Authentication(req.Request.Context(), authReq); err == nil {
+				if len(user.([]*models.User)) >= 0 {
+					req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), global.MetaUser, user))
+					filterChan.ProcessFilter(req, resp)
+					return
+				}
 			}
 		}
+
 		if autoRedirectToLoginPage, ok := req.SelectedRoute().Metadata()[global.MetaAutoRedirectToLoginPage].(bool); ok && autoRedirectToLoginPage {
 			resp.Header().Set("Location", fmt.Sprintf("/admin/user/login?redirect_uri=%s", url.QueryEscape(req.Request.RequestURI)))
 			resp.WriteHeader(302)

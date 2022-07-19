@@ -47,10 +47,25 @@ func (s UserAndAppService) Name() string {
 	return s.name
 }
 
+const sqlGetUserAndRoleInfo = `
+SELECT 
+    T4.id AS role_id, T4.name AS role, T1.*
+FROM
+    t_user T1
+        LEFT JOIN
+    t_app_user T2 ON T2.user_id = T1.id
+        LEFT JOIN
+    t_app T3 ON T3.id = T2.app_id AND T3.name = 'IDAS'
+        LEFT JOIN
+    t_app_role T4 ON T2.role_id = T4.id
+WHERE
+    T1.username = ? or T1.email = ?
+`
+
 func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) []*models.User {
 	logger := logs.GetContextLogger(ctx)
 	var user models.User
-	if err := s.Session(ctx).Where("username = ? or email = ?", username, username).First(&user).Error; err != nil {
+	if err := s.Session(ctx).Raw(sqlGetUserAndRoleInfo, username, username).First(&user).Error; err != nil {
 		if err == gogorm.ErrRecordNotFound {
 			level.Debug(logger).Log("msg", "incorrect username", "username", username)
 		} else {
@@ -58,6 +73,7 @@ func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, 
 		}
 		return nil
 	}
+	fmt.Println(user)
 	if !bytes.Equal(user.GenSecret(password), user.Password) {
 		level.Debug(logger).Log("msg", "incorrect password", "username", username)
 		return nil

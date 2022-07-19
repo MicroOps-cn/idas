@@ -73,7 +73,7 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 			resp.Error = errors.NotLoginError
 			return resp, nil
 		}
-		sessionId, ok := request.(RestfulRequester).GetRestfulRequest().Attribute(global.LoginSession).([]string)
+		sessionId, ok := ctx.Value(global.LoginSession).([]string)
 		if !ok || len(sessionId) == 0 {
 			level.Warn(logger).Log("msg", "failed to get session from context")
 			resp.Error = errors.NotLoginError

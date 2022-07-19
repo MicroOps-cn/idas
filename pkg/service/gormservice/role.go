@@ -100,6 +100,7 @@ func (c CommonService) GetPermissions(ctx context.Context, keywords string, curr
 	if keywords != "" {
 		tb = tb.Where("Name LIKE ?", "%"+keywords+"%")
 	}
+	tb = tb.Where("enable_auth = 1")
 	if err = tb.Count(&count).Error; err != nil {
 		return 0, nil, err
 	} else if count == 0 {
@@ -126,7 +127,7 @@ func (c CommonService) DeleteRoles(ctx context.Context, ids []string) error {
 
 func (c CommonService) CreateOrUpdateRoleByName(ctx context.Context, role *models.Role) error {
 	conn := c.Session(ctx)
-	if err := conn.Omit("Permission").FirstOrCreate(&role).Error; err != nil {
+	if err := conn.Omit("Permission").FirstOrCreate(&role, "name = ?", role.Name).Error; err != nil {
 		return err
 	}
 	return conn.Model(role).Association("Permission").Replace(role.Permission)
@@ -155,7 +156,27 @@ func (c CommonService) RegisterPermission(ctx context.Context, permissions model
 		if err := c.RegisterPermission(context.WithValue(ctx, global.GormConnName, conn), p.Children); err != nil {
 			return err
 		}
-		fmt.Println(p.Id)
 	}
 	return nil
+}
+
+const sqlAuthorizationByRoleAndMethod = `
+SELECT 
+    COUNT(1) as count
+FROM
+    t_role T1
+        JOIN
+    t_rel_role_permission T2 ON T1.id = T2.role_id
+        JOIN
+    t_permission T3 ON T3.id = T2.permission_id
+WHERE
+    T1.name IN ? AND T3.name = ?
+`
+
+func (c CommonService) Authorization(ctx context.Context, roles []string, method string) bool {
+	var count int64
+	if err := c.Session(ctx).Raw(sqlAuthorizationByRoleAndMethod, roles, method).Scan(&count).Error; err != nil {
+		return false
+	}
+	return count > 0
 }

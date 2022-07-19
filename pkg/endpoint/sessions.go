@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-kit/kit/endpoint"
+	"github.com/go-kit/log/level"
 	"idas/pkg/errors"
 	"idas/pkg/global"
+	"idas/pkg/logs"
 	"idas/pkg/service"
 	"idas/pkg/service/models"
 	"net/http"
@@ -62,7 +64,10 @@ func MakeGetLoginSessionEndpoint(s service.Service) endpoint.Endpoint {
 		var resp []*models.User
 		if len(sessionId) > 0 {
 			if resp, err = s.GetLoginSession(ctx, sessionId); err != nil {
-				err = errors.NotLoginError
+				if err != errors.NotLoginError {
+					level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to get session")
+					err = errors.NotLoginError
+				}
 			}
 		} else {
 			err = errors.NotLoginError

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-ldap/ldap"
 	"idas/pkg/logs"
@@ -114,10 +115,20 @@ func (s *Session) PasswordModify(passwordModifyRequest *ldap.PasswordModifyReque
 func (s *Session) Search(searchRequest *ldap.SearchRequest) (result *ldap.SearchResult, err error) {
 	defer func() {
 		logger := logs.GetContextLogger(s.ctx, logs.WithCaller(5))
+		logger = log.With(logger, "[baseDN]", searchRequest.BaseDN,
+			"[filter]", searchRequest.Filter,
+			"[scope]", searchRequest.Scope,
+			"[attributes]", searchRequest.Attributes,
+			"[derefAliases]", searchRequest.DerefAliases,
+			"[sizeLimit]", searchRequest.SizeLimit,
+			"[timeLimit]", searchRequest.TimeLimit,
+			"[controls]", searchRequest.Controls,
+			"[result]", result,
+		)
 		if err != nil {
-			level.Error(logger).Log("msg", "failed to execute ldap search", "[baseDN]", searchRequest.BaseDN, "[filter]", searchRequest.Filter, "[result]", result, "err", err)
+			level.Error(logger).Log("msg", "failed to execute ldap search", "err", err)
 		} else {
-			level.Debug(logger).Log("msg", "ldap search", "[baseDN]", searchRequest.BaseDN, "[filter]", searchRequest.Filter, "[result]", result)
+			level.Debug(logger).Log("msg", "ldap search")
 		}
 	}()
 	if s.err != nil {

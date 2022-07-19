@@ -1,5 +1,7 @@
 package models
 
+import "strings"
+
 type Permission struct {
 	Model
 	Name        string      `gorm:"type:varchar(100);unique" json:"name"`
@@ -27,7 +29,8 @@ func (p Permissions) GetRoles() Roles {
 	var roles Roles
 	for _, permission := range p {
 		for _, roleName := range permission.Role {
-			if role := roles.Get(roleName); role != nil {
+			roleName = strings.TrimSpace(roleName)
+			if role := roles.Get(strings.TrimSpace(roleName)); role != nil {
 				role.Permission = append(role.Permission, permission)
 			} else {
 				roles = append(roles, &Role{Name: roleName, Permission: Permissions{permission}})

@@ -35,8 +35,6 @@ type UserAndAppService struct {
 }
 
 func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (*models.User, error) {
-	conn := s.Session(ctx)
-
 	searchReq := goldap.NewSearchRequest(
 		s.Options().UserSearchBase,
 		goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 1, 0, false,
@@ -45,7 +43,7 @@ func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, us
 			s.Options().GetAttrEmail(), email),
 		nil, nil,
 	)
-	return s.getUserInfoByReq(context.WithValue(ctx, global.LDAPConnName, conn), searchReq)
+	return s.getUserInfoByReq(ctx, searchReq)
 }
 
 func (s UserAndAppService) ResetPassword(ctx context.Context, id string, password string) error {
@@ -275,9 +273,10 @@ func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, up
 	return newUserInfo, nil
 }
 
-func (s UserAndAppService) getUserInfoByReq(ctx context.Context, searchReq *goldap.SearchRequest) (*models.User, error) {
+func (s UserAndAppService) getUserInfoByReq(ctx context.Context, searchReq *goldap.SearchRequest, options ...Option) (*models.User, error) {
 	conn := s.Session(ctx)
-	searchReq.Attributes = []string{s.Options().GetAttrUsername(), s.Options().GetAttrUserPhoneNo(), s.Options().GetAttrEmail(), s.Options().GetAttrUserDisplayName(), "entryUUID", "avatar", "createTimestamp", "modifyTimestamp", UserStatusName}
+	defer conn.Close()
+	searchReq.Attributes = []string{s.Options().GetAttrUsername(), s.Options().GetAttrUserPhoneNo(), s.Options().GetAttrEmail(), s.Options().GetAttrUserDisplayName(), "entryUUID", "avatar", "createTimestamp", "modifyTimestamp", UserStatusName, "memberOf"}
 	ret, err := conn.Search(searchReq)
 	if err != nil {
 		return nil, err
@@ -285,8 +284,12 @@ func (s UserAndAppService) getUserInfoByReq(ctx context.Context, searchReq *gold
 	if len(ret.Entries) == 0 {
 		return nil, errors.StatusNotFound("user")
 	}
+	var opts option
+	for _, o := range options {
+		o(&opts)
+	}
 	userEntry := ret.Entries[0]
-	return &models.User{
+	userInfo := &models.User{
 		Model: models.Model{
 			Id:         userEntry.GetAttributeValue("entryUUID"),
 			CreateTime: wrapper.Must[time.Time](time.Parse("20060102150405Z", userEntry.GetAttributeValue("createTimestamp"))),
@@ -299,20 +302,35 @@ func (s UserAndAppService) getUserInfoByReq(ctx context.Context, searchReq *gold
 		Avatar:      userEntry.GetAttributeValue("avatar"),
 		Status:      models.UserStatus(wrapper.Must[int](httputil.NewValue(userEntry.GetAttributeValue(UserStatusName)).Default("0").Int())),
 		Storage:     s.name,
-	}, nil
+	}
+	if opts.getUserRole {
+		memberOf := sets.New(userEntry.GetAttributeValue("memberOf"))
+		appDn := fmt.Sprintf("cn=%s,%s", global.IdasAppName, s.Options().GroupSearchBase)
+		if memberOf.Has(appDn) {
+			if roleId, roleName, err := s.getAppRoleByUserDnAndAppDn(context.WithValue(ctx, global.LDAPConnName, conn), appDn, userEntry.DN); err != nil {
+				return nil, err
+			} else {
+				userInfo.Role = models.UserRole(roleName)
+				userInfo.RoleId = roleId
+			}
+		} else {
+			level.Debug(logs.GetContextLogger(ctx)).Log("msg", fmt.Sprintf("%s is not authorized to user %s", appDn, userEntry.DN))
+		}
+	}
+	return userInfo, nil
 }
 
-func (s UserAndAppService) getUserInfoByDn(ctx context.Context, dn string) (*models.User, error) {
-	conn := s.Session(ctx)
+func (s UserAndAppService) getUserInfoByDn(ctx context.Context, dn string, o ...Option) (*models.User, error) {
 	searchReq := goldap.NewSearchRequest(
 		dn, goldap.ScopeBaseObject, goldap.NeverDerefAliases, 1, 0, false,
 		"(objectClass=*)", nil, nil,
 	)
-	return s.getUserInfoByReq(context.WithValue(ctx, global.LDAPConnName, conn), searchReq)
+	return s.getUserInfoByReq(ctx, searchReq, o...)
 }
 
 func (s UserAndAppService) GetUserInfoById(ctx context.Context, id string) (*models.User, error) {
 	conn := s.Session(ctx)
+	defer conn.Close()
 	searchReq := goldap.NewSearchRequest(
 		s.Options().UserSearchBase,
 		goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 1, 0, false,
@@ -322,13 +340,12 @@ func (s UserAndAppService) GetUserInfoById(ctx context.Context, id string) (*mod
 }
 
 func (s UserAndAppService) getUserInfoByUsername(ctx context.Context, username string) (*models.User, error) {
-	conn := s.Session(ctx)
 	searchReq := goldap.NewSearchRequest(
 		s.Options().UserSearchBase,
 		goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 2, 0, false,
 		s.Options().ParseUserSearchFilter(username), nil, nil,
 	)
-	return s.getUserInfoByReq(context.WithValue(ctx, global.LDAPConnName, conn), searchReq)
+	return s.getUserInfoByReq(ctx, searchReq)
 }
 
 func (s UserAndAppService) GetUserInfo(ctx context.Context, id string, username string) (*models.User, error) {
@@ -464,6 +481,15 @@ func (s UserAndAppService) getDnsByReq(ctx context.Context, searchReq *goldap.Se
 	return dns, err
 }
 
+type option struct {
+	getUserRole bool
+}
+type Option func(*option)
+
+var WithUserRole Option = func(o *option) {
+	o.getUserRole = true
+}
+
 func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) (users []*models.User) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -486,7 +512,7 @@ func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, 
 			level.Debug(logger).Log("msg", "incorrect password", "username", username, "err", err)
 			continue
 		}
-		userInfo, err := s.getUserInfoByDn(context.WithValue(ctx, global.LDAPConnName, conn), dn)
+		userInfo, err := s.getUserInfoByDn(ctx, dn, WithUserRole)
 		if err != nil {
 			level.Error(logger).Log("msg", "failed to get user info", "username", username, "err", err)
 			return nil

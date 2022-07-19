@@ -35,9 +35,9 @@ func (roles AppRoles) GetRole(name string) *AppRole {
 
 type AppUser struct {
 	Model
-	AppId  string `json:"appId" gorm:"type:char(36);not null"`
+	AppId  string `json:"appId" gorm:"type:char(36);not null;index:idx_app_user,unique"`
 	App    *App   `json:"app,omitempty"`
-	UserId string `json:"userId" gorm:"type:char(36);not null"`
+	UserId string `json:"userId" gorm:"type:char(36);not null;index:idx_app_user,unique"`
 	User   *User  `json:"user,omitempty"`
 	RoleId string `json:"roleId" gorm:"default:'';type:char(36);not null"`
 }

@@ -116,17 +116,6 @@ func (s SessionService) AutoMigrate(ctx context.Context) error {
 	return s.Session(ctx).AutoMigrate(&models.Token{})
 }
 
-func (s SessionService) SetLoginSession(ctx context.Context, user *models.User) (cookie string, err error) {
-	session, err := models.NewToken(models.TokenTypeLoginSession, user)
-	if err != nil {
-		return "", err
-	}
-	if err = s.Session(ctx).Create(&session).Error; err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s=%s; Path=/;Expires=%s", global.LoginSession, session.Id, session.Expiry.Format(global.LoginSessionExpiresFormat)), nil
-}
-
 func (s SessionService) GetLoginSession(ctx context.Context, id string) (users []*models.User, err error) {
 	session := models.Token{Id: id}
 	if err = s.Session(ctx).Where("`type` = ?", models.TokenTypeLoginSession).Omit("last_seen", "create_time", "user_id").First(&session).Error; err == gogorm.ErrRecordNotFound {
@@ -137,11 +126,11 @@ func (s SessionService) GetLoginSession(ctx context.Context, id string) (users [
 	if session.Expiry.Before(time.Now().UTC()) {
 		return nil, errors.NotLoginError
 	}
+	if err = json.Unmarshal(session.Data, &users); err != nil {
+		return nil, fmt.Errorf("session data exception: %s,data=%s,string(data)=%s", err, session.Data, string(session.Data))
+	}
 	session.LastSeen = time.Now()
 	_ = s.Session(ctx).Select("last_seen").Updates(&session).Error
-	if err = json.Unmarshal(session.Data, &users); err != nil {
-		return nil, fmt.Errorf("session data exception: %s", err)
-	}
 	return users, nil
 }
 

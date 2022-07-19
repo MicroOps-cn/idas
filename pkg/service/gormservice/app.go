@@ -132,7 +132,11 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 		var roleIds []string
 		for _, role := range app.Role {
 			for _, user := range app.User {
-				if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
+				if len(role.Id) != 0 {
+					if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
+						role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
+					}
+				} else if len(role.Name) != 0 && string(user.Role) == role.Name {
 					role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
 				}
 			}
@@ -197,7 +201,11 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 		var roleIds []string
 		for _, role := range app.Role {
 			for _, user := range app.User {
-				if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
+				if len(role.Id) != 0 {
+					if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
+						role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
+					}
+				} else if len(role.Name) != 0 && string(user.Role) == role.Name {
 					role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
 				}
 			}

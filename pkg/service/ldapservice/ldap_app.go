@@ -76,6 +76,7 @@ func (s UserAndAppService) getAppDnByEntryUUID(ctx context.Context, id string) (
 		return "", errors.ParameterError(fmt.Sprintf("id <%s> format error", id))
 	}
 	conn := s.Session(ctx)
+	defer conn.Close()
 	if result, err := conn.Search(goldap.NewSearchRequest(
 		s.Options().GroupSearchBase,
 		goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 1, 0, false,
@@ -93,16 +94,16 @@ func (s UserAndAppService) getAppDnByEntryUUID(ctx context.Context, id string) (
 }
 
 func (s UserAndAppService) getAppInfoByDn(ctx context.Context, dn string) (*models.App, error) {
-	conn := s.Session(ctx)
 	searchReq := goldap.NewSearchRequest(
 		dn, goldap.ScopeBaseObject, goldap.NeverDerefAliases, 1, 0, false,
 		"(objectClass=*)", nil, nil,
 	)
-	return s.getAppInfoByReq(context.WithValue(ctx, global.LDAPConnName, conn), searchReq)
+	return s.getAppInfoByReq(ctx, searchReq)
 }
 
 func (s UserAndAppService) getAppInfoByReq(ctx context.Context, searchReq *goldap.SearchRequest) (*models.App, error) {
 	conn := s.Session(ctx)
+	defer conn.Close()
 	searchReq.Attributes = []string{"entryUUID", "description", "cn", "avatar", "uniqueMember", "createTimestamp", "modifyTimestamp", "grantMode", "grantType", GroupStatusName}
 
 	ret, err := conn.Search(searchReq)
@@ -110,7 +111,7 @@ func (s UserAndAppService) getAppInfoByReq(ctx context.Context, searchReq *golda
 		return nil, err
 	}
 	if len(ret.Entries) == 0 {
-		return nil, errors.StatusNotFound("user")
+		return nil, errors.StatusNotFound("App")
 	}
 	appEntry := ret.Entries[0]
 	var users []*models.User
@@ -129,21 +130,21 @@ func (s UserAndAppService) getAppInfoByReq(ctx context.Context, searchReq *golda
 			userMap[userDn] = userInfo
 			users[idx] = userInfo
 		}
-		searchMemberReq := goldap.NewSearchRequest(
+		searchMemberGroupReq := goldap.NewSearchRequest(
 			appEntry.DN,
 			goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 0, 0, false,
 			"(objectClass=idasRoleGroup)",
 			[]string{"entryUUID", "member", "cn", "isDefault"},
 			nil,
 		)
-		searchMemberRet, err := conn.Search(searchMemberReq)
+		searchMemberGroupRet, err := conn.Search(searchMemberGroupReq)
 		if err != nil {
 			if ldap.IsLdapError(err, goldap.LDAPResultNoSuchObject) {
 				return nil, err
 			}
 		} else {
-			roles = make([]*models.AppRole, len(searchMemberRet.Entries))
-			for idx, entry := range searchMemberRet.Entries {
+			roles = make([]*models.AppRole, len(searchMemberGroupRet.Entries))
+			for idx, entry := range searchMemberGroupRet.Entries {
 				var roleName = entry.GetAttributeValue("cn")
 				roles[idx] = &models.AppRole{Model: models.Model{Id: entry.GetAttributeValue("entryUUID")}, Name: roleName}
 				if strings.ToLower(entry.GetAttributeValue("isDefault")) == "true" {
@@ -273,7 +274,11 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 	if len(app.Role) > 0 {
 		for _, role := range app.Role {
 			for _, user := range app.User {
-				if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
+				if len(role.Id) != 0 {
+					if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
+						role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
+					}
+				} else if len(role.Name) != 0 && string(user.Role) == role.Name {
 					role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
 				}
 			}
@@ -294,11 +299,58 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 	return newApp, nil
 }
 
+//getAppRoleByUserDnAndAppName Get the permission of the specified user under the application
+// 获取应用下指定用户的权限
+func (s UserAndAppService) getAppRoleByUserDnAndAppDn(ctx context.Context, appDn string, userDn string) (roleId, roleName string, err error) {
+	conn := s.Session(ctx)
+	defer conn.Close()
+	searchReq := goldap.NewSearchRequest(
+		appDn, goldap.ScopeBaseObject, goldap.NeverDerefAliases, 1, 0, false,
+		"(objectClass=*)", []string{"cn", "uniqueMember", "objectClass"}, nil,
+	)
+	ret, err := conn.Search(searchReq)
+	if err != nil {
+		return "", "", err
+	}
+	if len(ret.Entries) == 0 {
+		return "", "", errors.StatusNotFound("app")
+	}
+	appEntry := ret.Entries[0]
+	if !sets.New[string](appEntry.GetAttributeValues("uniqueMember")...).Has(userDn) {
+		return "", "", fmt.Errorf("%s is not authorized to user %s", appDn, userDn)
+	}
+	searchMemberGroupReq := goldap.NewSearchRequest(
+		appEntry.DN,
+		goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 0, 0, false,
+		"(objectClass=idasRoleGroup)",
+		[]string{"entryUUID", "member", "cn", "isDefault"},
+		nil,
+	)
+	searchMemberGroupRet, err := conn.Search(searchMemberGroupReq)
+	if err != nil {
+		if ldap.IsLdapError(err, goldap.LDAPResultNoSuchObject) {
+			return "", "", err
+		}
+	} else {
+		for _, entry := range searchMemberGroupRet.Entries {
+			if strings.ToLower(entry.GetAttributeValue("isDefault")) == "true" {
+				roleName = entry.GetAttributeValue("cn")
+				roleId = entry.GetAttributeValue("entryUUID")
+			}
+			for _, m := range entry.GetAttributeValues("member") {
+				if m == userDn {
+					return entry.GetAttributeValue("entryUUID"), entry.GetAttributeValue("cn"), nil
+				}
+			}
+		}
+	}
+	return roleId, roleName, nil
+}
+
 func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name string) (app *models.App, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	if len(id) == 0 && len(name) == 0 {
-		panic("13")
 		return nil, errors.ParameterError("require id or appname")
 	}
 
@@ -450,11 +502,17 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 	if len(app.Role) > 0 {
 		for _, role := range app.Role {
 			for _, user := range app.User {
-				if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
+				if len(role.Id) != 0 {
+					if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
+						role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
+					}
+				} else if len(role.Name) != 0 && string(user.Role) == role.Name {
 					role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
 				}
 			}
 			roleDn := fmt.Sprintf("cn=%s,%s", role.Name, dn)
+			fmt.Println(role)
+			fmt.Println(role.User)
 			if err = s.PatchAppRole(context.WithValue(ctx, global.LDAPConnName, conn), roleDn, role); err != nil {
 				return nil, err
 			}

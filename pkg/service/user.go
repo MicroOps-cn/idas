@@ -107,7 +107,9 @@ func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, 
 	case models.AuthMeta_basic:
 		return s.VerifyPassword(ctx, key, secret)
 	case models.AuthMeta_signature:
-
+		switch algorithm {
+		case "", "HMAC-SHA1":
+		}
 	default:
 		return nil, errors.ParameterError("unknown auth method")
 	}

@@ -95,10 +95,6 @@ func GetPermissionsDefine(typeOf reflect.Type) models.Permissions {
 		}
 
 		p.Description = field.Tag.Get("description")
-		if auth := field.Tag.Get("auth"); len(auth) == 0 || auth == "true" {
-			p.EnableAuth = true
-		}
-		p.Role = strings.Split(field.Tag.Get("role"), "|")
 		if field.Type.Kind() == reflect.Struct {
 			p.Children = GetPermissionsDefine(field.Type)
 			if len(p.Children) > 0 {
@@ -106,6 +102,14 @@ func GetPermissionsDefine(typeOf reflect.Type) models.Permissions {
 				continue
 			}
 		} else if field.Type.Kind() == reflect.Func {
+			if auth := field.Tag.Get("auth"); len(auth) == 0 || auth == "true" {
+				p.EnableAuth = true
+			}
+			if p.EnableAuth {
+				if role := field.Tag.Get("role"); len(role) > 0 {
+					p.Role = strings.Split(role, "|")
+				}
+			}
 			ret = append(ret, &p)
 		}
 	}
@@ -121,9 +125,10 @@ func New(ctx context.Context, svc service.Service, duration metrics.Histogram, o
 		if eps.Has(name) {
 			panic("duplicate endpoint: " + name)
 		}
-		if count := len(ps.Get(name)); count == 0 {
+		psd := ps.Get(name)
+		if len(psd) == 0 {
 			panic("endpoint not found: " + name)
-		} else if count > 1 {
+		} else if len(psd) > 1 {
 			panic("duplicate endpoint define: " + name)
 		}
 		eps.Insert(name)
@@ -135,7 +140,9 @@ func New(ctx context.Context, svc service.Service, duration metrics.Histogram, o
 		}
 		ep = LoggingMiddleware(name)(ep)
 		ep = InstrumentingMiddleware(duration.With("method", "Concat"))(ep)
-		ep = AuthorizationMiddleware(svc, name)(ep)
+		if psd[0].EnableAuth {
+			ep = AuthorizationMiddleware(svc, name)(ep)
+		}
 		return ep
 	}
 
