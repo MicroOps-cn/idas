@@ -3,10 +3,14 @@ package transport
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"fmt"
+	"idas/config"
 	"idas/pkg/service/models"
 	"idas/pkg/utils/httputil"
 	"idas/pkg/utils/sets"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -24,24 +28,50 @@ import (
 
 var innerKey = sets.New[string]("authKey", "authSign", "authSecret", "authMethod", "authAlgorithm")
 
-func GetPayload(request *restful.Request) string {
-	var payload = make(url.Values)
-	for key, value := range request.Request.PostForm {
-		sets.New[string]()
-		if !innerKey.Has(key) {
-			for _, v := range value {
-				payload.Add(key, v)
+func GetPayload(r *http.Request) (string, error) {
+	requestTime, err := time.Parse(r.Header.Get("date"), time.RFC1123)
+	if err != nil {
+		return "", err
+	} else if time.Since(requestTime) > time.Minute*10 {
+		return "", fmt.Errorf("request has expired")
+	}
+	var bodyHash string
+	if r.ContentLength > 0 {
+		contentType, _, _ := strings.Cut(r.Header.Get("content-type"), ";")
+		if len(contentType) > 0 {
+			switch contentType {
+			case restful.MIME_JSON, restful.MIME_XML, "application/x-www-form-urlencoded":
+				if r.ContentLength > config.Get().Global.MaxBodySize.Capacity {
+					body, err := ioutil.ReadAll(r.Body)
+					r.Body.Close()
+					if err != nil {
+						return "", err
+					} else {
+						bodyHash = fmt.Sprintf("%x", md5.Sum(body))
+						r.Body = io.NopCloser(bytes.NewBuffer(body))
+					}
+				}
 			}
 		}
 	}
-	for key, value := range request.Request.URL.Query() {
+	if len(bodyHash) == 0 {
+		bodyHash = r.Header.Get("x-body-hash")
+	}
+	payload := strings.Builder{}
+	payload.WriteString(r.Method + "\n")
+	payload.WriteString(bodyHash + "\n")
+	payload.WriteString(r.Header.Get("content-type") + "\n")
+	payload.WriteString(r.Header.Get("date") + "\n")
+	var urlQuery = url.Values{}
+	for key, value := range r.URL.Query() {
 		if !innerKey.Has(key) {
 			for _, v := range value {
-				payload.Add(key, v)
+				urlQuery.Add(key, v)
 			}
 		}
 	}
-	return payload.Encode()
+	payload.WriteString(r.URL.RawPath + "?" + urlQuery.Encode())
+	return payload.String(), nil
 }
 
 func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
@@ -90,7 +120,11 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 			}
 		}
 		if len(authReq.Data.AuthKey) > 0 || len(authReq.Data.AuthSecret) > 0 {
-			authReq.Data.Payload = GetPayload(req)
+			if authReq.Data.AuthSign != "" {
+				if authReq.Data.Payload, err = GetPayload(req.Request); err != nil {
+					errorHandler(req.Request.Context(), errors.NewServerError(http.StatusBadRequest, "Failed to get payload"), resp)
+				}
+			}
 			if user, err := endpoints.Authentication(req.Request.Context(), authReq); err == nil {
 				if len(user.([]*models.User)) >= 0 {
 					req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), global.MetaUser, user))

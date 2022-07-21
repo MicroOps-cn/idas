@@ -174,17 +174,10 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 	if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" || r.Method == "DELETE" {
 		contentType := r.Header.Get("Content-Type")
 		if strings.HasPrefix(contentType, "multipart/form-data") {
-			restfulReq.Request.Body = http.MaxBytesReader(restfulResp.ResponseWriter, r.Body, config.Get().Global.MaxBodySize.Capacity)
+			restfulReq.Request.Body = http.MaxBytesReader(restfulResp.ResponseWriter, r.Body, config.Get().Global.MaxUploadSize.Capacity)
 			if err = restfulReq.Request.ParseMultipartForm(config.Get().Global.MaxBodySize.Capacity); err != nil {
 				return nil, errors.NewServerError(http.StatusBadRequest, "request too large")
 			}
-			//if err = r.ParseMultipartForm(1e6); err != nil {
-			//	return nil, fmt.Errorf("failed to parse multipart form data：%s", err)
-			//} else if len(r.Form) > 0 {
-			//	if err = httputil.UnmarshalURLValues(r.Form, &req.Data); err != nil {
-			//		return nil, fmt.Errorf("failed to decode multipart form data：%s", err)
-			//	}
-			//}
 		} else {
 			r.Body = http.MaxBytesReader(restfulResp.ResponseWriter, r.Body, config.Get().Global.MaxBodySize.Capacity)
 			if contentType == "application/x-www-form-urlencoded" {
@@ -195,7 +188,7 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 						return nil, fmt.Errorf("failed to decode form data: data=%s, err=%s", r.Form, err)
 					}
 				}
-			} else if len(contentType) > 0 {
+			} else if contentType == restful.MIME_JSON {
 				if data, ok := isProtoMessage(&req.Data); ok {
 					logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "caller", logs.Caller(12))), logs.Prefix("decode http request: ", true))
 					if err = jsonpb.Unmarshal(io.TeeReader(r.Body, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError)), data); err != nil {

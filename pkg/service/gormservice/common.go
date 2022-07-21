@@ -66,10 +66,11 @@ func (c CommonService) CreateUserKeyWithId(ctx context.Context, userId string, n
 			return nil, err
 		}
 		return &models.UserKey{
-			UserId: userId,
-			Key:    pub1,
-			Key2:   pub2,
-			Secret: privateKey,
+			Model:   userKey.Model,
+			UserId:  userId,
+			Key:     pub1,
+			Secret:  pub2,
+			Private: privateKey,
 		}, nil
 	}
 }

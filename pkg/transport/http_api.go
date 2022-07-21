@@ -160,6 +160,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.PatchUserResponse{}),
 	)
+
 	v1ws.Route(v1ws.DELETE("/{id}").
 		To(NewKitHTTPServer[endpoint.DeleteUserRequest](endpoints.DeleteUser, options)).
 		Operation("deleteUser").
@@ -193,6 +194,24 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Doc("获取用户存储源").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.GetUserSourceResponse{}),
+	)
+
+	v1ws.Route(v1ws.POST("/{userId}/key").
+		To(NewKitHTTPServer[endpoint.CreateUserKeyRequest](endpoints.CreateUserKey, options)).
+		Operation("createUserKey").
+		Doc("创建用户密钥对").
+		Param(v1ws.PathParameter("userId", "identifier of the user").DataType("string")).
+		Reads(endpoint.CreateUserKeyRequest{}).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.CreateUserKeyResponse{}),
+	)
+	v1ws.Route(v1ws.POST("/key").
+		To(NewKitHTTPServer[endpoint.CreateKeyRequest](endpoints.CreateKey, options)).
+		Operation("createKey").
+		Doc("创建当前用户的密钥对").
+		Reads(endpoint.CreateKeyRequest{}).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.CreateKeyResponse{}),
 	)
 	return tag, []*restful.WebService{v1ws}
 }

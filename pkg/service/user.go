@@ -23,7 +23,6 @@ func (s Set) GetUserSource(_ context.Context) (total int64, data map[string]stri
 	for _, userService := range s.userAndAppService {
 		data[userService.Name()] = userService.Name()
 	}
-
 	return
 }
 
@@ -76,6 +75,9 @@ func (s Set) CreateUser(ctx context.Context, storage string, user *models.User) 
 	return service.CreateUser(ctx, user)
 }
 
+func (s Set) CreateUserKey(ctx context.Context, userId, name string) (keyPair *models.UserKey, err error) {
+	return s.commonService.CreateUserKeyWithId(ctx, userId, name)
+}
 func (s Set) PatchUser(ctx context.Context, storage string, user map[string]interface{}) (u *models.User, err error) {
 	service := s.GetUserAndAppService(storage)
 	if service == nil {
@@ -152,6 +154,7 @@ func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, 
 	}
 	return nil, errors.ParameterError("unknown auth request")
 }
+
 func (s Set) GetAuthCodeByClientId(ctx context.Context, clientId, userId, sessionId, storage string) (code string, err error) {
 	svc := s.GetUserAndAppService(storage)
 	if svc == nil {

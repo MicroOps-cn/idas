@@ -58,10 +58,10 @@ func (u User) GenSecret(password ...string) []byte {
 
 type UserKey struct {
 	Model
-	Name   string `gorm:"type:varchar(50)" json:"name"`
-	User   *User  `json:"-"`
-	UserId string `gorm:"type:char(32);" json:"userId"`
-	Key    string `gorm:"type:varchar(50);" json:"key"`
-	Secret string `gorm:"type:varchar(50);" json:"secret"`
-	Key2   string `gorm:"-" json:"key2,omitempty"`
+	Name    string `gorm:"type:varchar(50)" json:"name"`
+	User    *User  `gorm:"-" json:"-"`
+	UserId  string `gorm:"type:char(36);" json:"userId"`
+	Key     string `gorm:"type:varchar(50);" json:"key"`
+	Secret  string `gorm:"type:varchar(50);" json:"secret"`
+	Private string `gorm:"-" json:"key2,omitempty"`
 }

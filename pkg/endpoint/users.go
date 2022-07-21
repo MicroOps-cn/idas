@@ -243,3 +243,30 @@ func MakeDeleteUserEndpoint(s service.Service) endpoint.Endpoint {
 		return &resp, nil
 	}
 }
+
+func MakeCreateUserKeyEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(Requester).GetRequestData().(*CreateUserKeyRequest)
+		resp := SimpleResponseWrapper[*models.UserKey]{}
+		resp.Data, resp.Error = s.CreateUserKey(ctx, req.UserId, req.Name)
+		return &resp, nil
+	}
+}
+
+func MakeCreateKeyEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(Requester).GetRequestData().(*CreateKeyRequest)
+		resp := SimpleResponseWrapper[*models.UserKey]{}
+		users, ok := ctx.Value(global.MetaUser).([]*models.User)
+		if !ok || len(users) == 0 {
+			return nil, errors.NotLoginError
+		}
+		for _, user := range users {
+			if user.Id == req.UserId {
+				resp.Data, resp.Error = s.CreateUserKey(ctx, req.UserId, req.Name)
+				return &resp, nil
+			}
+		}
+		return nil, errors.StatusNotFound("user")
+	}
+}

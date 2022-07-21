@@ -32,6 +32,8 @@ type UserEndpoints struct {
 	ForgotPassword endpoint.Endpoint `auth:"false"`
 	ResetPassword  endpoint.Endpoint `auth:"false"`
 	CurrentUser    endpoint.Endpoint `auth:"false"`
+	CreateUserKey  endpoint.Endpoint `description:"Create a user key-pair" role:"admin"`
+	CreateKey      endpoint.Endpoint `auth:"false"`
 }
 
 type AppEndpoints struct {
@@ -164,6 +166,8 @@ func New(ctx context.Context, svc service.Service, duration metrics.Histogram, o
 			PatchUser:      injectEndpoint("PatchUser", MakePatchUserEndpoint(svc)),
 			DeleteUser:     injectEndpoint("DeleteUser", MakeDeleteUserEndpoint(svc)),
 			GetUserSource:  injectEndpoint("GetUserSource", MakeGetUserSourceRequestEndpoint(svc)),
+			CreateUserKey:  injectEndpoint("CreateUserKey", MakeCreateUserKeyEndpoint(svc)),
+			CreateKey:      injectEndpoint("CreateKey", MakeCreateKeyEndpoint(svc)),
 		},
 		SessionEndpoints: SessionEndpoints{
 			GetSessions:     injectEndpoint("GetSessions", MakeGetSessionsEndpoint(svc)),
