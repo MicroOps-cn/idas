@@ -3,11 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/go-kit/log"
-	"idas/pkg/global"
-	"idas/pkg/service/gormservice"
-	"idas/pkg/service/models"
-	"idas/pkg/utils/sets"
 	"io"
 	"os"
 	"path"
@@ -18,6 +13,9 @@ import (
 	"idas/config"
 	"idas/pkg/errors"
 	"idas/pkg/logs"
+	"idas/pkg/service/gormservice"
+	"idas/pkg/service/models"
+	"idas/pkg/utils/sets"
 )
 
 type CommonService interface {
@@ -38,13 +36,15 @@ type CommonService interface {
 }
 
 func NewCommonService(ctx context.Context) CommonService {
-	logger := log.With(logs.GetContextLogger(ctx), "service", "common")
-	ctx = context.WithValue(ctx, global.LoggerName, logger)
+	// logger := log.With(logs.GetContextLogger(ctx), "service", "common")
+	// ctx = context.WithValue(ctx, global.LoggerName, logger)
 	var commonService CommonService
 	commonStorage := config.Get().GetStorage().GetDefault()
 	switch commonSource := commonStorage.GetStorageSource().(type) {
 	case *config.Storage_Mysql:
 		commonService = gormservice.NewCommonService(commonStorage.Name, commonSource.Mysql.Client)
+	case *config.Storage_Sqlite:
+		commonService = gormservice.NewCommonService(commonStorage.Name, commonSource.Sqlite.Client)
 	default:
 		panic(any(fmt.Errorf("初始化CommonService失败: 未知的数据源类型: %T", commonSource)))
 	}
@@ -124,7 +124,7 @@ func (s Set) DeleteRoles(ctx context.Context, ids []string) error {
 }
 
 func (s Set) Authorization(ctx context.Context, users []*models.User, method string) bool {
-	var roles = sets.New[string]()
+	roles := sets.New[string]()
 	for _, user := range users {
 		roles.Insert(string(user.Role))
 	}

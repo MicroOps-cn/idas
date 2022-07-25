@@ -2,6 +2,9 @@ package endpoint
 
 import (
 	"context"
+	"reflect"
+	"strings"
+
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/metrics"
@@ -12,11 +15,10 @@ import (
 	stdzipkin "github.com/openzipkin/zipkin-go"
 	"github.com/sony/gobreaker"
 	"golang.org/x/time/rate"
+
 	"idas/pkg/service"
 	"idas/pkg/service/models"
 	"idas/pkg/utils/sets"
-	"reflect"
-	"strings"
 )
 
 type UserEndpoints struct {
@@ -122,8 +124,8 @@ func GetPermissionsDefine(typeOf reflect.Type) models.Permissions {
 // expected endpoint middlewares via the various parameters.
 func New(ctx context.Context, svc service.Service, duration metrics.Histogram, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer) Set {
 	ps := Set{}.GetPermissionsDefine()
-	var eps = sets.New[string]()
-	var injectEndpoint = func(name string, ep endpoint.Endpoint) endpoint.Endpoint {
+	eps := sets.New[string]()
+	injectEndpoint := func(name string, ep endpoint.Endpoint) endpoint.Endpoint {
 		if eps.Has(name) {
 			panic("duplicate endpoint: " + name)
 		}

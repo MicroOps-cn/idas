@@ -22,14 +22,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"time"
+
 	"github.com/go-kit/log/level"
 	"github.com/go-ldap/ldap"
 	"github.com/gogo/protobuf/proto"
+
 	"idas/pkg/global"
 	"idas/pkg/logs"
 	"idas/pkg/utils/signals"
-	"net"
-	"time"
 )
 
 func NewLdapPool(ctx context.Context, options *LdapOptions) (pool Pool, err error) {
@@ -81,10 +83,10 @@ type Client struct {
 }
 
 // Merge implement proto.Merger
-func (c *Client) Merge(src proto.Message) {
+func (l *Client) Merge(src proto.Message) {
 	if s, ok := src.(*Client); ok {
-		c.options = s.options
-		c.pool = s.pool
+		l.options = s.options
+		l.pool = s.pool
 	}
 }
 

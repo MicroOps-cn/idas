@@ -2,7 +2,6 @@ syntax = "proto3";
 package idas.endpoint;
 import public "gogoproto/gogo.proto";
 import "v1/base.proto";
-import "types/models.proto";
 option go_package = "idas/pkg/endpoint;endpoint";
 
 

@@ -3,11 +3,12 @@ package httputil
 import (
 	"errors"
 	"fmt"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 var ErrStruct = errors.New("Unmarshal() expects struct input. ")
@@ -76,7 +77,6 @@ func reflectValueFromTag(values url.Values, val reflect.Value) error {
 			}([]byte(kt.Name))
 		}
 
-		//fmt.Println(jsonName, values, sv.Kind())
 		switch sv.Kind() {
 		case reflect.Struct:
 			if err := reflectValueFromTag(values, sv); err != nil {
@@ -123,7 +123,6 @@ func reflectValueFromTag(values url.Values, val reflect.Value) error {
 						sv.SetInt(int64(enumVal.Number()))
 						continue
 					}
-
 				}
 				return fmt.Errorf("cast int has error, expect type: %v ,val: %v ,query key: %v", sv.Type(), uv, jsonName)
 			}

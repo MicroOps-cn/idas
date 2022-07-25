@@ -3,16 +3,18 @@ package endpoint
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log/level"
+
 	"idas/pkg/errors"
 	"idas/pkg/global"
 	"idas/pkg/logs"
 	"idas/pkg/service"
 	"idas/pkg/service/models"
-	"net/http"
-	"strings"
-	"time"
 )
 
 func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
@@ -30,7 +32,6 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 
 func MakeUserLogoutEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		//req := request.(Requester).GetRequestData().(*UserLogoutRequest)
 		resp := SimpleResponseWrapper[interface{}]{}
 		cookie, err := request.(RestfulRequester).GetRestfulRequest().Request.Cookie(global.LoginSession)
 		if err != nil {

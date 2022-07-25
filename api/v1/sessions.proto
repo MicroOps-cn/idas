@@ -30,7 +30,7 @@ message AuthenticationRequest{
   string username = 1;
   string password = 2;
   idas.service.models.AuthMeta.Method authMethod = 3;
-  string authAlgorithm = 4[(gogoproto.customtype) = "idas/pkg/service/models.AuthAlgorithm", (gogoproto.nullable) = false];
+  string authAlgorithm = 4[(gogoproto.customtype) = "idas/pkg/utils/sign.AuthAlgorithm", (gogoproto.nullable) = false];
   string authKey = 5;
   string authSecret = 6;
   string authSign = 7;

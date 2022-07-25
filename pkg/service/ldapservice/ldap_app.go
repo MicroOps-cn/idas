@@ -3,19 +3,21 @@ package ldapservice
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
 	goldap "github.com/go-ldap/ldap"
 	uuid "github.com/satori/go.uuid"
+
 	"idas/pkg/client/ldap"
 	"idas/pkg/errors"
 	"idas/pkg/global"
 	"idas/pkg/service/models"
 	"idas/pkg/utils/httputil"
 	"idas/pkg/utils/sets"
-	"idas/pkg/utils/wrapper"
-	"net/http"
-	"strconv"
-	"strings"
-	"time"
+	w "idas/pkg/utils/wrapper"
 )
 
 func (s UserAndAppService) GetApps(ctx context.Context, keywords string, current, pageSize int64) (total int64, apps []*models.App, err error) {
@@ -53,14 +55,14 @@ func (s UserAndAppService) GetApps(ctx context.Context, keywords string, current
 		apps = append(apps, &models.App{
 			Model: models.Model{
 				Id:         entry.GetAttributeValue("entryUUID"),
-				CreateTime: wrapper.Must[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("createTimestamp"))),
-				UpdateTime: wrapper.Must[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("modifyTimestamp"))),
+				CreateTime: w.M[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("createTimestamp"))),
+				UpdateTime: w.M[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("modifyTimestamp"))),
 			},
 			Name:        entry.GetAttributeValue("cn"),
 			Description: entry.GetAttributeValue("description"),
 			Avatar:      entry.GetAttributeValue("avatar"),
-			Status:      models.AppMeta_Status(wrapper.Must[int](httputil.NewValue(entry.GetAttributeValue(GroupStatusName)).Default("0").Int())),
-			GrantMode:   models.AppMeta_GrantMode(wrapper.Must[int](httputil.NewValue(entry.GetAttributeValue("grantMode")).Default("0").Int())),
+			Status:      models.AppMeta_Status(w.M[int](httputil.NewValue(entry.GetAttributeValue(GroupStatusName)).Default("0").Int())),
+			GrantMode:   models.AppMeta_GrantMode(w.M[int](httputil.NewValue(entry.GetAttributeValue("grantMode")).Default("0").Int())),
 			GrantType:   models.AppMeta_GrantType(models.AppMeta_GrantType_value[entry.GetAttributeValue("grantType")]),
 			Storage:     s.name,
 		})
@@ -145,7 +147,7 @@ func (s UserAndAppService) getAppInfoByReq(ctx context.Context, searchReq *golda
 		} else {
 			roles = make([]*models.AppRole, len(searchMemberGroupRet.Entries))
 			for idx, entry := range searchMemberGroupRet.Entries {
-				var roleName = entry.GetAttributeValue("cn")
+				roleName := entry.GetAttributeValue("cn")
 				roles[idx] = &models.AppRole{Model: models.Model{Id: entry.GetAttributeValue("entryUUID")}, Name: roleName}
 				if strings.ToLower(entry.GetAttributeValue("isDefault")) == "true" {
 					roles[idx].IsDefault = true
@@ -164,14 +166,14 @@ func (s UserAndAppService) getAppInfoByReq(ctx context.Context, searchReq *golda
 	return &models.App{
 		Model: models.Model{
 			Id:         appEntry.GetAttributeValue("entryUUID"),
-			CreateTime: wrapper.Must[time.Time](time.Parse("20060102150405Z", appEntry.GetAttributeValue("createTimestamp"))),
-			UpdateTime: wrapper.Must[time.Time](time.Parse("20060102150405Z", appEntry.GetAttributeValue("modifyTimestamp"))),
+			CreateTime: w.M[time.Time](time.Parse("20060102150405Z", appEntry.GetAttributeValue("createTimestamp"))),
+			UpdateTime: w.M[time.Time](time.Parse("20060102150405Z", appEntry.GetAttributeValue("modifyTimestamp"))),
 		},
 		Name:        appEntry.GetAttributeValue("cn"),
 		Description: appEntry.GetAttributeValue("description"),
 		Avatar:      appEntry.GetAttributeValue("avatar"),
-		Status:      models.AppMeta_Status(wrapper.Must[int](httputil.NewValue(appEntry.GetAttributeValue(GroupStatusName)).Default("0").Int())),
-		GrantMode:   models.AppMeta_GrantMode(wrapper.Must[int](httputil.NewValue(appEntry.GetAttributeValue("grantMode")).Default("0").Int())),
+		Status:      models.AppMeta_Status(w.M[int](httputil.NewValue(appEntry.GetAttributeValue(GroupStatusName)).Default("0").Int())),
+		GrantMode:   models.AppMeta_GrantMode(w.M[int](httputil.NewValue(appEntry.GetAttributeValue("grantMode")).Default("0").Int())),
 		GrantType:   models.AppMeta_GrantType(models.AppMeta_GrantType_value[appEntry.GetAttributeValue("grantType")]),
 		Storage:     s.name,
 		Role:        roles,
@@ -244,13 +246,13 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 	columns := sets.New[string](updateColumns...)
 	req := goldap.NewModifyRequest(dn, nil)
 
-	var member = make([]string, len(app.User))
+	member := make([]string, len(app.User))
 	for idx, user := range app.User {
 		if member[idx], err = s.getUserDnByEntryUUID(context.WithValue(ctx, global.LDAPConnName, conn), user.Id); err != nil {
 			return nil, err
 		}
 	}
-	var replace = []ldapUpdateColumn{
+	replace := []ldapUpdateColumn{
 		{columnName: "name", ldapColumnName: "cn", val: []string{app.Name}},
 		{columnName: "description", ldapColumnName: "description", val: []string{app.Description}},
 		{columnName: "avatar", ldapColumnName: "avatar", val: []string{app.Avatar}},
@@ -299,8 +301,7 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 	return newApp, nil
 }
 
-//getAppRoleByUserDnAndAppName Get the permission of the specified user under the application
-// 获取应用下指定用户的权限
+// getAppRoleByUserDnAndAppDn Get the permission of the specified user under the application ,获取应用下指定用户的权限
 func (s UserAndAppService) getAppRoleByUserDnAndAppDn(ctx context.Context, appDn string, userDn string) (roleId, roleName string, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -427,7 +428,7 @@ func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name strin
 		} else {
 			roles = make([]*models.AppRole, len(ret.Entries))
 			for idx, entry := range ret.Entries {
-				var roleName = entry.GetAttributeValue("cn")
+				roleName := entry.GetAttributeValue("cn")
 				roles[idx] = &models.AppRole{Model: models.Model{Id: entry.GetAttributeValue("entryUUID")}, Name: roleName}
 				if strings.ToLower(entry.GetAttributeValue("isDefault")) == "true" {
 					roles[idx].IsDefault = true
@@ -447,14 +448,14 @@ func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name strin
 	return &models.App{
 		Model: models.Model{
 			Id:         appEntry.GetAttributeValue("entryUUID"),
-			CreateTime: wrapper.Must[time.Time](time.Parse("20060102150405Z", appEntry.GetAttributeValue("createTimestamp"))),
-			UpdateTime: wrapper.Must[time.Time](time.Parse("20060102150405Z", appEntry.GetAttributeValue("modifyTimestamp"))),
+			CreateTime: w.M[time.Time](time.Parse("20060102150405Z", appEntry.GetAttributeValue("createTimestamp"))),
+			UpdateTime: w.M[time.Time](time.Parse("20060102150405Z", appEntry.GetAttributeValue("modifyTimestamp"))),
 		},
 		Name:        appEntry.GetAttributeValue("cn"),
 		Description: appEntry.GetAttributeValue("description"),
 		Avatar:      appEntry.GetAttributeValue("avatar"),
-		Status:      models.AppMeta_Status(wrapper.Must[int](httputil.NewValue(appEntry.GetAttributeValue(GroupStatusName)).Default("0").Int())),
-		GrantMode:   models.AppMeta_GrantMode(wrapper.Must[int](httputil.NewValue(appEntry.GetAttributeValue("grantMode")).Default("0").Int())),
+		Status:      models.AppMeta_Status(w.M[int](httputil.NewValue(appEntry.GetAttributeValue(GroupStatusName)).Default("0").Int())),
+		GrantMode:   models.AppMeta_GrantMode(w.M[int](httputil.NewValue(appEntry.GetAttributeValue("grantMode")).Default("0").Int())),
 		GrantType:   models.AppMeta_GrantType(models.AppMeta_GrantType_value[appEntry.GetAttributeValue("grantType")]),
 		Storage:     s.name,
 		User:        users,
@@ -476,7 +477,7 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 		}
 	}
 
-	var attrs = map[string][]string{
+	attrs := map[string][]string{
 		"description":  {app.Description},
 		"avatar":       {app.Avatar},
 		"grantType":    {string(app.GrantType)},
@@ -564,7 +565,7 @@ func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]inter
 }
 
 func (s UserAndAppService) DeleteApp(ctx context.Context, id string) (err error) {
-	return wrapper.Error[int64](s.DeleteApps(ctx, []string{id}))
+	return w.Error[int64](s.DeleteApps(ctx, []string{id}))
 }
 
 func (s UserAndAppService) PatchAppRole(ctx context.Context, dn string, role *models.AppRole) (err error) {
@@ -597,16 +598,14 @@ func (s UserAndAppService) PatchAppRole(ctx context.Context, dn string, role *mo
 		createReq.Attribute("member", member)
 		createReq.Attribute("isDefault", []string{strings.ToUpper(strconv.FormatBool(role.IsDefault))})
 		return conn.Add(createReq)
-	} else {
-		updateReq := goldap.NewModifyRequest(dn, nil)
-		updateReq.Replace("objectClass", []string{"idasRoleGroup", "groupOfNames", "top"})
-		updateReq.Replace("member", member)
-		updateReq.Replace("isDefault", []string{strings.ToUpper(strconv.FormatBool(role.IsDefault))})
-		return conn.Modify(updateReq)
 	}
+	updateReq := goldap.NewModifyRequest(dn, nil)
+	updateReq.Replace("objectClass", []string{"idasRoleGroup", "groupOfNames", "top"})
+	updateReq.Replace("member", member)
+	updateReq.Replace("isDefault", []string{strings.ToUpper(strconv.FormatBool(role.IsDefault))})
+	return conn.Modify(updateReq)
 }
 
 func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, appId string, userId string) (scope string, err error) {
-	//TODO implement me
 	panic("implement me")
 }

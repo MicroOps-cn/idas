@@ -43,6 +43,8 @@ endif
 
 pkgs          = ./...
 
+all: common-lint test protos idas
+
 clean-protos:
 	rm -rf $(PROTO_GOS)
 protos: clean-protos
@@ -93,3 +95,6 @@ $(GOLANGCI_LINT):
 		| sed -e '/install -d/d' \
 		| sh -s -- -b $(FIRST_GOPATH)/bin $(GOLANGCI_LINT_VERSION)
 endif
+
+test:
+	go test -tags make_test -cover -race -count=1 ./...

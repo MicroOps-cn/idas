@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-logfmt/logfmt"
+
 	"idas/pkg/global"
 )
 

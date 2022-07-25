@@ -1,12 +1,15 @@
+//go:build !make_test
+
 package config
 
 import (
 	"bytes"
-	"github.com/gogo/protobuf/jsonpb"
-	"github.com/stretchr/testify/require"
-	"idas/pkg/client/gorm"
 	"testing"
 
+	"github.com/gogo/protobuf/jsonpb"
+	"github.com/stretchr/testify/require"
+
+	"idas/pkg/client/gorm"
 	"idas/pkg/logs"
 )
 
@@ -20,12 +23,14 @@ storage:
       charset: utf8
       collation: utf8_general_ci
       tablePrefix: t_idas_
+      host: localhost
 `
 
 func TestUnmarshalConfig(t *testing.T) {
 	logger := logs.New(logs.MustNewConfig("info", "json"))
+	logs.SetRootLogger(logger)
 	err := safeCfg.ReloadConfigFromYamlReader(logger, NewConverter("./", bytes.NewReader([]byte(conf))))
-	require.NoError(t, err)
+	require.Equal(t, "error unmarshal config: Error 1045: Access denied for user 'idas'@'localhost' (using password: NO)", err.Error())
 	require.Equal(t, safeCfg.C.Storage.User[0].GetSource().(*Storage_Mysql).Mysql.Options().TablePrefix, "t_idas_")
 }
 

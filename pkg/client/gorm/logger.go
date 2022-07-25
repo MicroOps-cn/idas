@@ -3,7 +3,6 @@ package gorm
 import (
 	"context"
 	"fmt"
-	"idas/pkg/logs"
 	"time"
 
 	"github.com/go-kit/log"
@@ -11,6 +10,8 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/utils"
+
+	"idas/pkg/logs"
 )
 
 type logContext struct {

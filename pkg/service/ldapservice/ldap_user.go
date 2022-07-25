@@ -3,24 +3,24 @@ package ldapservice
 import (
 	"context"
 	"fmt"
-	"github.com/go-kit/log/level"
-	uuid "github.com/satori/go.uuid"
-	"github.com/tredoe/osutil/user/crypt/sha256_crypt"
-	"idas/pkg/errors"
-	"idas/pkg/global"
-	"idas/pkg/logs"
-	"idas/pkg/utils/httputil"
-	"idas/pkg/utils/sets"
-	"idas/pkg/utils/wrapper"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/go-kit/log/level"
 	goldap "github.com/go-ldap/ldap"
+	uuid "github.com/satori/go.uuid"
+	"github.com/tredoe/osutil/user/crypt/sha256_crypt"
 
 	"idas/pkg/client/ldap"
+	"idas/pkg/errors"
+	"idas/pkg/global"
+	"idas/pkg/logs"
 	"idas/pkg/service/models"
+	"idas/pkg/utils/httputil"
+	"idas/pkg/utils/sets"
+	w "idas/pkg/utils/wrapper"
 )
 
 const UserStatusName = "status"
@@ -114,15 +114,15 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 		users = append(users, &models.User{
 			Model: models.Model{
 				Id:         entry.GetAttributeValue("entryUUID"),
-				CreateTime: wrapper.Must[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("createTimestamp"))),
-				UpdateTime: wrapper.Must[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("modifyTimestamp"))),
+				CreateTime: w.M[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("createTimestamp"))),
+				UpdateTime: w.M[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("modifyTimestamp"))),
 			},
 			Username:    entry.GetAttributeValue(s.Options().GetAttrUsername()),
 			Email:       entry.GetAttributeValue(s.Options().GetAttrEmail()),
 			PhoneNumber: entry.GetAttributeValue(s.Options().GetAttrUserPhoneNo()),
 			FullName:    entry.GetAttributeValue(s.Options().GetAttrUserDisplayName()),
 			Avatar:      entry.GetAttributeValue("avatar"),
-			Status:      models.UserStatus(wrapper.Must[int](httputil.NewValue(entry.GetAttributeValue(UserStatusName)).Default("0").Int())),
+			Status:      models.UserStatus(w.M[int](httputil.NewValue(entry.GetAttributeValue(UserStatusName)).Default("0").Int())),
 			Storage:     s.name,
 		})
 	}
@@ -172,6 +172,7 @@ func (s UserAndAppService) getUserObjectClass(ctx context.Context, dn string) (o
 	objectClass = ret.Entries[0].GetAttributeValues("objectClass")
 	return objectClass, nil
 }
+
 func (s UserAndAppService) PatchUsers(ctx context.Context, patch []map[string]interface{}) (count int64, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -186,6 +187,9 @@ func (s UserAndAppService) PatchUsers(ctx context.Context, patch []map[string]in
 			return count, err
 		}
 		objectClass, err := s.getUserObjectClass(context.WithValue(ctx, global.LDAPConnName, conn), dn)
+		if err != nil {
+			return count, err
+		}
 		if !sets.New[string](objectClass...).Has("idasCore") {
 			objectClass = append(objectClass, "idasCore")
 		}
@@ -243,7 +247,7 @@ func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, up
 	}
 	columns := sets.New[string](updateColumns...)
 	req := goldap.NewModifyRequest(dn, nil)
-	var replace = []ldapUpdateColumn{
+	replace := []ldapUpdateColumn{
 		{columnName: "object_class", ldapColumnName: "objectClass", val: objectClass},
 		{columnName: "username", ldapColumnName: s.Options().GetAttrUsername(), val: []string{user.Username}},
 		{columnName: "email", ldapColumnName: s.Options().GetAttrEmail(), val: []string{user.Email}},
@@ -292,27 +296,27 @@ func (s UserAndAppService) getUserInfoByReq(ctx context.Context, searchReq *gold
 	userInfo := &models.User{
 		Model: models.Model{
 			Id:         userEntry.GetAttributeValue("entryUUID"),
-			CreateTime: wrapper.Must[time.Time](time.Parse("20060102150405Z", userEntry.GetAttributeValue("createTimestamp"))),
-			UpdateTime: wrapper.Must[time.Time](time.Parse("20060102150405Z", userEntry.GetAttributeValue("modifyTimestamp"))),
+			CreateTime: w.M[time.Time](time.Parse("20060102150405Z", userEntry.GetAttributeValue("createTimestamp"))),
+			UpdateTime: w.M[time.Time](time.Parse("20060102150405Z", userEntry.GetAttributeValue("modifyTimestamp"))),
 		},
 		Username:    userEntry.GetAttributeValue(s.Options().GetAttrUsername()),
 		Email:       userEntry.GetAttributeValue(s.Options().GetAttrEmail()),
 		PhoneNumber: userEntry.GetAttributeValue(s.Options().GetAttrUserPhoneNo()),
 		FullName:    userEntry.GetAttributeValue(s.Options().GetAttrUserDisplayName()),
 		Avatar:      userEntry.GetAttributeValue("avatar"),
-		Status:      models.UserStatus(wrapper.Must[int](httputil.NewValue(userEntry.GetAttributeValue(UserStatusName)).Default("0").Int())),
+		Status:      models.UserStatus(w.M[int](httputil.NewValue(userEntry.GetAttributeValue(UserStatusName)).Default("0").Int())),
 		Storage:     s.name,
 	}
 	if opts.getUserRole {
 		memberOf := sets.New(userEntry.GetAttributeValue("memberOf"))
 		appDn := fmt.Sprintf("cn=%s,%s", global.IdasAppName, s.Options().GroupSearchBase)
 		if memberOf.Has(appDn) {
-			if roleId, roleName, err := s.getAppRoleByUserDnAndAppDn(context.WithValue(ctx, global.LDAPConnName, conn), appDn, userEntry.DN); err != nil {
+			roleId, roleName, err := s.getAppRoleByUserDnAndAppDn(context.WithValue(ctx, global.LDAPConnName, conn), appDn, userEntry.DN)
+			if err != nil {
 				return nil, err
-			} else {
-				userInfo.Role = models.UserRole(roleName)
-				userInfo.RoleId = roleId
 			}
+			userInfo.Role = models.UserRole(roleName)
+			userInfo.RoleId = roleId
 		} else {
 			level.Debug(logs.GetContextLogger(ctx)).Log("msg", fmt.Sprintf("%s is not authorized to user %s", appDn, userEntry.DN))
 		}
@@ -379,7 +383,7 @@ func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*
 	dn := fmt.Sprintf("%s=%s,%s", s.Options().GetAttrUsername(), user.Username, s.Options().UserSearchBase)
 	req := goldap.NewAddRequest(dn, nil)
 
-	var attrs = map[string][]string{
+	attrs := map[string][]string{
 		"mail":                               {user.Email},
 		s.Options().GetAttrUserPhoneNo():     {user.PhoneNumber},
 		s.Options().GetAttrUsername():        {user.Username},
@@ -434,7 +438,7 @@ func (s UserAndAppService) PatchUser(ctx context.Context, user map[string]interf
 		return nil, err
 	}
 	req := goldap.NewModifyRequest(dn, nil)
-	var columns = []ldapUpdateColumn{
+	columns := []ldapUpdateColumn{
 		{columnName: "username", ldapColumnName: s.Options().GetAttrUsername()},
 		{columnName: "email", ldapColumnName: s.Options().GetAttrEmail()},
 		{columnName: "phone_number", ldapColumnName: s.Options().GetAttrUserPhoneNo()},
@@ -465,10 +469,10 @@ func (s UserAndAppService) PatchUser(ctx context.Context, user map[string]interf
 }
 
 func (s UserAndAppService) DeleteUser(ctx context.Context, id string) error {
-	return wrapper.Error[int64](s.DeleteUsers(ctx, []string{id}))
+	return w.Error[int64](s.DeleteUsers(ctx, []string{id}))
 }
 
-func (s UserAndAppService) getDnsByReq(ctx context.Context, searchReq *goldap.SearchRequest) (dns []string, err error) {
+func (s UserAndAppService) getDNSByReq(ctx context.Context, searchReq *goldap.SearchRequest) (dns []string, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	search, err := conn.Search(searchReq)
@@ -499,7 +503,7 @@ func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, 
 		goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 10, 0, false,
 		s.Options().ParseUserSearchFilter(username), nil, nil,
 	)
-	dns, err := s.getDnsByReq(context.WithValue(ctx, global.LDAPConnName, conn), searchReq)
+	dns, err := s.getDNSByReq(context.WithValue(ctx, global.LDAPConnName, conn), searchReq)
 	if err != nil {
 		level.Error(logger).Log("msg", "unknown error", "username", username, "err", err)
 		return nil
@@ -524,6 +528,7 @@ func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, 
 	}
 	return users
 }
+
 func (s UserAndAppService) GetAuthCodeByClientId() string {
 	return s.name
 }

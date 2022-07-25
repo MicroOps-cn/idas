@@ -1,10 +1,12 @@
 package logs
 
 import (
-	"github.com/go-kit/log"
-	"idas/pkg/global"
 	"runtime"
 	"strings"
+
+	"github.com/go-kit/log"
+
+	"idas/pkg/global"
 )
 
 type Option func(l log.Logger) log.Logger

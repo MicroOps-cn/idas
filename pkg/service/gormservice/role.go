@@ -3,7 +3,9 @@ package gormservice
 import (
 	"context"
 	"fmt"
+
 	gogorm "gorm.io/gorm"
+
 	"idas/pkg/global"
 	"idas/pkg/service/models"
 )
@@ -94,6 +96,7 @@ func (c *CommonService) GetRoles(ctx context.Context, keywords string, current, 
 	}
 	return count, roles, nil
 }
+
 func (c CommonService) GetPermissions(ctx context.Context, keywords string, current int64, pageSize int64) (count int64, permissions []*models.Permission, err error) {
 	conn := c.Session(ctx)
 	tb := conn.Model(&models.Permission{})
@@ -132,6 +135,7 @@ func (c CommonService) CreateOrUpdateRoleByName(ctx context.Context, role *model
 	}
 	return conn.Model(role).Association("Permission").Replace(role.Permission)
 }
+
 func (c CommonService) RegisterPermission(ctx context.Context, permissions models.Permissions) error {
 	conn := c.Session(ctx)
 	for _, p := range permissions {

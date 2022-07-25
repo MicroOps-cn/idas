@@ -1,17 +1,16 @@
 package gorm
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gogo/protobuf/proto"
-	"gorm.io/gorm/schema"
 
 	"github.com/go-kit/log/level"
-	"github.com/gogo/protobuf/jsonpb"
+	"github.com/gogo/protobuf/proto"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
+
 	"idas/pkg/logs"
 	"idas/pkg/utils/signals"
 )
@@ -61,13 +60,6 @@ func (p *pbSQLiteOptions) ProtoMessage() {
 	(*SQLiteOptions)(p).Reset()
 }
 
-func (x *SQLiteOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []byte) error {
-	options := NewSQLiteOptions()
-	x.Path = options.Path
-	x.TablePrefix = options.TablePrefix
-	return unmarshaller.Unmarshal(bytes.NewReader(b), (*pbSQLiteOptions)(x))
-}
-
 func NewSQLiteOptions() *SQLiteOptions {
 	return &SQLiteOptions{
 		Path:        "idas.db",
@@ -109,7 +101,7 @@ func (c SQLiteClient) Marshal() ([]byte, error) {
 
 func (c *SQLiteClient) Unmarshal(data []byte) (err error) {
 	if c.options == nil {
-		c.options = &SQLiteOptions{}
+		c.options = NewSQLiteOptions()
 	}
 	if err = proto.Unmarshal(data, c.options); err != nil {
 		return err
@@ -120,13 +112,15 @@ func (c *SQLiteClient) Unmarshal(data []byte) (err error) {
 	return
 }
 
+var _ proto.Unmarshaler = &SQLiteClient{}
+
 func (c SQLiteClient) MarshalJSON() ([]byte, error) {
 	return json.Marshal(c.options)
 }
 
 func (c *SQLiteClient) UnmarshalJSON(data []byte) (err error) {
 	if c.options == nil {
-		c.options = &SQLiteOptions{}
+		c.options = NewSQLiteOptions()
 	}
 	if err = json.Unmarshal(data, c.options); err != nil {
 		return err

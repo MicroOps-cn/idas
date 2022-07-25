@@ -37,40 +37,9 @@ func ECDSAVerify(pub1 string, pub2 string, payload string, sig string) bool {
 	return ecdsa.Verify(publicKey, data, &r, &s)
 }
 
-//func ECDSASign(priv string, pub1 string, pub2 string, payload string) (hash string, err error) {
-//	var r, s = new(big.Int), new(big.Int)
-//	var privateKey = &ecdsa.PrivateKey{
-//		PublicKey: ecdsa.PublicKey{
-//			Curve: elliptic.P256(),
-//			X:     new(big.Int),
-//			Y:     new(big.Int),
-//		},
-//		D: new(big.Int),
-//	}
-//	var ok bool
-//	if _, ok = privateKey.PublicKey.X.SetString(pub1, 62); !ok {
-//		return "", fmt.Errorf("公钥格式异常")
-//	}
-//	if _, ok = privateKey.PublicKey.Y.SetString(pub2, 62); !ok {
-//		return "", fmt.Errorf("公钥格式异常")
-//	}
-//	if _, ok = privateKey.D.SetString(priv, 62); !ok {
-//		return "", fmt.Errorf("私钥格式异常")
-//	}
-//	r, s, err = ecdsa.Sign(rand.Reader, privateKey, []byte(payload))
-//	if err != nil {
-//		return "", err
-//	}
-//
-//	return fmt.Sprintf("%s:%s",
-//		r.Text(62),
-//		s.Text(62),
-//	), nil
-//}
-
 func ECDSASign(priv string, payload string) (hash string, err error) {
-	var r, s = new(big.Int), new(big.Int)
-	var privateKey = &ecdsa.PrivateKey{
+	r, s := new(big.Int), new(big.Int)
+	privateKey := &ecdsa.PrivateKey{
 		PublicKey: ecdsa.PublicKey{
 			Curve: elliptic.P256(),
 			X:     new(big.Int),
@@ -79,16 +48,6 @@ func ECDSASign(priv string, payload string) (hash string, err error) {
 		D: new(big.Int),
 	}
 	var ok bool
-	//pubKeyPair := strings.Split(pub, ":")
-	//if len(pubKeyPair) != 2 {
-	//	return "", fmt.Errorf("公钥格式异常")
-	//}
-	//if _, ok = privateKey.PublicKey.X.SetString(pubKeyPair[0], 62); !ok {
-	//	return "", fmt.Errorf("公钥格式异常")
-	//}
-	//if _, ok = privateKey.PublicKey.Y.SetString(pubKeyPair[1], 62); !ok {
-	//	return "", fmt.Errorf("公钥格式异常")
-	//}
 	if _, ok = privateKey.D.SetString(priv, 62); !ok {
 		return "", fmt.Errorf("私钥格式异常")
 	}
@@ -103,7 +62,7 @@ func ECDSASign(priv string, payload string) (hash string, err error) {
 	), nil
 }
 
-func GenerateECDSAKeyPair() (string, string, string, error) {
+func GenerateECDSAKeyPair() (pub1, pub2, private string, err error) {
 	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return "", "", "", err

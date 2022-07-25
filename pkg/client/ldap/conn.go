@@ -2,10 +2,10 @@ package ldap
 
 import (
 	"crypto/tls"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"time"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/go-ldap/ldap"
 )
 
@@ -99,6 +99,7 @@ func (p *PoolConn) PasswordModify(passwordModifyRequest *ldap.PasswordModifyRequ
 func (p *PoolConn) Search(searchRequest *ldap.SearchRequest) (*ldap.SearchResult, error) {
 	return p.Conn.Search(searchRequest)
 }
+
 func (p *PoolConn) SearchWithPaging(searchRequest *ldap.SearchRequest, pagingSize uint32) (*ldap.SearchResult, error) {
 	return p.Conn.SearchWithPaging(searchRequest, pagingSize)
 }

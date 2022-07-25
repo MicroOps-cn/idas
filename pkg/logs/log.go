@@ -85,7 +85,7 @@ func (l AllowedLevel) Valid() error {
 	case LevelDebug, LevelInfo, LevelWarn, LevelError:
 		return nil
 	default:
-		return errors.Errorf("unrecognized log level %s", l)
+		return errors.Errorf(`unrecognized log level "%s"`, l)
 	}
 }
 
@@ -159,6 +159,17 @@ func MustNewConfig(level string, format string) *Config {
 // with a timestamp. The output always goes to stderr.
 func New(config *Config) log.Logger {
 	var l log.Logger
+	if config == nil {
+		config = MustNewConfig("info", "logfmt")
+	}
+	if config.Format == nil {
+		config.Format = new(AllowedFormat)
+		*config.Format = FormatLogfmt
+	}
+	if config.Level == nil {
+		config.Level = new(AllowedLevel)
+		*config.Level = LevelInfo
+	}
 	switch *config.Format {
 	case FormatLogfmt:
 		l = log.NewJSONLogger(log.NewSyncWriter(os.Stderr))

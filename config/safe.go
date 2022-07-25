@@ -119,7 +119,9 @@ func (sc *safeConfig) ReloadConfigFromJSONReader(logger log.Logger, reader Reade
 		}
 	}()
 
-	var c Config
+	c := Config{
+		Global: NewGlobalOptions(),
+	}
 
 	var unmarshaler jsonpb.Unmarshaler
 	if err = unmarshaler.Unmarshal(reader, &c); err != nil {
@@ -159,4 +161,8 @@ func (sc *safeConfig) ReloadConfigFromFile(logger log.Logger, filename string) e
 
 func ReloadConfigFromFile(logger log.Logger, filename string) error {
 	return safeCfg.ReloadConfigFromFile(logger, filename)
+}
+
+func ReloadConfigFromYamlReader(logger log.Logger, r Reader) error {
+	return safeCfg.ReloadConfigFromYamlReader(logger, r)
 }

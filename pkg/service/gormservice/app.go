@@ -87,7 +87,6 @@ func (s UserAndAppService) PatchAppRole(ctx context.Context, role *models.AppRol
 				return err
 			}
 		}
-
 	} else {
 		if err := conn.Create(&role).Error; err != nil {
 			return err
@@ -96,7 +95,7 @@ func (s UserAndAppService) PatchAppRole(ctx context.Context, role *models.AppRol
 	var userIds []string
 	for _, user := range role.User {
 		user.RoleId = role.Id
-		var appUser = models.AppUser{AppId: role.AppId, UserId: user.Id, RoleId: role.Id}
+		appUser := models.AppUser{AppId: role.AppId, UserId: user.Id, RoleId: role.Id}
 		var oldAppUser models.AppUser
 		if err := conn.Where("app_id = ? and user_id = ?", role.AppId, user.Id).First(&oldAppUser).Error; err == gogorm.ErrRecordNotFound {
 			if err = conn.Create(&appUser).Error; err != nil {

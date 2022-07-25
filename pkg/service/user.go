@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
+
 	uuid "github.com/satori/go.uuid"
+
 	"idas/pkg/errors"
 	"idas/pkg/service/models"
 	"idas/pkg/utils/sign"
@@ -78,6 +80,7 @@ func (s Set) CreateUser(ctx context.Context, storage string, user *models.User) 
 func (s Set) CreateUserKey(ctx context.Context, userId, name string) (keyPair *models.UserKey, err error) {
 	return s.commonService.CreateUserKeyWithId(ctx, userId, name)
 }
+
 func (s Set) PatchUser(ctx context.Context, storage string, user map[string]interface{}) (u *models.User, err error) {
 	service := s.GetUserAndAppService(storage)
 	if service == nil {
@@ -106,7 +109,7 @@ func (s Set) VerifyPassword(ctx context.Context, username string, password strin
 	return users, nil
 }
 
-func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm models.AuthAlgorithm, key, secret, payload, signStr string) ([]*models.User, error) {
+func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm sign.AuthAlgorithm, key, secret, payload, signStr string) ([]*models.User, error) {
 	if method == models.AuthMeta_basic {
 		if _, err := uuid.FromString(key); err != nil {
 			return s.VerifyPassword(ctx, key, secret)
@@ -136,19 +139,10 @@ func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, 
 			return []*models.User{userKey.User}, nil
 		}
 	case models.AuthMeta_signature:
-		switch algorithm {
-		case "", "HMAC-SHA1":
-			hash := sign.ShaHmac1(payload, userKey.Key)
-			if hash == "" || hash != signStr {
-				return nil, errors.ParameterError("Failed to verify the signature")
-			}
-			return []*models.User{userKey.User}, nil
-		case "ECDSA":
-			if sign.ECDSAVerify(userKey.Key, userKey.Secret, payload, signStr) {
-				return nil, errors.ParameterError("Failed to verify the signature")
-			}
+		if sign.Verify(userKey.Key, userKey.Secret, userKey.Private, algorithm, signStr, payload) {
 			return []*models.User{userKey.User}, nil
 		}
+		return nil, errors.ParameterError("Failed to verify the signature")
 	default:
 		return nil, errors.ParameterError("unknown auth method")
 	}

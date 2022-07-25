@@ -4,15 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/types"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
+
 	"idas/pkg/logs"
 	"idas/pkg/utils/signals"
-	"time"
 )
 
 func NewMySQLClient(ctx context.Context, options *MySQLOptions) (*Client, error) {
@@ -91,32 +93,6 @@ func (x *MySQLOptions) GetStdMaxConnectionLifeTime() time.Duration {
 	return time.Second * 30
 }
 
-//
-//type pbMySQLOptions MySQLOptions
-//
-//func (p *pbMySQLOptions) Reset() {
-//	(*MySQLOptions)(p).Reset()
-//}
-//
-//func (p *pbMySQLOptions) String() string {
-//	return (*MySQLOptions)(p).String()
-//}
-//
-//func (p *pbMySQLOptions) ProtoMessage() {
-//	(*MySQLOptions)(p).Reset()
-//}
-//
-//func (m *MySQLOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []byte) error {
-//	options := NewMySQLOptions()
-//	m.Charset = options.Charset
-//	m.Collation = options.Collation
-//	m.MaxIdleConnections = options.MaxIdleConnections
-//	m.MaxOpenConnections = options.MaxOpenConnections
-//	m.MaxConnectionLifeTime = options.MaxConnectionLifeTime
-//	m.TablePrefix = options.TablePrefix
-//	return unmarshaller.Unmarshal(bytes.NewReader(b), (*pbMySQLOptions)(m))
-//}
-//
 func NewMySQLOptions() *MySQLOptions {
 	return &MySQLOptions{
 		Charset:               "utf8",
@@ -125,6 +101,9 @@ func NewMySQLOptions() *MySQLOptions {
 		MaxOpenConnections:    100,
 		MaxConnectionLifeTime: types.DurationProto(30 * time.Second),
 		TablePrefix:           "t_",
+		Host:                  "localhost",
+		Schema:                "idas",
+		Username:              "idas",
 	}
 }
 

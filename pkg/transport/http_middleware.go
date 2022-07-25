@@ -3,14 +3,7 @@ package transport
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
 	"fmt"
-	"idas/config"
-	"idas/pkg/service/models"
-	"idas/pkg/utils/httputil"
-	"idas/pkg/utils/sets"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -20,59 +13,15 @@ import (
 	"github.com/emicklei/go-restful/v3"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+
 	"idas/pkg/endpoint"
 	"idas/pkg/errors"
 	"idas/pkg/global"
 	"idas/pkg/logs"
+	"idas/pkg/service/models"
+	"idas/pkg/utils/httputil"
+	"idas/pkg/utils/sign"
 )
-
-var innerKey = sets.New[string]("authKey", "authSign", "authSecret", "authMethod", "authAlgorithm")
-
-func GetPayload(r *http.Request) (string, error) {
-	requestTime, err := time.Parse(r.Header.Get("date"), time.RFC1123)
-	if err != nil {
-		return "", err
-	} else if time.Since(requestTime) > time.Minute*10 {
-		return "", fmt.Errorf("request has expired")
-	}
-	var bodyHash string
-	if r.ContentLength > 0 {
-		contentType, _, _ := strings.Cut(r.Header.Get("content-type"), ";")
-		if len(contentType) > 0 {
-			switch contentType {
-			case restful.MIME_JSON, restful.MIME_XML, "application/x-www-form-urlencoded":
-				if r.ContentLength > config.Get().Global.MaxBodySize.Capacity {
-					body, err := ioutil.ReadAll(r.Body)
-					r.Body.Close()
-					if err != nil {
-						return "", err
-					} else {
-						bodyHash = fmt.Sprintf("%x", md5.Sum(body))
-						r.Body = io.NopCloser(bytes.NewBuffer(body))
-					}
-				}
-			}
-		}
-	}
-	if len(bodyHash) == 0 {
-		bodyHash = r.Header.Get("x-body-hash")
-	}
-	payload := strings.Builder{}
-	payload.WriteString(r.Method + "\n")
-	payload.WriteString(bodyHash + "\n")
-	payload.WriteString(r.Header.Get("content-type") + "\n")
-	payload.WriteString(r.Header.Get("date") + "\n")
-	var urlQuery = url.Values{}
-	for key, value := range r.URL.Query() {
-		if !innerKey.Has(key) {
-			for _, v := range value {
-				urlQuery.Add(key, v)
-			}
-		}
-	}
-	payload.WriteString(r.URL.RawPath + "?" + urlQuery.Encode())
-	return payload.String(), nil
-}
 
 func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, filterChan *restful.FilterChain) {
@@ -103,7 +52,7 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 			}
 		}
 
-		authReq := HttpRequest[endpoint.AuthenticationRequest]{}
+		authReq := HTTPRequest[endpoint.AuthenticationRequest]{}
 		if username, password, ok := req.Request.BasicAuth(); ok {
 			authReq.Data.AuthKey = username
 			authReq.Data.AuthSecret = password
@@ -121,7 +70,7 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 		}
 		if len(authReq.Data.AuthKey) > 0 || len(authReq.Data.AuthSecret) > 0 {
 			if authReq.Data.AuthSign != "" {
-				if authReq.Data.Payload, err = GetPayload(req.Request); err != nil {
+				if authReq.Data.Payload, err = sign.GetPayloadFromHTTPRequest(req.Request); err != nil {
 					errorHandler(req.Request.Context(), errors.NewServerError(http.StatusBadRequest, "Failed to get payload"), resp)
 				}
 			}

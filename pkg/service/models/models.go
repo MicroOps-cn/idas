@@ -1,7 +1,5 @@
 package models
 
-type AuthAlgorithm string
-
 func (x AppMeta_GrantType) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + x.String() + `"`), nil
 }

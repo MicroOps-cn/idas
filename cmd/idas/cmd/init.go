@@ -18,10 +18,10 @@ package cmd
 
 import (
 	"context"
-	"idas/pkg/endpoint"
 
 	"github.com/spf13/cobra"
 
+	"idas/pkg/endpoint"
 	"idas/pkg/logs"
 	"idas/pkg/service"
 	"idas/pkg/utils/signals"

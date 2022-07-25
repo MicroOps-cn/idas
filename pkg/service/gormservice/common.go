@@ -3,11 +3,12 @@ package gormservice
 import (
 	"context"
 	"fmt"
-	gogorm "gorm.io/gorm"
-	"idas/pkg/client/gorm"
-	"idas/pkg/utils/sign"
 
+	gogorm "gorm.io/gorm"
+
+	"idas/pkg/client/gorm"
 	"idas/pkg/service/models"
+	"idas/pkg/utils/sign"
 )
 
 func NewCommonService(name string, client *gorm.Client) *CommonService {
@@ -74,30 +75,6 @@ func (c CommonService) CreateUserKeyWithId(ctx context.Context, userId string, n
 		}, nil
 	}
 }
-
-const authByKey = `
-SELECT 
-    t_user_key.id,
-    t_user_key.user_id,
-    t_user_key.key,
-    t_user_key.secret,
-    T1.id AS User__id,
-    T1.create_time AS User__create_time,
-    T1.update_time AS User__update_time,
-    T1.is_delete AS User__is_delete,
-    T1.username AS User__username,
-    T1.email AS User__email,
-    T1.full_name AS User__full_name,
-    T1.user_type AS User__user_type,
-    T1.last_login AS User__last_login,
-    T1.is_admin AS User__is_admin
-FROM
-    t_user_key
-        JOIN
-    t_user T1 ON T1.id = t_user_key.user_id
-WHERE
-    t_user_key.key = ?
-`
 
 func (c CommonService) GetUserKey(ctx context.Context, key string) (*models.UserKey, error) {
 	userKey := &models.UserKey{Key: key}

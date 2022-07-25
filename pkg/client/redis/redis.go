@@ -3,11 +3,11 @@ package redis
 import (
 	"context"
 	"encoding/json"
-	"github.com/gogo/protobuf/proto"
 	"time"
 
 	"github.com/go-kit/log/level"
 	"github.com/go-redis/redis"
+	"github.com/gogo/protobuf/proto"
 
 	"idas/pkg/logs"
 	"idas/pkg/utils/signals"
@@ -19,10 +19,10 @@ type Client struct {
 }
 
 // Merge implement proto.Merger
-func (c *Client) Merge(src proto.Message) {
+func (r *Client) Merge(src proto.Message) {
 	if s, ok := src.(*Client); ok {
-		c.options = s.options
-		c.client = s.client
+		r.options = s.options
+		r.client = s.client
 	}
 }
 

@@ -3,15 +3,17 @@ package endpoint
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strconv"
+
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log/level"
+
 	"idas/pkg/errors"
 	"idas/pkg/global"
 	"idas/pkg/logs"
 	"idas/pkg/service"
 	"idas/pkg/service/models"
-	"net/url"
-	"strconv"
 )
 
 func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {

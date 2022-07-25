@@ -4,17 +4,17 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/go-kit/log/level"
-	uuid "github.com/satori/go.uuid"
-	"idas/pkg/client/gorm"
-	"idas/pkg/logs"
 	"reflect"
 	"strings"
 	"time"
 
+	"github.com/go-kit/log/level"
+	uuid "github.com/satori/go.uuid"
 	gogorm "gorm.io/gorm"
 
+	"idas/pkg/client/gorm"
 	"idas/pkg/errors"
+	"idas/pkg/logs"
 	"idas/pkg/service/models"
 )
 

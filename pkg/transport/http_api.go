@@ -94,7 +94,7 @@ loopObjFields:
 	return params
 }
 
-//UserService User Manager Service for restful Http container
+// UserService User Manager Service for restful Http container
 func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "users", Description: "Managing users"}}
 	tags := []string{tag.Name}
@@ -422,6 +422,7 @@ func UserAuthService(options []httptransport.ServerOption, endpoints endpoint.Se
 	)
 	return tag, []*restful.WebService{v1ws}
 }
+
 func PermissionService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "permissions", Description: "permissions service"}}
 	tags := []string{tag.Name}
@@ -438,6 +439,7 @@ func PermissionService(options []httptransport.ServerOption, endpoints endpoint.
 	)
 	return tag, []*restful.WebService{v1ws}
 }
+
 func RoleService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "roles", Description: "role service"}}
 	tags := []string{tag.Name}

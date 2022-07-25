@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/gogo/protobuf/proto"
 	"html/template"
+
+	"github.com/gogo/protobuf/proto"
 )
 
 type Template struct {
@@ -34,6 +35,7 @@ func (t *Template) Unmarshal(data []byte) (err error) {
 func (t Template) MarshalJSON() ([]byte, error) {
 	return json.Marshal(t.OriginalTemplate)
 }
+
 func (t *Template) UnmarshalJSON(data []byte) (err error) {
 	if t.OriginalTemplate == nil {
 		t.OriginalTemplate = &OriginalTemplate{}
@@ -66,6 +68,7 @@ func (m *SmtpOptions) getTemplate(topic string, sets ...string) *Template {
 	}
 	return nil
 }
+
 func (m *SmtpOptions) GetSubjectAndBody(data interface{}, topic string, sets ...string) (subject, body string, err error) {
 	t := m.getTemplate(topic, sets...)
 	buffer := new(bytes.Buffer)
@@ -76,8 +79,4 @@ func (m *SmtpOptions) GetSubjectAndBody(data interface{}, topic string, sets ...
 		return "", "", err
 	}
 	return t.GetSubject(), buffer.String(), nil
-}
-
-func NewSmtpOptions() *SmtpOptions {
-	return &SmtpOptions{}
 }

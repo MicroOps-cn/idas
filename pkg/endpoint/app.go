@@ -2,6 +2,7 @@ package endpoint
 
 import (
 	"context"
+
 	"github.com/go-kit/kit/endpoint"
 
 	"idas/pkg/errors"
@@ -32,7 +33,7 @@ func MakePatchAppsEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*PatchAppsRequest)
 		resp := TotalResponseWrapper[interface{}]{}
-		var patchApps = map[string][]map[string]interface{}{}
+		patchApps := map[string][]map[string]interface{}{}
 		for _, a := range *req {
 			if len(a.Storage) == 0 {
 				return nil, errors.ParameterError("There is an empty storage in the patch.")
@@ -40,7 +41,7 @@ func MakePatchAppsEndpoint(s service.Service) endpoint.Endpoint {
 			if len(a.Id) == 0 {
 				return nil, errors.ParameterError("There is an empty id in the patch.")
 			}
-			var patch = map[string]interface{}{"id": a.Id}
+			patch := map[string]interface{}{"id": a.Id}
 			if a.Status != nil {
 				patch["status"] = a.Status
 			}
@@ -70,7 +71,7 @@ func MakeDeleteAppsEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*DeleteAppsRequest)
 		resp := TotalResponseWrapper[interface{}]{}
-		var delApps = map[string][]string{}
+		delApps := map[string][]string{}
 		for _, app := range *req {
 			if len(app.Storage) == 0 {
 				return nil, errors.ParameterError("There is an empty storage in the request.")
@@ -180,7 +181,7 @@ func MakePatchAppEndpoint(s service.Service) endpoint.Endpoint {
 		if len(req.Id) == 0 {
 			return nil, errors.ParameterError("There is an empty id in the patch.")
 		}
-		var tmpPatch = map[string]interface{}{
+		tmpPatch := map[string]interface{}{
 			"id":          req.Id,
 			"storage":     req.Storage,
 			"name":        req.Name,
@@ -191,7 +192,7 @@ func MakePatchAppEndpoint(s service.Service) endpoint.Endpoint {
 			"status":      req.Status,
 			"isDelete":    req.IsDelete,
 		}
-		var patch = map[string]interface{}{}
+		patch := map[string]interface{}{}
 		for name, val := range tmpPatch {
 			if val != nil {
 				patch[name] = val

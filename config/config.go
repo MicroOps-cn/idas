@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/go-kit/log"
-	"github.com/gogo/protobuf/jsonpb"
-	"github.com/gogo/protobuf/proto"
-	"github.com/spf13/afero"
 	"os"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/go-kit/log"
+	"github.com/gogo/protobuf/jsonpb"
+	"github.com/gogo/protobuf/proto"
+	"github.com/spf13/afero"
 
 	"idas/pkg/utils/capacity"
 )
@@ -113,7 +114,6 @@ func (x *Config) Init(logger log.Logger) error {
 			if s.Ref.Storage == nil {
 				s.Ref.Storage = new(Storage)
 			}
-			//err := s.Ref.Storage.findRef(s.Ref.Path, x)
 			err := storage.findRef(s.Ref.Path, x)
 			if err != nil {
 				return err

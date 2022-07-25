@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
+
 	"github.com/go-kit/log/level"
+
 	"idas/pkg/errors"
 	"idas/pkg/logs"
 	"idas/pkg/service/models"

@@ -3,12 +3,13 @@ package ldap
 import (
 	"context"
 	"errors"
-	"github.com/go-kit/log/level"
-	"idas/pkg/logs"
 	"sync"
 
 	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/go-ldap/ldap"
+
+	"idas/pkg/logs"
 )
 
 // channelPool implements the Pool interface based on buffered channels.

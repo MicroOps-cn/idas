@@ -3,17 +3,15 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/go-kit/log"
-	"idas/pkg/errors"
-	"idas/pkg/global"
-	"idas/pkg/logs"
-	"idas/pkg/service/gormservice"
-	"idas/pkg/utils/wrapper"
 	"time"
 
 	"idas/config"
+	"idas/pkg/errors"
+	"idas/pkg/global"
+	"idas/pkg/service/gormservice"
 	"idas/pkg/service/models"
 	"idas/pkg/service/redisservice"
+	w "idas/pkg/utils/wrapper"
 )
 
 func (s Set) CreateLoginSession(ctx context.Context, username string, password string, rememberMe bool) (session string, err error) {
@@ -28,7 +26,7 @@ func (s Set) CreateLoginSession(ctx context.Context, username string, password s
 			return "", err
 		}
 	}
-	token, err := s.CreateToken(ctx, models.TokenTypeLoginSession, wrapper.ToInterfaces[*models.User](users)...)
+	token, err := s.CreateToken(ctx, models.TokenTypeLoginSession, w.ToInterfaces[*models.User](users)...)
 	if err != nil {
 		return "", err
 	}
@@ -54,8 +52,8 @@ type SessionService interface {
 }
 
 func NewSessionService(ctx context.Context) SessionService {
-	logger := log.With(logs.GetContextLogger(ctx), "service", "session")
-	ctx = context.WithValue(ctx, global.LoggerName, logger)
+	// logger := log.With(logs.GetContextLogger(ctx), "service", "session")
+	// ctx = context.WithValue(ctx, global.LoggerName, logger)
 	var sessionService SessionService
 	sessionStorage := config.Get().GetStorage().GetSession()
 	switch sessionSource := sessionStorage.GetStorageSource().(type) {

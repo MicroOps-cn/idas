@@ -2,14 +2,16 @@ package endpoint
 
 import (
 	"context"
+
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log/level"
+
 	"idas/pkg/errors"
 	"idas/pkg/global"
 	"idas/pkg/logs"
 	"idas/pkg/service"
 	"idas/pkg/service/models"
-	"idas/pkg/utils/wrapper"
+	w "idas/pkg/utils/wrapper"
 )
 
 func MakeCurrentUserEndpoint(_ service.Service) endpoint.Endpoint {
@@ -36,15 +38,15 @@ func MakeResetUserPasswordEndpoint(s service.Service) endpoint.Endpoint {
 				resp.Error = s.ResetPassword(ctx, req.UserId, req.Storage, req.NewPassword)
 			}
 		} else {
-
+			// implement me
 		}
-		//if auth, ok := req.Auth.(*ResetUserPasswordRequest_Token); ok && len(auth.Token) > 0 {
-		//	if s.VerifyToken(ctx, auth.Token, req.UserId, models.TokenTypeResetPassword) {
-		//		resp.Error = s.ResetPassword(ctx, req.UserId, req.Storage, req.NewPassword)
-		//	}
-		//} else {
+		// if auth, ok := req.Auth.(*ResetUserPasswordRequest_Token); ok && len(auth.Token) > 0 {
+		// 	if s.VerifyToken(ctx, auth.Token, req.UserId, models.TokenTypeResetPassword) {
+		// 		resp.Error = s.ResetPassword(ctx, req.UserId, req.Storage, req.NewPassword)
+		// 	}
+		// } else {
 		//
-		//}
+		// }
 
 		return resp, nil
 	}
@@ -60,7 +62,7 @@ func MakeForgotPasswordEndpoint(s service.Service) endpoint.Endpoint {
 			return resp, nil
 		}
 
-		token, err := s.CreateToken(ctx, models.TokenTypeResetPassword, wrapper.ToInterfaces[*models.User](users)...)
+		token, err := s.CreateToken(ctx, models.TokenTypeResetPassword, w.ToInterfaces[*models.User](users)...)
 		if err != nil {
 			return resp, err
 		}
@@ -100,7 +102,7 @@ func MakePatchUsersEndpoint(s service.Service) endpoint.Endpoint {
 		req := request.(Requester).GetRequestData().(*PatchUsersRequest)
 		resp := TotalResponseWrapper[interface{}]{}
 
-		var patchUsers = map[string][]map[string]interface{}{}
+		patchUsers := map[string][]map[string]interface{}{}
 		for _, u := range *req {
 			if len(u.Storage) == 0 {
 				return nil, errors.ParameterError("There is an empty storage in the patch.")
@@ -108,7 +110,7 @@ func MakePatchUsersEndpoint(s service.Service) endpoint.Endpoint {
 			if len(u.Id) == 0 {
 				return nil, errors.ParameterError("There is an empty id in the patch.")
 			}
-			var patch = map[string]interface{}{"id": u.Id}
+			patch := map[string]interface{}{"id": u.Id}
 			if u.Status != nil {
 				patch["status"] = u.Status
 			}
@@ -137,7 +139,7 @@ func MakeDeleteUsersEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*DeleteUsersRequest)
 		resp := TotalResponseWrapper[interface{}]{}
-		var delUsers = map[string][]string{}
+		delUsers := map[string][]string{}
 		for _, u := range *req {
 			if len(u.Storage) == 0 {
 				return nil, errors.ParameterError("There is an empty storage in the request.")
@@ -223,7 +225,7 @@ func MakePatchUserEndpoint(s service.Service) endpoint.Endpoint {
 		if len(req.Id) == 0 {
 			return nil, errors.ParameterError("There is an empty id in the patch.")
 		}
-		var patch = map[string]interface{}{"id": req.Id}
+		patch := map[string]interface{}{"id": req.Id}
 		if req.Status != nil {
 			patch["status"] = req.Status
 		}

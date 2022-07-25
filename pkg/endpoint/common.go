@@ -17,7 +17,6 @@ type FileUploadRequest struct{}
 
 func MakeUploadFileEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		//req := request.(Requester).GetRequestData().(*FileUploadRequest)
 		resp := SimpleResponseWrapper[interface{}]{}
 		stdReq := request.(RestfulRequester).GetRestfulRequest().Request
 		var (

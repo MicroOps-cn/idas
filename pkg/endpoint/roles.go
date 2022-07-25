@@ -2,7 +2,9 @@ package endpoint
 
 import (
 	"context"
+
 	"github.com/go-kit/kit/endpoint"
+
 	"idas/pkg/service"
 	"idas/pkg/service/models"
 )
@@ -59,6 +61,7 @@ func MakeUpdateRoleEndpoint(s service.Service) endpoint.Endpoint {
 		return &resp, nil
 	}
 }
+
 func MakeDeleteRoleEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*DeleteRoleRequest)
@@ -67,6 +70,7 @@ func MakeDeleteRoleEndpoint(s service.Service) endpoint.Endpoint {
 		return &resp, nil
 	}
 }
+
 func MakeDeleteRolesEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(DeleteRolesRequest)

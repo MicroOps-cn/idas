@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-kit/log/level"
-	"idas/pkg/errors"
-	"idas/pkg/logs"
 	"time"
 
+	"github.com/go-kit/log/level"
+
 	"idas/pkg/client/redis"
+	"idas/pkg/errors"
 	"idas/pkg/global"
+	"idas/pkg/logs"
 	"idas/pkg/service/models"
 )
 
@@ -22,14 +23,10 @@ type SessionService struct {
 func (s SessionService) CreateToken(ctx context.Context, token *models.Token) error {
 	sessionId := models.NewId()
 	redisClt := s.Redis(ctx)
-	if err := redisClt.Set(fmt.Sprintf("%s:%s", global.LoginSession, sessionId), token, -time.Since(token.Expiry)).Err(); err != nil {
-		return err
-	}
-	return nil
+	return redisClt.Set(fmt.Sprintf("%s:%s", global.LoginSession, sessionId), token, -time.Since(token.Expiry)).Err()
 }
 
 func (s SessionService) VerifyToken(ctx context.Context, token string, relationId string, tokenType models.TokenType) bool {
-	//TODO implement me
 	panic("implement me")
 }
 

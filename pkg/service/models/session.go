@@ -3,12 +3,13 @@ package models
 import (
 	"database/sql"
 	"encoding/json"
-	"idas/pkg/global"
 	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
+
+	"idas/pkg/global"
 )
 
 type TokenType string
@@ -67,6 +68,7 @@ func NewToken(tokenType TokenType, data ...interface{}) (*Token, error) {
 	token.RelationId = strings.Join(relationIds, ",")
 	return token, nil
 }
+
 func (s *Token) BeforeCreate(db *gorm.DB) error {
 	if s.Id == "" {
 		id := NewId()

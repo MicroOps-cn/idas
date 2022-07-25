@@ -4,9 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gogo/protobuf/jsonpb"
-	"github.com/gogo/protobuf/proto"
-	"idas/pkg/utils/wrapper"
 	"io"
 	stdlog "log"
 	"net/http"
@@ -23,6 +20,8 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-openapi/spec"
+	"github.com/gogo/protobuf/jsonpb"
+	"github.com/gogo/protobuf/proto"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	stdzipkin "github.com/openzipkin/zipkin-go"
 
@@ -33,6 +32,7 @@ import (
 	"idas/pkg/logs"
 	"idas/pkg/utils/buffer"
 	"idas/pkg/utils/httputil"
+	w "idas/pkg/utils/wrapper"
 )
 
 // NewHTTPHandler returns an HTTP handler that makes a set of endpoints
@@ -56,7 +56,7 @@ func NewHTTPHandler(endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipk
 	options = append(options, httptransport.ServerBefore(opentracing.HTTPToContext(otTracer, "Concat", logger)))
 	restful.TraceLogger(stdlog.New(log.NewStdlibAdapter(level.Info(logger)), "[restful]", stdlog.LstdFlags|stdlog.Lshortfile))
 	m.Filter(HTTPLoggingFilter)
-	var serviceGenerators = []func(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService){
+	serviceGenerators := []func(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService){
 		UserService,
 		AppService,
 		FileService,
@@ -132,25 +132,25 @@ type responseWrapper struct {
 	Total        int64       `json:"total"`
 }
 
-type HttpRequest[T any] struct {
+type HTTPRequest[T any] struct {
 	Data            T `json:"data"`
 	restfulRequest  *restful.Request
 	restfulResponse *restful.Response
 }
 
-func (b HttpRequest[T]) GetRequestData() interface{} {
+func (b HTTPRequest[T]) GetRequestData() interface{} {
 	return &b.Data
 }
 
-func (b HttpRequest[T]) GetRestfulRequest() *restful.Request {
+func (b HTTPRequest[T]) GetRestfulRequest() *restful.Request {
 	return b.restfulRequest
 }
 
-func (b HttpRequest[T]) GetRestfulResponse() *restful.Response {
+func (b HTTPRequest[T]) GetRestfulResponse() *restful.Response {
 	return b.restfulResponse
 }
 
-var _ endpoint.RestfulRequester = &HttpRequest[any]{}
+var _ endpoint.RestfulRequester = &HTTPRequest[any]{}
 
 func isProtoMessage(v interface{}) (proto.Message, bool) {
 	msg, ok := v.(proto.Message)
@@ -161,7 +161,7 @@ func isProtoMessage(v interface{}) (proto.Message, bool) {
 func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request) (interface{}, error) {
 	restfulReq := stdReq.Context().Value(global.RestfulRequestContextName).(*restful.Request)
 	restfulResp := stdReq.Context().Value(global.RestfulResponseContextName).(*restful.Response)
-	req := HttpRequest[RequestType]{restfulRequest: restfulReq, restfulResponse: restfulResp}
+	req := HTTPRequest[RequestType]{restfulRequest: restfulReq, restfulResponse: restfulResp}
 	var err error
 	logger := logs.GetContextLogger(stdReq.Context())
 	r := restfulReq.Request
@@ -212,7 +212,7 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 
 	req.restfulRequest = restfulReq
 	req.restfulResponse = restfulResp
-	level.Debug(logger).Log("msg", "decoded http request", "req", fmt.Sprintf("%s", wrapper.Must[[]byte](json.Marshal(req))))
+	level.Debug(logger).Log("msg", "decoded http request", "req", fmt.Sprintf("%s", w.Must[[]byte](json.Marshal(req))))
 	if ok, err := govalidator.ValidateStruct(req.Data); err != nil {
 		return &req, errors.NewServerError(http.StatusBadRequest, err.Error())
 	} else if !ok {

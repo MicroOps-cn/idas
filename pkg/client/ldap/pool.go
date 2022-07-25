@@ -1,13 +1,9 @@
 package ldap
 
-import (
-	"errors"
-)
+import "errors"
 
-var (
-	// ErrClosed is the error resulting if the pool is closed via pool.Close().
-	ErrClosed = errors.New("pool is closed")
-)
+// ErrClosed is the error resulting if the pool is closed via pool.Close().
+var ErrClosed = errors.New("pool is closed")
 
 // Pool interface describes a pool implementation. A pool should have maximum
 // capacity. An ideal pool is threadsafe and easy to use.

@@ -1,10 +1,11 @@
 package errors
 
 import (
-	"gorm.io/gorm"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"gorm.io/gorm"
 )
 
 type ServerError interface {
@@ -47,16 +48,16 @@ func (m MultipleServerError) Error() string {
 	if len(m.errs) > 0 {
 		if len(m.errs) == 1 {
 			return m.errs[0].Error()
-		} else {
-			var errs []string
-			for _, err := range m.errs {
-				errs = append(errs, err.Error())
-			}
-			return m.prefix + strings.Join(errs, ",")
 		}
+		var errs []string
+		for _, err := range m.errs {
+			errs = append(errs, err.Error())
+		}
+		return m.prefix + strings.Join(errs, ",")
 	}
 	return ""
 }
+
 func (m MultipleServerError) HasError() bool {
 	return len(m.errs) > 0
 }

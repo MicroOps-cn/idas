@@ -25,7 +25,6 @@ import (
 // result in a panic.
 func TestDefaultConfig(t *testing.T) {
 	logger := New(&Config{})
-
 	if err := logger.Log("hello", "world"); err != nil {
 		t.Fatal(err)
 	}

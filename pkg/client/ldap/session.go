@@ -4,12 +4,14 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"time"
+
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-ldap/ldap"
+
 	"idas/pkg/logs"
-	"idas/pkg/utils/wrapper"
-	"time"
+	w "idas/pkg/utils/wrapper"
 )
 
 type Session struct {
@@ -21,6 +23,7 @@ type Session struct {
 func (s *Session) Error() error {
 	return s.err
 }
+
 func (s *Session) Start() {
 	if s.c != nil {
 		s.c.Start()
@@ -65,7 +68,7 @@ func (s *Session) Add(addRequest *ldap.AddRequest) error {
 		return s.err
 	}
 	logger := logs.GetContextLogger(s.ctx, logs.WithCaller(4))
-	level.Debug(logger).Log("msg", "create ldap object", "dn", addRequest.DN, "attributes", string(wrapper.Must[[]byte](json.Marshal(addRequest.Attributes))))
+	level.Debug(logger).Log("msg", "create ldap object", "dn", addRequest.DN, "attributes", string(w.M[[]byte](json.Marshal(addRequest.Attributes))))
 	return s.c.Add(addRequest)
 }
 
@@ -83,7 +86,7 @@ func (s *Session) Modify(modifyRequest *ldap.ModifyRequest) error {
 		return s.err
 	}
 	logger := logs.GetContextLogger(s.ctx, logs.WithCaller(4))
-	level.Debug(logger).Log("msg", "modify ldap object", "dn", modifyRequest.DN, "attributes", string(wrapper.Must[[]byte](json.Marshal(modifyRequest.Changes))))
+	level.Debug(logger).Log("msg", "modify ldap object", "dn", modifyRequest.DN, "attributes", string(w.M[[]byte](json.Marshal(modifyRequest.Changes))))
 	return s.c.Modify(modifyRequest)
 }
 

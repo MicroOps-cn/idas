@@ -3,9 +3,10 @@ package ldap
 import (
 	"bytes"
 	"fmt"
+	"strings"
+
 	"github.com/asaskevich/govalidator"
 	"github.com/gogo/protobuf/jsonpb"
-	"strings"
 )
 
 type pbLdapOptions LdapOptions

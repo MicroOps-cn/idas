@@ -3,16 +3,16 @@ package endpoint
 import (
 	"context"
 	"fmt"
-	"idas/pkg/global"
-	"idas/pkg/service"
-	"idas/pkg/service/models"
 	"time"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/log/level"
 
+	"idas/pkg/global"
 	"idas/pkg/logs"
+	"idas/pkg/service"
+	"idas/pkg/service/models"
 )
 
 // InstrumentingMiddleware returns an endpoint middleware that records
