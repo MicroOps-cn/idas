@@ -15,9 +15,9 @@ message AppInfo{
   string description = 3;
   string storage = 4[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string avatar = 5;
-  idas.service.models.AppMeta.GrantType grantType = 6[(gogoproto.jsontag) = "grantType", (gogoproto.moretags) = 'valid:"required"'];
+  idas.service.models.AppMeta.GrantType grantType = 6[(gogoproto.jsontag) = "grantType"];
   idas.service.models.AppMeta.GrantMode grantMode = 7[(gogoproto.jsontag) = "grantMode"];
-  idas.service.models.AppMeta.Status status = 8[(gogoproto.jsontag) = "status", (gogoproto.moretags) = 'valid:"required"'];
+  idas.service.models.AppMeta.Status status = 8[(gogoproto.jsontag) = "status"];
   string updateTime = 12[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
   string createTime = 13[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
   bool isDelete = 14[(gogoproto.jsontag) = "isDelete", (gogoproto.moretags) = 'valid:"required"'];
@@ -111,7 +111,7 @@ message UpdateAppRequest{
   idas.service.models.AppMeta.GrantMode grantMode = 7;
   repeated  AppUser user = 8;
   repeated  AppRole role = 9;
-  idas.service.models.AppMeta.Status status = 10[(gogoproto.jsontag) = "status", (gogoproto.moretags) = 'valid:"required"'];
+  idas.service.models.AppMeta.Status status = 10[(gogoproto.jsontag) = "status"];
   bool isDelete = 11;
 }
 

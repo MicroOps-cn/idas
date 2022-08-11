@@ -6,13 +6,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-kit/log/level"
 	gogorm "gorm.io/gorm"
 
 	"idas/pkg/client/gorm"
 	"idas/pkg/errors"
-	"idas/pkg/global"
-	"idas/pkg/logs"
 	"idas/pkg/service/models"
 )
 
@@ -35,11 +32,12 @@ func (s SessionService) VerifyToken(ctx context.Context, token string, relationI
 	if err := conn.Model(&models.Token{}).Where("id = ? and relation_id = ? and `type` = ?", token, relationId, tokenType).First(tk).Error; err != nil {
 		return false
 	}
-	if tokenType == models.TokenTypeResetPassword {
+	if tokenType == models.TokenTypeResetPassword || tokenType == models.TokenTypeCode || tokenType == models.TokenTypeActive {
 		if err := conn.Delete(tk).Error; err != nil {
 			return false
 		}
 	}
+
 	if tk.Expiry.After(time.Now().UTC()) {
 		return true
 	}
@@ -69,40 +67,37 @@ func (s SessionService) Name() string {
 	return s.name
 }
 
-func (s SessionService) CreateOAuthAuthCode(ctx context.Context, appId, sessionId string, scope, storage string) (code string, err error) {
-	c := models.AppAuthCode{AppId: appId, SessionId: sessionId, Scope: scope, Storage: storage}
-	if err = s.Session(ctx).Create(&c).Error; err != nil {
-		return "", err
-	}
-	return c.Id, nil
-}
-
-func (s SessionService) GetUserByOAuthAuthorizationCode(ctx context.Context, code, clientId string) (user *models.User, scope string, err error) {
-	logger := logs.GetContextLogger(ctx)
-	c := models.AppAuthCode{}
-	if err = s.Session(ctx).Where("id = ? and app_id = ? and create_time > ?", code, clientId, time.Now().Add(-global.AuthCodeExpiration)).First(&c).Error; err != nil {
-		if err != gogorm.ErrRecordNotFound {
-			level.Error(logger).Log("msg", "failed to get auth code info", "err", err)
-		}
-		return nil, "", errors.BadRequestError
-	} else if err = s.Session(ctx).Delete(&c).Error; err != nil {
-		level.Error(logger).Log("msg", "failed to remove auth code", "err", err)
-		return
-	}
-	if users, err := s.GetLoginSession(ctx, c.SessionId); err != nil {
-		level.Error(logger).Log("msg", "failed to get session info", "err", err)
-		return nil, "", errors.BadRequestError
-	} else if len(users) < 0 {
-		level.Error(logger).Log("msg", "session expired")
-		return nil, "", errors.BadRequestError
-	} else {
-		return users[0], c.Scope, nil
-	}
-}
-
-func (s SessionService) GetOAuthTokenByPassword(ctx context.Context, username string, password string) (accessToken, refreshToken string, expiresIn int, err error) {
-	panic("implement me")
-}
+//
+//func (s SessionService) CreateOAuthAuthCode(ctx context.Context, appId, sessionId string, scope, storage string) (code string, err error) {
+//	c := models.AppAuthCode{AppId: appId, SessionId: sessionId, Scope: scope, Storage: storage}
+//	if err = s.Session(ctx).Create(&c).Error; err != nil {
+//		return "", err
+//	}
+//	return c.Id, nil
+//}
+//
+//func (s SessionService) GetUserByOAuthAuthorizationCode(ctx context.Context, code, clientId string) (user *models.User, scope string, err error) {
+//	logger := logs.GetContextLogger(ctx)
+//	c := models.AppAuthCode{}
+//	if err = s.Session(ctx).Where("id = ? and app_id = ? and create_time > ?", code, clientId, time.Now().Add(-global.AuthCodeExpiration)).First(&c).Error; err != nil {
+//		if err != gogorm.ErrRecordNotFound {
+//			level.Error(logger).Log("msg", "failed to get auth code info", "err", err)
+//		}
+//		return nil, "", errors.BadRequestError
+//	} else if err = s.Session(ctx).Delete(&c).Error; err != nil {
+//		level.Error(logger).Log("msg", "failed to remove auth code", "err", err)
+//		return
+//	}
+//	if users, err := s.GetSessionByToken(ctx, c.SessionId, models.TokenTypeCode); err != nil {
+//		level.Error(logger).Log("msg", "failed to get session info", "err", err)
+//		return nil, "", errors.BadRequestError
+//	} else if len(users) < 0 {
+//		level.Error(logger).Log("msg", "session expired")
+//		return nil, "", errors.BadRequestError
+//	} else {
+//		return users[0], c.Scope, nil
+//	}
+//}
 
 func (s SessionService) RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error) {
 	panic("implement me")
@@ -116,9 +111,9 @@ func (s SessionService) AutoMigrate(ctx context.Context) error {
 	return s.Session(ctx).AutoMigrate(&models.Token{})
 }
 
-func (s SessionService) GetLoginSession(ctx context.Context, id string) (users []*models.User, err error) {
+func (s SessionService) GetSessionByToken(ctx context.Context, id string, tokenType models.TokenType) (users []*models.User, err error) {
 	session := models.Token{Id: id}
-	if err = s.Session(ctx).Where("`type` = ?", models.TokenTypeLoginSession).Omit("last_seen", "create_time", "user_id").First(&session).Error; err == gogorm.ErrRecordNotFound {
+	if err = s.Session(ctx).Where("`type` = ?", tokenType).Omit("last_seen", "create_time", "user_id").First(&session).Error; err == gogorm.ErrRecordNotFound {
 		return nil, errors.NotLoginError
 	} else if err != nil {
 		return nil, err

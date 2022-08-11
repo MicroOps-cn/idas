@@ -59,8 +59,16 @@ func (s UserAndAppService) ResetPassword(ctx context.Context, id string, passwor
 	if err != nil {
 		return err
 	}
+	info, err := s.getUserInfoByDn(ctx, dn)
+	if err != nil {
+		return err
+	}
+	if info.Status != models.UserMeta_unknown && info.Status != models.UserMeta_normal && info.Status != models.UserMeta_inactive {
+		return fmt.Errorf("unknown user status")
+	}
 	req := goldap.NewModifyRequest(dn, nil)
 	req.Replace("userPassword", []string{"{CRYPT}" + phash})
+	req.Replace(UserStatusName, []string{strconv.Itoa(int(models.UserMeta_normal))})
 	return conn.Modify(req)
 }
 
@@ -72,11 +80,11 @@ func (s UserAndAppService) AutoMigrate(ctx context.Context) error {
 	return nil
 }
 
-func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error) {
+func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserMeta_UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	filters := []string{s.Options().ParseUserSearchFilter()}
-	if status != models.UserStatusUnknown {
+	if status != models.UserMeta_unknown {
 		filters = append(filters, fmt.Sprintf("(%s=%d)", UserStatusName, status))
 	}
 	if len(keywords) > 0 {
@@ -122,7 +130,7 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 			PhoneNumber: entry.GetAttributeValue(s.Options().GetAttrUserPhoneNo()),
 			FullName:    entry.GetAttributeValue(s.Options().GetAttrUserDisplayName()),
 			Avatar:      entry.GetAttributeValue("avatar"),
-			Status:      models.UserStatus(w.M[int](httputil.NewValue(entry.GetAttributeValue(UserStatusName)).Default("0").Int())),
+			Status:      models.UserMeta_UserStatus(w.M[int](httputil.NewValue(entry.GetAttributeValue(UserStatusName)).Default("0").Int())),
 			Storage:     s.name,
 		})
 	}
@@ -199,7 +207,7 @@ func (s UserAndAppService) PatchUsers(ctx context.Context, patch []map[string]in
 		for name, value := range patchInfo {
 			switch name {
 			case "status":
-				status := value.(float64)
+				status := value.(int32)
 				req.Replace(UserStatusName, []string{strconv.Itoa(int(status))})
 			case "isDelete":
 				//
@@ -304,7 +312,7 @@ func (s UserAndAppService) getUserInfoByReq(ctx context.Context, searchReq *gold
 		PhoneNumber: userEntry.GetAttributeValue(s.Options().GetAttrUserPhoneNo()),
 		FullName:    userEntry.GetAttributeValue(s.Options().GetAttrUserDisplayName()),
 		Avatar:      userEntry.GetAttributeValue("avatar"),
-		Status:      models.UserStatus(w.M[int](httputil.NewValue(userEntry.GetAttributeValue(UserStatusName)).Default("0").Int())),
+		Status:      models.UserMeta_UserStatus(w.M[int](httputil.NewValue(userEntry.GetAttributeValue(UserStatusName)).Default("0").Int())),
 		Storage:     s.name,
 	}
 	if opts.getUserRole {
@@ -315,7 +323,7 @@ func (s UserAndAppService) getUserInfoByReq(ctx context.Context, searchReq *gold
 			if err != nil {
 				return nil, err
 			}
-			userInfo.Role = models.UserRole(roleName)
+			userInfo.Role = roleName
 			userInfo.RoleId = roleId
 		} else {
 			level.Debug(logs.GetContextLogger(ctx)).Log("msg", fmt.Sprintf("%s is not authorized to user %s", appDn, userEntry.DN))

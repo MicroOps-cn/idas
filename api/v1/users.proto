@@ -2,18 +2,14 @@ syntax = "proto3";
 package idas.endpoint;
 import public "gogoproto/gogo.proto";
 import "v1/base.proto";
+import "types/models.proto";
 option go_package = "idas/pkg/endpoint;endpoint";
 
-enum UserStatus{
-  unknown = 0;
-  normal = 1;
-  disable = 2;
-}
 
 message UserInfo{
   string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
   string username = 2[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required"'];
-  UserStatus status = 3;
+  idas.service.models.UserMeta.UserStatus status = 3[(gogoproto.customtype) = "idas/pkg/service/models.UserMeta_UserStatus", (gogoproto.nullable) = false];
   string storage = 4[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string email = 5;
   string fullName = 6;
@@ -31,7 +27,7 @@ message GetUsersRequest{
   idas.endpoint.BaseListRequest BaseListRequest = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false];
   string app = 2;
   string storage = 3;
-  UserStatus status = 4;
+  idas.service.models.UserMeta.UserStatus status = 4[(gogoproto.customtype) = "idas/pkg/service/models.UserMeta_UserStatus",(gogoproto.nullable) = false];
 }
 
 
@@ -46,7 +42,7 @@ message GetUsersResponse{
 
 message PatchUserRequest{
   string id = 1;
-  UserStatus status = 2[(gogoproto.customtype) = "UserStatus"];
+  idas.service.models.UserMeta.UserStatus status = 2[(gogoproto.customtype) = "idas/pkg/service/models.UserMeta_UserStatus"];
   bool isDelete = 3[(gogoproto.customtype) = "bool"];
   string storage = 4[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
 }
@@ -73,10 +69,12 @@ message ResetUserPasswordRequest{
   string storage = 4;
   string newPassword = 5[(gogoproto.jsontag) = "newPassword", (gogoproto.moretags) = 'valid:"required"'];
 }
+
 message ForgotUserPasswordRequest{
   string username = 1[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required"'];
   string email = 2 [(gogoproto.jsontag) = "email", (gogoproto.moretags) = 'valid:"required"'];
 }
+
 message DeleteUserRequest{
   string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
   string storage = 2[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
@@ -85,13 +83,13 @@ message DeleteUserRequest{
 message UpdateUserRequest{
   string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
   string username = 2[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required"'];
-  UserStatus status = 3[(gogoproto.jsontag) = "status", (gogoproto.moretags) = 'valid:"required"'];
+  idas.service.models.UserMeta.UserStatus status = 3[(gogoproto.jsontag) = "status", (gogoproto.nullable) = false, (gogoproto.moretags) = 'valid:"required"', (gogoproto.customtype) = "idas/pkg/service/models.UserMeta_UserStatus"];
   string storage = 4[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string email = 5;
   string fullName = 6;
   string avatar = 7;
   string phoneNumber = 8;
-  bool isDelete = 9[(gogoproto.jsontag) = "isDelete", (gogoproto.moretags) = 'valid:"required"'];
+  bool isDelete = 9[(gogoproto.jsontag) = "isDelete"];
 }
 
 message CreateUserRequest{
@@ -101,6 +99,8 @@ message CreateUserRequest{
   string fullName = 4;
   string avatar = 5;
   string phoneNumber = 6;
+  idas.service.models.UserMeta.UserStatus status = 7[(gogoproto.customtype) = "idas/pkg/service/models.UserMeta_UserStatus"];
+  bool isDelete = 8;
 }
 
 message GetUserRequest{
@@ -138,4 +138,16 @@ message CreateKeyRequest{
 message CreateKeyResponse{
   idas.endpoint.BaseResponse BaseResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
   UserKeyInfo data = 2;
+}
+
+message SendActivationMailRequest{
+  string userId = 1[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"required"'];
+  string storage = 3[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
+}
+
+message ActivateAccountRequest{
+  string token = 1;
+  string userId = 2[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"required"'];
+  string storage = 3;
+  string newPassword = 4[(gogoproto.jsontag) = "newPassword", (gogoproto.moretags) = 'valid:"required"'];
 }

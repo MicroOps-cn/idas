@@ -75,12 +75,23 @@ func (s Set) UpdateApp(ctx context.Context, storage string, app *models.App, upd
 }
 
 func (s Set) GetAppInfo(ctx context.Context, storage string, id string) (app *models.App, err error) {
-	service := s.GetUserAndAppService(storage)
-	if service == nil {
-		err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
-		return
+	if len(storage) == 0 {
+		for _, service := range s.userAndAppService {
+			info, err := service.GetAppInfo(ctx, id, "")
+			if err != nil {
+				continue
+			}
+			return info, nil
+		}
+	} else {
+		service := s.GetUserAndAppService(storage)
+		if service == nil {
+			err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
+			return
+		}
+		return service.GetAppInfo(ctx, id, "")
 	}
-	return service.GetAppInfo(ctx, id, "")
+	return nil, errors.StatusNotFound("app")
 }
 
 func (s Set) CreateApp(ctx context.Context, storage string, app *models.App) (a *models.App, err error) {

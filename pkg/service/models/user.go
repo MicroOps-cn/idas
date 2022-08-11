@@ -4,39 +4,27 @@ import (
 	"crypto/sha1"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"reflect"
+	"strings"
 	"time"
-)
-
-type UserStatus int8
-
-const (
-	UserStatusUnknown UserStatus = iota
-	UserStatusNormal
-	UserStatusDisable
-)
-
-type UserRole string
-
-const (
-	UserRoleUser  UserRole = "user"
-	UserRoleAdmin UserRole = "admin"
 )
 
 type User struct {
 	Model
-	Username    string       `gorm:"type:varchar(20);unique" json:"username"`
-	Salt        sql.RawBytes `gorm:"type:tinyblob;" json:"-" `
-	Password    sql.RawBytes `gorm:"type:tinyblob;" json:"password,omitempty"`
-	Email       string       `gorm:"type:varchar(50);" json:"email" valid:"email,optional"`
-	PhoneNumber string       `gorm:"type:varchar(50);" json:"phoneNumber" valid:"numeric,optional"`
-	FullName    string       `gorm:"type:varchar(50);" json:"fullName"`
-	Avatar      string       `gorm:"type:varchar(128);" json:"avatar"`
-	Status      UserStatus   `gorm:"not null;default:0" json:"status"`
-	LoginTime   *time.Time   `json:"loginTime,omitempty"`
-	RoleId      string       `gorm:"->;-:migration" json:"roleId,omitempty"`
-	Role        UserRole     `gorm:"->;-:migration" json:"role,omitempty"`
-	App         []*App       `gorm:"many2many:app_user" json:"app,omitempty"`
-	Storage     string       `gorm:"-" json:"storage"`
+	Username    string              `gorm:"type:varchar(20);unique" json:"username"`
+	Salt        sql.RawBytes        `gorm:"type:tinyblob;" json:"-" `
+	Password    sql.RawBytes        `gorm:"type:tinyblob;" json:"password,omitempty"`
+	Email       string              `gorm:"type:varchar(50);" json:"email" valid:"email,optional"`
+	PhoneNumber string              `gorm:"type:varchar(50);" json:"phoneNumber" valid:"numeric,optional"`
+	FullName    string              `gorm:"type:varchar(50);" json:"fullName"`
+	Avatar      string              `gorm:"type:varchar(128);" json:"avatar"`
+	Status      UserMeta_UserStatus `gorm:"not null;default:0" json:"status"`
+	LoginTime   *time.Time          `json:"loginTime,omitempty"`
+	RoleId      string              `gorm:"->;-:migration" json:"roleId,omitempty"`
+	Role        string              `gorm:"->;-:migration" json:"role,omitempty"`
+	App         []*App              `gorm:"many2many:app_user" json:"app,omitempty"`
+	Storage     string              `gorm:"-" json:"storage"`
 }
 
 func (u User) MarshalJSON() ([]byte, error) {
@@ -54,6 +42,30 @@ func (u User) GenSecret(password ...string) []byte {
 		sha.Write(u.Password)
 	}
 	return sha.Sum(nil)
+}
+
+func (u User) GetAttr(name string) string {
+	if len(name) == 0 {
+		return ""
+	}
+	ot := reflect.TypeOf(u)
+	for i := 0; i < ot.NumField(); i++ {
+		ft := ot.Field(i)
+		if cut, _, _ := strings.Cut(ft.Tag.Get("json"), ","); len(cut) != 0 {
+			if cut == name {
+				val := reflect.ValueOf(u).Field(i).Interface()
+				switch v := val.(type) {
+				case string:
+					return v
+				case []byte:
+					return string(v)
+				default:
+					return fmt.Sprint(v)
+				}
+			}
+		}
+	}
+	return ""
 }
 
 type UserKey struct {

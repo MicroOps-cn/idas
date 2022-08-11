@@ -20,6 +20,7 @@ const (
 	TokenTypeCode          = "code"
 	TokenTypeResetPassword = "reset_password"
 	TokenTypeLoginSession  = "session"
+	TokenTypeActive        = "active"
 )
 
 func (t TokenType) GetExpiry() time.Time {
@@ -34,6 +35,8 @@ func (t TokenType) GetExpiry() time.Time {
 		return time.Now().UTC().Add(global.ResetPasswordExpiration)
 	case TokenTypeLoginSession:
 		return time.Now().UTC().Add(global.LoginSessionExpiration)
+	case TokenTypeActive:
+		return time.Now().UTC().Add(global.ActiveExpiration)
 	default:
 		return time.Now().UTC().Add(time.Minute * 10)
 	}

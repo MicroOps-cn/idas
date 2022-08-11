@@ -3,11 +3,10 @@ package endpoint
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"strconv"
-
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log/level"
+	"net/url"
+	"strconv"
 
 	"idas/pkg/errors"
 	"idas/pkg/global"
@@ -75,7 +74,7 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 			resp.Error = errors.NotLoginError
 			return resp, nil
 		}
-		sessionId, ok := ctx.Value(global.LoginSession).([]string)
+		sessionId, ok := ctx.Value(global.LoginSession).(string)
 		if !ok || len(sessionId) == 0 {
 			level.Warn(logger).Log("msg", "failed to get session from context")
 			resp.Error = errors.NotLoginError
@@ -85,15 +84,18 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 		if err != nil {
 			return nil, errors.ParameterError("redirect_uri")
 		}
-
-		for idx, user := range users {
-			if code, err = s.GetAuthCodeByClientId(ctx, req.ClientId, user.Id, sessionId[idx], user.Storage); err != nil {
+		query := uri.Query()
+		for _, user := range users {
+			if code, err = s.GetAuthCodeByClientId(ctx, req.ClientId, user, sessionId, user.Storage); errors.IsNotFount(err) {
+				continue
+			} else if err != nil {
 				return nil, err
 			}
+			break
 		}
-
-		query := uri.Query()
-
+		if code == "" {
+			return nil, errors.StatusNotFound("Authorize")
+		}
 		switch req.ResponseType {
 		case OAuthAuthorizeRequest_code, OAuthAuthorizeRequest_default:
 			query.Add("code", code)

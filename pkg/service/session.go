@@ -37,15 +37,11 @@ func (s Set) CreateLoginSession(ctx context.Context, username string, password s
 type SessionService interface {
 	baseService
 	DeleteLoginSession(ctx context.Context, session string) error
-	GetLoginSession(ctx context.Context, sessionIds string) ([]*models.User, error)
+	GetSessionByToken(ctx context.Context, sessionIds string, tokenType models.TokenType) ([]*models.User, error)
 
 	GetSessions(ctx context.Context, userId string, current int64, size int64) (int64, []*models.Token, error)
 	DeleteSession(ctx context.Context, id string) (err error)
-
-	CreateOAuthAuthCode(ctx context.Context, appId, sessionId, scope, storage string) (code string, err error)
-	GetUserByOAuthAuthorizationCode(ctx context.Context, code, clientId string) (user *models.User, scope string, err error)
 	RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error)
-	GetOAuthTokenByPassword(ctx context.Context, username string, password string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByPassword(ctx context.Context, token, username, password string) (accessToken, refreshToken string, expiresIn int, err error)
 	VerifyToken(ctx context.Context, token string, relationId string, tokenType models.TokenType) bool
 	CreateToken(ctx context.Context, token *models.Token) error
@@ -71,21 +67,25 @@ func (s Set) DeleteLoginSession(ctx context.Context, session string) error {
 	return s.sessionService.DeleteLoginSession(ctx, session)
 }
 
-func (s Set) GetLoginSession(ctx context.Context, ids string) ([]*models.User, error) {
-	return s.sessionService.GetLoginSession(ctx, ids)
+func (s Set) GetSessionByToken(ctx context.Context, ids string, tokenType models.TokenType) ([]*models.User, error) {
+	return s.sessionService.GetSessionByToken(ctx, ids, tokenType)
 }
 
 func (s Set) GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId string) (accessToken, refreshToken string, expiresIn int, err error) {
-	user, _, err := s.sessionService.GetUserByOAuthAuthorizationCode(ctx, code, clientId)
-	if err != nil {
-		return "", "", 0, err
-	}
-	if len(user.Id) == 0 {
-		return "", "", 0, errors.BadRequestError
+	if users, err := s.GetSessionByToken(ctx, code, models.TokenTypeCode); err == nil && len(users) > 0 {
+		_ = s.DeleteSession(ctx, code)
+		at, err := s.CreateToken(ctx, models.TokenTypeToken, w.ToInterfaces[*models.User](users)...)
+		if err != nil {
+			return "", "", 0, err
+		}
+		rt, err := s.CreateToken(ctx, models.TokenTypeRefreshToken, w.ToInterfaces[*models.User](users)...)
+		if err != nil {
+			return "", "", 0, err
+		}
+		return at.Id, rt.Id, int(global.TokenExpiration / time.Minute), nil
 	}
 
-	_, err = s.CreateToken(ctx, models.TokenTypeToken, user)
-	return "", "", 0, err
+	return "", "", 0, errors.UnauthorizedError
 }
 
 func (s Set) RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error) {
@@ -93,7 +93,21 @@ func (s Set) RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, cl
 }
 
 func (s Set) GetOAuthTokenByPassword(ctx context.Context, username, password string) (accessToken, refreshToken string, expiresIn int, err error) {
-	return s.sessionService.GetOAuthTokenByPassword(ctx, username, password)
+	if users, err := s.VerifyPassword(ctx, username, password); err != nil {
+		return "", "", 0, err
+	} else if len(users) == 0 {
+		return "", "", 0, errors.UnauthorizedError
+	} else {
+		at, err := s.CreateToken(ctx, models.TokenTypeToken, w.ToInterfaces[*models.User](users)...)
+		if err != nil {
+			return "", "", 0, err
+		}
+		rt, err := s.CreateToken(ctx, models.TokenTypeRefreshToken, w.ToInterfaces[*models.User](users)...)
+		if err != nil {
+			return "", "", 0, err
+		}
+		return at.Id, rt.Id, int(global.TokenExpiration / time.Minute), nil
+	}
 }
 
 func (s Set) RefreshOAuthTokenByPassword(ctx context.Context, token, username, password string) (accessToken, refreshToken string, expiresIn int, err error) {

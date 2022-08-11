@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	stdlog "log"
 	"net/http"
+	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/asaskevich/govalidator"
@@ -56,18 +59,8 @@ func NewHTTPHandler(endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipk
 	options = append(options, httptransport.ServerBefore(opentracing.HTTPToContext(otTracer, "Concat", logger)))
 	restful.TraceLogger(stdlog.New(log.NewStdlibAdapter(level.Info(logger)), "[restful]", stdlog.LstdFlags|stdlog.Lshortfile))
 	m.Filter(HTTPLoggingFilter)
-	serviceGenerators := []func(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService){
-		UserService,
-		AppService,
-		FileService,
-		SessionService,
-		OAuthService,
-		UserAuthService,
-		PermissionService,
-		RoleService,
-	}
 	var specTags []spec.Tag
-	for _, serviceGenerator := range serviceGenerators {
+	for _, serviceGenerator := range apiServiceSet {
 		specTag, svcs := serviceGenerator(options, endpoints)
 		for _, svc := range svcs {
 			m.Add(svc)
@@ -157,6 +150,22 @@ func isProtoMessage(v interface{}) (proto.Message, bool) {
 	return msg, ok
 }
 
+func valid(data interface{}) (bool, error) {
+	switch reflect.TypeOf(data).Kind() {
+	case reflect.Struct:
+		return govalidator.ValidateStruct(data)
+	case reflect.Slice:
+		valOf := reflect.ValueOf(data)
+		for i := 0; i < valOf.Len(); i++ {
+			b, err := valid(valOf.Index(i).Interface())
+			if err != nil || !b {
+				return b, err
+			}
+		}
+	}
+	return true, nil
+}
+
 // decodeHTTPRequest Decode HTTP requests into request types
 func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request) (interface{}, error) {
 	restfulReq := stdReq.Context().Value(global.RestfulRequestContextName).(*restful.Request)
@@ -213,11 +222,12 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 	req.restfulRequest = restfulReq
 	req.restfulResponse = restfulResp
 	level.Debug(logger).Log("msg", "decoded http request", "req", fmt.Sprintf("%s", w.Must[[]byte](json.Marshal(req))))
-	if ok, err := govalidator.ValidateStruct(req.Data); err != nil {
+	if ok, err := valid(req.Data); err != nil {
 		return &req, errors.NewServerError(http.StatusBadRequest, err.Error())
 	} else if !ok {
 		return &req, errors.NewServerError(http.StatusBadRequest, "params error")
 	}
+
 	return &req, err
 }
 
@@ -250,4 +260,130 @@ func encodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response int
 
 	logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "resp", fmt.Sprintf("%#v", resp), "caller", logs.Caller(7))), logs.Prefix("encoded http response: ", true))
 	return json.NewEncoder(io.MultiWriter(w, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Encode(resp)
+}
+func simpleEncodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	logger := logs.GetContextLogger(ctx)
+	if f, ok := response.(kitendpoint.Failer); ok && f.Failed() != nil {
+		errorEncoder(ctx, f.Failed(), w)
+		return nil
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "resp", fmt.Sprintf("%#v", response), "caller", logs.Caller(7))), logs.Prefix("encoded http response: ", true))
+	return json.NewEncoder(io.MultiWriter(w, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Encode(response)
+}
+
+func WrapHTTPHandler(h *httptransport.Server) func(*restful.Request, *restful.Response) {
+	return func(req *restful.Request, resp *restful.Response) {
+		ctx := req.Request.Context()
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		request := req.Request.WithContext(context.WithValue(context.WithValue(ctx, global.RestfulResponseContextName, resp), global.RestfulRequestContextName, req))
+		h.ServeHTTP(resp, request)
+	}
+}
+
+func NewKitHTTPServer[RequestType any](dp kitendpoint.Endpoint, options []httptransport.ServerOption) restful.RouteFunction {
+	return WrapHTTPHandler(httptransport.NewServer(
+		dp,
+		decodeHTTPRequest[RequestType],
+		encodeHTTPResponse,
+		options...,
+	))
+}
+
+func NewSimpleKitHTTPServer[RequestType any](
+	dp kitendpoint.Endpoint,
+	dec httptransport.DecodeRequestFunc,
+	enc httptransport.EncodeResponseFunc, options []httptransport.ServerOption,
+) restful.RouteFunction {
+	return WrapHTTPHandler(httptransport.NewServer(
+		dp,
+		dec,
+		enc,
+		options...,
+	))
+}
+
+const QueryTypeKey = "__query_type__"
+
+func NewWebService(rootPath string, gv schema.GroupVersion, doc string) *restful.WebService {
+	webservice := restful.WebService{}
+	webservice.Path(rootPath + "/" + gv.Version + "/" + gv.Group).
+		Consumes(restful.MIME_JSON).
+		Produces(restful.MIME_JSON).Doc(doc)
+	return &webservice
+}
+
+func NewSimpleWebService(rootPath string, doc string) *restful.WebService {
+	webservice := restful.WebService{}
+	webservice.Path(rootPath).
+		Consumes(restful.MIME_JSON).
+		Produces(restful.MIME_JSON).Doc(doc)
+	return &webservice
+}
+
+const rootPath = "/api"
+
+func StructToQueryParams(obj interface{}, nameFilter ...string) []*restful.Parameter {
+	var params []*restful.Parameter
+	typeOfObj := reflect.TypeOf(obj)
+	valueOfObj := reflect.ValueOf(obj)
+	// 通过 #NumField 获取结构体字段的数量
+loopObjFields:
+	for i := 0; i < typeOfObj.NumField(); i++ {
+		field := typeOfObj.Field(i)
+
+		if field.Type.Kind() == reflect.Struct && field.Anonymous {
+			params = append(params, StructToQueryParams(valueOfObj.Field(i).Interface(), nameFilter...)...)
+		} else {
+			if len(nameFilter) > 0 {
+				for _, name := range nameFilter {
+					if name == field.Name {
+						goto handleField
+					}
+				}
+				continue loopObjFields
+			}
+		handleField:
+			jsonTag := strings.Split(field.Tag.Get("json"), ",")
+			if len(jsonTag) > 0 && jsonTag[0] != "-" && jsonTag[0] != "" {
+				param := restful.QueryParameter(
+					jsonTag[0],
+					field.Tag.Get("description"),
+				).DataType(field.Type.String())
+				if len(jsonTag) > 1 && jsonTag[1] == "omitempty" {
+					param.Required(false)
+				} else {
+					param.Required(true)
+				}
+				if tag := field.Tag.Get("enum"); tag != "" {
+					var enums = map[string]string{}
+					for idx, s := range strings.Split(tag, "|") {
+						enums[strconv.Itoa(idx)] = s
+					}
+					param.AllowableValues(enums)
+				} else if protoTag := field.Tag.Get("protobuf"); protoTag != "" {
+					var typeName string
+					for _, s := range strings.Split(protoTag, ",") {
+						if strings.HasPrefix(s, "enum=") {
+							typeName = s[5:]
+							break
+						}
+					}
+					if len(typeName) != 0 {
+						enumMap := proto.EnumValueMap(typeName)
+						var enums = make(map[string]string, len(enumMap)*2)
+						for v, idx := range enumMap {
+							enums[strconv.Itoa(int(idx))] = v
+							enums[strconv.Itoa(int(idx)+len(enumMap))] = strconv.Itoa(int(idx))
+						}
+						param.AllowableValues(enums)
+					}
+				}
+				params = append(params, param)
+			}
+		}
+	}
+	return params
 }

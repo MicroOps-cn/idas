@@ -42,8 +42,11 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 
 		loginSessionID, err := req.Request.Cookie(global.LoginSession)
 		if err == nil {
-			req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), global.LoginSession, strings.Split(loginSessionID.Value, ",")))
-			if user, err := endpoints.GetLoginSession(req.Request.Context(), loginSessionID.Value); err == nil {
+			req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), global.LoginSession, loginSessionID.Value))
+			if user, err := endpoints.GetSessionByToken(req.Request.Context(), endpoint.GetSessionParams{
+				Token:     loginSessionID.Value,
+				TokenType: models.TokenTypeLoginSession,
+			}); err == nil {
 				if len(user.([]*models.User)) >= 0 {
 					req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), global.MetaUser, user))
 					filterChan.ProcessFilter(req, resp)
@@ -51,13 +54,25 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 				}
 			}
 		}
-
 		authReq := HTTPRequest[endpoint.AuthenticationRequest]{}
 		if username, password, ok := req.Request.BasicAuth(); ok {
 			authReq.Data.AuthKey = username
 			authReq.Data.AuthSecret = password
 		} else if auth := req.Request.Header.Get("Authorization"); len(auth) != 0 {
-			errorHandler(req.Request.Context(), errors.NewServerError(http.StatusBadRequest, "unknown authorization method"), resp)
+			if strings.HasPrefix(auth, "Bearer ") {
+				if user, err := endpoints.GetSessionByToken(req.Request.Context(), endpoint.GetSessionParams{
+					Token:     strings.TrimPrefix(auth, "Bearer "),
+					TokenType: models.TokenTypeLoginSession,
+				}); err == nil {
+					if len(user.([]*models.User)) >= 0 {
+						req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), global.MetaUser, user))
+						filterChan.ProcessFilter(req, resp)
+						return
+					}
+				}
+			} else {
+				errorHandler(req.Request.Context(), errors.NewServerError(http.StatusBadRequest, "unknown authorization method"), resp)
+			}
 			return
 		} else {
 			query := req.Request.URL.Query()
@@ -138,7 +153,7 @@ func HTTPLoggingFilter(req *restful.Request, resp *restful.Response, filterChan 
 			"[contentType]", resp.Header().Get("Content-Type"),
 			"[contentLength]", resp.ContentLength(),
 		)
-		level.Info(logger).Log("[totalTime]", time.Since(start)/time.Millisecond)
+		level.Info(logger).Log("[totalTime]", fmt.Sprintf("%dms", time.Since(start).Milliseconds()))
 	}()
 	filterChan.ProcessFilter(req, resp)
 }

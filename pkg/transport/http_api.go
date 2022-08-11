@@ -1,13 +1,8 @@
 package transport
 
 import (
-	"context"
-	"reflect"
-	"strings"
-
 	restfulspec "github.com/emicklei/go-restful-openapi/v2"
 	"github.com/emicklei/go-restful/v3"
-	kitendpoint "github.com/go-kit/kit/endpoint"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/go-openapi/spec"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -16,82 +11,15 @@ import (
 	"idas/pkg/global"
 )
 
-func WrapHTTPHandler(h *httptransport.Server) func(*restful.Request, *restful.Response) {
-	return func(req *restful.Request, resp *restful.Response) {
-		ctx := req.Request.Context()
-		if ctx == nil {
-			ctx = context.Background()
-		}
-		request := req.Request.WithContext(context.WithValue(context.WithValue(ctx, global.RestfulResponseContextName, resp), global.RestfulRequestContextName, req))
-		h.ServeHTTP(resp, request)
-	}
-}
-
-func NewKitHTTPServer[RequestType any](dp kitendpoint.Endpoint, options []httptransport.ServerOption) restful.RouteFunction {
-	return WrapHTTPHandler(httptransport.NewServer(
-		dp,
-		decodeHTTPRequest[RequestType],
-		encodeHTTPResponse,
-		options...,
-	))
-}
-
-const QueryTypeKey = "__query_type__"
-
-func NewWebService(rootPath string, gv schema.GroupVersion, doc string) *restful.WebService {
-	webservice := restful.WebService{}
-	webservice.Path(rootPath + "/" + gv.Version + "/" + gv.Group).
-		Consumes(restful.MIME_JSON).
-		Produces(restful.MIME_JSON).Doc(doc)
-	return &webservice
-}
-
-func NewSimpleWebService(rootPath string, doc string) *restful.WebService {
-	webservice := restful.WebService{}
-	webservice.Path(rootPath).
-		Consumes(restful.MIME_JSON).
-		Produces(restful.MIME_JSON).Doc(doc)
-	return &webservice
-}
-
-const rootPath = "/api"
-
-func StructToQueryParams(obj interface{}, nameFilter ...string) []*restful.Parameter {
-	var params []*restful.Parameter
-	typeOfObj := reflect.TypeOf(obj)
-	valueOfObj := reflect.ValueOf(obj)
-	// 通过 #NumField 获取结构体字段的数量
-loopObjFields:
-	for i := 0; i < typeOfObj.NumField(); i++ {
-		field := typeOfObj.Field(i)
-
-		if field.Type.Kind() == reflect.Struct && field.Anonymous {
-			params = append(params, StructToQueryParams(valueOfObj.Field(i).Interface(), nameFilter...)...)
-		} else {
-			if len(nameFilter) > 0 {
-				for _, name := range nameFilter {
-					if name == field.Name {
-						goto handleField
-					}
-				}
-				continue loopObjFields
-			}
-		handleField:
-			jsonTag := strings.Split(field.Tag.Get("json"), ",")
-			if len(jsonTag) > 0 && jsonTag[0] != "-" && jsonTag[0] != "" {
-				param := restful.QueryParameter(
-					jsonTag[0],
-					field.Tag.Get("description")).DataType(field.Type.String())
-				if len(jsonTag) > 1 && jsonTag[1] == "omitempty" {
-					param.Required(false)
-				} else {
-					param.Required(true)
-				}
-				params = append(params, param)
-			}
-		}
-	}
-	return params
+var apiServiceSet = []func(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService){
+	UserService,
+	AppService,
+	FileService,
+	SessionService,
+	OAuthService,
+	UserAuthService,
+	PermissionService,
+	RoleService,
 }
 
 // UserService User Manager Service for restful Http container
@@ -104,7 +32,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 	v1ws.Route(v1ws.GET("").
 		To(NewKitHTTPServer[endpoint.GetUsersRequest](endpoints.GetUsers, options)).
 		Operation("getUsers").
-		Doc("获取用户列表").
+		Doc("Get user list.").
 		Params(StructToQueryParams(endpoint.GetUsersRequest{})...).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.GetUsersResponse{}),
@@ -113,14 +41,14 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		To(NewKitHTTPServer[endpoint.PatchUsersRequest](endpoints.PatchUsers, options)).
 		Operation("patchUsers").
 		Reads(endpoint.PatchUsersRequest{}).
-		Doc("批量更新用户信息（增量）").
+		Doc("Batch update user information(Incremental).").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.PatchUsersResponse{}),
 	)
 	v1ws.Route(v1ws.DELETE("").
 		To(NewKitHTTPServer[endpoint.DeleteUsersRequest](endpoints.DeleteUsers, options)).
 		Operation("deleteUsers").
-		Doc("批量删除用户").
+		Doc("Delete users in batch.").
 		Reads(endpoint.DeleteUsersRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.BaseTotalResponse{}),
@@ -128,7 +56,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 	v1ws.Route(v1ws.POST("").
 		To(NewKitHTTPServer[endpoint.CreateUserRequest](endpoints.CreateUser, options)).
 		Operation("createUser").
-		Doc("创建用户").
+		Doc("Create a user.").
 		Reads(endpoint.CreateUserRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.CreateUserResponse{}),
@@ -138,7 +66,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Operation("getUserInfo").
 		Param(v1ws.PathParameter("id", "identifier of the user").DataType("string")).
 		Param(v1ws.QueryParameter("storage", "storage of the user").DataType("string")).
-		Doc("获取用户信息").
+		Doc("Get user information.").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.GetUserRequest{}),
 	)
@@ -146,7 +74,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		To(NewKitHTTPServer[endpoint.UpdateUserRequest](endpoints.UpdateUser, options)).
 		Operation("updateUser").
 		Param(v1ws.PathParameter("id", "identifier of the user").DataType("string")).
-		Doc("更新用户信息（全量）").
+		Doc("Update user information(full).").
 		Reads(endpoint.UpdateUserRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.UpdateUserRequest{}),
@@ -155,7 +83,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		To(NewKitHTTPServer[endpoint.PatchUserRequest](endpoints.PatchUser, options)).
 		Operation("patchUser").
 		Param(v1ws.PathParameter("id", "identifier of the user").DataType("string")).
-		Doc("更新用户信息（增量）").
+		Doc("Update user information(Incremental).").
 		Reads(endpoint.PatchUserRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.PatchUserResponse{}),
@@ -166,14 +94,14 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Operation("deleteUser").
 		Param(v1ws.PathParameter("id", "identifier of the user").DataType("string")).
 		Param(v1ws.QueryParameter("storage", "storage source of the user").DataType("string")).
-		Doc("删除用户").
+		Doc("Delete user.").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
 	v1ws.Route(v1ws.POST("/forgotPassword").
 		To(NewKitHTTPServer[endpoint.ForgotUserPasswordRequest](endpoints.ForgotPassword, options)).
 		Operation("forgotPassword").
-		Doc("忘记用户密码").
+		Doc("Forgot the user password.").
 		Reads(endpoint.ForgotUserPasswordRequest{}).
 		Metadata(global.MetaNeedLogin, false).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
@@ -184,14 +112,14 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		To(NewKitHTTPServer[endpoint.ResetUserPasswordRequest](endpoints.ResetPassword, options)).
 		Operation("resetPassword").
 		Reads(endpoint.ResetUserPasswordRequest{}).
-		Doc("重置用户密码").
+		Doc("Reset the user password.").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
 	v1ws.Route(v1ws.GET("/source").
 		To(NewKitHTTPServer[struct{}](endpoints.GetUserSource, options)).
 		Operation("getUserSource").
-		Doc("获取用户存储源").
+		Doc("Get the user storage source.").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.GetUserSourceResponse{}),
 	)
@@ -199,7 +127,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 	v1ws.Route(v1ws.POST("/{userId}/key").
 		To(NewKitHTTPServer[endpoint.CreateUserKeyRequest](endpoints.CreateUserKey, options)).
 		Operation("createUserKey").
-		Doc("创建用户密钥对").
+		Doc("Create a user key pair.").
 		Param(v1ws.PathParameter("userId", "identifier of the user").DataType("string")).
 		Reads(endpoint.CreateUserKeyRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
@@ -208,10 +136,29 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 	v1ws.Route(v1ws.POST("/key").
 		To(NewKitHTTPServer[endpoint.CreateKeyRequest](endpoints.CreateKey, options)).
 		Operation("createKey").
-		Doc("创建当前用户的密钥对").
+		Doc("Create your own key pair.").
 		Reads(endpoint.CreateKeyRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.CreateKeyResponse{}),
+	)
+
+	v1ws.Route(v1ws.POST("/sendActivateMail").
+		To(NewKitHTTPServer[endpoint.SendActivationMailRequest](endpoints.SendActivateMail, options)).
+		Operation("sendActivateMail").
+		Reads(endpoint.SendActivationMailRequest{}).
+		Doc("Send account activation email.").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseResponse{}),
+	)
+
+	v1ws.Route(v1ws.POST("/activateAccount").
+		To(NewKitHTTPServer[endpoint.ActivateAccountRequest](endpoints.ActivateAccount, options)).
+		Operation("activateAccount").
+		Reads(endpoint.ActivateAccountRequest{}).
+		Doc("Activate the user.").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Metadata(global.MetaNeedLogin, false).
+		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
 	return tag, []*restful.WebService{v1ws}
 }
@@ -225,7 +172,7 @@ func AppService(options []httptransport.ServerOption, endpoints endpoint.Set) (s
 	v1ws.Route(v1ws.GET("").
 		To(NewKitHTTPServer[endpoint.GetAppsRequest](endpoints.GetApps, options)).
 		Operation("getApps").
-		Doc("获取应用列表").
+		Doc("Get the application list.").
 		Params(StructToQueryParams(endpoint.GetAppsRequest{})...).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.GetAppsResponse{}),
@@ -310,7 +257,7 @@ func FileService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		To(NewKitHTTPServer[struct{}](endpoints.UploadFile, options)).
 		Operation("uploadFile").
 		Consumes("multipart/form-data").
-		Doc("上传文件").
+		Doc("Upload file").
 		Param(v1ws.MultiPartFormParameter("files", "files").AllowMultiple(true).DataType("file")).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.FileUploadResponse{}),
@@ -319,7 +266,7 @@ func FileService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		To(NewKitHTTPServer[endpoint.FileDownloadRequest](endpoints.DownloadFile, options)).
 		Operation("downloadFile").
 		Param(v1ws.PathParameter("id", "identifier of the file").DataType("string").Required(true)).
-		Doc("下载/查看文件").
+		Doc("Download/View File").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
@@ -359,7 +306,7 @@ func OAuthService(options []httptransport.ServerOption, endpoints endpoint.Set) 
 
 	// https://www.ruanyifeng.com/blog/2019/04/oauth-grant-types.html
 	v1ws.Route(v1ws.POST("/token").
-		To(NewKitHTTPServer[endpoint.OAuthTokenRequest](endpoints.OAuthTokens, options)).
+		To(NewSimpleKitHTTPServer[endpoint.OAuthTokenRequest](endpoints.OAuthTokens, decodeHTTPRequest[endpoint.OAuthTokenRequest], simpleEncodeHTTPResponse, options)).
 		Operation("oAuthTokens").
 		Doc("获取令牌").
 		Metadata(global.MetaNeedLogin, false).
@@ -383,8 +330,17 @@ func OAuthService(options []httptransport.ServerOption, endpoints endpoint.Set) 
 		Operation("oAuthAuthorize").
 		Doc("应用授权").
 		Params(StructToQueryParams(endpoint.OAuthAuthorizeRequest{})...).
-		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Metadata(global.MetaAutoRedirectToLoginPage, true).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseResponse{}),
+	)
+
+	v1ws.Route(v1ws.GET("/userinfo").
+		To(NewSimpleKitHTTPServer[endpoint.OAuthTokenRequest](endpoints.CurrentUser, decodeHTTPRequest[endpoint.OAuthTokenRequest], simpleEncodeHTTPResponse, options)).
+		Operation("oAuthUserInfo").
+		Doc("获取用户信息").
+		Metadata(global.MetaNeedLogin, false).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
 	return tag, []*restful.WebService{v1ws}

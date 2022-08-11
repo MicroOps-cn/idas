@@ -6,12 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-kit/log/level"
-
 	"idas/pkg/client/redis"
-	"idas/pkg/errors"
 	"idas/pkg/global"
-	"idas/pkg/logs"
 	"idas/pkg/service/models"
 )
 
@@ -46,48 +42,45 @@ func (s SessionService) OAuthAuthorize(ctx context.Context, clientId string) (co
 	panic("implement me")
 }
 
-func (s SessionService) CreateOAuthAuthCode(ctx context.Context, appId, sessionId, scope, storage string) (code string, err error) {
-	redisClt := s.Redis(ctx)
-	c := models.AppAuthCode{Model: models.Model{Id: models.NewId()}, AppId: appId, SessionId: sessionId, Scope: scope, Storage: storage}
+//func (s SessionService) CreateOAuthAuthCode(ctx context.Context, appId, sessionId, scope, storage string) (code string, err error) {
+//	redisClt := s.Redis(ctx)
+//	c := models.AppAuthCode{Model: models.Model{Id: models.NewId()}, AppId: appId, SessionId: sessionId, Scope: scope, Storage: storage}
+//
+//	if cc, err := json.Marshal(c); err != nil {
+//		return "", err
+//	} else if err := redisClt.Set(fmt.Sprintf("%s:%s", global.AuthCode, c.Id), cc, global.AuthCodeExpiration).Err(); err != nil {
+//		return "", err
+//	} else {
+//		return c.Id, nil
+//	}
+//}
 
-	if cc, err := json.Marshal(c); err != nil {
-		return "", err
-	} else if err := redisClt.Set(fmt.Sprintf("%s:%s", global.AuthCode, c.Id), cc, global.AuthCodeExpiration).Err(); err != nil {
-		return "", err
-	} else {
-		return c.Id, nil
-	}
-}
-
-func (s SessionService) GetUserByOAuthAuthorizationCode(ctx context.Context, code, clientId string) (user *models.User, scope string, err error) {
-	logger := logs.GetContextLogger(ctx)
-	redisClt := s.Redis(ctx)
-	c := new(models.AppAuthCode)
-	sessionValue, err := redisClt.Get(fmt.Sprintf("%s:%s", global.AuthCode, code)).Bytes()
-	if err != nil {
-		level.Error(logger).Log("msg", "failed to get auth code info", "err", err)
-		return nil, "", errors.BadRequestError
-	} else if err = json.Unmarshal(sessionValue, c); err != nil {
-		level.Error(logger).Log("msg", "failed to parse auth code info", "err", err)
-		return nil, "", errors.BadRequestError
-	} else if clientId != c.AppId {
-		level.Error(logger).Log("msg", "client id is not match", "err", err)
-		return nil, "", errors.BadRequestError
-	}
-	if users, err := s.GetLoginSession(ctx, c.SessionId); err != nil {
-		level.Error(logger).Log("msg", "failed to get session info", "err", err)
-		return nil, "", errors.BadRequestError
-	} else if len(users) < 0 {
-		level.Error(logger).Log("msg", "session expired")
-		return nil, "", errors.BadRequestError
-	} else {
-		return users[0], c.Scope, nil
-	}
-}
-
-func (s SessionService) GetOAuthTokenByPassword(ctx context.Context, username string, password string) (accessToken, refreshToken string, expiresIn int, err error) {
-	panic("implement me")
-}
+//
+//func (s SessionService) GetUserByOAuthAuthorizationCode(ctx context.Context, code, clientId string) (user *models.User, scope string, err error) {
+//	logger := logs.GetContextLogger(ctx)
+//	redisClt := s.Redis(ctx)
+//	c := new(models.AppAuthCode)
+//	sessionValue, err := redisClt.Get(fmt.Sprintf("%s:%s", global.AuthCode, code)).Bytes()
+//	if err != nil {
+//		level.Error(logger).Log("msg", "failed to get auth code info", "err", err)
+//		return nil, "", errors.BadRequestError
+//	} else if err = json.Unmarshal(sessionValue, c); err != nil {
+//		level.Error(logger).Log("msg", "failed to parse auth code info", "err", err)
+//		return nil, "", errors.BadRequestError
+//	} else if clientId != c.AppId {
+//		level.Error(logger).Log("msg", "client id is not match", "err", err)
+//		return nil, "", errors.BadRequestError
+//	}
+//	if users, err := s.GetSessionByToken(ctx, c.SessionId, models.TokenTypeLoginSession); err != nil {
+//		level.Error(logger).Log("msg", "failed to get session info", "err", err)
+//		return nil, "", errors.BadRequestError
+//	} else if len(users) < 0 {
+//		level.Error(logger).Log("msg", "session expired")
+//		return nil, "", errors.BadRequestError
+//	} else {
+//		return users[0], c.Scope, nil
+//	}
+//}
 
 func (s SessionService) RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error) {
 	panic("implement me")
@@ -101,7 +94,7 @@ func (s SessionService) AutoMigrate(ctx context.Context) error {
 	return nil
 }
 
-func (s SessionService) GetLoginSession(ctx context.Context, id string) (users []*models.User, err error) {
+func (s SessionService) GetSessionByToken(ctx context.Context, id string, tokenType models.TokenType) (users []*models.User, err error) {
 	redisClt := s.Redis(ctx)
 	sessionValue, err := redisClt.Get(fmt.Sprintf("%s:%s", global.LoginSession, id)).Bytes()
 	if err != nil {

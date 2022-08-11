@@ -22,6 +22,7 @@ message OAuthAuthorizeRequest{
   string client_id = 2;
   string redirect_uri = 3;
   string state = 4;
+  string scope = 5;
 }
 
 enum OAuthGrantType{

@@ -262,16 +262,16 @@ func (s UserAndAppService) GetApps(ctx context.Context, keywords string, current
 	}
 }
 
-type Scope struct {
-	Scope string
+type RoleResult struct {
+	Role string
 }
 
-func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, appId string, userId string) (scope string, err error) {
-	var result Scope
-	if err = s.Session(ctx).Model(&models.AppUser{}).Select("t_app_role.name as `scope`").
+func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, appId string, userId string) (role string, err error) {
+	var result RoleResult
+	if err = s.Session(ctx).Model(&models.AppUser{}).Select("t_app_role.name as `role`").
 		Joins("JOIN `t_app_role` ON `t_app_role`.`id` = `t_app_user`.`role_id`").
 		Where("t_app_user.app_id = ? AND t_app_user.user_id = ?", appId, userId).First(&result).Error; err == gogorm.ErrRecordNotFound {
-		if err = s.Session(ctx).Model(&models.AppUser{}).Select("t_app_role.name as `scope`").
+		if err = s.Session(ctx).Model(&models.AppUser{}).Select("t_app_role.name as `role`").
 			Joins(" LEFT JOIN `t_app_role` ON (`t_app_user`.`app_id` = `t_app_role`.`app_id`)").
 			Where("`t_app_user`.`app_id` = ? and (`t_app_role`.`is_default` = 1 or `t_app_role`.`is_default` is null )", appId).First(&result).Error; err != nil {
 			return "", err
@@ -279,7 +279,7 @@ func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, ap
 	} else if err != nil {
 		return "", err
 	}
-	return result.Scope, nil
+	return result.Role, nil
 }
 
 func NewUserAndAppService(ctx context.Context, name string, client *gorm.Client) *UserAndAppService {

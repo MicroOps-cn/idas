@@ -72,7 +72,7 @@ func (m *SmtpOptions) getTemplate(topic string, sets ...string) *Template {
 func (m *SmtpOptions) GetSubjectAndBody(data interface{}, topic string, sets ...string) (subject, body string, err error) {
 	t := m.getTemplate(topic, sets...)
 	buffer := new(bytes.Buffer)
-	if t.tmpl == nil {
+	if t == nil || t.tmpl == nil {
 		return "", "", fmt.Errorf("template is nil")
 	}
 	if err = t.tmpl.Execute(buffer, data); err != nil {

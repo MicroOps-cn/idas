@@ -3,12 +3,12 @@ package httputil
 import (
 	"errors"
 	"fmt"
+	"github.com/gogo/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
-
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 var ErrStruct = errors.New("Unmarshal() expects struct input. ")
@@ -44,6 +44,7 @@ func reflectValueFromTag(values url.Values, val reflect.Value) error {
 		}
 		return reflectValueFromTag(values, val.Elem())
 	}
+loop:
 	for i := 0; i < val.NumField(); i++ {
 		kt := typ.Field(i)
 		sv := val.Field(i)
@@ -122,6 +123,25 @@ func reflectValueFromTag(values url.Values, val reflect.Value) error {
 					} else if enumVal = enum.Descriptor().Values().ByName(protoreflect.Name(strings.ToTitle(uv))); enumVal != nil {
 						sv.SetInt(int64(enumVal.Number()))
 						continue
+					}
+				}
+
+				if protoTag := kt.Tag.Get("protobuf"); protoTag != "" {
+					var typeName string
+					for _, s := range strings.Split(protoTag, ",") {
+						if strings.HasPrefix(s, "enum=") {
+							typeName = s[5:]
+							break
+						}
+					}
+					if len(typeName) != 0 {
+						enumMap := proto.EnumValueMap(typeName)
+						for v, x := range enumMap {
+							if v == uv {
+								sv.SetInt(int64(x))
+								continue loop
+							}
+						}
 					}
 				}
 				return fmt.Errorf("cast int has error, expect type: %v ,val: %v ,query key: %v", sv.Type(), uv, jsonName)

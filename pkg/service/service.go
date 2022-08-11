@@ -4,10 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io"
-
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"io"
 
 	"idas/config"
 	"idas/pkg/client/email"
@@ -32,8 +31,8 @@ type Service interface {
 	baseService
 	InitData(ctx context.Context) error
 	DeleteLoginSession(ctx context.Context, session string) error
-	GetLoginSession(ctx context.Context, ids string) ([]*models.User, error)
-	GetAuthCodeByClientId(ctx context.Context, clientId, userId, sessionId, storage string) (code string, err error)
+	GetSessionByToken(ctx context.Context, ids string, tokenType models.TokenType) ([]*models.User, error)
+	GetAuthCodeByClientId(ctx context.Context, clientId string, userId *models.User, sessionId, storage string) (code string, err error)
 	GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error)
 	GetOAuthTokenByPassword(ctx context.Context, username string, password string) (accessToken, refreshToken string, expiresIn int, err error)
@@ -50,15 +49,15 @@ type Service interface {
 	GetPermissions(ctx context.Context, keywords string, current int64, pageSize int64) (count int64, permissions []*models.Permission, err error)
 	DeleteRoles(ctx context.Context, ids []string) error
 
-	GetUsers(ctx context.Context, storage string, keywords string, status models.UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error)
+	GetUsers(ctx context.Context, storage string, keywords string, status models.UserMeta_UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error)
 	PatchUsers(ctx context.Context, storage string, patch []map[string]interface{}) (count int64, err error)
 	DeleteUsers(ctx context.Context, storage string, id []string) (count int64, err error)
 	UpdateUser(ctx context.Context, storage string, user *models.User, updateColumns ...string) (*models.User, error)
-	GetUserInfo(ctx context.Context, storage string, id string, username string) (user *models.User, err error)
+	GetUserInfo(ctx context.Context, storage, id, username string) (user *models.User, err error)
 	GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (user []*models.User)
 	CreateUser(ctx context.Context, storage string, user *models.User) (*models.User, error)
 	PatchUser(ctx context.Context, storage string, user map[string]interface{}) (*models.User, error)
-	DeleteUser(ctx context.Context, storage string, id string) error
+	DeleteUser(ctx context.Context, storage, id string) error
 	CreateLoginSession(ctx context.Context, username string, password string, rememberMe bool) (string, error)
 	GetUserSource(ctx context.Context) (total int64, data map[string]string, err error)
 	Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm sign.AuthAlgorithm, key, secret, payload, signStr string) ([]*models.User, error)
@@ -69,15 +68,17 @@ type Service interface {
 	PatchApps(ctx context.Context, storage string, patch []map[string]interface{}) (total int64, err error)
 	DeleteApps(ctx context.Context, storage string, id []string) (total int64, err error)
 	UpdateApp(ctx context.Context, storage string, app *models.App, updateColumns ...string) (*models.App, error)
-	GetAppInfo(ctx context.Context, storage string, id string) (app *models.App, err error)
+	GetAppInfo(ctx context.Context, storage, id string) (app *models.App, err error)
+
 	CreateApp(ctx context.Context, storage string, app *models.App) (*models.App, error)
 	PatchApp(ctx context.Context, storage string, fields map[string]interface{}) (app *models.App, err error)
-	DeleteApp(ctx context.Context, storage string, id string) (err error)
-	ResetPassword(ctx context.Context, id string, storage string, password string) error
+	DeleteApp(ctx context.Context, storage, id string) (err error)
+	ResetPassword(ctx context.Context, id, storage, password string) error
+	VerifyPasswordById(ctx context.Context, storage, username, password string) (users []*models.User)
 
 	CreateToken(ctx context.Context, tokenType models.TokenType, data ...interface{}) (token *models.Token, err error)
 	VerifyToken(ctx context.Context, token string, relationId string, tokenType models.TokenType) bool
-	SendResetPasswordLink(ctx context.Context, users []*models.User, token *models.Token) error
+	SendEmail(ctx context.Context, data map[string]interface{}, topic string, to ...string) error
 	Authorization(ctx context.Context, users []*models.User, method string) bool
 	RegisterPermission(ctx context.Context, permissions models.Permissions) error
 }
@@ -100,25 +101,24 @@ func (s Set) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email 
 	return users
 }
 
-func (s Set) SendResetPasswordLink(ctx context.Context, users []*models.User, token *models.Token) error {
+func (s Set) SendEmail(ctx context.Context, data map[string]interface{}, topic string, to ...string) error {
+	if len(to) == 0 {
+		level.Error(logs.GetContextLogger(ctx)).Log("err")
+		return fmt.Errorf("recipient is empty")
+	}
 	smtpConfig := config.Get().GetSmtp()
-	subject, body, err := smtpConfig.GetSubjectAndBody(map[string]interface{}{
-		"user":  users[0],
-		"users": users,
-		"token": token,
-	}, "User:ResetPassword")
+	subject, body, err := smtpConfig.GetSubjectAndBody(data, topic)
 	if err != nil {
-		level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "Failed to get email body: <User:ResetPassword>")
-		return errors.InternalServerError
+		return fmt.Errorf("failed to get email body: topic=%s,err=%s", topic, err)
 	}
 	client, err := email.NewSMTPClient(ctx, smtpConfig)
 	if err != nil {
 		level.Error(logs.GetContextLogger(ctx)).Log("err", fmt.Errorf("failed to create SMTP client: %s", err))
-		return errors.InternalServerError
+		return fmt.Errorf("failed to create SMTP client: %s", err)
 	}
 	client.SetSubject(subject)
 	client.SetBody("text/html", body)
-	client.SetTo([]string{fmt.Sprintf("%s<%s>", users[0].FullName, users[0].Email)})
+	client.SetTo(to)
 	return client.Send()
 }
 
@@ -140,8 +140,8 @@ func (s Set) ResetPassword(ctx context.Context, id string, storage string, passw
 			if err := service.ResetPassword(ctx, id, password); err != nil {
 				level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "Failed to reset password", "userId", id)
 			}
-			return nil
 		}
+		return nil
 	}
 	return s.GetUserAndAppService(storage).ResetPassword(ctx, id, password)
 }
@@ -244,7 +244,7 @@ type UserAndAppService interface {
 	baseService
 
 	Name() string
-	GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error)
+	GetUsers(ctx context.Context, keywords string, status models.UserMeta_UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error)
 	PatchUsers(ctx context.Context, patch []map[string]interface{}) (count int64, err error)
 	DeleteUsers(ctx context.Context, id []string) (count int64, err error)
 	UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (*models.User, error)
@@ -264,7 +264,7 @@ type UserAndAppService interface {
 	PatchApp(ctx context.Context, fields map[string]interface{}) (app *models.App, err error)
 	DeleteApp(ctx context.Context, id string) (err error)
 
-	VerifyUserAuthorizationForApp(ctx context.Context, appId string, userId string) (scope string, err error)
+	VerifyUserAuthorizationForApp(ctx context.Context, appId string, userId string) (role string, err error)
 	ResetPassword(ctx context.Context, id string, password string) error
 	GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (*models.User, error)
 }

@@ -155,7 +155,7 @@ func (s UserAndAppService) getAppInfoByReq(ctx context.Context, searchReq *golda
 				for _, m := range entry.GetAttributeValues("member") {
 					for userDn, user := range userMap {
 						if userDn == m {
-							user.Role = models.UserRole(roleName)
+							user.Role = roleName
 							user.RoleId = entry.GetAttributeValue("entryUUID")
 						}
 					}
@@ -436,7 +436,7 @@ func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name strin
 				for _, m := range entry.GetAttributeValues("member") {
 					for userDn, user := range userMap {
 						if userDn == m {
-							user.Role = models.UserRole(roleName)
+							user.Role = roleName
 							user.RoleId = entry.GetAttributeValue("entryUUID")
 						}
 					}
@@ -606,6 +606,15 @@ func (s UserAndAppService) PatchAppRole(ctx context.Context, dn string, role *mo
 	return conn.Modify(updateReq)
 }
 
-func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, appId string, userId string) (scope string, err error) {
-	panic("implement me")
+func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, appId string, userId string) (role string, err error) {
+	info, err := s.GetAppInfo(ctx, appId, "")
+	if err != nil {
+		return "", err
+	}
+	for _, user := range info.User {
+		if user.Id == userId {
+			return user.Role, nil
+		}
+	}
+	return "", errors.StatusNotFound("authorization")
 }

@@ -95,8 +95,8 @@ var userAddCmd = &cobra.Command{
 				Password: []byte(password),
 				Email:    email,
 				FullName: fullName,
-				Role:     models.UserRole(role),
-				Status:   models.UserStatusNormal,
+				Role:     role,
+				Status:   models.UserMeta_normal,
 			})
 			if err != nil {
 				level.Error(logger).Log("msg", "failed to create user", "err", err, "storage", s)

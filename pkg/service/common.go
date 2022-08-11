@@ -126,7 +126,7 @@ func (s Set) DeleteRoles(ctx context.Context, ids []string) error {
 func (s Set) Authorization(ctx context.Context, users []*models.User, method string) bool {
 	roles := sets.New[string]()
 	for _, user := range users {
-		roles.Insert(string(user.Role))
+		roles.Insert(user.Role)
 	}
 	return s.commonService.Authorization(ctx, roles.List(), method)
 }
@@ -136,6 +136,7 @@ func (s Set) RegisterPermission(ctx context.Context, permissions models.Permissi
 	if err != nil {
 		return err
 	}
+
 	for _, role := range permissions.GetRoles() {
 		if err = s.commonService.CreateOrUpdateRoleByName(ctx, role); err != nil {
 			return err

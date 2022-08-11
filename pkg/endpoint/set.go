@@ -22,20 +22,22 @@ import (
 )
 
 type UserEndpoints struct {
-	GetUsers       endpoint.Endpoint `description:"Get user list" role:"admin|viewer"`
-	DeleteUsers    endpoint.Endpoint `description:"Batch delete users" role:"admin"`
-	PatchUsers     endpoint.Endpoint `description:"Batch modify user information (incremental)" role:"admin"`
-	UpdateUser     endpoint.Endpoint `description:"Modify user information" role:"admin"`
-	GetUserInfo    endpoint.Endpoint `description:"Get user details" role:"admin|viewer"`
-	CreateUser     endpoint.Endpoint `description:"Create a user" role:"admin"`
-	PatchUser      endpoint.Endpoint `description:"Modify user information (incremental)" role:"admin"`
-	DeleteUser     endpoint.Endpoint `description:"Delete a user" role:"admin"`
-	GetUserSource  endpoint.Endpoint `description:"Get the data source that stores user information" role:"admin|viewer"`
-	ForgotPassword endpoint.Endpoint `auth:"false"`
-	ResetPassword  endpoint.Endpoint `auth:"false"`
-	CurrentUser    endpoint.Endpoint `auth:"false"`
-	CreateUserKey  endpoint.Endpoint `description:"Create a user key-pair" role:"admin"`
-	CreateKey      endpoint.Endpoint `auth:"false"`
+	GetUsers         endpoint.Endpoint `description:"Get user list" role:"admin|viewer"`
+	DeleteUsers      endpoint.Endpoint `description:"Batch delete users" role:"admin"`
+	PatchUsers       endpoint.Endpoint `description:"Batch modify user information (incremental)" role:"admin"`
+	UpdateUser       endpoint.Endpoint `description:"Modify user information" role:"admin"`
+	GetUserInfo      endpoint.Endpoint `description:"Get user details" role:"admin|viewer"`
+	CreateUser       endpoint.Endpoint `description:"Create a user" role:"admin"`
+	PatchUser        endpoint.Endpoint `description:"Modify user information (incremental)" role:"admin"`
+	DeleteUser       endpoint.Endpoint `description:"Delete a user" role:"admin"`
+	GetUserSource    endpoint.Endpoint `description:"Get the data source that stores user information" role:"admin|viewer"`
+	ForgotPassword   endpoint.Endpoint `auth:"false"`
+	ResetPassword    endpoint.Endpoint `auth:"false"`
+	CurrentUser      endpoint.Endpoint `auth:"false"`
+	CreateUserKey    endpoint.Endpoint `description:"Create a user key-pair" role:"admin"`
+	CreateKey        endpoint.Endpoint `auth:"false"`
+	SendActivateMail endpoint.Endpoint `description:"Send activation link to user mail" role:"admin"`
+	ActivateAccount  endpoint.Endpoint `auth:"false"`
 }
 
 type AppEndpoints struct {
@@ -51,14 +53,14 @@ type AppEndpoints struct {
 }
 
 type SessionEndpoints struct {
-	GetSessions     endpoint.Endpoint `description:"Get the user's session list" role:"admin"`
-	DeleteSession   endpoint.Endpoint `description:"Delete the user's session" role:"admin"`
-	UserLogin       endpoint.Endpoint `auth:"false"`
-	UserLogout      endpoint.Endpoint `auth:"false"`
-	GetLoginSession endpoint.Endpoint `auth:"false"`
-	OAuthTokens     endpoint.Endpoint `auth:"false"`
-	OAuthAuthorize  endpoint.Endpoint `auth:"false"`
-	Authentication  endpoint.Endpoint `auth:"false"`
+	GetSessions       endpoint.Endpoint `description:"Get the user's session list" role:"admin"`
+	DeleteSession     endpoint.Endpoint `description:"Delete the user's session" role:"admin"`
+	UserLogin         endpoint.Endpoint `auth:"false"`
+	UserLogout        endpoint.Endpoint `auth:"false"`
+	GetSessionByToken endpoint.Endpoint `auth:"false"`
+	OAuthTokens       endpoint.Endpoint `auth:"false"`
+	OAuthAuthorize    endpoint.Endpoint `auth:"false"`
+	Authentication    endpoint.Endpoint `auth:"false"`
 }
 
 type RoleEndpoints struct {
@@ -100,6 +102,9 @@ func GetPermissionsDefine(typeOf reflect.Type) models.Permissions {
 
 		p.Description = field.Tag.Get("description")
 		if field.Type.Kind() == reflect.Struct {
+			if auth := field.Tag.Get("auth"); len(auth) == 0 || auth == "true" {
+				p.EnableAuth = true
+			}
 			p.Children = GetPermissionsDefine(field.Type)
 			if len(p.Children) > 0 {
 				ret = append(ret, &p)
@@ -156,30 +161,32 @@ func New(ctx context.Context, svc service.Service, duration metrics.Histogram, o
 			DownloadFile: injectEndpoint("DownloadFile", MakeDownloadFileEndpoint(svc)),
 		},
 		UserEndpoints: UserEndpoints{
-			CurrentUser:    injectEndpoint("CurrentUser", MakeCurrentUserEndpoint(svc)),
-			ResetPassword:  injectEndpoint("ResetPassword", MakeResetUserPasswordEndpoint(svc)),
-			ForgotPassword: injectEndpoint("ForgotPassword", MakeForgotPasswordEndpoint(svc)),
-			GetUsers:       injectEndpoint("GetUsers", MakeGetUsersEndpoint(svc)),
-			DeleteUsers:    injectEndpoint("DeleteUsers", MakeDeleteUsersEndpoint(svc)),
-			PatchUsers:     injectEndpoint("PatchUsers", MakePatchUsersEndpoint(svc)),
-			UpdateUser:     injectEndpoint("UpdateUser", MakeUpdateUserEndpoint(svc)),
-			GetUserInfo:    injectEndpoint("GetUserInfo", MakeGetUserInfoEndpoint(svc)),
-			CreateUser:     injectEndpoint("CreateUser", MakeCreateUserEndpoint(svc)),
-			PatchUser:      injectEndpoint("PatchUser", MakePatchUserEndpoint(svc)),
-			DeleteUser:     injectEndpoint("DeleteUser", MakeDeleteUserEndpoint(svc)),
-			GetUserSource:  injectEndpoint("GetUserSource", MakeGetUserSourceRequestEndpoint(svc)),
-			CreateUserKey:  injectEndpoint("CreateUserKey", MakeCreateUserKeyEndpoint(svc)),
-			CreateKey:      injectEndpoint("CreateKey", MakeCreateKeyEndpoint(svc)),
+			CurrentUser:      injectEndpoint("CurrentUser", MakeCurrentUserEndpoint(svc)),
+			ResetPassword:    injectEndpoint("ResetPassword", MakeResetUserPasswordEndpoint(svc)),
+			ForgotPassword:   injectEndpoint("ForgotPassword", MakeForgotPasswordEndpoint(svc)),
+			GetUsers:         injectEndpoint("GetUsers", MakeGetUsersEndpoint(svc)),
+			DeleteUsers:      injectEndpoint("DeleteUsers", MakeDeleteUsersEndpoint(svc)),
+			PatchUsers:       injectEndpoint("PatchUsers", MakePatchUsersEndpoint(svc)),
+			UpdateUser:       injectEndpoint("UpdateUser", MakeUpdateUserEndpoint(svc)),
+			GetUserInfo:      injectEndpoint("GetUserInfo", MakeGetUserInfoEndpoint(svc)),
+			CreateUser:       injectEndpoint("CreateUser", MakeCreateUserEndpoint(svc)),
+			PatchUser:        injectEndpoint("PatchUser", MakePatchUserEndpoint(svc)),
+			DeleteUser:       injectEndpoint("DeleteUser", MakeDeleteUserEndpoint(svc)),
+			GetUserSource:    injectEndpoint("GetUserSource", MakeGetUserSourceRequestEndpoint(svc)),
+			CreateUserKey:    injectEndpoint("CreateUserKey", MakeCreateUserKeyEndpoint(svc)),
+			CreateKey:        injectEndpoint("CreateKey", MakeCreateKeyEndpoint(svc)),
+			SendActivateMail: injectEndpoint("SendActivateMail", MakeSendActivationMailEndpoint(svc)),
+			ActivateAccount:  injectEndpoint("ActivateAccount", MakeActivateAccountEndpoint(svc)),
 		},
 		SessionEndpoints: SessionEndpoints{
-			GetSessions:     injectEndpoint("GetSessions", MakeGetSessionsEndpoint(svc)),
-			DeleteSession:   injectEndpoint("DeleteSession", MakeDeleteSessionEndpoint(svc)),
-			UserLogin:       injectEndpoint("UserLogin", MakeUserLoginEndpoint(svc)),
-			Authentication:  injectEndpoint("Authentication", MakeAuthenticationEndpoint(svc)),
-			UserLogout:      injectEndpoint("UserLogout", MakeUserLogoutEndpoint(svc)),
-			GetLoginSession: injectEndpoint("GetLoginSession", MakeGetLoginSessionEndpoint(svc)),
-			OAuthTokens:     injectEndpoint("OAuthTokens", MakeOAuthTokensEndpoint(svc)),
-			OAuthAuthorize:  injectEndpoint("OAuthAuthorize", MakeOAuthAuthorizeEndpoint(svc)),
+			GetSessions:       injectEndpoint("GetSessions", MakeGetSessionsEndpoint(svc)),
+			DeleteSession:     injectEndpoint("DeleteSession", MakeDeleteSessionEndpoint(svc)),
+			UserLogin:         injectEndpoint("UserLogin", MakeUserLoginEndpoint(svc)),
+			Authentication:    injectEndpoint("Authentication", MakeAuthenticationEndpoint(svc)),
+			UserLogout:        injectEndpoint("UserLogout", MakeUserLogoutEndpoint(svc)),
+			GetSessionByToken: injectEndpoint("GetSessionByToken", MakeGetSessionByTokenEndpoint(svc)),
+			OAuthTokens:       injectEndpoint("OAuthTokens", MakeOAuthTokensEndpoint(svc)),
+			OAuthAuthorize:    injectEndpoint("OAuthAuthorize", MakeOAuthAuthorizeEndpoint(svc)),
 		},
 		AppEndpoints: AppEndpoints{
 			GetApps:      injectEndpoint("GetApps", MakeGetAppsEndpoint(svc)),

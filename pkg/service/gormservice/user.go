@@ -27,9 +27,11 @@ func (s UserAndAppService) ResetPassword(ctx context.Context, ids string, passwo
 	conn := s.Session(ctx).Begin()
 	defer conn.Callback()
 	for _, id := range strings.Split(ids, ",") {
-		u := models.User{Model: models.Model{Id: id}, Salt: uuid.NewV4().Bytes()}
+		u := models.User{Model: models.Model{Id: id}, Salt: uuid.NewV4().Bytes(), Status: models.UserMeta_normal}
 		u.Password = u.GenSecret(password)
-		if err := conn.Select("password", "salt").Updates(&u).Error; err != nil {
+		if err := conn.Select("password", "salt", "status").Where("status in ?", []models.UserMeta_UserStatus{
+			models.UserMeta_inactive, models.UserMeta_inactive, models.UserMeta_unknown,
+		}).Updates(&u).Error; err != nil {
 			return err
 		}
 	}
@@ -55,11 +57,12 @@ FROM
         LEFT JOIN
     t_app_user T2 ON T2.user_id = T1.id
         LEFT JOIN
-    t_app T3 ON T3.id = T2.app_id AND T3.name = 'IDAS'
+    t_app T3 ON T3.id = T2.app_id 
         LEFT JOIN
     t_app_role T4 ON T2.role_id = T4.id
 WHERE
-    T1.username = ? or T1.email = ?
+    (T1.username = ? or T1.email = ?)
+    AND T3.name = 'IDAS'
 `
 
 func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) []*models.User {
@@ -73,7 +76,6 @@ func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, 
 		}
 		return nil
 	}
-	fmt.Println(user)
 	if !bytes.Equal(user.GenSecret(password), user.Password) {
 		level.Debug(logger).Log("msg", "incorrect password", "username", username)
 		return nil
@@ -90,7 +92,7 @@ func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, us
 	return user, nil
 }
 
-func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error) {
+func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserMeta_UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error) {
 	query := s.Session(ctx).Where("t_user.is_delete = 0")
 	if len(keywords) > 0 {
 		keywords = fmt.Sprintf("%%%s%%", keywords)
@@ -106,7 +108,7 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 			Joins("LEFT JOIN t_app_user ON t_app_user.user_id = t_user.id").
 			Where("t_app_user.app_id = ?", appId)
 	}
-	if status != models.UserStatusUnknown {
+	if status != models.UserMeta_unknown {
 		query = query.Where("status", status)
 	}
 	if err = query.Order("username,id").Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).Find(&users).Error; err != nil {

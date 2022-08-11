@@ -31,3 +31,11 @@ message RoleMeta{
     system = 1;
   }
 }
+message UserMeta{
+  enum UserStatus{
+    unknown = 0;
+    normal = 1;
+    disable = 2;
+    inactive = 3;
+  }
+}

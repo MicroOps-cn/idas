@@ -59,12 +59,17 @@ func MakeAuthenticationEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
-func MakeGetLoginSessionEndpoint(s service.Service) endpoint.Endpoint {
+type GetSessionParams struct {
+	Token     string
+	TokenType models.TokenType
+}
+
+func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		sessionId := request.(string)
+		params := request.(GetSessionParams)
 		var resp []*models.User
-		if len(sessionId) > 0 {
-			if resp, err = s.GetLoginSession(ctx, sessionId); err != nil {
+		if len(params.Token) > 0 {
+			if resp, err = s.GetSessionByToken(ctx, params.Token, params.TokenType); err != nil {
 				if err != errors.NotLoginError {
 					level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to get session")
 					err = errors.NotLoginError
