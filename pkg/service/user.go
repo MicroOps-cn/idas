@@ -1,13 +1,30 @@
+/*
+ Copyright © 2022 MicroOps-cn.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+
 package service
 
 import (
 	"context"
 	"fmt"
+
 	uuid "github.com/satori/go.uuid"
 
-	"idas/pkg/errors"
-	"idas/pkg/service/models"
-	"idas/pkg/utils/sign"
+	"github.com/MicroOps-cn/idas/pkg/errors"
+	"github.com/MicroOps-cn/idas/pkg/service/models"
+	"github.com/MicroOps-cn/idas/pkg/utils/sign"
 )
 
 func (s Set) UserServiceDo(name string, f func(service UserAndAppService)) error {
@@ -153,11 +170,6 @@ func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, 
 			return []*models.User{userKey.User}, nil
 		}
 		return nil, errors.ParameterError("Failed to verify the signature")
-	//case models.AuthMeta_token:
-	//	if s.VerifyToken(ctx, secret, "", models.TokenTypeToken) {
-	//		return nil, nil
-	//	}
-	//	return nil, errors.ParameterError("Failed to verify the signature")
 	default:
 		return nil, errors.ParameterError("unknown auth method")
 	}

@@ -1,3 +1,19 @@
+/*
+ Copyright © 2022 MicroOps-cn.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+
 package transport
 
 import (
@@ -14,13 +30,15 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 
-	"idas/pkg/endpoint"
-	"idas/pkg/errors"
-	"idas/pkg/global"
-	"idas/pkg/logs"
-	"idas/pkg/service/models"
-	"idas/pkg/utils/httputil"
-	"idas/pkg/utils/sign"
+	"github.com/MicroOps-cn/idas/pkg/endpoint"
+	"github.com/MicroOps-cn/idas/pkg/errors"
+	"github.com/MicroOps-cn/idas/pkg/global"
+	"github.com/MicroOps-cn/idas/pkg/logs"
+	"github.com/MicroOps-cn/idas/pkg/service/models"
+	"github.com/MicroOps-cn/idas/pkg/utils/buffer"
+	"github.com/MicroOps-cn/idas/pkg/utils/httputil"
+	"github.com/MicroOps-cn/idas/pkg/utils/sign"
+	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
 )
 
 func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
@@ -122,28 +140,19 @@ func HTTPLoggingFilter(req *restful.Request, resp *restful.Response, filterChan 
 	logger := log.With(logs.GetRootLogger(), global.TraceIdName, traceId)
 	req.Request = req.Request.WithContext(context.WithValue(context.WithValue(ctx, global.TraceIdName, traceId), global.LoggerName, logger))
 	start := time.Now()
-	level.Info(logger).Log(
-		"msg", "HTTP request received.",
-		"title", "request",
-		"[httpURI]", req.Request.RequestURI,
-		"[method]", req.Request.Method,
-		"[proto]", req.Request.Proto,
-		"[contentType]", req.HeaderParameter("Content-Type"),
-		"[contentLength]", req.Request.ContentLength,
-	)
 
 	defer func() {
 		if r := recover(); r != nil {
 			errorEncoder(req.Request.Context(), errors.NewServerError(http.StatusForbidden, "Server exception"), resp)
-			buffer := bytes.NewBufferString(fmt.Sprintf("recover from panic situation: - %v\n", r))
+			buf := bytes.NewBufferString(fmt.Sprintf("recover from panic situation: - %v\n", r))
 			for i := 2; ; i++ {
 				_, file, line, ok := runtime.Caller(i)
 				if !ok {
 					break
 				}
-				buffer.WriteString(fmt.Sprintf("    %s:%d\n", file, line))
+				buf.WriteString(fmt.Sprintf("    %s:%d\n", file, line))
 			}
-			level.Error(logger).Log("msg", buffer.String())
+			level.Error(logger).Log("msg", buf.String())
 		}
 		logger = log.With(logger,
 			"msg", "HTTP response send.",
@@ -155,5 +164,16 @@ func HTTPLoggingFilter(req *restful.Request, resp *restful.Response, filterChan 
 		)
 		level.Info(logger).Log("[totalTime]", fmt.Sprintf("%dms", time.Since(start).Milliseconds()))
 	}()
+	preBuf := w.Must[buffer.PreReader](buffer.NewPreReader(req.Request.Body, 1024))
+	req.Request.Body = preBuf
+	level.Info(logger).Log(
+		"msg", "HTTP request received.",
+		"title", "request",
+		"[httpURI]", fmt.Sprintf("%s %s %s", req.Request.Method, req.Request.RequestURI, req.Request.Proto),
+		"[contentType]", req.HeaderParameter("Content-Type"),
+		"[header]", httputil.Map[string, []string](req.Request.Header),
+		"[contentLength]", req.Request.ContentLength,
+		"[body]", preBuf,
+	)
 	filterChan.ProcessFilter(req, resp)
 }

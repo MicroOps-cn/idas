@@ -1,6 +1,6 @@
 syntax = "proto3";
 package idas.pkg.utils;
-option go_package = "idas/pkg/utils/capacity;capacity";
+option go_package = "github.com/MicroOps-cn/idas/pkg/utils/capacity;capacity";
 
 message Capacity {
     int64 capacity = 1;

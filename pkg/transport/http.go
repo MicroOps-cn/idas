@@ -1,3 +1,19 @@
+/*
+ Copyright © 2022 MicroOps-cn.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+
 package transport
 
 import (
@@ -5,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	stdlog "log"
 	"net/http"
 	"reflect"
@@ -27,15 +42,16 @@ import (
 	"github.com/gogo/protobuf/proto"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	stdzipkin "github.com/openzipkin/zipkin-go"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"idas/config"
-	"idas/pkg/endpoint"
-	"idas/pkg/errors"
-	"idas/pkg/global"
-	"idas/pkg/logs"
-	"idas/pkg/utils/buffer"
-	"idas/pkg/utils/httputil"
-	w "idas/pkg/utils/wrapper"
+	"github.com/MicroOps-cn/idas/config"
+	"github.com/MicroOps-cn/idas/pkg/endpoint"
+	"github.com/MicroOps-cn/idas/pkg/errors"
+	"github.com/MicroOps-cn/idas/pkg/global"
+	"github.com/MicroOps-cn/idas/pkg/logs"
+	"github.com/MicroOps-cn/idas/pkg/utils/buffer"
+	"github.com/MicroOps-cn/idas/pkg/utils/httputil"
+	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
 )
 
 // NewHTTPHandler returns an HTTP handler that makes a set of endpoints
@@ -261,6 +277,7 @@ func encodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response int
 	logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "resp", fmt.Sprintf("%#v", resp), "caller", logs.Caller(7))), logs.Prefix("encoded http response: ", true))
 	return json.NewEncoder(io.MultiWriter(w, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Encode(resp)
 }
+
 func simpleEncodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	logger := logs.GetContextLogger(ctx)
 	if f, ok := response.(kitendpoint.Failer); ok && f.Failed() != nil {
@@ -358,7 +375,7 @@ loopObjFields:
 					param.Required(true)
 				}
 				if tag := field.Tag.Get("enum"); tag != "" {
-					var enums = map[string]string{}
+					enums := map[string]string{}
 					for idx, s := range strings.Split(tag, "|") {
 						enums[strconv.Itoa(idx)] = s
 					}
@@ -373,7 +390,7 @@ loopObjFields:
 					}
 					if len(typeName) != 0 {
 						enumMap := proto.EnumValueMap(typeName)
-						var enums = make(map[string]string, len(enumMap)*2)
+						enums := make(map[string]string, len(enumMap)*2)
 						for v, idx := range enumMap {
 							enums[strconv.Itoa(int(idx))] = v
 							enums[strconv.Itoa(int(idx)+len(enumMap))] = strconv.Itoa(int(idx))

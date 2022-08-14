@@ -1,22 +1,39 @@
+/*
+ Copyright © 2022 MicroOps-cn.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+
 package service
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"io"
 
-	"idas/config"
-	"idas/pkg/client/email"
-	"idas/pkg/errors"
-	"idas/pkg/global"
-	"idas/pkg/logs"
-	"idas/pkg/service/gormservice"
-	"idas/pkg/service/ldapservice"
-	"idas/pkg/service/models"
-	"idas/pkg/utils/sign"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
+
+	"github.com/MicroOps-cn/idas/config"
+	"github.com/MicroOps-cn/idas/pkg/client/email"
+	"github.com/MicroOps-cn/idas/pkg/errors"
+	"github.com/MicroOps-cn/idas/pkg/global"
+	"github.com/MicroOps-cn/idas/pkg/logs"
+	"github.com/MicroOps-cn/idas/pkg/service/gormservice"
+	"github.com/MicroOps-cn/idas/pkg/service/ldapservice"
+	"github.com/MicroOps-cn/idas/pkg/service/models"
+	"github.com/MicroOps-cn/idas/pkg/utils/sign"
 )
 
 type migrator interface {
@@ -106,7 +123,10 @@ func (s Set) SendEmail(ctx context.Context, data map[string]interface{}, topic s
 		level.Error(logs.GetContextLogger(ctx)).Log("err")
 		return fmt.Errorf("recipient is empty")
 	}
-	smtpConfig := config.Get().GetSmtp()
+	smtpConfig := config.Get().Smtp
+	if smtpConfig == nil {
+		return fmt.Errorf("smtp options is empty")
+	}
 	subject, body, err := smtpConfig.GetSubjectAndBody(data, topic)
 	if err != nil {
 		return fmt.Errorf("failed to get email body: topic=%s,err=%s", topic, err)

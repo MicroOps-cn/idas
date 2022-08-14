@@ -1,7 +1,7 @@
 syntax = "proto3";
 package idas.oauth2;
 import "v1/base.proto";
-option go_package = "idas/pkg/endpoint;endpoint";
+option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
 
 message OAuthTokenResponse{
   string access_token = 1;

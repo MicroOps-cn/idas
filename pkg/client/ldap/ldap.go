@@ -1,6 +1,5 @@
 /*
-
- Copyright 2019 The KubeSphere Authors.
+ Copyright © 2022 MicroOps-cn.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,7 +12,6 @@
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  See the License for the specific language governing permissions and
  limitations under the License.
-
 */
 
 package ldap
@@ -29,9 +27,10 @@ import (
 	"github.com/go-ldap/ldap"
 	"github.com/gogo/protobuf/proto"
 
-	"idas/pkg/global"
-	"idas/pkg/logs"
-	"idas/pkg/utils/signals"
+	"github.com/MicroOps-cn/idas/api"
+	"github.com/MicroOps-cn/idas/pkg/global"
+	"github.com/MicroOps-cn/idas/pkg/logs"
+	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
 func NewLdapPool(ctx context.Context, options *LdapOptions) (pool Pool, err error) {
@@ -81,6 +80,8 @@ type Client struct {
 	pool    Pool
 	options *LdapOptions
 }
+
+var _ api.CustomType = &Client{}
 
 // Merge implement proto.Merger
 func (l *Client) Merge(src proto.Message) {

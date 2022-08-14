@@ -14,16 +14,18 @@
  limitations under the License.
 */
 
-package models
+package endpoint
 
-func (x AppMeta_GrantType) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + x.String() + `"`), nil
-}
+import (
+	"testing"
 
-func (x AppMeta_GrantMode) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + x.String() + `"`), nil
-}
+	"github.com/stretchr/testify/require"
+)
 
-func (x AppMeta_Status) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + x.String() + `"`), nil
+func TestGetSetMeta(t *testing.T) {
+	getUserPermissions := Set{}.GetPermissionsDefine().Get("User").Get("GetUsers")
+	require.Len(t, getUserPermissions, 1)
+	require.True(t, getUserPermissions[0].EnableAuth)
+	require.Equal(t, getUserPermissions[0].Role, []string{"admin", "viewer"})
+	require.Equal(t, getUserPermissions[0].Description, "Get user list")
 }

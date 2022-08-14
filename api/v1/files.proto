@@ -2,11 +2,11 @@ syntax = "proto3";
 package idas.endpoint;
 import public "gogoproto/gogo.proto";
 import "v1/base.proto";
-option go_package = "idas/pkg/endpoint;endpoint";
+option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
 
 
 message FileListType{}
 message FileUploadResponse{
-  idas.endpoint.BaseTotalResponse BaseTotalResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  idas.endpoint.BaseTotalResponse base_total_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
   FileListType data = 8[(gogoproto.customtype) = "map[string]string", (gogoproto.nullable) = false];
 }

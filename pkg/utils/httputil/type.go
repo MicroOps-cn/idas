@@ -14,16 +14,16 @@
  limitations under the License.
 */
 
-package models
+package httputil
 
-func (x AppMeta_GrantType) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + x.String() + `"`), nil
-}
+import (
+	"encoding/json"
 
-func (x AppMeta_GrantMode) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + x.String() + `"`), nil
-}
+	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
+)
 
-func (x AppMeta_Status) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + x.String() + `"`), nil
+type Map[KT comparable, VT any] map[KT]VT
+
+func (m Map[KT, VT]) String() string {
+	return string(w.M[[]byte](json.Marshal(m)))
 }

@@ -25,7 +25,7 @@ PROTOC_OPTS ?= --gogo_opt=Mgoogle/protobuf/duration.proto=github.com/gogo/protob
 PROTOC_OPTS := $(PROTOC_OPTS) -I$(shell $(GO) list -f "{{ .Dir }}" -m github.com/gogo/protobuf)/protobuf/
 PROTOC_OPTS := $(PROTOC_OPTS) -I$(shell $(GO) list -f "{{ .Dir }}" -m github.com/gogo/protobuf)/
 PROTOC_OPTS := $(PROTOC_OPTS) -I./api
-PROTOC_OPTS := $(PROTOC_OPTS) --gogo_out=module=${GOMODULENAME}:..
+PROTOC_OPTS := $(PROTOC_OPTS) --gogo_out=module=${GOMODULENAME}:gogo_out
 
 # golangci-lint only supports linux, darwin and windows platforms on i386/amd64.
 # windows isn't included here because of the path separator being different.
@@ -43,30 +43,29 @@ endif
 
 pkgs          = ./...
 
-all: common-lint test protos idas
+.PHONY: all
+all: common-check_license protos common-lint test idas
 
+.PHONY: clean-protos
 clean-protos:
-	rm -rf $(PROTO_GOS)
-protos: clean-protos
-	grep -HoP '(?<=option go_package = ")[^;]+' $(PROTO_DEFS)|awk -F: '{pkgs[$$2]=1;protos[$$1]=$$2}END{for(pkg in pkgs){for(proto in protos){if(pkg==protos[proto]){printf("%s ",proto)}};print("")}}'|while read line; do \
-  		echo "$(PROTOC) $(PROTOC_OPTS) $$line"; \
-  		$(PROTOC) $(PROTOC_OPTS) $$line || exit 1 ;\
-	done
-	find . $(DONT_FIND) -type f -name '*.pb.go' -print|while read line; do \
-  		sed -i ':label;N;s/\nvar E_\S\+ = gogoproto.E_\S\+\n//;b label' $$line; \
-  		sed -i '/gogoproto "github.com\/gogo\/protobuf\/gogoproto/d' $$line; \
-  	done;
+	@if [ -n "$(PROTO_GOS)" ];then \
+    	echo ">> rm -f $(PROTO_GOS);" \
+		rm -f $(PROTO_GOS); \
+	fi \
 
-#	grep -HoP '(?<=option go_package = ")[^;]+' $(PROTO_DEFS)|awk -F: '{pkgs[#=$$2]=1;protos[$$1]=$$2}END{ \
-#        for(pkg in pkgs){
-#            for(proto in protos){
-#                if(pkg==protos[proto]){
-#                    printf("%s ",proto)
-#                }
-#            }
-#            print("")
-#        }
-#    }'
+.PHONY: protos
+protos: clean-protos
+	@echo ">> generate golang code of protobuf"
+	PROTOC="$(PROTOC)" PROTOC_OPTS="$(PROTOC_OPTS)" PROTO_DEFS="$(PROTO_DEFS)" GOMODULENAME="$(GOMODULENAME)" ./scripts/make_proto.sh
+#	grep -HoP '(?<=option go_package = ")[^;]+' $(PROTO_DEFS)|awk -F: '{pkgs[$$2]=1;protos[$$1]=$$2}END{for(pkg in pkgs){for(proto in protos){if(pkg==protos[proto]){printf("%s ",proto)}};print("")}}'|while read line; do \
+#  		$(PROTOC) $(PROTOC_OPTS) $$line || echo "$(PROTOC) $(PROTOC_OPTS) $$line" && exit 1 ;\
+#	done
+#	find . $(DONT_FIND) -type f -name '*.pb.go' -print|while read line; do \
+#  		sed -i ':label;N;s/\nvar E_\S\+ = gogoproto.E_\S\+\n//;b label' $$line; \
+#  		sed -i '/gogoproto "github.com\/gogo\/protobuf\/gogoproto/d' $$line; \
+#  	done;
+
+
 %.pb.go:
 	@# The store-gateway RPC is based on Thanos which uses relative references to other protos, so we need
 	@# to configure all such relative paths. `gogo/protobuf` is used by it.
@@ -78,6 +77,18 @@ protos: clean-protos
 			;;					\
 		esac
 
+.PHONY: common-check_license
+common-check_license:
+	@echo ">> checking license header"
+	@licRes=$$(for file in $$(find . -type f -iname '*.go' ! -path './vendor/*') ; do \
+               awk 'NR<=4' $$file | grep -Eq "(Copyright|generated|GENERATED)" || echo $$file; \
+       done); \
+       if [ -n "$${licRes}" ]; then \
+               echo "license header checking failed:"; echo "$${licRes}"; \
+               exit 1; \
+       fi
+
+.PHONY: idas
 idas:
 	go build -ldflags="-s -w" -o dist/idas ./cmd/idas
 
@@ -96,5 +107,6 @@ $(GOLANGCI_LINT):
 		| sh -s -- -b $(FIRST_GOPATH)/bin $(GOLANGCI_LINT_VERSION)
 endif
 
+.PHONY: test
 test:
 	go test -tags make_test -cover -race -count=1 ./...

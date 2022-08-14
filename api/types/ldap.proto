@@ -1,6 +1,6 @@
 syntax = "proto3";
 package idas.client.ldap;
-option go_package = "idas/pkg/client/ldap;ldap";
+option go_package = "github.com/MicroOps-cn/idas/pkg/client/ldap;ldap";
 
 
 message LdapOptions{

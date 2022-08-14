@@ -6,11 +6,11 @@ import "types/capacity.proto";
 import "types/email.proto";
 import public "gogoproto/gogo.proto";
 package idas.config;
-option go_package = "idas/config;config";
+option go_package = "github.com/MicroOps-cn/idas/config;config";
 
 
 message StorageRef{
-  Storage Storage = 1;
+  Storage storage = 1;
   string path = 2;
   string name = 3;
 }
@@ -19,10 +19,10 @@ message Storage{
   string name = 1;
   oneof source{
     StorageRef ref = 10;
-    idas.client.gorm.MySQLOptions mysql = 11[(gogoproto.customtype) = "idas/pkg/client/gorm.MySQLClient"]; // MySQL Database Config
-    idas.client.redis.RedisOptions redis = 12[(gogoproto.customtype) = "idas/pkg/client/redis.Client"]; // Redis Database Config
-    idas.client.ldap.LdapOptions ldap = 13[(gogoproto.customtype) = "idas/pkg/client/ldap.Client"]; // LdapDatabaseConfig
-    idas.client.gorm.SQLiteOptions sqlite = 14[(gogoproto.customtype) = "idas/pkg/client/gorm.SQLiteClient"]; // MySQL Database Config
+    idas.client.gorm.MySQLOptions mysql = 11[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/client/gorm.MySQLClient"]; // MySQL Database Config
+    idas.client.redis.RedisOptions redis = 12[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/client/redis.Client"]; // Redis Database Config
+    idas.client.ldap.LdapOptions ldap = 13[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/client/ldap.Client"]; // LdapDatabaseConfig
+    idas.client.gorm.SQLiteOptions sqlite = 14[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/client/gorm.SQLiteClient"]; // MySQL Database Config
   };
 }
 
@@ -42,5 +42,5 @@ message GlobalOptions{
 message Config {
   Storages storage = 1;
   GlobalOptions global = 2;
-  idas.client.email.SmtpOptions smtp = 3;
+  idas.client.email.SmtpOptions smtp = 3[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/client/email.SmtpOptions"];
 }

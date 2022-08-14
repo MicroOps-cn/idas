@@ -1,32 +1,31 @@
 syntax = "proto3";
 package idas.endpoint;
 import public "gogoproto/gogo.proto";
-option go_package = "idas/pkg/endpoint;endpoint";
+option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
 
 message BaseListRequest{
-  int64 pageSize = 1;
+  int64 page_size = 1[(gogoproto.jsontag)="pageSize,omitempty"];
   int64 current = 2;
   string keywords = 3;
 }
 
-message errorType {}
+message ErrorType {}
 
-message anyType {}
 
 message BaseResponse{
-  string traceId = 1[(gogoproto.jsontag) = "traceId",(gogoproto.moretags)='valid:"required"'];
+  string trace_id = 1[(gogoproto.jsontag) = "traceId",(gogoproto.moretags)='valid:"required"'];
   bool success = 2[(gogoproto.jsontag) = "success",(gogoproto.moretags)='valid:"required"'];
-  string errorCode = 3;
-  string errorMessage = 4;
-  errorType error = 5[(gogoproto.customtype) = "error",(gogoproto.jsontag) = "-",(gogoproto.nullable) = false];
+  string error_code = 3[(gogoproto.jsontag)="errorCode,omitempty"];
+  string error_message = 4[(gogoproto.jsontag)="errorMessage,omitempty"];
+  ErrorType error = 5[(gogoproto.customtype) = "error",(gogoproto.jsontag) = "-",(gogoproto.nullable) = false];
 }
 message BaseTotalResponse{
-  BaseResponse BaseResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false,(gogoproto.jsontag) = ",omitempty"];
+  BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false,(gogoproto.jsontag) = ",omitempty"];
   int64 total = 7[(gogoproto.jsontag) = "total"];
 }
 
 message BaseListResponse{
-  BaseTotalResponse BaseTotalResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false,(gogoproto.jsontag) = ",omitempty"];
-  int64 current = 6[(gogoproto.jsontag) = "current"];
-  int64 pageSize = 7[(gogoproto.jsontag) = "pageSize"];
+  BaseTotalResponse base_total_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false,(gogoproto.jsontag) = ",omitempty"];
+  int64 current = 2[(gogoproto.jsontag) = "current"];
+  int64 page_size = 3[(gogoproto.jsontag) = "pageSize"];
 }

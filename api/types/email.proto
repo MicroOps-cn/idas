@@ -1,7 +1,7 @@
 syntax = "proto3";
 package idas.client.email;
 import public "gogoproto/gogo.proto";
-option go_package = "idas/pkg/client/email;email";
+option go_package = "github.com/MicroOps-cn/idas/pkg/client/email;email";
 option (gogoproto.sizer_all) = true;
 
 message OriginalTemplate{

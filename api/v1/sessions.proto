@@ -3,22 +3,22 @@ package idas.endpoint;
 import public "gogoproto/gogo.proto";
 import "v1/base.proto";
 import "types/models.proto";
-option go_package = "idas/pkg/endpoint;endpoint";
+option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
 
 message GetSessionsRequest{
-  idas.endpoint.BaseListRequest BaseListRequest = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false];
-  string userId = 2[(gogoproto.moretags) = 'valid:"required"'];
+  idas.endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false];
+  string user_id = 2[(gogoproto.jsontag) = "userId,omitempty",(gogoproto.moretags) = 'valid:"required"'];
 }
 
 message SessionInfo{
   string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
-  string createTime = 2[(gogoproto.jsontag) = "createTime",(gogoproto.moretags)='valid:"required"'];
+  string create_time = 2[(gogoproto.jsontag) = "createTime,omitempty",(gogoproto.moretags)='valid:"required"'];
   string expiry = 3[(gogoproto.jsontag) = "expiry",(gogoproto.moretags)='valid:"required"'];
-  string lastSeen = 4;
+  string last_seen = 4[(gogoproto.jsontag) = "lastSeen,omitempty"];
 }
 
 message GetSessionsResponse{
-  idas.endpoint.BaseListRequest BaseListResponse = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false];
+  idas.endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false];
   repeated SessionInfo data = 2;
 }
 
@@ -29,11 +29,11 @@ message DeleteSessionRequest{
 message AuthenticationRequest{
   string username = 1;
   string password = 2;
-  idas.service.models.AuthMeta.Method authMethod = 3;
-  string authAlgorithm = 4[(gogoproto.customtype) = "idas/pkg/utils/sign.AuthAlgorithm", (gogoproto.nullable) = false];
-  string authKey = 5;
-  string authSecret = 6;
-  string authSign = 7;
+  idas.service.models.AuthMeta.Method auth_method = 3[(gogoproto.jsontag) = "authMethod,omitempty"];
+  string auth_algorithm = 4[(gogoproto.jsontag) = "authAlgorithm,omitempty",(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/utils/sign.AuthAlgorithm", (gogoproto.nullable) = false];
+  string auth_key = 5[(gogoproto.jsontag) = "authKey,omitempty"];
+  string auth_secret = 6[(gogoproto.jsontag) = "authSecret,omitempty"];
+  string auth_sign = 7[(gogoproto.jsontag) = "authSign,omitempty"];
   string payload = 8[(gogoproto.jsontag) = "-"];
 }
 
@@ -41,6 +41,6 @@ message AuthenticationRequest{
 message UserLoginRequest{
   string username = 1[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required"'];
   string password = 2[(gogoproto.jsontag) = "password", (gogoproto.moretags) = 'valid:"required"'];
-  bool autoLogin = 3;
+  bool auto_login = 3[(gogoproto.jsontag) = "autoLogin,omitempty"];
   string type = 4;
 }

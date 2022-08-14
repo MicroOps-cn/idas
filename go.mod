@@ -1,4 +1,4 @@
-module idas
+module github.com/MicroOps-cn/idas
 
 go 1.18
 

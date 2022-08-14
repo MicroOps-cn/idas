@@ -1,6 +1,6 @@
 syntax = "proto3";
 package idas.service.models;
-option go_package = "idas/pkg/service/models;models";
+option go_package = "github.com/MicroOps-cn/idas/pkg/service/models;models";
 
 message AuthMeta {
   enum Method{

@@ -1,7 +1,7 @@
 syntax = "proto3";
 package idas.client.gorm;
 import "google/protobuf/duration.proto";
-option go_package = "idas/pkg/client/gorm;gorm";
+option go_package = "github.com/MicroOps-cn/idas/pkg/client/gorm;gorm";
 
 message MySQLOptions{
   string host = 1;
@@ -11,7 +11,7 @@ message MySQLOptions{
   int32 max_idle = 5;
   int32 max_idle_connections = 6;
   int32  max_open_connections = 7;
-  google.protobuf.Duration  max_connection_lifeTime = 8;
+  google.protobuf.Duration  max_connection_life_time = 8;
   string charset = 9;
   string collation = 10;
   string table_prefix = 11;
