@@ -12,13 +12,13 @@ message GetSessionsRequest{
 
 message SessionInfo{
   string id = 1[(gogoproto.jsontag) = "id",(gogoproto.moretags)='valid:"required"'];
-  string create_time = 2[(gogoproto.jsontag) = "createTime,omitempty",(gogoproto.moretags)='valid:"required"'];
+  string create_time = 2[(gogoproto.jsontag) = "createTime",(gogoproto.moretags)='valid:"required"'];
   string expiry = 3[(gogoproto.jsontag) = "expiry",(gogoproto.moretags)='valid:"required"'];
   string last_seen = 4[(gogoproto.jsontag) = "lastSeen,omitempty"];
 }
 
 message GetSessionsResponse{
-  idas.endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false];
+  idas.endpoint.BaseListResponse base_list_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
   repeated SessionInfo data = 2;
 }
 

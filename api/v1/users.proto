@@ -111,17 +111,17 @@ message GetUserRequest{
 
 message UserKeyInfo{
   string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
-  string update_time = 2[(gogoproto.jsontag) = "updateTime,omitempty", (gogoproto.moretags) = 'valid:"required"'];
-  string create_time = 3[(gogoproto.jsontag) = "createTime,omitempty", (gogoproto.moretags) = 'valid:"required"'];
+  string update_time = 2[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
+  string create_time = 3[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
   string name = 4[(gogoproto.jsontag) = "name"];
-  string user_id = 5[(gogoproto.jsontag) = "userId,omitempty"];
+  string user_id = 5[(gogoproto.jsontag) = "userId"];
   string key = 6[(gogoproto.jsontag) = "key"];
   string secret = 7[(gogoproto.jsontag) = "secret"];
   string private = 8[(gogoproto.jsontag) = "private"];
 }
 
 message CreateUserKeyRequest{
-  string user_id = 1[(gogoproto.jsontag) = "userId,omitempty", (gogoproto.moretags) = 'valid:"required"'];
+  string user_id = 1[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"required"'];
   string name = 3[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
 }
 
@@ -131,7 +131,7 @@ message CreateUserKeyResponse{
 }
 
 message CreateKeyRequest{
-  string user_id = 1[(gogoproto.jsontag) = "userId,omitempty", (gogoproto.moretags) = 'valid:"required"'];
+  string user_id = 1[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"required"'];
   string name = 3[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
 }
 
@@ -141,13 +141,13 @@ message CreateKeyResponse{
 }
 
 message SendActivationMailRequest{
-  string user_id = 1[(gogoproto.jsontag) = "userId,omitempty", (gogoproto.moretags) = 'valid:"required"'];
+  string user_id = 1[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"required"'];
   string storage = 3[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
 }
 
 message ActivateAccountRequest{
   string token = 1;
-  string user_id = 2[(gogoproto.jsontag) = "userId,omitempty", (gogoproto.moretags) = 'valid:"required"'];
+  string user_id = 2[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"required"'];
   string storage = 3;
-  string new_password = 4[(gogoproto.jsontag) = "newPassword,omitempty", (gogoproto.moretags) = 'valid:"required"'];
+  string new_password = 4[(gogoproto.jsontag) = "newPassword", (gogoproto.moretags) = 'valid:"required"'];
 }
