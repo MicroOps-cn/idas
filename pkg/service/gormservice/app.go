@@ -23,12 +23,18 @@ import (
 
 	gogorm "gorm.io/gorm"
 
-	"github.com/MicroOps-cn/idas/pkg/client/gorm"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 )
 
+// PatchApps
+//  @Description[en-US]: Incrementally update information of multiple applications.
+//  @Description[zh-CN]: 增量更新多个应用的信息。
+//  @param ctx     context.Context
+//  @param patch   []map[string]interface{}
+//  @return total  int64
+//  @return err    error
 func (s UserAndAppService) PatchApps(ctx context.Context, patch []map[string]interface{}) (total int64, err error) {
 	tx := s.Session(ctx).Begin()
 	defer tx.Rollback()
@@ -78,6 +84,13 @@ func (s UserAndAppService) PatchApps(ctx context.Context, patch []map[string]int
 	return total, nil
 }
 
+// DeleteApps
+//  @Description[en-US]: Delete apps in batch.
+//  @Description[zh-CN]: 批量删除应用。
+//  @param ctx     context.Context
+//  @param ids     []string         : ID List
+//  @return total  int64
+//  @return err    error
 func (s UserAndAppService) DeleteApps(ctx context.Context, id []string) (total int64, err error) {
 	deleted := s.Session(ctx).Model(&models.App{}).Where("id in ?", id).Update("is_delete", true)
 	if err = deleted.Error; err != nil {
@@ -86,6 +99,13 @@ func (s UserAndAppService) DeleteApps(ctx context.Context, id []string) (total i
 	return deleted.RowsAffected, nil
 }
 
+// PatchAppRole
+//  @Description[en-US]: Update App Role.
+//  @Description[zh-CN]: 更新应用角色。
+//  @param ctx     context.Context
+//  @param dn      string
+//  @param patch   *models.AppRole
+//  @return err    error
 func (s UserAndAppService) PatchAppRole(ctx context.Context, role *models.AppRole) error {
 	conn := s.Session(ctx)
 
@@ -129,14 +149,27 @@ func (s UserAndAppService) PatchAppRole(ctx context.Context, role *models.AppRol
 	return conn.Delete(&models.AppUser{}, "app_id = ? and role_id = ? and user_id not in ? ", role.AppId, role.Id, userIds).Error
 }
 
+// UpdateApp
+//  @Description[en-US]: Update applies the value of the specified column. If no column is specified, all column information is updated.
+//  @Description[zh-CN]: 更新应用指定列的值，如果未指定列，则表示更新所有列信息。
+//  @param ctx           context.Context
+//  @param app           *models.App
+//  @param updateColumns ...string
+//  @return newApp       *models.App
+//  @return err          error
 func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updateColumns ...string) (*models.App, error) {
 	tx := s.Session(ctx).Begin()
 	defer tx.Rollback()
 	q := tx.Omit("create_time")
+
+	if app.GrantType != models.AppMeta_proxy {
+		app.Proxy = nil
+	}
+
 	if len(updateColumns) != 0 {
 		q = q.Select(updateColumns)
 	} else {
-		q = q.Select("name", "description", "avatar", "grant_type", "grant_mode", "status")
+		q = q.Select("name", "description", "proxy", "avatar", "grant_type", "grant_mode", "status")
 	}
 
 	if err := q.Updates(&app).Error; err != nil {
@@ -175,6 +208,14 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 	return app, nil
 }
 
+// GetAppInfo
+//  @Description[en-US]: Use the ID or application name to get app info.
+//  @Description[zh-CN]: 使用ID或应用名称获取应用信息。
+//  @param ctx  context.Context
+//  @param id   string          : App ID
+//  @param name string          : App Name
+//  @return app *models.App     : App Details
+//  @return err error
 func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name string) (app *models.App, err error) {
 	conn := s.Session(ctx)
 	app = new(models.App)
@@ -206,9 +247,21 @@ func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name strin
 	return
 }
 
+// CreateApp
+//  @Description[en-US]: Create an app.
+//  @Description[zh-CN]: 创建应用
+//  @param ctx        context.Context
+//  @param app        *models.App
+//  @return appDetail *models.App
+//  @return error
 func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*models.App, error) {
 	tx := s.Session(ctx).Begin()
 	defer tx.Rollback()
+
+	if app.GrantType != models.AppMeta_proxy {
+		app.Proxy = nil
+	}
+
 	if err := tx.Omit("User").Create(app).Error; err != nil {
 		return nil, err
 	}
@@ -220,7 +273,7 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 					if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
 						role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
 					}
-				} else if len(role.Name) != 0 && string(user.Role) == role.Name {
+				} else if len(role.Name) != 0 && user.Role == role.Name {
 					role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
 				}
 			}
@@ -231,6 +284,7 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 			roleIds = append(roleIds, role.Id)
 		}
 	}
+
 	if err := tx.Find(&app).Error; err != nil {
 		return nil, err
 	}
@@ -240,6 +294,13 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 	return app, nil
 }
 
+// PatchApp
+//  @Description[en-US]: Incremental update application.
+//  @Description[zh-CN]: 增量更新应用。
+//  @param ctx        context.Context
+//  @param fields     map[string]interface{}
+//  @return appDetail app *models.App
+//  @return err       error
 func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]interface{}) (app *models.App, err error) {
 	if id, ok := fields["id"].(string); ok {
 		tx := s.Session(ctx).Begin()
@@ -255,13 +316,29 @@ func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]inter
 	return nil, errors.ParameterError("id is null")
 }
 
+// DeleteApp
+//  @Description[en-US]: Delete an app.
+//  @Description[zh-CN]: 删除应用。
+//  @param ctx 	context.Context
+//  @param id 	string
+//  @return err	error
 func (s UserAndAppService) DeleteApp(ctx context.Context, id string) (err error) {
 	_, err = s.DeleteApps(ctx, []string{id})
 	return err
 }
 
+// GetApps
+//  @Description[en-US]: Get the application list. The application information does not include agent, role, user and other information.
+//  @Description[zh-CN]: 获取应用列表，应用信息中不包含代理、角色、用户等信息。
+//  @param ctx       context.Context
+//  @param keywords  string
+//  @param current   int64
+//  @param pageSize  int64
+//  @return total    int64
+//  @return apps     []*models.App
+//  @return err      error
 func (s UserAndAppService) GetApps(ctx context.Context, keywords string, current, pageSize int64) (total int64, apps []*models.App, err error) {
-	query := s.Session(ctx).Model(&models.App{})
+	query := s.Session(ctx).Model(&models.App{}).Where("is_delete = 0")
 	if len(keywords) > 0 {
 		keywords = fmt.Sprintf("%%%s%%", keywords)
 		query = query.Where("name like ? or description like ?", keywords, keywords)
@@ -282,6 +359,14 @@ type RoleResult struct {
 	Role string
 }
 
+// VerifyUserAuthorizationForApp
+//  @Description[en-US]: Verify user authorization for the application.
+//  @Description[zh-CN]: 验证应用程序的用户授权
+//  @param ctx    context.Context
+//  @param appId  string
+//  @param userId string
+//  @return role  string   :Role name, such as admin, viewer, editor ...
+//  @return err   error
 func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, appId string, userId string) (role string, err error) {
 	var result RoleResult
 	if err = s.Session(ctx).Model(&models.AppUser{}).Select("t_app_role.name as `role`").
@@ -296,25 +381,4 @@ func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, ap
 		return "", err
 	}
 	return result.Role, nil
-}
-
-func NewUserAndAppService(ctx context.Context, name string, client *gorm.Client) *UserAndAppService {
-	conn := client.Session(ctx)
-	if err := conn.SetupJoinTable(&models.App{}, "User", models.AppUser{}); err != nil {
-		panic(err)
-	}
-	if err := conn.SetupJoinTable(&models.User{}, "App", models.AppUser{}); err != nil {
-		panic(err)
-	}
-	set := &UserAndAppService{name: name, Client: client}
-	return set
-}
-
-func (s UserAndAppService) AutoMigrate(ctx context.Context) error {
-	err := s.Session(ctx).AutoMigrate(&models.App{}, &models.AppUser{}, &models.AppRole{}, &models.User{}, &models.UserKey{}, &models.AppAuthCode{})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

@@ -63,7 +63,6 @@ func LoggingMiddleware(method string) endpoint.Middleware {
 func AuthorizationMiddleware(svc service.Service, method string) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-			fmt.Println(ctx.Value(global.MetaNeedLogin))
 			if needLogin, ok := ctx.Value(global.MetaNeedLogin).(bool); !ok || needLogin {
 				if users, ok := ctx.Value(global.MetaUser).([]*models.User); !ok || len(users) == 0 {
 					return nil, fmt.Errorf("endpoint authentication failed: system error")

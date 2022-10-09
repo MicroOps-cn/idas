@@ -109,9 +109,12 @@ func MakeGetUsersEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*GetUsersRequest)
 		resp := NewBaseListResponse[[]*models.User](&req.BaseListRequest)
+		if req.Status == nil {
+			req.Status = w.P[models.UserMeta_UserStatus](models.UserMeta_status_all)
+		}
 		resp.Total, resp.Data, resp.Error = s.GetUsers(
 			ctx, req.Storage, req.Keywords,
-			req.Status,
+			*req.Status,
 			req.App, req.Current, req.PageSize,
 		)
 		return &resp, nil
@@ -287,6 +290,24 @@ func MakeCreateUserKeyEndpoint(s service.Service) endpoint.Endpoint {
 		req := request.(Requester).GetRequestData().(*CreateUserKeyRequest)
 		resp := SimpleResponseWrapper[*models.UserKey]{}
 		resp.Data, resp.Error = s.CreateUserKey(ctx, req.UserId, req.Name)
+		return &resp, nil
+	}
+}
+
+func MakeDeleteUserKeyEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(Requester).GetRequestData().(*DeleteUserKeyRequest)
+		resp := SimpleResponseWrapper[struct{}]{}
+		resp.Error = s.DeleteUserKey(ctx, req.UserId, req.Id)
+		return &resp, nil
+	}
+}
+
+func MakeGetUserKeysEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(Requester).GetRequestData().(*GetUserKeysRequest)
+		resp := NewBaseListResponse[[]*models.UserKey](&req.BaseListRequest)
+		resp.Total, resp.Data, resp.Error = s.GetUserKeys(ctx, req.UserId, req.Current, req.PageSize)
 		return &resp, nil
 	}
 }

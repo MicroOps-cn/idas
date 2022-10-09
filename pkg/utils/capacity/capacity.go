@@ -16,10 +16,6 @@
 
 package capacity
 
-import (
-	"fmt"
-)
-
 type Capacities int64
 
 const (
@@ -74,7 +70,6 @@ func (c Capacities) String() string {
 		} else {
 			break
 		}
-		fmt.Println(w, unit)
 	}
 
 	if neg {

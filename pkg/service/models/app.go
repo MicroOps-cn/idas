@@ -26,6 +26,7 @@ type App struct {
 	Status      AppMeta_Status    `gorm:"type:TINYINT(3)not null;default:0" json:"status"`
 	User        []*User           `gorm:"many2many:app_user" json:"user,omitempty"`
 	Role        AppRoles          `gorm:"foreignKey:AppId" json:"role,omitempty"`
+	Proxy       *AppProxy         `gorm:"foreignKey:AppId" json:"proxy,omitempty"`
 	Storage     string            `gorm:"-" json:"storage"`
 }
 
@@ -65,3 +66,12 @@ type AppAuthCode struct {
 	Scope     string `json:"scope" gorm:"type:varchar(128);not null"`
 	Storage   string `json:"storage" gorm:"type:varchar(128);not null"`
 }
+
+type AppProxyUrls []*AppProxyUrl
+
+//func (m *AppProxyUrl) UnmarshalJSONPB(unmarshaler *jsonpb.Unmarshaler, bytes []byte) error {
+//	//TODO implement me
+//	panic("implement me")
+//}
+//
+//var _ jsonpb.JSONPBUnmarshaler = &AppProxyUrl{}

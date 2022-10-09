@@ -9,10 +9,11 @@ message LdapOptions{
   string manager_password = 3;
   string user_search_base = 4;
   string user_search_filter = 5;
-  string group_search_base =6;
-  string group_search_filter =7;
-  string attr_username = 8;
-  string attr_email = 9;
-  string attr_user_display_name = 10;
-  string attr_user_phone_no = 11;
+  string app_search_base =6;
+  string app_search_filter =7;
+  string app_role_search_filter =8;
+  string attr_username = 9;
+  string attr_email = 10;
+  string attr_user_display_name = 11;
+  string attr_user_phone_no = 12;
 }

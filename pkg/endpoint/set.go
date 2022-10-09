@@ -51,6 +51,8 @@ type UserEndpoints struct {
 	ResetPassword    endpoint.Endpoint `auth:"false"`
 	CurrentUser      endpoint.Endpoint `auth:"false"`
 	CreateUserKey    endpoint.Endpoint `description:"Create a user key-pair" role:"admin"`
+	DeleteUserKey    endpoint.Endpoint `description:"Delete a user key-pair" role:"admin"`
+	GetUserKeys      endpoint.Endpoint `description:"Get a user key-pairs" role:"admin|viewer"`
 	CreateKey        endpoint.Endpoint `auth:"false"`
 	SendActivateMail endpoint.Endpoint `description:"Send activation link to user mail" role:"admin"`
 	ActivateAccount  endpoint.Endpoint `auth:"false"`
@@ -93,6 +95,10 @@ type FileEndpoints struct {
 	DownloadFile endpoint.Endpoint `name:"" description:"Download/view files" role:"admin|viewer"`
 }
 
+type ProxyEndpoints struct {
+	ProxyRequest endpoint.Endpoint `auth:"false"`
+}
+
 // Set collects all of the endpoints that compose an add service. It's meant to
 // be used as a helper struct, to collect all of the endpoints into a single
 // parameter.
@@ -102,6 +108,7 @@ type Set struct {
 	AppEndpoints     `name:"App" description:"Application management"`
 	RoleEndpoints    `name:"Role" description:"Role of current platform"`
 	FileEndpoints    `name:"File" description:"File"`
+	ProxyEndpoints   `name:"Proxy" description:"Proxy"`
 }
 
 func GetPermissionsDefine(typeOf reflect.Type) models.Permissions {
@@ -190,6 +197,8 @@ func New(ctx context.Context, svc service.Service, duration metrics.Histogram, o
 			DeleteUser:       injectEndpoint("DeleteUser", MakeDeleteUserEndpoint(svc)),
 			GetUserSource:    injectEndpoint("GetUserSource", MakeGetUserSourceRequestEndpoint(svc)),
 			CreateUserKey:    injectEndpoint("CreateUserKey", MakeCreateUserKeyEndpoint(svc)),
+			DeleteUserKey:    injectEndpoint("DeleteUserKey", MakeDeleteUserKeyEndpoint(svc)),
+			GetUserKeys:      injectEndpoint("GetUserKeys", MakeGetUserKeysEndpoint(svc)),
 			CreateKey:        injectEndpoint("CreateKey", MakeCreateKeyEndpoint(svc)),
 			SendActivateMail: injectEndpoint("SendActivateMail", MakeSendActivationMailEndpoint(svc)),
 			ActivateAccount:  injectEndpoint("ActivateAccount", MakeActivateAccountEndpoint(svc)),
@@ -222,6 +231,9 @@ func New(ctx context.Context, svc service.Service, duration metrics.Histogram, o
 			UpdateRole:     injectEndpoint("UpdateRole", MakeUpdateRoleEndpoint(svc)),
 			DeleteRole:     injectEndpoint("DeleteRole", MakeDeleteRoleEndpoint(svc)),
 			GetPermissions: injectEndpoint("GetPermissions", MakeGetPermissionsEndpoint(svc)),
+		},
+		ProxyEndpoints: ProxyEndpoints{
+			ProxyRequest: injectEndpoint("ProxyRequest", MakeProxyRequestEndpoint(svc)),
 		},
 	}
 }

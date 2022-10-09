@@ -20,7 +20,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os/exec"
 	"strings"
@@ -57,18 +56,13 @@ func loadSystemFonts(ctx context.Context, fontNames sets.Set[string]) (font *tru
 			break
 		}
 	}
-	fmt.Println(fonts)
-	fmt.Println(fontNames.List())
 	for _, fontName := range fontNames.List() {
-		fmt.Println(fontName)
 		if fontPath, ok := fonts[fontName]; ok {
-			fmt.Println(fontName)
 			var fontBytes []byte
 			fontBytes, err = ioutil.ReadFile(fontPath)
 			if err != nil {
 				continue
 			}
-			fmt.Println(fontName)
 			font, err = freetype.ParseFont(fontBytes)
 			if err != nil {
 				continue

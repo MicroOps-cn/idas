@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/proto"
 	"gorm.io/driver/sqlite"

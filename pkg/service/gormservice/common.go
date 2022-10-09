@@ -41,7 +41,7 @@ func (c CommonService) Name() string {
 }
 
 func (c CommonService) AutoMigrate(ctx context.Context) error {
-	err := c.Session(ctx).AutoMigrate(&models.File{}, &models.Permission{}, &models.Role{})
+	err := c.Session(ctx).AutoMigrate(&models.File{}, &models.Permission{}, &models.Role{}, &models.UserKey{})
 	if err != nil {
 		return err
 	}
@@ -95,10 +95,33 @@ func (c CommonService) CreateUserKeyWithId(ctx context.Context, userId string, n
 func (c CommonService) GetUserKey(ctx context.Context, key string) (*models.UserKey, error) {
 	userKey := &models.UserKey{Key: key}
 	conn := c.Session(ctx)
-	if err := conn.Where("key = ?", key).First(&userKey).Error; err != nil && err != gogorm.ErrRecordNotFound {
+	if err := conn.Where("`key` = ?", key).First(&userKey).Error; err != nil && err != gogorm.ErrRecordNotFound {
 		return nil, fmt.Errorf("failed to query user key, database exception: %s", err)
 	} else if err != nil {
 		return nil, nil
 	}
 	return userKey, nil
+}
+
+func (c CommonService) GetUserKeys(ctx context.Context, userId string, current, pageSize int64) (count int64, keyPairs []*models.UserKey, err error) {
+	query := c.Session(ctx).Model(&models.UserKey{}).Where("user_id = ? and is_delete = 0", userId)
+	if err = query.Select("id", "name", "create_time", "key").Order("id").Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).
+		Find(&keyPairs).Error; err != nil {
+		return 0, nil, err
+	} else if err = query.Count(&count).Error; err != nil {
+		return 0, nil, err
+	} else {
+		for _, keyPair := range keyPairs {
+			keyPair.UserId = userId
+		}
+		return count, keyPairs, nil
+	}
+}
+
+func (c CommonService) DeleteUserKeys(ctx context.Context, userId string, id []string) (affected int64, err error) {
+	deleted := c.Session(ctx).Model(&models.UserKey{}).Where("id in ? and user_id = ?", id, userId).Update("is_delete", true)
+	if err = deleted.Error; err != nil {
+		return deleted.RowsAffected, err
+	}
+	return deleted.RowsAffected, nil
 }

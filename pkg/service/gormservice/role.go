@@ -155,7 +155,6 @@ func (c CommonService) CreateOrUpdateRoleByName(ctx context.Context, role *model
 func (c CommonService) RegisterPermission(ctx context.Context, permissions models.Permissions) error {
 	conn := c.Session(ctx)
 	for _, p := range permissions {
-		fmt.Println(*p)
 		var op models.Permission
 		if err := conn.Where("name = ?", p.Name).First(&op).Error; err == gogorm.ErrRecordNotFound {
 			if err = conn.Create(p).Error; err != nil {
@@ -199,6 +198,5 @@ func (c CommonService) Authorization(ctx context.Context, roles []string, method
 	if err := c.Session(ctx).Raw(sqlAuthorizationByRoleAndMethod, roles, method).Scan(&count).Error; err != nil {
 		return false
 	}
-	fmt.Println(count)
 	return count > 0
 }

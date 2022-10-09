@@ -17,6 +17,7 @@
 package models
 
 import (
+	"encoding/binary"
 	"time"
 
 	"github.com/pkg/errors"
@@ -24,39 +25,53 @@ import (
 	"gorm.io/gorm"
 )
 
-func NewId() string {
-	return uuid.NewV4().String()
+const midUint64 = uint64(1) << 63
+
+func NewId(seed ...string) string {
+	ts := uint64(time.Now().UnixMicro())
+	if ts < midUint64 {
+		var hash uint64
+		for _, s := range seed {
+			seedBytes := []byte(s)
+			for i := 0; i < len(seedBytes); i += 8 {
+				if len(seedBytes[i:]) <= 8 {
+					tmp := make([]byte, 8)
+					copy(tmp, seedBytes[i:])
+					hash += binary.BigEndian.Uint64(tmp)
+					break
+				}
+				hash += binary.BigEndian.Uint64(seedBytes[i : i+8])
+			}
+		}
+		if hash > midUint64 {
+			hash = hash - midUint64
+		}
+		ts += hash
+	}
+
+	var id = uuid.NewV4()
+	binary.BigEndian.PutUint64(id[:8], ts)
+	return id.String()
 }
 
-type Model struct {
-	Id         string    `json:"id" gorm:"primary_key;type:char(36)" valid:"required"`
-	CreateTime time.Time `json:"createTime,omitempty" gorm:"type:datetime;not null;omitempty"`
-	UpdateTime time.Time `json:"updateTime,omitempty" gorm:"type:datetime;not null;omitempty"`
-	IsDelete   bool      `json:"isDelete" gorm:"not null;default:0"`
-}
-
-func (model *Model) GetId() string {
-	return model.Id
-}
-
-func (model *Model) BeforeCreate(db *gorm.DB) error {
-	if model.Id == "" {
+func (m *Model) BeforeCreate(db *gorm.DB) error {
+	if m.Id == "" {
 		id := NewId()
 		if len(id) != 36 {
-			return errors.New("生成ID失败: " + id)
+			return errors.New("Failed to generate ID: " + id)
 		}
 		db.Statement.SetColumn("Id", id)
 	}
-	if model.UpdateTime.IsZero() {
+	if m.UpdateTime.IsZero() {
 		db.Statement.SetColumn("UpdateTime", time.Now().UTC())
 	}
-	if model.CreateTime.IsZero() {
+	if m.CreateTime.IsZero() {
 		db.Statement.SetColumn("CreateTime", time.Now().UTC())
 	}
 	return nil
 }
 
-func (model *Model) BeforeSave(db *gorm.DB) error {
+func (m *Model) BeforeSave(db *gorm.DB) error {
 	db.Statement.SetColumn("UpdateTime", time.Now().UTC())
 	return nil
 }

@@ -20,7 +20,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/MicroOps-cn/idas/pkg/utils/sets"
 	"net"
+	"regexp"
 	"time"
 
 	"github.com/go-kit/log/level"
@@ -203,4 +205,39 @@ func IsLdapError(err error, errCode ...uint16) bool {
 		}
 	}
 	return false
+}
+
+var classNameExp = regexp.MustCompile(`^\( [\d.]+ NAME '(\w+)'`)
+
+func GetAvailableObjectClass(clt ldap.Client) (sets.Set[string], error) {
+	subSchemaReq := ldap.NewSearchRequest("", ldap.ScopeBaseObject, ldap.DerefAlways,
+		0, 0, false, `(objectClass=*)`,
+		[]string{"subschemaSubentry"}, nil,
+	)
+	subSchemaResp, err := clt.Search(subSchemaReq)
+	if err != nil {
+		return nil, err
+	}
+	var classNames = sets.New[string]()
+	for _, entry := range subSchemaResp.Entries {
+		for _, subSchemaSubEntry := range entry.GetAttributeValues("subschemaSubentry") {
+			subEntryReq := ldap.NewSearchRequest(subSchemaSubEntry, ldap.ScopeBaseObject, ldap.DerefAlways,
+				0, 0, false, `(objectClass=subschema)`,
+				[]string{"objectClasses"}, nil,
+			)
+			subEntryResp, err := clt.Search(subEntryReq)
+			if err != nil {
+				return nil, err
+			}
+			for _, subEntry := range subEntryResp.Entries {
+				for _, classes := range subEntry.GetAttributeValues("objectClasses") {
+					classesMatch := classNameExp.FindStringSubmatch(classes)
+					if len(classesMatch) == 2 {
+						classNames.Insert(classesMatch[1])
+					}
+				}
+			}
+		}
+	}
+	return classNames, nil
 }

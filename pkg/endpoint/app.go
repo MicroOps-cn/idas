@@ -110,15 +110,15 @@ func MakeDeleteAppsEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
-func (r UpdateAppRequest) GetUsers() (users []*models.User) {
-	for _, u := range r.User {
+func (m UpdateAppRequest) GetUsers() (users []*models.User) {
+	for _, u := range m.User {
 		users = append(users, &models.User{Model: models.Model{Id: u.Id}, RoleId: u.RoleId})
 	}
 	return users
 }
 
-func (r UpdateAppRequest) GetRoles() (roles []*models.AppRole) {
-	for _, role := range r.Role {
+func (m UpdateAppRequest) GetRoles() (roles []*models.AppRole) {
+	for _, role := range m.Role {
 		roles = append(roles, &models.AppRole{Model: models.Model{Id: role.Id}, Name: role.Name, Config: role.Config, IsDefault: role.IsDefault})
 	}
 	return roles
@@ -138,6 +138,7 @@ func MakeUpdateAppEndpoint(s service.Service) endpoint.Endpoint {
 			Storage:     req.Storage,
 			User:        req.GetUsers(),
 			Role:        req.GetRoles(),
+			Proxy:       req.GetProxyConfig(),
 		}); resp.Error != nil {
 			resp.Error = errors.NewServerError(200, resp.Error.Error())
 		}
@@ -226,4 +227,26 @@ func MakeDeleteAppEndpoint(s service.Service) endpoint.Endpoint {
 		resp.Error = s.DeleteApp(ctx, req.Storage, req.Id)
 		return &resp, nil
 	}
+}
+
+type AppProxyUrls []*AppProxyUrl
+
+func (m *UpdateAppRequest) GetProxyConfig() *models.AppProxy {
+	proxy := &models.AppProxy{
+		Model:    models.Model{Id: m.Id},
+		AppId:    m.Id,
+		Domain:   m.Proxy.Domain,
+		Upstream: m.Proxy.Upstream,
+	}
+	for _, url := range m.Proxy.Urls {
+		proxy.Urls = append(
+			proxy.Urls,
+			&models.AppProxyUrl{
+				Model:  models.Model{Id: url.Id},
+				Name:   url.Name,
+				Method: url.Method,
+				Url:    url.Url,
+			})
+	}
+	return proxy
 }

@@ -17,14 +17,13 @@
 package transport
 
 import (
+	"github.com/MicroOps-cn/idas/pkg/endpoint"
+	"github.com/MicroOps-cn/idas/pkg/global"
 	restfulspec "github.com/emicklei/go-restful-openapi/v2"
 	"github.com/emicklei/go-restful/v3"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/go-openapi/spec"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	"github.com/MicroOps-cn/idas/pkg/endpoint"
-	"github.com/MicroOps-cn/idas/pkg/global"
 )
 
 var apiServiceSet = []func(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService){
@@ -149,6 +148,26 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.CreateUserKeyResponse{}),
 	)
+
+	v1ws.Route(v1ws.DELETE("/{userId}/key/{id}").
+		To(NewKitHTTPServer[endpoint.DeleteUserKeyRequest](endpoints.DeleteUserKey, options)).
+		Operation("deleteUserKey").
+		Doc("Delete a user key pair.").
+		Param(v1ws.PathParameter("userId", "identifier of the user").DataType("string")).
+		Param(v1ws.PathParameter("id", "identifier of the user key-pair").DataType("string")).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.DeleteUserKeyResponse{}),
+	)
+
+	v1ws.Route(v1ws.GET("/{userId}/key").
+		To(NewKitHTTPServer[endpoint.GetUserKeysRequest](endpoints.GetUserKeys, options)).
+		Operation("getUserKeys").
+		Doc("Get a user key-pairs.").
+		Param(v1ws.PathParameter("userId", "identifier of the user").DataType("string")).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.GetUserKeysResponse{}),
+	)
+
 	v1ws.Route(v1ws.POST("/key").
 		To(NewKitHTTPServer[endpoint.CreateKeyRequest](endpoints.CreateKey, options)).
 		Operation("createKey").

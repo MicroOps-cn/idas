@@ -63,8 +63,8 @@ func reflectValueFromTag(values url.Values, val reflect.Value) error {
 	}
 loop:
 	for i := 0; i < val.NumField(); i++ {
-		kt := typ.Field(i)
 		sv := val.Field(i)
+		kt := typ.Field(i)
 		if !(kt.Name[0] >= 'A' && kt.Name[0] <= 'Z') {
 			continue
 		}
@@ -107,15 +107,32 @@ loop:
 			}
 		}
 		uv := values.Get(jsonName)
+		if len(uv) == 0 {
+			continue
+		}
+		for j := 0; j < 100; j++ {
+			if sv.Kind() == reflect.Ptr {
+				if sv.IsNil() {
+					sv.Set(reflect.New(sv.Type().Elem()))
+				}
+				sv = sv.Elem()
+			} else {
+				break
+			}
+		}
 		switch sv.Kind() {
-		case reflect.Slice:
-
 		case reflect.String:
+			if sv.String() != "" && sv.String() != uv {
+				return fmt.Errorf("the %s parameter values of multiple sources are inconsistent", jsonName)
+			}
 			sv.SetString(uv)
 		case reflect.Bool:
 			b, err := strconv.ParseBool(uv)
 			if err != nil {
 				return fmt.Errorf("cast bool has error, expect type: %v ,val: %v ,query key: %v", sv.Type(), uv, jsonName)
+			}
+			if sv.Bool() && sv.Bool() != b {
+				return fmt.Errorf("the %s parameter values of multiple sources are inconsistent", jsonName)
 			}
 			sv.SetBool(b)
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
@@ -123,10 +140,16 @@ loop:
 			if err != nil || sv.OverflowUint(n) {
 				return fmt.Errorf("cast uint has error, expect type: %v ,val: %v ,query key: %v", sv.Type(), uv, jsonName)
 			}
+			if sv.Uint() > 0 && sv.Uint() != n {
+				return fmt.Errorf("the %s parameter values of multiple sources are inconsistent", jsonName)
+			}
 			sv.SetUint(n)
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 			n, err := strconv.ParseInt(uv, 10, 64)
 			if err != nil || sv.OverflowInt(n) {
+				if sv.Int() != 0 && sv.Int() != n {
+					return fmt.Errorf("the %s parameter values of multiple sources are inconsistent", jsonName)
+				}
 				if enum, ok := sv.Interface().(protoreflect.Enum); ok {
 					if enumVal := enum.Descriptor().Values().ByName(protoreflect.Name(uv)); enumVal != nil {
 						sv.SetInt(int64(enumVal.Number()))
@@ -169,7 +192,12 @@ loop:
 			if err != nil || sv.OverflowFloat(n) {
 				return fmt.Errorf("cast float has error, expect type: %v ,val: %v ,query key: %v", sv.Type(), uv, jsonName)
 			}
+			if sv.Float() != 0 && sv.Float() != n {
+				return fmt.Errorf("the %s parameter values of multiple sources are inconsistent", jsonName)
+			}
 			sv.SetFloat(n)
+		case reflect.Slice:
+
 		default:
 			return fmt.Errorf("unsupported type: %v ,val: %v ,query key: %v", sv.Type(), uv, jsonName)
 		}

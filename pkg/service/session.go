@@ -71,6 +71,8 @@ func NewSessionService(ctx context.Context) SessionService {
 	switch sessionSource := sessionStorage.GetStorageSource().(type) {
 	case *config.Storage_Mysql:
 		sessionService = gormservice.NewSessionService(sessionStorage.Name, sessionSource.Mysql.Client)
+	case *config.Storage_Sqlite:
+		sessionService = gormservice.NewSessionService(sessionStorage.Name, sessionSource.Sqlite.Client)
 	case *config.Storage_Redis:
 		sessionService = redisservice.NewSessionService(sessionStorage.Name, sessionSource.Redis)
 	default:

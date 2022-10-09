@@ -79,6 +79,7 @@ type Service interface {
 	GetUserSource(ctx context.Context) (total int64, data map[string]string, err error)
 	Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm sign.AuthAlgorithm, key, secret, payload, signStr string) ([]*models.User, error)
 	CreateUserKey(ctx context.Context, userId, name string) (keyPair *models.UserKey, err error)
+	GetUserKeys(ctx context.Context, userId string, current, pageSize int64) (count int64, keyPairs []*models.UserKey, err error)
 
 	GetApps(ctx context.Context, storage string, keywords string, current, pageSize int64) (total int64, apps []*models.App, err error)
 	GetAppSource(ctx context.Context) (total int64, data map[string]string, err error)
@@ -91,13 +92,15 @@ type Service interface {
 	PatchApp(ctx context.Context, storage string, fields map[string]interface{}) (app *models.App, err error)
 	DeleteApp(ctx context.Context, storage, id string) (err error)
 	ResetPassword(ctx context.Context, id, storage, password string) error
-	VerifyPasswordById(ctx context.Context, storage, username, password string) (users []*models.User)
+	VerifyPasswordById(ctx context.Context, storage, userId, password string) (users []*models.User)
 
 	CreateToken(ctx context.Context, tokenType models.TokenType, data ...interface{}) (token *models.Token, err error)
 	VerifyToken(ctx context.Context, token string, relationId string, tokenType models.TokenType) bool
 	SendEmail(ctx context.Context, data map[string]interface{}, topic string, to ...string) error
 	Authorization(ctx context.Context, users []*models.User, method string) bool
 	RegisterPermission(ctx context.Context, permissions models.Permissions) error
+	GetProxyConfig(user *models.User, host string, method string, path string) (*models.AppProxy, error)
+	DeleteUserKey(ctx context.Context, userId string, id string) error
 }
 
 type Set struct {
@@ -107,15 +110,18 @@ type Set struct {
 	smtpClient        *email.SMTPClient
 }
 
-func (s Set) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (users []*models.User) {
-	for _, service := range s.userAndAppService {
-		if info, err := service.GetUserInfoByUsernameAndEmail(ctx, username, email); err == nil {
-			users = append(users, info)
-		} else {
-			level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "Failed to get user from username and email")
+func (s Set) GetProxyConfig(user *models.User, host string, method string, path string) (*models.AppProxy, error) {
+	//proxyConfig, err := s.GetProxyConfig(nil, host, method, path)
+	return nil, nil
+}
+
+func (s Set) GetUserAndAppService(name string) UserAndAppService {
+	for _, svc := range s.userAndAppService {
+		if svc.Name() == name {
+			return svc
 		}
 	}
-	return users
+	return newNullService("", name)
 }
 
 func (s Set) SendEmail(ctx context.Context, data map[string]interface{}, topic string, to ...string) error {
@@ -221,8 +227,6 @@ func (s Set) InitData(ctx context.Context) error {
 				return err
 			}
 		}
-		fmt.Println(svc.Name())
-		fmt.Println(idasApp.Role)
 		if len(idasApp.User) == 0 {
 			idasApp.User = []*models.User{{
 				Model:  models.Model{Id: adminUser.Id},
@@ -287,6 +291,7 @@ type UserAndAppService interface {
 	VerifyUserAuthorizationForApp(ctx context.Context, appId string, userId string) (role string, err error)
 	ResetPassword(ctx context.Context, id string, password string) error
 	GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (*models.User, error)
+	VerifyPasswordById(ctx context.Context, id, password string) (users []*models.User)
 }
 
 type UserAndAppServices []UserAndAppService

@@ -91,5 +91,5 @@ type UserKey struct {
 	UserId  string `gorm:"type:char(36);" json:"userId"`
 	Key     string `gorm:"type:varchar(50);" json:"key"`
 	Secret  string `gorm:"type:varchar(50);" json:"secret"`
-	Private string `gorm:"-" json:"key2,omitempty"`
+	Private string `gorm:"-" json:"private,omitempty"`
 }

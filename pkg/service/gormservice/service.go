@@ -16,6 +16,34 @@
 
 package gormservice
 
-//var (
-//	DatabaseConnectError = errors.New("database connect error")
-//)
+import (
+	"context"
+	"github.com/MicroOps-cn/idas/pkg/client/gorm"
+	"github.com/MicroOps-cn/idas/pkg/service/models"
+)
+
+func NewUserAndAppService(ctx context.Context, name string, client *gorm.Client) *UserAndAppService {
+	conn := client.Session(ctx)
+	if err := conn.SetupJoinTable(&models.App{}, "User", models.AppUser{}); err != nil {
+		panic(err)
+	}
+	if err := conn.SetupJoinTable(&models.User{}, "App", models.AppUser{}); err != nil {
+		panic(err)
+	}
+	set := &UserAndAppService{name: name, Client: client}
+	return set
+}
+
+type UserAndAppService struct {
+	*gorm.Client
+	name string
+}
+
+func (s UserAndAppService) AutoMigrate(ctx context.Context) error {
+	err := s.Session(ctx).AutoMigrate(&models.App{}, &models.AppUser{}, &models.AppRole{}, &models.User{}, &models.AppAuthCode{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

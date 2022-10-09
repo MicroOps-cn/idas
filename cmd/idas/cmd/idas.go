@@ -21,10 +21,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
-	"net/http"
-	"os"
-
+	"github.com/MicroOps-cn/idas/config"
+	"github.com/MicroOps-cn/idas/pkg/endpoint"
+	"github.com/MicroOps-cn/idas/pkg/global"
+	"github.com/MicroOps-cn/idas/pkg/logs"
+	"github.com/MicroOps-cn/idas/pkg/logs/flag"
+	"github.com/MicroOps-cn/idas/pkg/service"
+	"github.com/MicroOps-cn/idas/pkg/transport"
+	"github.com/MicroOps-cn/idas/pkg/utils/httputil"
+	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/metrics/prometheus"
 	"github.com/go-kit/log"
@@ -39,16 +44,13 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+	"net"
+	"net/http"
+	"os"
+	"path"
 	"sourcegraph.com/sourcegraph/appdash"
 	appdashot "sourcegraph.com/sourcegraph/appdash/opentracing"
-
-	"github.com/MicroOps-cn/idas/config"
-	"github.com/MicroOps-cn/idas/pkg/endpoint"
-	"github.com/MicroOps-cn/idas/pkg/logs"
-	"github.com/MicroOps-cn/idas/pkg/logs/flag"
-	"github.com/MicroOps-cn/idas/pkg/service"
-	"github.com/MicroOps-cn/idas/pkg/transport"
-	"github.com/MicroOps-cn/idas/pkg/utils/signals"
+	"strings"
 )
 
 var (
@@ -56,7 +58,10 @@ var (
 	configDisplay   bool
 	logConfig       logs.Config
 	debugAddr       string
+	httpExternalUrl httputil.URL
+	webPrefix       string
 	httpAddr        string
+	proxyHttpAddr   string
 	zipkinURL       string
 	zipkinBridge    bool
 	lightstepToken  string
@@ -101,6 +106,7 @@ func Run(ctx context.Context, logger log.Logger, stopCh *signals.StopChan) (err 
 			}
 		}
 	}
+
 	// Determine which OpenTracing tracer to use. We'll pass the tracer to all the
 	// components that use it, as a dependency.
 	var tracer stdopentracing.Tracer
@@ -137,11 +143,18 @@ func Run(ctx context.Context, logger log.Logger, stopCh *signals.StopChan) (err 
 			Help:      "Request duration in seconds.",
 		}, []string{"method", "success"})
 	}
+	httpLoginUrl := httpExternalUrl
+	httpLoginUrl.Path = path.Join(webPrefix, "user/login")
+	ctx = context.WithValue(ctx, global.HttpLoginUrlKey, httpLoginUrl.String())
+	ctx = context.WithValue(ctx, global.HttpExternalUrlKey, httpExternalUrl.String())
+	ctx = context.WithValue(ctx, global.HttpWebPrefixKey, webPrefix)
+	level.Info(logger).Log("externalUrl", httpExternalUrl, "webPrefix", webPrefix, "loginUrl", httpLoginUrl)
 	var (
-		svc         = service.New(ctx)
-		endpoints   = endpoint.New(ctx, svc, duration, tracer, zipkinTracer)
-		httpHandler = transport.NewHTTPHandler(endpoints, tracer, zipkinTracer, openapiPath, logger)
-		httpServer  = http.NewServeMux()
+		svc          = service.New(ctx)
+		endpoints    = endpoint.New(ctx, svc, duration, tracer, zipkinTracer)
+		httpHandler  = transport.NewHTTPHandler(ctx, logger, endpoints, tracer, zipkinTracer, openapiPath)
+		proxyHandler = transport.NewProxyHandler(ctx, logger, endpoints, tracer, zipkinTracer)
+		httpServer   = http.NewServeMux()
 	)
 
 	if len(swaggerPath) > 0 && len(openapiPath) > 0 && len(swaggerFilePath) > 0 {
@@ -187,7 +200,20 @@ func Run(ctx context.Context, logger log.Logger, stopCh *signals.StopChan) (err 
 		}, func(error) {
 			httpListener.Close()
 		})
-
+	}
+	{
+		// The HTTP listener mounts the Go kit HTTP handler we created.
+		proxyHttpListener, err := net.Listen("tcp", proxyHttpAddr)
+		if err != nil {
+			level.Error(logger).Log("transport", "Proxy/HTTP", "during", "Listen", "err", err)
+			os.Exit(1)
+		}
+		g.Add(func() error {
+			level.Info(logger).Log("transport", "Proxy/HTTP", "addr", proxyHttpAddr)
+			return http.Serve(proxyHttpListener, proxyHandler)
+		}, func(error) {
+			proxyHttpListener.Close()
+		})
 	}
 	return g.Run()
 }
@@ -202,7 +228,7 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initLogger, initConfig)
+	cobra.OnInitialize(initLogger, initParameter, initConfig)
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
@@ -213,15 +239,72 @@ func init() {
 	// log level and format
 	flag.AddFlags(rootCmd.PersistentFlags(), &logConfig)
 
-	rootCmd.Flags().StringVar(&debugAddr, "debug.addr", ":8080", "Debug and metrics listen address")
-	rootCmd.Flags().StringVar(&httpAddr, "http.addr", ":8081", "HTTP listen address")
+	rootCmd.Flags().StringVar(&debugAddr, "debug.listen-address", ":8080", "Debug and metrics listen address")
+	rootCmd.Flags().StringVar(&proxyHttpAddr, "proxy.listen-address", ":8082", "HTTP proxy listen address")
+	rootCmd.Flags().StringVar(&httpAddr, "http.listen-address", ":8081", "HTTP listen address")
+	rootCmd.Flags().StringVar(&openapiPath, "http.openapi-path", "", "path of openapi")
+	rootCmd.Flags().StringVar(&swaggerPath, "http.swagger-path", "/apidocs/", "path of swagger ui. If the value is empty, the swagger UI is disabled.")
+	rootCmd.Flags().Var(&httpExternalUrl, "http.external-url", "The URL under which IDAS is externally reachable (for example, if IDAS is served via a reverse proxy). Used for generating relative and absolute links back to IDAS itself. If the URL has a path portion, it will be used to prefix all HTTP endpoints served by IDAS. If omitted, relevant URL components will be derived automatically.")
+	rootCmd.Flags().StringVar(&webPrefix, "http.web-prefix", "", "The path prefix of the static page. The default is the path of http.external-url.")
 	rootCmd.Flags().StringVar(&zipkinURL, "zipkin.url", "", "Enable Zipkin tracing via HTTP reporter URL e.g. http://localhost:9411/api/v2/spans")
 	rootCmd.Flags().BoolVar(&zipkinBridge, "zipkin.ot-bridge", false, "Use Zipkin OpenTracing bridge instead of native implementation")
 	rootCmd.Flags().StringVar(&lightstepToken, "lightstep.token", "", "Enable LightStep tracing via a LightStep access token")
 	rootCmd.Flags().StringVar(&appdashAddr, "appdash.addr", "", "Enable Appdash tracing via an Appdash server host:port")
-	rootCmd.Flags().StringVar(&openapiPath, "http.openapi-path", "", "path of openapi")
-	rootCmd.Flags().StringVar(&swaggerPath, "http.swagger-path", "/apidocs/", "path of swagger ui. If the value is empty, the swagger UI is disabled.")
 	rootCmd.Flags().StringVar(&swaggerFilePath, "swagger.file-path", "", "path of swagger ui local file. If the value is empty, the swagger UI is disabled.")
+}
+
+func initParameter() {
+	logger := logs.GetRootLogger()
+
+	if httpExternalUrl.Scheme == "" {
+		httpExternalUrl.Scheme = "http"
+	} else if httpExternalUrl.Path == "" {
+		httpExternalUrl.Path = "/"
+	}
+	//if httpExternalUrl.Path[len(httpExternalUrl.Path)-1:] != "/" {
+	//	httpExternalUrl.Path = httpExternalUrl.Path + "/"
+	//}
+	if httpExternalUrl.Host == "" {
+		port := "80"
+		if h, p, err := net.SplitHostPort(httpAddr); err == nil {
+			port = p
+			ip := net.ParseIP(h)
+			if ip.IsLoopback() || ip.IsGlobalUnicast() {
+				httpExternalUrl.Host = httpAddr
+			}
+		}
+		if httpExternalUrl.Host == "" {
+			httpExternalUrl.Host = net.JoinHostPort("localhost", port)
+			interfaces, err := net.Interfaces()
+			if err != nil {
+				level.Error(logger).Log("msg", "failed to get interface, please specify a valid http.external-url.")
+			} else {
+			loop:
+				for _, iface := range interfaces {
+					addrs, err := iface.Addrs()
+					if err == nil {
+						for _, addr := range addrs {
+							ip, _, _ := net.ParseCIDR(addr.String())
+							if ip.IsGlobalUnicast() {
+								httpExternalUrl.Host = net.JoinHostPort(ip.String(), port)
+								break loop
+
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	if webPrefix == "" {
+		webPrefix = httpExternalUrl.Path
+	}
+	if !strings.HasPrefix(webPrefix, "/") {
+		webPrefix = "/" + webPrefix
+	}
+	if !strings.HasSuffix(webPrefix, "/") {
+		webPrefix = webPrefix + "/"
+	}
 }
 
 // initConfig reads in config file and ENV variables if set.

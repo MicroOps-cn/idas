@@ -41,6 +41,53 @@ import (
 	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
 )
 
+func HTTPProxyAuthenticationFilter(ctx context.Context, endpoints endpoint.Set) restful.FilterFunction {
+	httpLoginUrl, ok := ctx.Value(global.HttpLoginUrlKey).(string)
+	if !ok {
+		panic("system error")
+	}
+	return func(req *restful.Request, resp *restful.Response, filterChan *restful.FilterChain) {
+		errorHandler := errorEncoder
+		loginSessionID, err := req.Request.Cookie(global.LoginSession)
+		if err == nil {
+			req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), global.LoginSession, loginSessionID.Value))
+			if user, err := endpoints.GetSessionByToken(req.Request.Context(), endpoint.GetSessionParams{
+				Token:     loginSessionID.Value,
+				TokenType: models.TokenTypeLoginSession,
+			}); err == nil {
+				if len(user.([]*models.User)) >= 0 {
+					req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), global.MetaUser, user))
+					filterChan.ProcessFilter(req, resp)
+					return
+				}
+			}
+		}
+		authReq := HTTPRequest[endpoint.AuthenticationRequest]{}
+		if username, password, ok := req.Request.BasicAuth(); ok {
+			authReq.Data.AuthKey = username
+			authReq.Data.AuthSecret = password
+		} else if auth := req.Request.Header.Get("Authorization"); len(auth) != 0 {
+			if strings.HasPrefix(auth, "Bearer ") {
+				if user, err := endpoints.GetSessionByToken(req.Request.Context(), endpoint.GetSessionParams{
+					Token:     strings.TrimPrefix(auth, "Bearer "),
+					TokenType: models.TokenTypeLoginSession,
+				}); err == nil {
+					if len(user.([]*models.User)) >= 0 {
+						req.Request = req.Request.WithContext(context.WithValue(req.Request.Context(), global.MetaUser, user))
+						filterChan.ProcessFilter(req, resp)
+						return
+					}
+				}
+			} else {
+				errorHandler(req.Request.Context(), errors.NewServerError(http.StatusBadRequest, "unknown authorization method"), resp)
+			}
+			return
+		}
+		resp.Header().Set("Location", fmt.Sprintf("%s?redirect_uri=%s", httpLoginUrl, url.QueryEscape(req.Request.RequestURI)))
+		resp.WriteHeader(302)
+	}
+}
+
 func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, filterChan *restful.FilterChain) {
 		if req.SelectedRoute() == nil {

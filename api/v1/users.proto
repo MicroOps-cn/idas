@@ -2,7 +2,7 @@ syntax = "proto3";
 package idas.endpoint;
 import public "gogoproto/gogo.proto";
 import "v1/base.proto";
-import "types/models.proto";
+import "models/models.proto";
 option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
 
 
@@ -27,7 +27,7 @@ message GetUsersRequest{
   idas.endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false];
   string app = 2;
   string storage = 3;
-  idas.service.models.UserMeta.UserStatus status = 4[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.UserMeta_UserStatus",(gogoproto.nullable) = false];
+  idas.service.models.UserMeta.UserStatus status = 4[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.UserMeta_UserStatus",(gogoproto.nullable) = true];
 }
 
 
@@ -35,6 +35,7 @@ message GetUserResponse{
   idas.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
   UserInfo data = 2;
 }
+
 message GetUsersResponse{
   idas.endpoint.BaseListResponse base_list_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
   repeated UserInfo data = 2;
@@ -120,6 +121,15 @@ message UserKeyInfo{
   string private = 8[(gogoproto.jsontag) = "private"];
 }
 
+message SimpleUserKeyInfo{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string update_time = 2[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
+  string create_time = 3[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
+  string name = 4[(gogoproto.jsontag) = "name"];
+  string user_id = 5[(gogoproto.jsontag) = "userId"];
+  string key = 6[(gogoproto.jsontag) = "key"];
+}
+
 message CreateUserKeyRequest{
   string user_id = 1[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"required"'];
   string name = 3[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
@@ -128,6 +138,26 @@ message CreateUserKeyRequest{
 message CreateUserKeyResponse{
   idas.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
   UserKeyInfo data = 2;
+}
+
+message GetUserKeysRequest{
+  idas.endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false];
+  string user_id = 2[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"required"'];
+}
+
+
+message GetUserKeysResponse{
+  idas.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated SimpleUserKeyInfo data = 2;
+}
+
+message DeleteUserKeyRequest{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string userId = 2[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"required"'];
+}
+
+message DeleteUserKeyResponse{
+  idas.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
 }
 
 message CreateKeyRequest{
@@ -139,6 +169,7 @@ message CreateKeyResponse{
   idas.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
   UserKeyInfo data = 2;
 }
+
 
 message SendActivationMailRequest{
   string user_id = 1[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"required"'];

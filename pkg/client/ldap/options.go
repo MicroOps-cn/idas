@@ -45,8 +45,9 @@ func (x *LdapOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []byte
 	x.ManagerDn = options.ManagerDn
 	x.UserSearchBase = options.UserSearchBase
 	x.UserSearchFilter = options.UserSearchFilter
-	x.GroupSearchBase = options.GroupSearchBase
-	x.GroupSearchFilter = options.GroupSearchFilter
+	x.AppSearchBase = options.AppSearchBase
+	x.AppSearchFilter = options.AppSearchFilter
+	x.AppRoleSearchFilter = options.AppRoleSearchFilter
 	x.AttrEmail = options.AttrEmail
 	x.AttrUsername = options.AttrUsername
 	x.AttrUserDisplayName = options.AttrUserDisplayName
@@ -61,9 +62,10 @@ func NewLdapOptions() *LdapOptions {
 		Host:                "127.0.0.1:389",
 		ManagerDn:           "cn=admin,dc=example,dc=org",
 		UserSearchBase:      "ou=users,dc=example,dc=org",
-		GroupSearchBase:     "ou=groups,dc=example,dc=org",
+		AppSearchBase:       "ou=groups,dc=example,dc=org",
 		UserSearchFilter:    "(&(objectClass=inetOrgPerson)(uid={}))",
-		GroupSearchFilter:   "(&(objectClass=groupOfNames)(uid={}))",
+		AppSearchFilter:     "(&(|(objectClass=idasApp)(objectClass=extensibleObject))(objectClass=groupOfUniqueNames)(cn={}))",
+		AppRoleSearchFilter: "(&(|(objectClass=idasRoleGroup)(objectClass=extensibleObject))(objectClass=groupOfNames)(cn={}))",
 		AttrEmail:           "mail",
 		AttrUsername:        "uid",
 		AttrUserDisplayName: "cn",
@@ -76,13 +78,6 @@ func (x *LdapOptions) ParseUserSearchFilter(username ...string) string {
 		username = []string{"*"}
 	}
 	return strings.ReplaceAll(x.UserSearchFilter, "{}", username[0])
-}
-
-func (x *LdapOptions) ParseGroupSearchFilter(username ...string) string {
-	if len(username) == 0 {
-		username = []string{"*"}
-	}
-	return strings.ReplaceAll(x.GroupSearchFilter, "{}", username[0])
 }
 
 func (x *LdapOptions) Valid() error {
@@ -104,11 +99,23 @@ func (x *LdapOptions) Valid() error {
 	if govalidator.IsNull(x.UserSearchFilter) {
 		return fmt.Errorf("ldap user_search_filter option is null")
 	}
-	if govalidator.IsNull(x.GroupSearchBase) {
+	if !strings.Contains(x.UserSearchFilter, "{}") {
+		return fmt.Errorf("ldap user_search_filter option is invalid: does not contain {}")
+	}
+	if govalidator.IsNull(x.AppSearchBase) {
 		return fmt.Errorf("ldap group_search_base option is null")
 	}
-	if govalidator.IsNull(x.GroupSearchFilter) {
-		return fmt.Errorf("ldap group_search_base option is null")
+	if govalidator.IsNull(x.AppSearchFilter) {
+		return fmt.Errorf("ldap group_search_filter option is null")
+	}
+	if !strings.Contains(x.AppSearchFilter, "{}") {
+		return fmt.Errorf("ldap group_search_filter option is invalid: does not contain {}")
+	}
+	if govalidator.IsNull(x.AppRoleSearchFilter) {
+		return fmt.Errorf("ldap group_search_filter option is null")
+	}
+	if !strings.Contains(x.AppRoleSearchFilter, "{}") {
+		return fmt.Errorf("ldap group_search_filter option is invalid: does not contain {}")
 	}
 	if govalidator.IsNull(x.AttrEmail) {
 		return fmt.Errorf("ldap attr_email option is null")

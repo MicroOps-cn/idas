@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"reflect"
 	"time"
 
 	"github.com/go-kit/log"
@@ -79,39 +80,78 @@ func (s *Session) SimpleBind(simpleBindRequest *ldap.SimpleBindRequest) (*ldap.S
 	return s.c.SimpleBind(simpleBindRequest)
 }
 
-func (s *Session) Add(addRequest *ldap.AddRequest) error {
+func getValElem(valOf reflect.Value) reflect.Value {
+	if valOf.Kind() == reflect.Ptr || valOf.Kind() == reflect.Pointer {
+		return getValElem(valOf.Elem())
+	}
+	return valOf
+}
+func getTypeElem(typeOf reflect.Type) reflect.Type {
+	if typeOf.Kind() == reflect.Ptr || typeOf.Kind() == reflect.Pointer {
+		return getTypeElem(typeOf.Elem())
+	}
+	return typeOf
+}
+
+func checkStatus(ctx context.Context, name string, req interface{}, err error) {
+	logger := logs.GetContextLogger(ctx, logs.WithCaller(6))
+	typeOf := getTypeElem(reflect.TypeOf(req))
+	valOf := getValElem(reflect.ValueOf(req))
+	for i := 0; i < valOf.NumField(); i++ {
+		field := valOf.Field(i)
+		elem := getValElem(field)
+		switch elem.Kind() {
+		case reflect.Slice, reflect.Array:
+			logger = log.With(logger, "["+typeOf.Field(i).Name+"]", string(w.M[[]byte](json.Marshal(elem.Interface()))))
+		default:
+			logger = log.With(logger, "["+typeOf.Field(i).Name+"]", elem.Interface())
+		}
+	}
+
+	if err != nil {
+		level.Error(logger).Log("msg", "failed to execute: "+name, "err", err)
+	} else {
+		level.Debug(logger).Log("msg", "execute:  "+name)
+	}
+}
+
+func (s *Session) Add(addRequest *ldap.AddRequest) (err error) {
+	defer func() {
+		checkStatus(s.ctx, "add LDAP entry", addRequest, err)
+	}()
 	if s.err != nil {
 		return s.err
 	}
-	logger := logs.GetContextLogger(s.ctx, logs.WithCaller(4))
-	level.Debug(logger).Log("msg", "create ldap object", "dn", addRequest.DN, "attributes", string(w.M[[]byte](json.Marshal(addRequest.Attributes))))
 	return s.c.Add(addRequest)
 }
 
-func (s *Session) Del(delRequest *ldap.DelRequest) error {
+func (s *Session) Del(delRequest *ldap.DelRequest) (err error) {
+	defer func() {
+		checkStatus(s.ctx, "del LDAP entry", delRequest, err)
+	}()
 	if s.err != nil {
 		return s.err
 	}
-	logger := logs.GetContextLogger(s.ctx, logs.WithCaller(4))
-	level.Debug(logger).Log("msg", "delete ldap object", "dn", delRequest.DN)
 	return s.c.Del(delRequest)
 }
 
-func (s *Session) Modify(modifyRequest *ldap.ModifyRequest) error {
+func (s *Session) Modify(modifyRequest *ldap.ModifyRequest) (err error) {
+	defer func() {
+		checkStatus(s.ctx, "modify LDAP entry", modifyRequest, err)
+	}()
 	if s.err != nil {
 		return s.err
 	}
-	logger := logs.GetContextLogger(s.ctx, logs.WithCaller(4))
-	level.Debug(logger).Log("msg", "modify ldap object", "dn", modifyRequest.DN, "attributes", string(w.M[[]byte](json.Marshal(modifyRequest.Changes))))
 	return s.c.Modify(modifyRequest)
 }
 
-func (s *Session) ModifyDN(modifyDNRequest *ldap.ModifyDNRequest) error {
+func (s *Session) ModifyDN(modifyDNRequest *ldap.ModifyDNRequest) (err error) {
+	defer func() {
+		checkStatus(s.ctx, "modify LDAP entry DN", modifyDNRequest, err)
+	}()
 	if s.err != nil {
 		return s.err
 	}
-	logger := logs.GetContextLogger(s.ctx, logs.WithCaller(4))
-	level.Debug(logger).Log("msg", "modify ldap object dn", "dn", modifyDNRequest.DN)
 	return s.c.ModifyDN(modifyDNRequest)
 }
 
@@ -144,10 +184,13 @@ func (s *Session) Search(searchRequest *ldap.SearchRequest) (result *ldap.Search
 			"[controls]", searchRequest.Controls,
 			"[result]", result,
 		)
-		if err != nil {
-			level.Error(logger).Log("msg", "failed to execute ldap search", "err", err)
-		} else {
+		if err == nil || IsLdapError(err, 32) {
+			if err != nil {
+				logger = log.With(logger, "err", err)
+			}
 			level.Debug(logger).Log("msg", "ldap search")
+		} else {
+			level.Error(logger).Log("msg", "failed to execute ldap search", "err", err)
 		}
 	}()
 	if s.err != nil {

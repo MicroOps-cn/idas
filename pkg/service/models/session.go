@@ -64,7 +64,7 @@ type HasId interface {
 
 type Token struct {
 	Id         string       `json:"id" gorm:"primary_key;type:char(36)" valid:"required"`
-	CreateTime time.Time    `json:"createTime,omitempty" gorm:"default:now();not null;type:datetime;omitempty"`
+	CreateTime time.Time    `json:"createTime,omitempty" gorm:"not null;type:datetime;omitempty"`
 	Data       sql.RawBytes `json:"-" gorm:"not null"`
 	RelationId string       `json:"relationId" gorm:"type:varchar(1024)"`
 	Expiry     time.Time    `json:"expiry,omitempty" gorm:"not null;type:datetime;omitempty"`

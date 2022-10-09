@@ -2,7 +2,7 @@ syntax = "proto3";
 package idas.endpoint;
 import public "gogoproto/gogo.proto";
 import "v1/base.proto";
-import "types/models.proto";
+import "models/models.proto";
 option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
 
 message GetSessionsRequest{

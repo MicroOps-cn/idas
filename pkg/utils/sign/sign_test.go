@@ -18,7 +18,6 @@ package sign
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -44,7 +43,6 @@ func TestSignHttpRequest(t *testing.T) {
 	logger := logs.New(&logs.Config{})
 	logs.SetRootLogger(logger)
 	err := config.ReloadConfigFromYamlReader(logs.GetRootLogger(), config.NewConverter("idas.yaml", strings.NewReader(cfg)))
-	fmt.Println(config.Get().Global)
 	require.NoError(t, err)
 	type args struct {
 		method      string

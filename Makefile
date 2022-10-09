@@ -110,3 +110,8 @@ endif
 .PHONY: test
 test:
 	go test -tags make_test -cover -race -count=1 ./...
+
+.PHONY: ui
+ui:
+	cd public && yarn install && yarn run build
+	rm -rf pkg/transport/static && cp -r public/dist pkg/transport/static

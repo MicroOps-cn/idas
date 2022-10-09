@@ -48,7 +48,9 @@ type CommonService interface {
 	Authorization(ctx context.Context, roles []string, method string) bool
 
 	GetUserKey(ctx context.Context, key string) (*models.UserKey, error)
+	GetUserKeys(ctx context.Context, userId string, current, pageSize int64) (count int64, keyPairs []*models.UserKey, err error)
 	CreateUserKeyWithId(ctx context.Context, userId string, name string) (userKey *models.UserKey, err error)
+	DeleteUserKeys(ctx context.Context, userId string, id []string) (affected int64, err error)
 }
 
 func NewCommonService(ctx context.Context) CommonService {

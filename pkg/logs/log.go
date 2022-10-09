@@ -21,6 +21,7 @@ package logs
 
 import (
 	"context"
+	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
 	"io"
 	"os"
 	"strings"
@@ -255,7 +256,15 @@ func NewTraceId() string {
 	return strings.ReplaceAll(uuid.NewV4().String(), "-", "")
 }
 
+var DefaultLoggerConfig = &Config{
+	Level:  w.P[AllowedLevel]("info"),
+	Format: w.P[AllowedFormat]("logfmt"),
+}
+
 func NewTraceLogger() log.Logger {
+	if rootLogger == nil {
+		return log.With(New(DefaultLoggerConfig), global.TraceIdName, NewTraceId())
+	}
 	return log.With(rootLogger, global.TraceIdName, NewTraceId())
 }
 

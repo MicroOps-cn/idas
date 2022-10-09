@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package idas.service.models;
+
+import public "gogoproto/gogo.proto";
+
+option go_package = "github.com/MicroOps-cn/idas/pkg/service/models;models";
+
+message AuthMeta {
+  enum Method {
+    basic = 0;
+    signature = 1;
+    token = 2;
+    token_signature = 3;
+  };
+}
+message AppMeta {
+  enum Status {
+    unknown = 0;
+    normal = 1;
+    disable = 2;
+  }
+  // @sync-to-public:
+  enum GrantType {
+    none = 0;
+    authorization_code = 1;
+    proxy = 2;
+  }
+  enum GrantMode {
+    manual = 0;
+    full = 1;
+  }
+}
+message RoleMeta {
+  enum Type {
+    user = 0;
+    system = 1;
+  }
+}
+message UserMeta {
+  enum UserStatus {
+    unknown = 0;
+    normal = 1;
+    disable = 2;
+    inactive = 3;
+  }
+}
+
+message Model {
+  option (gogoproto.goproto_unrecognized) = false;
+  option (gogoproto.goproto_sizecache) = false;
+  option (gogoproto.goproto_unkeyed) = false;
+
+  string id = 1 [(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required" gorm:"primary_key;type:char(36)"'];
+  string create_time = 2 [(gogoproto.jsontag) = "createTime,omitempty", (gogoproto.customtype) = "time.Time", (gogoproto.nullable) = false, (gogoproto.moretags) = 'gorm:"type:datetime;not null;omitempty"'];
+  string update_time = 3 [(gogoproto.jsontag) = "updateTime,omitempty", (gogoproto.customtype) = "time.Time", (gogoproto.nullable) = false, (gogoproto.moretags) = 'gorm:"type:datetime;not null;omitempty"'];
+  bool is_delete = 4 [(gogoproto.jsontag) = "isDelete,omitempty", (gogoproto.moretags) = 'gorm:"not null;default:0"'];
+}

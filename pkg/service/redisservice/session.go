@@ -58,46 +58,6 @@ func (s SessionService) OAuthAuthorize(ctx context.Context, clientId string) (co
 	panic("implement me")
 }
 
-//func (s SessionService) CreateOAuthAuthCode(ctx context.Context, appId, sessionId, scope, storage string) (code string, err error) {
-//	redisClt := s.Redis(ctx)
-//	c := models.AppAuthCode{Model: models.Model{Id: models.NewId()}, AppId: appId, SessionId: sessionId, Scope: scope, Storage: storage}
-//
-//	if cc, err := json.Marshal(c); err != nil {
-//		return "", err
-//	} else if err := redisClt.Set(fmt.Sprintf("%s:%s", global.AuthCode, c.Id), cc, global.AuthCodeExpiration).Err(); err != nil {
-//		return "", err
-//	} else {
-//		return c.Id, nil
-//	}
-//}
-
-//
-//func (s SessionService) GetUserByOAuthAuthorizationCode(ctx context.Context, code, clientId string) (user *models.User, scope string, err error) {
-//	logger := logs.GetContextLogger(ctx)
-//	redisClt := s.Redis(ctx)
-//	c := new(models.AppAuthCode)
-//	sessionValue, err := redisClt.Get(fmt.Sprintf("%s:%s", global.AuthCode, code)).Bytes()
-//	if err != nil {
-//		level.Error(logger).Log("msg", "failed to get auth code info", "err", err)
-//		return nil, "", errors.BadRequestError
-//	} else if err = json.Unmarshal(sessionValue, c); err != nil {
-//		level.Error(logger).Log("msg", "failed to parse auth code info", "err", err)
-//		return nil, "", errors.BadRequestError
-//	} else if clientId != c.AppId {
-//		level.Error(logger).Log("msg", "client id is not match", "err", err)
-//		return nil, "", errors.BadRequestError
-//	}
-//	if users, err := s.GetSessionByToken(ctx, c.SessionId, models.TokenTypeLoginSession); err != nil {
-//		level.Error(logger).Log("msg", "failed to get session info", "err", err)
-//		return nil, "", errors.BadRequestError
-//	} else if len(users) < 0 {
-//		level.Error(logger).Log("msg", "session expired")
-//		return nil, "", errors.BadRequestError
-//	} else {
-//		return users[0], c.Scope, nil
-//	}
-//}
-
 func (s SessionService) RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error) {
 	panic("implement me")
 }

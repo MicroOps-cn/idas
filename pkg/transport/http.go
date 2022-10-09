@@ -18,9 +18,11 @@ package transport
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	stdlog "log"
 	"net/http"
 	"reflect"
@@ -54,9 +56,12 @@ import (
 	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
 )
 
+//go:embed static
+var staticFs embed.FS
+
 // NewHTTPHandler returns an HTTP handler that makes a set of endpoints
 // available on predefined paths.
-func NewHTTPHandler(endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer, openapiPath string, logger log.Logger) http.Handler {
+func NewHTTPHandler(ctx context.Context, logger log.Logger, endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer, openapiPath string) http.Handler {
 	options := []httptransport.ServerOption{
 		httptransport.ServerErrorEncoder(errorEncoder),
 		httptransport.ServerErrorHandler(transport.NewLogErrorHandler(log.With(logger, "caller", logs.Caller(9)))),
@@ -85,7 +90,7 @@ func NewHTTPHandler(endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipk
 	}
 	if openapiPath != "" {
 		level.Info(logger).Log("msg", fmt.Sprintf("enable openapi on `%s`", openapiPath))
-		m.Add(restfulspec.NewOpenAPIService(restfulspec.Config{
+		specConf := restfulspec.Config{
 			WebServices: m.RegisteredWebServices(),
 			APIPath:     openapiPath,
 			PostBuildSwaggerObjectHandler: func(swo *spec.Swagger) {
@@ -98,9 +103,11 @@ func NewHTTPHandler(endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipk
 				}
 				swo.Tags = specTags
 			},
-		}))
+		}
+		m.Add(restfulspec.NewOpenAPIService(specConf))
 	}
-
+	webPrefix := ctx.Value(global.HttpWebPrefixKey).(string)
+	m.Handle(webPrefix, http.StripPrefix(webPrefix, http.FileServer(http.FS(w.M[fs.FS](fs.Sub(staticFs, "static"))))))
 	return m
 }
 
@@ -190,12 +197,6 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 	var err error
 	logger := logs.GetContextLogger(stdReq.Context())
 	r := restfulReq.Request
-	query := restfulReq.Request.URL.Query()
-	if len(query) > 0 {
-		if err = httputil.UnmarshalURLValues(query, &req.Data); err != nil {
-			return nil, fmt.Errorf("failed to decode url query: %s", err)
-		}
-	}
 	if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" || r.Method == "DELETE" {
 		contentType := r.Header.Get("Content-Type")
 		if strings.HasPrefix(contentType, "multipart/form-data") {
@@ -229,6 +230,12 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 		}
 	}
 
+	query := restfulReq.Request.URL.Query()
+	if len(query) > 0 {
+		if err = httputil.UnmarshalURLValues(query, &req.Data); err != nil {
+			return nil, fmt.Errorf("failed to decode url query: %s", err)
+		}
+	}
 	if len(restfulReq.PathParameters()) > 0 {
 		if err = httputil.UnmarshalURLValues(httputil.MapToURLValues(restfulReq.PathParameters()), &req); err != nil {
 			return nil, fmt.Errorf("failed to decode path parameters：%s", err)
@@ -390,12 +397,14 @@ loopObjFields:
 					}
 					if len(typeName) != 0 {
 						enumMap := proto.EnumValueMap(typeName)
-						enums := make(map[string]string, len(enumMap)*2)
+						enums := make(map[string]string, len(enumMap))
 						for v, idx := range enumMap {
 							enums[strconv.Itoa(int(idx))] = v
-							enums[strconv.Itoa(int(idx)+len(enumMap))] = strconv.Itoa(int(idx))
 						}
 						param.AllowableValues(enums)
+						param.AddExtension("$ref", typeName)
+						param.DataType("string")
+						param.DataFormat("string")
 					}
 				}
 				params = append(params, param)
@@ -403,4 +412,53 @@ loopObjFields:
 		}
 	}
 	return params
+}
+
+func NewProxyHandler(c context.Context, logger log.Logger, endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer) http.Handler {
+	m := restful.NewContainer()
+	m.Filter(HTTPLoggingFilter)
+	m.Filter(HTTPProxyAuthenticationFilter(c, endpoints))
+	options := []httptransport.ServerOption{
+		httptransport.ServerErrorEncoder(errorEncoder),
+		httptransport.ServerErrorHandler(transport.NewLogErrorHandler(log.With(logger, "caller", logs.Caller(9)))),
+	}
+	if zipkinTracer != nil {
+		// Zipkin HTTP Server Trace can either be instantiated per endpoint with a
+		// provided operation name or a global tracing service can be instantiated
+		// without an operation name and fed to each Go kit endpoint as ServerOption.
+		// In the latter case, the operation name will be the endpoint's http method.
+		// We demonstrate a global tracing service here.
+		options = append(options, zipkin.HTTPServerTrace(zipkinTracer))
+	}
+	options = append(options, httptransport.ServerBefore(opentracing.HTTPToContext(otTracer, "Concat", logger)))
+	m.HandleWithFilter("/", httptransport.NewServer(
+		endpoints.ProxyRequest,
+		func(_ context.Context, request *http.Request) (interface{}, error) {
+			return request, nil
+		},
+		func(ctx context.Context, writer http.ResponseWriter, resp interface{}) error {
+			if r, ok := resp.(*endpoint.ProxyResponse); ok {
+				if r.Header != nil {
+					for name, vals := range r.Header {
+						for i, val := range vals {
+							if i == 0 {
+								r.Header.Set(name, val)
+							} else {
+								r.Header.Add(name, val)
+							}
+						}
+					}
+				}
+				writer.WriteHeader(r.Code)
+				if r.Body != nil {
+					if _, err := io.Copy(writer, r.Body); err != nil {
+						level.Error(logs.GetContextLogger(ctx)).Log("msg", "failed to copy response", "err", err)
+					}
+				}
+			}
+			return nil
+		},
+		options...,
+	))
+	return m
 }

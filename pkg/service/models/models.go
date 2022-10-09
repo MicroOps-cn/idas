@@ -16,6 +16,12 @@
 
 package models
 
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+)
+
 func (x AppMeta_GrantType) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + x.String() + `"`), nil
 }
@@ -27,3 +33,38 @@ func (x AppMeta_GrantMode) MarshalJSON() ([]byte, error) {
 func (x AppMeta_Status) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + x.String() + `"`), nil
 }
+
+func (x UserMeta_UserStatus) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + x.String() + `"`), nil
+}
+func (x *UserMeta_UserStatus) UnmarshalJSON(bytes []byte) error {
+	if strings.HasPrefix(string(bytes), `"`) {
+		var name string
+		err := json.Unmarshal(bytes, &name)
+		if err != nil {
+			return err
+		}
+		s, ok := UserMeta_UserStatus_value[name]
+		if !ok {
+			return fmt.Errorf("unknown status: %s", name)
+		}
+		*x = UserMeta_UserStatus(s)
+	} else {
+		var val int32
+		err := json.Unmarshal(bytes, &val)
+		if err != nil {
+			return err
+		}
+
+		if _, ok := UserMeta_UserStatus_name[val]; !ok {
+			return fmt.Errorf("unknown status: %d", val)
+		}
+		*x = UserMeta_UserStatus(val)
+	}
+
+	return nil
+}
+
+const (
+	UserMeta_status_all UserMeta_UserStatus = -1
+)

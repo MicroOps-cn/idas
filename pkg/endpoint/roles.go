@@ -89,10 +89,10 @@ func MakeDeleteRoleEndpoint(s service.Service) endpoint.Endpoint {
 
 func MakeDeleteRolesEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(Requester).GetRequestData().(DeleteRolesRequest)
+		req := request.(Requester).GetRequestData().(*DeleteRolesRequest)
 		resp := SimpleResponseWrapper[interface{}]{}
 		var ids []string
-		for _, role := range req {
+		for _, role := range *req {
 			ids = append(ids, role.Id)
 		}
 		resp.Error = s.DeleteRoles(ctx, ids)

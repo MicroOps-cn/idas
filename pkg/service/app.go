@@ -19,6 +19,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/MicroOps-cn/idas/pkg/utils/sets"
 
 	"github.com/go-kit/log/level"
 
@@ -27,15 +28,6 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/utils/image"
 )
-
-func (s Set) GetUserAndAppService(name string) UserAndAppService {
-	for _, svc := range s.userAndAppService {
-		if svc.Name() == name /*|| len(name) == 0 */ {
-			return svc
-		}
-	}
-	return nil
-}
 
 func (s Set) SafeGetUserAndAppService(name string) UserAndAppService {
 	for _, svc := range s.userAndAppService {
@@ -46,7 +38,7 @@ func (s Set) SafeGetUserAndAppService(name string) UserAndAppService {
 	for _, svc := range s.userAndAppService {
 		return svc
 	}
-	return nil
+	return newNullService("", name)
 }
 
 func (s Set) GetApps(ctx context.Context, storage string, keywords string, current, pageSize int64) (total int64, apps []*models.App, err error) {
@@ -64,30 +56,15 @@ func (s Set) GetAppSource(ctx context.Context) (total int64, data map[string]str
 }
 
 func (s Set) PatchApps(ctx context.Context, storage string, patch []map[string]interface{}) (total int64, err error) {
-	service := s.GetUserAndAppService(storage)
-	if service == nil {
-		err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
-		return
-	}
-	return service.PatchApps(ctx, patch)
+	return s.GetUserAndAppService(storage).PatchApps(ctx, patch)
 }
 
 func (s Set) DeleteApps(ctx context.Context, storage string, id []string) (total int64, err error) {
-	service := s.GetUserAndAppService(storage)
-	if service == nil {
-		err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
-		return
-	}
-	return service.DeleteApps(ctx, id)
+	return s.GetUserAndAppService(storage).DeleteApps(ctx, id)
 }
 
 func (s Set) UpdateApp(ctx context.Context, storage string, app *models.App, updateColumns ...string) (a *models.App, err error) {
-	service := s.GetUserAndAppService(storage)
-	if service == nil {
-		err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
-		return
-	}
-	return service.UpdateApp(ctx, app, updateColumns...)
+	return s.GetUserAndAppService(storage).UpdateApp(ctx, app, updateColumns...)
 }
 
 func (s Set) GetAppInfo(ctx context.Context, storage string, id string) (app *models.App, err error) {
@@ -111,6 +88,30 @@ func (s Set) GetAppInfo(ctx context.Context, storage string, id string) (app *mo
 }
 
 func (s Set) CreateApp(ctx context.Context, storage string, app *models.App) (a *models.App, err error) {
+	if len(app.Name) == 0 {
+		return nil, errors.ParameterError("app name is null")
+	}
+
+	var roles = sets.New[string]()
+
+	for _, role := range app.Role {
+		if len(role.Name) == 0 && len(role.Id) == 0 {
+			return nil, errors.ParameterError("role name and id is nil")
+		} else {
+			if len(role.Name) != 0 {
+				if roles.Has(role.Name) {
+					return nil, errors.ParameterError("duplicate role: " + role.Name)
+				}
+				roles.Insert(role.Name)
+			}
+			if len(role.Id) != 0 {
+				if roles.Has(role.Id) {
+					return nil, errors.ParameterError("duplicate role: " + role.Id)
+				}
+				roles.Insert(role.Id)
+			}
+		}
+	}
 	logger := logs.GetContextLogger(ctx)
 	service := s.GetUserAndAppService(storage)
 	if service == nil {
@@ -128,19 +129,9 @@ func (s Set) CreateApp(ctx context.Context, storage string, app *models.App) (a 
 }
 
 func (s Set) PatchApp(ctx context.Context, storage string, fields map[string]interface{}) (app *models.App, err error) {
-	service := s.GetUserAndAppService(storage)
-	if service == nil {
-		err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
-		return
-	}
-	return service.PatchApp(ctx, fields)
+	return s.GetUserAndAppService(storage).PatchApp(ctx, fields)
 }
 
 func (s Set) DeleteApp(ctx context.Context, storage string, id string) (err error) {
-	service := s.GetUserAndAppService(storage)
-	if service == nil {
-		err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
-		return
-	}
-	return service.DeleteApp(ctx, id)
+	return s.GetUserAndAppService(storage).DeleteApp(ctx, id)
 }
