@@ -51,6 +51,9 @@ type CommonService interface {
 	GetUserKeys(ctx context.Context, userId string, current, pageSize int64) (count int64, keyPairs []*models.UserKey, err error)
 	CreateUserKeyWithId(ctx context.Context, userId string, name string) (userKey *models.UserKey, err error)
 	DeleteUserKeys(ctx context.Context, userId string, id []string) (affected int64, err error)
+	GetProxyConfig(ctx context.Context, host string, method string, path string) (*models.AppProxyConfig, error)
+	UpdateProxyConfig(ctx context.Context, proxy *models.AppProxy) (*models.AppProxy, error)
+	GetAppProxyConfig(ctx context.Context, appId string) (proxy *models.AppProxy, err error)
 }
 
 func NewCommonService(ctx context.Context) CommonService {

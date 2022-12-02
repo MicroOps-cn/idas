@@ -78,7 +78,7 @@ func (m MultipleServerError) HasError() bool {
 	return len(m.errs) > 0
 }
 
-func (m MultipleServerError) Append(err error) {
+func (m *MultipleServerError) Append(err error) {
 	m.errs = append(m.errs, err)
 }
 

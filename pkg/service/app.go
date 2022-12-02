@@ -19,7 +19,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/MicroOps-cn/idas/pkg/utils/sets"
 
 	"github.com/go-kit/log/level"
 
@@ -27,6 +26,7 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/utils/image"
+	"github.com/MicroOps-cn/idas/pkg/utils/sets"
 )
 
 func (s Set) SafeGetUserAndAppService(name string) UserAndAppService {
@@ -64,7 +64,67 @@ func (s Set) DeleteApps(ctx context.Context, storage string, id []string) (total
 }
 
 func (s Set) UpdateApp(ctx context.Context, storage string, app *models.App, updateColumns ...string) (a *models.App, err error) {
-	return s.GetUserAndAppService(storage).UpdateApp(ctx, app, updateColumns...)
+	if len(app.Name) == 0 {
+		return nil, errors.ParameterError("app name is null")
+	}
+
+	if len(app.Id) == 0 {
+		return nil, errors.ParameterError("app id is null")
+	}
+
+	if app.GrantType&models.AppMeta_proxy > 0 {
+		if app.Proxy == nil {
+			return nil, errors.ParameterError("app proxy cannot be empty")
+		}
+		if len(app.Proxy.Urls) == 0 {
+			return nil, errors.ParameterError("app proxy.urls cannot be empty")
+		}
+		if len(app.Proxy.Domain) == 0 {
+			return nil, errors.ParameterError("app proxy.domain cannot be empty")
+		}
+		if len(app.Proxy.Upstream) == 0 {
+			return nil, errors.ParameterError("app proxy.upstream cannot be empty")
+		}
+	}
+
+	proxy := app.Proxy
+	app.Proxy = nil
+
+	roles := sets.New[string]()
+
+	for _, role := range app.Roles {
+		if len(role.Name) == 0 && len(role.Id) == 0 {
+			return nil, errors.ParameterError("role name and id is nil")
+		}
+		if len(role.Name) != 0 {
+			if roles.Has(role.Name) {
+				return nil, errors.ParameterError("duplicate role: " + role.Name)
+			}
+			roles.Insert(role.Name)
+		}
+		if len(role.Id) != 0 {
+			if roles.Has(role.Id) {
+				return nil, errors.ParameterError("duplicate role: " + role.Id)
+			}
+			roles.Insert(role.Id)
+		}
+	}
+
+	newApp, err := s.GetUserAndAppService(storage).UpdateApp(ctx, app, updateColumns...)
+	if err != nil {
+		return nil, err
+	}
+
+	if app.GrantType&models.AppMeta_proxy > 0 {
+		proxy.Storage = app.Storage
+		proxy.AppId = app.Id
+		newApp.Proxy, err = s.commonService.UpdateProxyConfig(ctx, proxy)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return newApp, nil
 }
 
 func (s Set) GetAppInfo(ctx context.Context, storage string, id string) (app *models.App, err error) {
@@ -82,34 +142,61 @@ func (s Set) GetAppInfo(ctx context.Context, storage string, id string) (app *mo
 			err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
 			return
 		}
-		return service.GetAppInfo(ctx, id, "")
+		info, err := service.GetAppInfo(ctx, id, "")
+		if err != nil {
+			return nil, err
+		}
+		if info.GrantType&models.AppMeta_proxy == models.AppMeta_proxy {
+			info.Proxy, err = s.commonService.GetAppProxyConfig(ctx, info.Id)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return info, nil
 	}
 	return nil, errors.StatusNotFound("app")
 }
 
 func (s Set) CreateApp(ctx context.Context, storage string, app *models.App) (a *models.App, err error) {
 	if len(app.Name) == 0 {
-		return nil, errors.ParameterError("app name is null")
+		return nil, errors.ParameterError("app name cannot be empty")
 	}
 
-	var roles = sets.New[string]()
+	if app.GrantType&models.AppMeta_proxy > 0 {
+		if app.Proxy == nil {
+			return nil, errors.ParameterError("app proxy cannot be empty")
+		}
+		if len(app.Proxy.Urls) == 0 {
+			return nil, errors.ParameterError("app proxy.urls cannot be empty")
+		}
+		if len(app.Proxy.Domain) == 0 {
+			return nil, errors.ParameterError("app proxy.domain cannot be empty")
+		}
+		if len(app.Proxy.Upstream) == 0 {
+			return nil, errors.ParameterError("app proxy.upstream cannot be empty")
+		}
+	}
 
-	for _, role := range app.Role {
+	proxy := app.Proxy
+	app.Proxy = nil
+
+	roles := sets.New[string]()
+
+	for _, role := range app.Roles {
 		if len(role.Name) == 0 && len(role.Id) == 0 {
 			return nil, errors.ParameterError("role name and id is nil")
-		} else {
-			if len(role.Name) != 0 {
-				if roles.Has(role.Name) {
-					return nil, errors.ParameterError("duplicate role: " + role.Name)
-				}
-				roles.Insert(role.Name)
+		}
+		if len(role.Name) != 0 {
+			if roles.Has(role.Name) {
+				return nil, errors.ParameterError("duplicate role: " + role.Name)
 			}
-			if len(role.Id) != 0 {
-				if roles.Has(role.Id) {
-					return nil, errors.ParameterError("duplicate role: " + role.Id)
-				}
-				roles.Insert(role.Id)
+			roles.Insert(role.Name)
+		}
+		if len(role.Id) != 0 {
+			if roles.Has(role.Id) {
+				return nil, errors.ParameterError("duplicate role: " + role.Id)
 			}
+			roles.Insert(role.Id)
 		}
 	}
 	logger := logs.GetContextLogger(ctx)
@@ -125,7 +212,20 @@ func (s Set) CreateApp(ctx context.Context, storage string, app *models.App) (a 
 	} else {
 		app.Avatar = fileKey
 	}
-	return service.CreateApp(ctx, app)
+	newApp, err := service.CreateApp(ctx, app)
+	if err != nil {
+		return nil, err
+	}
+	if app.GrantType&models.AppMeta_proxy > 0 {
+		proxy.Storage = app.Storage
+		proxy.AppId = app.Id
+		newApp.Proxy, err = s.commonService.UpdateProxyConfig(ctx, proxy)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return newApp, nil
 }
 
 func (s Set) PatchApp(ctx context.Context, storage string, fields map[string]interface{}) (app *models.App, err error) {

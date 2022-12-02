@@ -80,6 +80,7 @@ type Service interface {
 	Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm sign.AuthAlgorithm, key, secret, payload, signStr string) ([]*models.User, error)
 	CreateUserKey(ctx context.Context, userId, name string) (keyPair *models.UserKey, err error)
 	GetUserKeys(ctx context.Context, userId string, current, pageSize int64) (count int64, keyPairs []*models.UserKey, err error)
+	DeleteUserKey(ctx context.Context, userId string, id string) error
 
 	GetApps(ctx context.Context, storage string, keywords string, current, pageSize int64) (total int64, apps []*models.App, err error)
 	GetAppSource(ctx context.Context) (total int64, data map[string]string, err error)
@@ -99,19 +100,22 @@ type Service interface {
 	SendEmail(ctx context.Context, data map[string]interface{}, topic string, to ...string) error
 	Authorization(ctx context.Context, users []*models.User, method string) bool
 	RegisterPermission(ctx context.Context, permissions models.Permissions) error
-	GetProxyConfig(user *models.User, host string, method string, path string) (*models.AppProxy, error)
-	DeleteUserKey(ctx context.Context, userId string, id string) error
+	GetProxyConfig(ctx context.Context, user *models.User, host string, method string, path string) (*models.AppProxyConfig, error)
 }
 
 type Set struct {
 	userAndAppService UserAndAppServices
 	sessionService    SessionService
 	commonService     CommonService
-	smtpClient        *email.SMTPClient
+	//smtpClient        *email.SMTPClient
 }
 
-func (s Set) GetProxyConfig(user *models.User, host string, method string, path string) (*models.AppProxy, error) {
-	//proxyConfig, err := s.GetProxyConfig(nil, host, method, path)
+func (s Set) GetProxyConfig(ctx context.Context, user *models.User, host string, method string, path string) (*models.AppProxyConfig, error) {
+	//proxy, err := s.commonService.GetProxyConfig(ctx, host, method, path)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
 	return nil, nil
 }
 
@@ -197,13 +201,13 @@ func (s Set) InitData(ctx context.Context) error {
 				Name:        global.IdasAppName,
 				Description: "Identity authentication service. It is bound to the current service. Please do not delete it at will.",
 				GrantMode:   models.AppMeta_manual,
-				Role: models.AppRoles{{
+				Roles: models.AppRoles{{
 					Name: "admin",
 				}, {
 					Name:      "viewer",
 					IsDefault: true,
 				}},
-				User: []*models.User{{
+				Users: []*models.User{{
 					Model: models.Model{Id: adminUser.Id},
 					Role:  "admin",
 				}},
@@ -214,9 +218,9 @@ func (s Set) InitData(ctx context.Context) error {
 		} else if err != nil {
 			return fmt.Errorf("failed to initialize application data：%s", err)
 		}
-		if len(idasApp.Role) == 0 {
-			if len(idasApp.Role) == 0 {
-				idasApp.Role = models.AppRoles{{
+		if len(idasApp.Roles) == 0 {
+			if len(idasApp.Roles) == 0 {
+				idasApp.Roles = models.AppRoles{{
 					Name: "admin",
 				}, {
 					Name:      "viewer",
@@ -227,10 +231,10 @@ func (s Set) InitData(ctx context.Context) error {
 				return err
 			}
 		}
-		if len(idasApp.User) == 0 {
-			idasApp.User = []*models.User{{
+		if len(idasApp.Users) == 0 {
+			idasApp.Users = []*models.User{{
 				Model:  models.Model{Id: adminUser.Id},
-				RoleId: idasApp.Role.GetRole("admin").GetId(),
+				RoleId: idasApp.Roles.GetRole("admin").GetId(),
 			}}
 			if _, err = svc.UpdateApp(ctx, idasApp); err != nil {
 				return err

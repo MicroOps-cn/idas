@@ -13,6 +13,7 @@ message OAuthTokenResponse{
 }
 
 message OAuthAuthorizeRequest{
+  // @sync-to-public:public/src/services/idas/enums.ts:ResponseType
   enum ResponseType {
     default = 0;
     code = 1;
@@ -25,6 +26,7 @@ message OAuthAuthorizeRequest{
   string scope = 5;
 }
 
+// @sync-to-public:public/src/services/idas/enums.ts:OAuthGrantType
 enum OAuthGrantType{
   refresh_token = 0;
   authorization_code = 1;

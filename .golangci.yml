@@ -24,7 +24,10 @@ issues:
         - errcheck
 
 linters-settings:
-
+  staticcheck:
+    checks:
+      - all
+      - -SA1029
   depguard:
     list-type: blacklist
     include-go-root: true

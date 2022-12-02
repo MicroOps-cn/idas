@@ -25,6 +25,7 @@ import (
 	"strings"
 	"sync"
 
+	log2 "github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log"
 	"github.com/go-logfmt/logfmt"
 
@@ -200,3 +201,5 @@ func (l *idasLogger) Log(keyvals ...interface{}) error {
 func NewIdasLogger(w io.Writer) log.Logger {
 	return &idasLogger{w}
 }
+
+const FormatIDAS log2.AllowedFormat = "idas"

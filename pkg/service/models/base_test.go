@@ -18,11 +18,12 @@ package models
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/rand"
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	"golang.org/x/exp/rand"
 )
 
 func getSeed(t *testing.T) []string {

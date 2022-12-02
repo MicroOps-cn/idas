@@ -19,13 +19,15 @@ package endpoint
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+
+	"github.com/go-kit/kit/endpoint"
+
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/utils/errors"
-	"github.com/go-kit/kit/endpoint"
-	"io"
-	"net/http"
 )
 
 type ProxyResponse struct {
@@ -37,7 +39,7 @@ type ProxyResponse struct {
 
 func MakeProxyRequestEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		var resp = &ProxyResponse{Code: 500, Error: fmt.Errorf("system error")}
+		resp := &ProxyResponse{Code: 500, Error: fmt.Errorf("system error")}
 		r, ok := request.(http.Request)
 		if !ok {
 			return resp, nil
@@ -48,13 +50,13 @@ func MakeProxyRequestEndpoint(s service.Service) endpoint.Endpoint {
 			resp.Code = 401
 			return resp, nil
 		}
-		var err = errors.NewMultipleError()
+		err := errors.NewMultipleError()
 		var (
-			proxyConfig *models.AppProxy
+			proxyConfig *models.AppProxyConfig
 			e           error
 		)
 		for _, user := range users {
-			if proxyConfig, e = s.GetProxyConfig(user, r.Host, r.Method, r.URL.EscapedPath()); err != nil {
+			if proxyConfig, e = s.GetProxyConfig(ctx, user, r.Host, r.Method, r.URL.EscapedPath()); err != nil {
 				_ = err.Append(e)
 			} else if proxyConfig != nil {
 				break

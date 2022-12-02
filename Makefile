@@ -12,7 +12,7 @@ GOLANGCI_LINT :=
 GOLANGCI_LINT_OPTS ?=
 GOLANGCI_LINT_VERSION ?= v1.45.2
 
-DONT_FIND := -name vendor -prune -o -name .git -prune -o -name .cache -prune -o -name .pkg -prune -o
+DONT_FIND := -name vendor -prune -o -name .git -prune -o -name .cache -prune -o -name .pkg -prune -o -name test -prune -o
 
 PROTOC       ?= protoc
 #PROTOC_OPTS ?= -I ./vendor/github.com/gogo/protobuf:./api:./:vendor
@@ -111,7 +111,12 @@ endif
 test:
 	go test -tags make_test -cover -race -count=1 ./...
 
+.PHONY: openapi
+openapi:
+	cd public && yarn openapi
+	go run scripts/sync_to_public.go
+
 .PHONY: ui
-ui:
+ui:openapi
 	cd public && yarn install && yarn run build
 	rm -rf pkg/transport/static && cp -r public/dist pkg/transport/static

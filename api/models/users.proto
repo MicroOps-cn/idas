@@ -1,0 +1,45 @@
+/*
+ Copyright © 2022 MicroOps-cn.
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+*/
+
+syntax = "proto3";
+
+package idas.service.models;
+
+import "models/models.proto";
+
+option go_package = "github.com/MicroOps-cn/idas/pkg/service/models;models";
+
+message User {
+  option (gogoproto.goproto_unrecognized) = false;
+  option (gogoproto.goproto_sizecache) = false;
+  option (gogoproto.goproto_unkeyed) = false;
+
+  idas.service.models.Model model = 1 [(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  string username = 2[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'gorm:"type:varchar(20);unique"'];
+  string salt = 3[(gogoproto.customtype) = "database/sql.RawBytes", (gogoproto.nullable) = false, (gogoproto.jsontag) = "-", (gogoproto.moretags) = 'gorm:"type:tinyblob"'];
+  string password = 4[(gogoproto.customtype) = "database/sql.RawBytes", (gogoproto.nullable) = false, (gogoproto.jsontag) = "password,omitempty", (gogoproto.moretags) = 'gorm:"type:tinyblob"'];
+  string email = 5[(gogoproto.jsontag) = "email", (gogoproto.moretags) = 'gorm:"type:varchar(50)" valid:"email,optional"'];
+  string phone_number = 6[(gogoproto.jsontag) = "phoneNumber", (gogoproto.moretags) = 'gorm:"type:varchar(50)" valid:"numeric,optional"'];
+  string full_name = 7[(gogoproto.jsontag) = "fullName", (gogoproto.moretags) = 'gorm:"type:varchar(50)"'];
+  string avatar = 8[(gogoproto.jsontag) = "avatar", (gogoproto.moretags) = 'gorm:"type:varchar(128)"'];
+  idas.service.models.UserMeta.UserStatus status = 9[(gogoproto.jsontag) = "status", (gogoproto.moretags) = 'gorm:"not null;default:0"'];
+  string login_time = 10[(gogoproto.customtype) = "time.Time", (gogoproto.jsontag) = "loginTime"];
+  string role_id = 11[(gogoproto.jsontag) = "roleId,omitempty", (gogoproto.moretags) = 'gorm:"->;-:migration"'];
+  string role = 12[(gogoproto.jsontag) = "role,omitempty", (gogoproto.moretags) = 'gorm:"->;-:migration"'];
+  string apps = 13[(gogoproto.customtype) = "Apps", (gogoproto.nullable) = false, (gogoproto.jsontag) = "apps,omitempty", (gogoproto.moretags) = 'gorm:"many2many:app_user"'];
+  string storage = 14[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'gorm:"-"'];
+}
+

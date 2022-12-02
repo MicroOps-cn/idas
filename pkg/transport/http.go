@@ -106,7 +106,7 @@ func NewHTTPHandler(ctx context.Context, logger log.Logger, endpoints endpoint.S
 		}
 		m.Add(restfulspec.NewOpenAPIService(specConf))
 	}
-	webPrefix := ctx.Value(global.HttpWebPrefixKey).(string)
+	webPrefix := ctx.Value(global.HTTPWebPrefixKey).(string)
 	m.Handle(webPrefix, http.StripPrefix(webPrefix, http.FileServer(http.FS(w.M[fs.FS](fs.Sub(staticFs, "static"))))))
 	return m
 }
@@ -244,7 +244,7 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 
 	req.restfulRequest = restfulReq
 	req.restfulResponse = restfulResp
-	level.Debug(logger).Log("msg", "decoded http request", "req", fmt.Sprintf("%s", w.Must[[]byte](json.Marshal(req))))
+	level.Debug(logger).Log("msg", "decoded http request", "req", string(w.Must[[]byte](json.Marshal(req))))
 	if ok, err := valid(req.Data); err != nil {
 		return &req, errors.NewServerError(http.StatusBadRequest, err.Error())
 	} else if !ok {

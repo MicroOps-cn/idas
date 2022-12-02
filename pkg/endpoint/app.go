@@ -111,15 +111,20 @@ func MakeDeleteAppsEndpoint(s service.Service) endpoint.Endpoint {
 }
 
 func (m UpdateAppRequest) GetUsers() (users []*models.User) {
-	for _, u := range m.User {
+	for _, u := range m.Users {
 		users = append(users, &models.User{Model: models.Model{Id: u.Id}, RoleId: u.RoleId})
 	}
 	return users
 }
 
 func (m UpdateAppRequest) GetRoles() (roles []*models.AppRole) {
-	for _, role := range m.Role {
-		roles = append(roles, &models.AppRole{Model: models.Model{Id: role.Id}, Name: role.Name, Config: role.Config, IsDefault: role.IsDefault})
+	for _, role := range m.Roles {
+		roles = append(roles, &models.AppRole{
+			Model:     models.Model{Id: role.Id},
+			Name:      role.Name,
+			Urls:      role.Urls,
+			IsDefault: role.IsDefault,
+		})
 	}
 	return roles
 }
@@ -133,11 +138,11 @@ func MakeUpdateAppEndpoint(s service.Service) endpoint.Endpoint {
 			Name:        req.Name,
 			Description: req.Description,
 			Avatar:      req.Avatar,
-			GrantType:   req.GrantType,
+			GrantType:   models.NewGrantType(req.GrantType...),
 			GrantMode:   req.GrantMode,
 			Storage:     req.Storage,
-			User:        req.GetUsers(),
-			Role:        req.GetRoles(),
+			Users:       req.GetUsers(),
+			Roles:       req.GetRoles(),
 			Proxy:       req.GetProxyConfig(),
 		}); resp.Error != nil {
 			resp.Error = errors.NewServerError(200, resp.Error.Error())
@@ -156,15 +161,20 @@ func MakeGetAppInfoEndpoint(s service.Service) endpoint.Endpoint {
 }
 
 func (r CreateAppRequest) GetUsers() (users []*models.User) {
-	for _, u := range r.User {
+	for _, u := range r.Users {
 		users = append(users, &models.User{Model: models.Model{Id: u.Id}, RoleId: u.RoleId})
 	}
 	return users
 }
 
 func (r CreateAppRequest) GetRoles() (roles []*models.AppRole) {
-	for _, role := range r.Role {
-		roles = append(roles, &models.AppRole{Model: models.Model{Id: role.Id}, Name: role.Name, Config: role.Config, IsDefault: role.IsDefault})
+	for _, role := range r.Roles {
+		roles = append(roles, &models.AppRole{
+			Model:     models.Model{Id: role.Id},
+			Name:      role.Name,
+			Urls:      role.Urls,
+			IsDefault: role.IsDefault,
+		})
 	}
 	return roles
 }
@@ -177,11 +187,11 @@ func MakeCreateAppEndpoint(s service.Service) endpoint.Endpoint {
 			Name:        req.Name,
 			Description: req.Description,
 			Avatar:      req.Avatar,
-			GrantType:   req.GrantType,
+			GrantType:   models.NewGrantType(req.GrantType...),
 			GrantMode:   req.GrantMode,
 			Storage:     req.Storage,
-			User:        req.GetUsers(),
-			Role:        req.GetRoles(),
+			Users:       req.GetUsers(),
+			Roles:       req.GetRoles(),
 		})
 		return &resp, nil
 	}
@@ -232,6 +242,9 @@ func MakeDeleteAppEndpoint(s service.Service) endpoint.Endpoint {
 type AppProxyUrls []*AppProxyUrl
 
 func (m *UpdateAppRequest) GetProxyConfig() *models.AppProxy {
+	if m.Proxy == nil {
+		return nil
+	}
 	proxy := &models.AppProxy{
 		Model:    models.Model{Id: m.Id},
 		AppId:    m.Id,

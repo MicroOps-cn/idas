@@ -7,6 +7,7 @@ import public "gogoproto/gogo.proto";
 option go_package = "github.com/MicroOps-cn/idas/pkg/service/models;models";
 
 message AuthMeta {
+  // @sync-to-public:public/src/services/idas/enums.ts:AuthMethod
   enum Method {
     basic = 0;
     signature = 1;
@@ -15,29 +16,36 @@ message AuthMeta {
   };
 }
 message AppMeta {
+  // @sync-to-public:public/src/services/idas/enums.ts:AppStatus
   enum Status {
     unknown = 0;
     normal = 1;
     disable = 2;
   }
-  // @sync-to-public:
+  // @sync-to-public:public/src/services/idas/enums.ts:GrantType
   enum GrantType {
     none = 0;
     authorization_code = 1;
-    proxy = 2;
+    implicit = 2;
+    password = 4;
+    client_credentials = 8;
+    proxy = 16;
   }
+  // @sync-to-public:public/src/services/idas/enums.ts:GrantMode
   enum GrantMode {
     manual = 0;
     full = 1;
   }
 }
 message RoleMeta {
+  // @sync-to-public:public/src/services/idas/enums.ts:RoleType
   enum Type {
     user = 0;
     system = 1;
   }
 }
 message UserMeta {
+  // @sync-to-public:public/src/services/idas/enums.ts:UserStatus
   enum UserStatus {
     unknown = 0;
     normal = 1;

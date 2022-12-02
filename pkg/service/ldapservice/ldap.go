@@ -18,10 +18,12 @@ package ldapservice
 
 import (
 	"context"
+	"strings"
+
+	goldap "github.com/go-ldap/ldap"
+
 	"github.com/MicroOps-cn/idas/pkg/client/ldap"
 	"github.com/MicroOps-cn/idas/pkg/utils/sets"
-	goldap "github.com/go-ldap/ldap"
-	"strings"
 )
 
 const (
@@ -55,6 +57,7 @@ func (s UserAndAppService) GetUserClass() sets.Set[string] {
 	}
 	return sets.New[string](ClassExtensibleObject)
 }
+
 func (s UserAndAppService) GetAppClass() sets.Set[string] {
 	if s.hasIDASClass {
 		return sets.New[string](ClassIdasCore, ClassIdasApp)

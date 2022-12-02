@@ -19,7 +19,6 @@ package ldapservice
 import (
 	"context"
 	"fmt"
-	"github.com/MicroOps-cn/idas/pkg/client/ldap"
 	"net/http"
 	"strconv"
 	"strings"
@@ -30,6 +29,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 	"github.com/tredoe/osutil/user/crypt/sha256_crypt"
 
+	"github.com/MicroOps-cn/idas/pkg/client/ldap"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/logs"
@@ -319,7 +319,7 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 	conn := s.Session(ctx)
 	defer conn.Close()
 	filters := []string{s.Options().ParseUserSearchFilter()}
-	if status != models.UserMeta_status_all {
+	if status != models.UserMetaStatusAll {
 		filters = append(filters, fmt.Sprintf("(%s=%d)", UserStatusName, status))
 	}
 	if len(keywords) > 0 {
@@ -459,6 +459,9 @@ func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, up
 		return nil, err
 	}
 	objectClass, err := s.getUserObjectClass(context.WithValue(ctx, global.LDAPConnName, conn), dn)
+	if err != nil {
+		return nil, err
+	}
 	objectClass.Insert(s.GetUserClass().List()...)
 
 	if len(updateColumns) == 0 {

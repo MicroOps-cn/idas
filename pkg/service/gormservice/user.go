@@ -199,7 +199,7 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 			Joins("LEFT JOIN t_app_user ON t_app_user.user_id = t_user.id").
 			Where("t_app_user.app_id = ?", appId)
 	}
-	if status != models.UserMeta_status_all {
+	if status != models.UserMetaStatusAll {
 		query = query.Where("status", status)
 	}
 	if err = query.Order("username,id").Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).Find(&users).Error; err != nil {

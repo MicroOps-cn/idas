@@ -40,24 +40,24 @@ import (
 	"time"
 )
 
-type testServiceGenerate func(t *testing.T, ctx context.Context, testFunc func(name string, svc Service))
+type testServiceGenerate func(ctx context.Context, t *testing.T, testFunc func(name string, svc Service))
 
-func newSqliteTestService(t *testing.T, ctx context.Context, testFunc func(name string, svc Service)) {
-	const dsName = "sqlite"
-	const sqliteYamlConfig = `
-storage:
-  default:
-    sqlite: 
-      path: 'file:testdatabase?mode=memory&cache=shared'
-    name: "sqlite"
-`
-	logger := logs.GetContextLogger(ctx)
-	err := config.ReloadConfigFromYamlReader(logger, config.NewConverter("", bytes.NewBuffer([]byte(sqliteYamlConfig))))
-	require.NoError(t, err)
-	testFunc(dsName, New(ctx))
-}
+//func newSqliteTestService(ctx context.Context, t *testing.T, testFunc func(name string, svc Service)) {
+//	const dsName = "sqlite"
+//	const sqliteYamlConfig = `
+//storage:
+//  default:
+//    sqlite:
+//      path: 'file:testdatabase?mode=memory&cache=shared'
+//    name: "sqlite"
+//`
+//	logger := logs.GetContextLogger(ctx)
+//	err := config.ReloadConfigFromYamlReader(logger, config.NewConverter("", bytes.NewBuffer([]byte(sqliteYamlConfig))))
+//	require.NoError(t, err)
+//	testFunc(dsName, New(ctx))
+//}
 
-func runWithOpenLDAPContainer(t *testing.T, ctx context.Context, f func(host, rootPassword string)) {
+func runWithOpenLDAPContainer(ctx context.Context, t *testing.T, f func(host, rootPassword string)) {
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 	customSchemaDir := path.Join(wd, "../../resource/openldap/schema")
@@ -128,7 +128,7 @@ loop:
 	f(inspect.NetworkSettings.IPAddress, rootPassword)
 }
 
-func runWithMySQLContainer(t *testing.T, ctx context.Context, f func(host, rootPassword string)) {
+func runWithMySQLContainer(ctx context.Context, t *testing.T, f func(host, rootPassword string)) {
 	rootPassword := rand.String(10)
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	require.NoError(t, err)
@@ -199,29 +199,29 @@ loop:
 	f(inspect.NetworkSettings.IPAddress, rootPassword)
 }
 
-func newMySQLTestService(t *testing.T, ctx context.Context, testFunc func(name string, svc Service)) {
-	runWithMySQLContainer(t, ctx, func(host, rootPassword string) {
-		const dsName = "mysql"
-		var sqliteYamlConfig = fmt.Sprintf(`
-storage:
-  default:
-    name: "mysql"
-    mysql: 
-      host: "%s"
-      schema: "idas"
-      username: "root"
-      password: "%s"
-`, host, rootPassword)
-		logger := logs.GetContextLogger(ctx)
-		err := config.ReloadConfigFromYamlReader(logger, config.NewConverter("", bytes.NewBuffer([]byte(sqliteYamlConfig))))
-		require.NoError(t, err)
-		testFunc(dsName, New(ctx))
-	})
-}
+//func newMySQLTestService(ctx context.Context, t *testing.T, testFunc func(name string, svc Service)) {
+//	runWithMySQLContainer(ctx, t, func(host, rootPassword string) {
+//		const dsName = "mysql"
+//		var sqliteYamlConfig = fmt.Sprintf(`
+//storage:
+//  default:
+//    name: "mysql"
+//    mysql:
+//      host: "%s"
+//      schema: "idas"
+//      username: "root"
+//      password: "%s"
+//`, host, rootPassword)
+//		logger := logs.GetContextLogger(ctx)
+//		err := config.ReloadConfigFromYamlReader(logger, config.NewConverter("", bytes.NewBuffer([]byte(sqliteYamlConfig))))
+//		require.NoError(t, err)
+//		testFunc(dsName, New(ctx))
+//	})
+//}
 
-func newLDAPTestService(t *testing.T, ctx context.Context, testFunc func(name string, svc Service)) {
-	runWithOpenLDAPContainer(t, ctx, func(ldapHost, ldapPassword string) {
-		runWithMySQLContainer(t, ctx, func(host, rootPassword string) {
+func newLDAPTestService(ctx context.Context, t *testing.T, testFunc func(name string, svc Service)) {
+	runWithOpenLDAPContainer(ctx, t, func(ldapHost, ldapPassword string) {
+		runWithMySQLContainer(ctx, t, func(host, rootPassword string) {
 			const dsName = "LDAP"
 			var sqliteYamlConfig = fmt.Sprintf(`
 storage:
@@ -258,15 +258,15 @@ func TestService(t *testing.T) {
 		name string
 		sg   testServiceGenerate
 	}{
-		{name: "Test Sqlite", sg: newSqliteTestService},
-		{name: "Test MySQL", sg: newMySQLTestService},
+		//{name: "Test Sqlite", sg: newSqliteTestService},
+		//{name: "Test MySQL", sg: newMySQLTestService},
 		{name: "Test LDAP", sg: newLDAPTestService},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Minute*10)
 			defer cancel()
-			tt.sg(t, ctx, func(storage string, svc Service) {
+			tt.sg(ctx, t, func(storage string, svc Service) {
 				if svc == nil {
 					t.Logf("[%s] service is null, ignore testing...", tt.name)
 				}
@@ -279,9 +279,13 @@ func TestService(t *testing.T) {
 				}) {
 					return
 				}
-				testUserService(t, ctx, storage, svc)
-				testAppService(t, ctx, storage, svc)
+				testUserService(ctx, t, storage, svc)
+				testAppService(ctx, t, storage, svc)
 			})
 		})
 	}
+}
+
+func Test111(t *testing.T) {
+	fmt.Println("\xe4\xbd\xa0")
 }

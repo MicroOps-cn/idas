@@ -42,7 +42,7 @@ import (
 )
 
 func HTTPProxyAuthenticationFilter(ctx context.Context, endpoints endpoint.Set) restful.FilterFunction {
-	httpLoginUrl, ok := ctx.Value(global.HttpLoginUrlKey).(string)
+	httpLoginURL, ok := ctx.Value(global.HTTPLoginURLKey).(string)
 	if !ok {
 		panic("system error")
 	}
@@ -83,7 +83,7 @@ func HTTPProxyAuthenticationFilter(ctx context.Context, endpoints endpoint.Set) 
 			}
 			return
 		}
-		resp.Header().Set("Location", fmt.Sprintf("%s?redirect_uri=%s", httpLoginUrl, url.QueryEscape(req.Request.RequestURI)))
+		resp.Header().Set("Location", fmt.Sprintf("%s?redirect_uri=%s", httpLoginURL, url.QueryEscape(req.Request.RequestURI)))
 		resp.WriteHeader(302)
 	}
 }
@@ -169,11 +169,11 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 			return
 		}
 		errorHandler(req.Request.Context(), errors.NewServerError(http.StatusUnauthorized, "Not logged in or identity expired"), resp)
-		return
 	}
 }
 
 func HTTPLoggingFilter(req *restful.Request, resp *restful.Response, filterChan *restful.FilterChain) {
+	time.Sleep(time.Second * 1)
 	ctx := req.Request.Context()
 	if ctx == nil {
 		ctx = context.Background()

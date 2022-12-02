@@ -54,7 +54,7 @@ func ECDSAVerify(pub1 string, pub2 string, payload string, sig string) bool {
 }
 
 func ECDSASign(priv string, payload string) (hash string, err error) {
-	r, s := new(big.Int), new(big.Int)
+	var r, s *big.Int
 	privateKey := &ecdsa.PrivateKey{
 		PublicKey: ecdsa.PublicKey{
 			Curve: elliptic.P256(),

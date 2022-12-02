@@ -39,7 +39,7 @@ const (
 	RefreshTokenExpiration      = 30 * 24 * time.Hour
 	ResetPasswordExpiration     = 30 * time.Minute
 	LoginSessionExpiresFormat   = "Mon, 02-Jan-06 15:04:05 MST"
-	HttpExternalUrlKey          = "__http_external_url__"
-	HttpLoginUrlKey             = "__http_login_url__"
-	HttpWebPrefixKey            = "__http_web_prefix__"
+	HTTPExternalURLKey          = "__http_external_url__"
+	HTTPLoginURLKey             = "__http_login_url__"
+	HTTPWebPrefixKey            = "__http_web_prefix__"
 )

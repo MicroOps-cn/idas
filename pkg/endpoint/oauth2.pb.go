@@ -20,6 +20,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// @sync-to-public:public/src/services/idas/enums.ts:OAuthGrantType
 type OAuthGrantType int32
 
 const (
@@ -51,6 +52,7 @@ func (OAuthGrantType) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_3ae5eb17ae3c4e5c, []int{0}
 }
 
+// @sync-to-public:public/src/services/idas/enums.ts:ResponseType
 type OAuthAuthorizeRequest_ResponseType int32
 
 const (

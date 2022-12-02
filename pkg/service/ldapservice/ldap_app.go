@@ -18,10 +18,7 @@ package ldapservice
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"github.com/MicroOps-cn/idas/pkg/logs"
-	"github.com/go-kit/log/level"
 	"net/http"
 	"strconv"
 	"strings"
@@ -86,7 +83,7 @@ func (s UserAndAppService) getAppDetailByDn(ctx context.Context, dn string) (*mo
 	return s.getAppDetailByReq(ctx, searchReq)
 }
 
-// getAppDetailByReq
+//getAppDetailByReq
 //  @Description[en-US]: Use the <ldap.SearchRequest> to search for application information from the LDAP directory specified by "app_search_base". The directory level of the search is 1.
 //  @Description[zh-CN]: 使用<ldap.SearchRequest>从 app_search_base 指定的LDAP目录内搜索应用信息, 搜索的目录层级为1
 //  @param ctx         context.Context
@@ -96,7 +93,7 @@ func (s UserAndAppService) getAppDetailByDn(ctx context.Context, dn string) (*mo
 func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *goldap.SearchRequest) (*models.App, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
-	searchReq.Attributes = []string{"entryUUID", "description", "cn", "avatar", "uniqueMember", "member", "createTimestamp", "config", "modifyTimestamp", "grantMode", "grantType", GroupStatusName}
+	searchReq.Attributes = []string{"entryUUID", "description", "cn", "avatar", "uniqueMember", "member", "createTimestamp", "modifyTimestamp", "grantMode", "grantType", GroupStatusName}
 
 	ret, err := conn.Search(searchReq)
 	if err != nil {
@@ -144,7 +141,7 @@ func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *gol
 				if strings.ToLower(entry.GetAttributeValue("isDefault")) == "true" {
 					roles[idx].IsDefault = true
 				}
-				for _, m := range appEntry.GetAttributeValues("member") {
+				for _, m := range entry.GetAttributeValues("member") {
 					for userDn, user := range userMap {
 						if userDn == m {
 							user.Role = roleName
@@ -155,15 +152,7 @@ func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *gol
 			}
 		}
 	}
-	var appConfig appConfig
-	rawConfig := appEntry.GetAttributeValue("config")
-	if len(rawConfig) > 0 {
-		err = json.Unmarshal([]byte(rawConfig), &appConfig)
-		if err != nil {
-			logger := logs.GetContextLogger(ctx)
-			level.Warn(logger).Log("msg", "failed to unmarshal app config", "err", err)
-		}
-	}
+
 	return &models.App{
 		Model: models.Model{
 			Id:         appEntry.GetAttributeValue("entryUUID"),
@@ -177,9 +166,8 @@ func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *gol
 		GrantMode:   models.AppMeta_GrantMode(w.M[int](httputil.NewValue(appEntry.GetAttributeValue("grantMode")).Default("0").Int())),
 		GrantType:   models.AppMeta_GrantType(w.M[int](httputil.NewValue(appEntry.GetAttributeValue("grantType")).Default("0").Int())),
 		Storage:     s.name,
-		Role:        roles,
-		User:        users,
-		Proxy:       appConfig.Proxy,
+		Roles:       roles,
+		Users:       users,
 	}, nil
 }
 
@@ -221,20 +209,15 @@ func (s UserAndAppService) getAppRoleByUserDnAndAppDn(ctx context.Context, appDn
 		if ldap.IsLdapError(err, goldap.LDAPResultNoSuchObject) {
 			return "", "", err
 		}
-	} else {
-		for _, entry := range searchMemberGroupRet.Entries {
-			if strings.ToLower(entry.GetAttributeValue("isDefault")) == "true" {
-				roleName = entry.GetAttributeValue("cn")
-				roleId = entry.GetAttributeValue("entryUUID")
-			}
-			return entry.GetAttributeValue("entryUUID"), entry.GetAttributeValue("cn"), nil
+	} else if len(searchMemberGroupRet.Entries) > 0 {
+		entry := searchMemberGroupRet.Entries[0]
+		if strings.ToLower(entry.GetAttributeValue("isDefault")) == "true" {
+			roleName = entry.GetAttributeValue("cn")
+			roleId = entry.GetAttributeValue("entryUUID")
 		}
+		return entry.GetAttributeValue("entryUUID"), entry.GetAttributeValue("cn"), nil
 	}
 	return roleId, roleName, nil
-}
-
-type appConfig struct {
-	Proxy *models.AppProxy `json:"proxy"`
 }
 
 // GetApps
@@ -297,6 +280,29 @@ func (s UserAndAppService) GetApps(ctx context.Context, keywords string, current
 	return total, apps, nil
 }
 
+func (s UserAndAppService) DeepDeleteEntry(ctx context.Context, dn string) (err error) {
+	conn := s.Session(ctx)
+	searchChildrenReq := goldap.NewSearchRequest(
+		dn,
+		goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 0, 0, false,
+		"(objectClass=*)", nil, nil,
+	)
+	children, err := conn.Search(searchChildrenReq)
+	if err != nil {
+		return err
+	}
+	for _, entry := range children.Entries {
+		if entry.DN != dn {
+			err = s.DeepDeleteEntry(ctx, entry.DN)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return conn.Del(goldap.NewDelRequest(dn, nil))
+}
+
 // DeleteApps
 //  @Description[en-US]: Delete apps in batch.
 //  @Description[zh-CN]: 批量删除应用。
@@ -312,7 +318,11 @@ func (s UserAndAppService) DeleteApps(ctx context.Context, ids []string) (total 
 		if dn, err = s.getAppDnByEntryUUID(context.WithValue(ctx, global.LDAPConnName, conn), id); err != nil {
 			return total, err
 		} else if err = conn.Del(goldap.NewDelRequest(dn, nil)); err != nil {
-			return
+			fmt.Println("delete: ", dn)
+			err = s.DeepDeleteEntry(ctx, dn)
+			if err != nil {
+				return
+			}
 		}
 		total++
 	}
@@ -346,19 +356,17 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 		return nil, err
 	}
 	if len(updateColumns) == 0 {
-		updateColumns = []string{"name", "description", "avatar", "grant_type", "grant_mode", "status", "user", "config"}
+		updateColumns = []string{"name", "description", "avatar", "grant_type", "grant_mode", "status", "user"}
 	}
 	columns := sets.New[string](updateColumns...)
 	req := goldap.NewModifyRequest(dn, nil)
 
-	member := make([]string, len(app.User))
-	for idx, user := range app.User {
+	member := make([]string, len(app.Users))
+	for idx, user := range app.Users {
 		if member[idx], err = s.getUserDnByEntryUUID(context.WithValue(ctx, global.LDAPConnName, conn), user.Id); err != nil {
 			return nil, err
 		}
 	}
-
-	var config = appConfig{Proxy: app.Proxy}
 
 	replace := []ldapUpdateColumn{
 		{columnName: "name", ldapColumnName: "cn", val: []string{app.Name}},
@@ -368,7 +376,6 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 		{columnName: "grant_mode", ldapColumnName: "grantMode", val: []string{strconv.Itoa(int(app.GrantMode))}},
 		{columnName: "status", ldapColumnName: "status", val: []string{strconv.Itoa(int(app.Status))}},
 		{columnName: "user", ldapColumnName: "uniqueMember", val: member},
-		{columnName: "config", ldapColumnName: "config", val: []string{string(w.M[[]byte](json.Marshal(config)))}},
 	}
 	for _, value := range replace {
 		if columns.Has(value.columnName) && len(value.val) > 0 && len(value.val[0]) > 0 {
@@ -382,19 +389,21 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 		}
 	}
 
-	if len(app.Role) > 0 {
-		for _, role := range app.Role {
-			for _, user := range app.User {
+	if len(app.Roles) > 0 {
+		for _, role := range app.Roles {
+			for _, user := range app.Users {
 				if len(role.Id) != 0 {
 					if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
-						role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
+						role.Users = append(role.Users, &models.User{Model: models.Model{Id: user.Id}})
 					}
-				} else if len(role.Name) != 0 && string(user.Role) == role.Name {
-					role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
+				} else if len(role.Name) != 0 && user.Role == role.Name {
+					role.Users = append(role.Users, &models.User{Model: models.Model{Id: user.Id}})
 				}
 			}
 			roleDn := fmt.Sprintf("cn=%s,%s", role.Name, dn)
-
+			for _, user := range role.Users {
+				fmt.Println(role.Name, role.Id, ">>", user.Id, user.Username)
+			}
 			if err = s.PatchAppRole(context.WithValue(ctx, global.LDAPConnName, conn), roleDn, role); err != nil {
 				return nil, err
 			}
@@ -458,14 +467,12 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 	req := goldap.NewAddRequest(dn, nil)
 
 	var err error
-	member := make([]string, len(app.User))
-	for idx, user := range app.User {
+	member := make([]string, len(app.Users))
+	for idx, user := range app.Users {
 		if member[idx], err = s.getUserDnByEntryUUID(context.WithValue(ctx, global.LDAPConnName, conn), user.Id); err != nil {
 			return nil, err
 		}
 	}
-
-	var config = map[string]interface{}{"proxy": app.Proxy}
 
 	attrs := map[string][]string{
 		"description":  {app.Description},
@@ -475,7 +482,6 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 		"status":       {strconv.Itoa(int(app.Status))},
 		"objectClass":  append(s.GetAppClass().List(), "groupOfUniqueNames", "top"),
 		"uniqueMember": member,
-		"config":       {string(w.M[[]byte](json.Marshal(config)))},
 	}
 
 	if len(app.Id) > 0 {
@@ -491,15 +497,15 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 		return nil, err
 	}
 
-	if len(app.Role) > 0 {
-		for _, role := range app.Role {
-			for _, user := range app.User {
+	if len(app.Roles) > 0 {
+		for _, role := range app.Roles {
+			for _, user := range app.Users {
 				if len(role.Id) != 0 {
 					if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
-						role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
+						role.Users = append(role.Users, &models.User{Model: models.Model{Id: user.Id}})
 					}
 				} else if len(role.Name) != 0 && string(user.Role) == role.Name {
-					role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
+					role.Users = append(role.Users, &models.User{Model: models.Model{Id: user.Id}})
 				}
 			}
 			roleDn := fmt.Sprintf("cn=%s,%s", role.Name, dn)
@@ -525,7 +531,6 @@ var ldapColumnMap = map[string]string{
 	"grant_mode":  "grantMode",
 	"user":        "uniqueMember",
 	"status":      "status",
-	"config":      "config",
 }
 
 // PatchApp
@@ -624,11 +629,11 @@ func (s UserAndAppService) PatchAppRole(ctx context.Context, dn string, role *mo
 	conn := s.Session(ctx)
 	defer conn.Close()
 	var member []string
-	if len(role.User) == 0 {
+	if len(role.Users) == 0 {
 		member = []string{""}
 	} else {
-		member = make([]string, len(role.User))
-		for idx, user := range role.User {
+		member = make([]string, len(role.Users))
+		for idx, user := range role.Users {
 			if member[idx], err = s.getUserDnByEntryUUID(context.WithValue(ctx, global.LDAPConnName, conn), user.Id); err != nil {
 				return err
 			}
@@ -679,7 +684,7 @@ func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, ap
 	if err != nil {
 		return "", err
 	}
-	for _, user := range info.User {
+	for _, user := range info.Users {
 		if user.Id == userId {
 			return user.Role, nil
 		}

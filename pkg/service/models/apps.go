@@ -16,28 +16,16 @@
 
 package models
 
-type App struct {
-	Model
-	Name        string            `gorm:"type:varchar(50);not null;unique" json:"name"`
-	Description string            `gorm:"type:varchar(200);" json:"description"`
-	Avatar      string            `gorm:"type:varchar(128)" json:"avatar"`
-	GrantType   AppMeta_GrantType `gorm:"type:TINYINT(3);not null;default:0"  json:"grantType"`
-	GrantMode   AppMeta_GrantMode `gorm:"type:TINYINT(3)not null;default:0" json:"grantMode"`
-	Status      AppMeta_Status    `gorm:"type:TINYINT(3)not null;default:0" json:"status"`
-	User        []*User           `gorm:"many2many:app_user" json:"user,omitempty"`
-	Role        AppRoles          `gorm:"foreignKey:AppId" json:"role,omitempty"`
-	Proxy       *AppProxy         `gorm:"foreignKey:AppId" json:"proxy,omitempty"`
-	Storage     string            `gorm:"-" json:"storage"`
-}
+type Apps []*App
 
-type AppRole struct {
-	Model
-	AppId     string  `json:"appId" gorm:"type:char(36);not null"`
-	Name      string  `gorm:"type:varchar(50);" json:"name"`
-	Config    string  `json:"config" json:"config"`
-	User      []*User `gorm:"-" json:"user,omitempty"`
-	IsDefault bool    `json:"isDefault" gorm:"not null;default:0"`
-}
+//type AppRole struct {
+//	Model
+//	AppId     string  `json:"appId" gorm:"type:char(36);not null"`
+//	Name      string  `gorm:"type:varchar(50);" json:"name"`
+//	Config    string  `json:"config" json:"config"`
+//	User      []*User `gorm:"-" json:"user,omitempty"`
+//	IsDefault bool    `json:"isDefault" gorm:"not null;default:0"`
+//}
 
 type AppRoles []*AppRole
 
@@ -69,9 +57,20 @@ type AppAuthCode struct {
 
 type AppProxyUrls []*AppProxyUrl
 
-//func (m *AppProxyUrl) UnmarshalJSONPB(unmarshaler *jsonpb.Unmarshaler, bytes []byte) error {
-//	//TODO implement me
-//	panic("implement me")
-//}
-//
-//var _ jsonpb.JSONPBUnmarshaler = &AppProxyUrl{}
+func (a AppProxyUrls) Len() int {
+	return len(a)
+}
+
+func (a AppProxyUrls) Less(i, j int) bool {
+	return a[i].Index < a[j].Index
+}
+
+func (a AppProxyUrls) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+type AppProxyConfig struct {
+	*AppProxyUrl
+	Domain   string `json:"domain" gorm:"type:varchar(50);"`
+	Upstream string `json:"upstream" gorm:"type:varchar(50);"`
+}

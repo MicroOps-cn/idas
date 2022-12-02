@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/MicroOps-cn/idas/pkg/utils/sets"
 	"net"
 	"regexp"
 	"time"
@@ -32,6 +31,7 @@ import (
 	"github.com/MicroOps-cn/idas/api"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/logs"
+	"github.com/MicroOps-cn/idas/pkg/utils/sets"
 	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
@@ -55,7 +55,6 @@ func NewLdapPool(ctx context.Context, options *LdapOptions) (pool Pool, err erro
 	if err != nil {
 		return nil, err
 	}
-
 	client := &Client{
 		pool:    pool,
 		options: options,
@@ -218,7 +217,7 @@ func GetAvailableObjectClass(clt ldap.Client) (sets.Set[string], error) {
 	if err != nil {
 		return nil, err
 	}
-	var classNames = sets.New[string]()
+	classNames := sets.New[string]()
 	for _, entry := range subSchemaResp.Entries {
 		for _, subSchemaSubEntry := range entry.GetAttributeValues("subschemaSubentry") {
 			subEntryReq := ldap.NewSearchRequest(subSchemaSubEntry, ldap.ScopeBaseObject, ldap.DerefAlways,

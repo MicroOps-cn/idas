@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/proto"
 	"gorm.io/driver/sqlite"
@@ -62,19 +63,20 @@ func NewSQLiteClient(ctx context.Context, options *SQLiteOptions) (*Client, erro
 	return &m, nil
 }
 
-type pbSQLiteOptions SQLiteOptions
-
-func (p *pbSQLiteOptions) Reset() {
-	(*SQLiteOptions)(p).Reset()
-}
-
-func (p *pbSQLiteOptions) String() string {
-	return (*SQLiteOptions)(p).String()
-}
-
-func (p *pbSQLiteOptions) ProtoMessage() {
-	(*SQLiteOptions)(p).Reset()
-}
+//
+//type pbSQLiteOptions SQLiteOptions
+//
+//func (p *pbSQLiteOptions) Reset() {
+//	(*SQLiteOptions)(p).Reset()
+//}
+//
+//func (p *pbSQLiteOptions) String() string {
+//	return (*SQLiteOptions)(p).String()
+//}
+//
+//func (p *pbSQLiteOptions) ProtoMessage() {
+//	(*SQLiteOptions)(p).Reset()
+//}
 
 func NewSQLiteOptions() *SQLiteOptions {
 	return &SQLiteOptions{

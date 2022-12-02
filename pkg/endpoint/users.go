@@ -110,7 +110,7 @@ func MakeGetUsersEndpoint(s service.Service) endpoint.Endpoint {
 		req := request.(Requester).GetRequestData().(*GetUsersRequest)
 		resp := NewBaseListResponse[[]*models.User](&req.BaseListRequest)
 		if req.Status == nil {
-			req.Status = w.P[models.UserMeta_UserStatus](models.UserMeta_status_all)
+			req.Status = w.P[models.UserMeta_UserStatus](models.UserMetaStatusAll)
 		}
 		resp.Total, resp.Data, resp.Error = s.GetUsers(
 			ctx, req.Storage, req.Keywords,
@@ -342,6 +342,9 @@ func MakeSendActivationMailEndpoint(s service.Service) endpoint.Endpoint {
 			return nil, errors.NewServerError(http.StatusInternalServerError, "Unknown user's status")
 		}
 		token, err := s.CreateToken(ctx, models.TokenTypeActive, user)
+		if err != nil {
+			return nil, errors.NewServerError(http.StatusInternalServerError, "Failed to create token")
+		}
 		to := fmt.Sprintf("%s<%s>", user.FullName, user.Email)
 		err = s.SendEmail(ctx, map[string]interface{}{
 			"user":  user,

@@ -118,7 +118,7 @@ func (s UserAndAppService) PatchAppRole(ctx context.Context, role *models.AppRol
 			}
 		} else if err != nil {
 			return err
-		} else if role.Name != r.Name || role.Config != r.Config || role.IsDefault != r.IsDefault || role.IsDelete != r.IsDelete {
+		} else if role.Name != r.Name || role.IsDefault != r.IsDefault || role.IsDelete != r.IsDelete {
 			if err = conn.Select("name", "config", "is_delete", "is_default").Updates(&role).Error; err != nil {
 				return err
 			}
@@ -129,7 +129,7 @@ func (s UserAndAppService) PatchAppRole(ctx context.Context, role *models.AppRol
 		}
 	}
 	var userIds []string
-	for _, user := range role.User {
+	for _, user := range role.Users {
 		user.RoleId = role.Id
 		appUser := models.AppUser{AppId: role.AppId, UserId: user.Id, RoleId: role.Id}
 		var oldAppUser models.AppUser
@@ -169,23 +169,23 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 	if len(updateColumns) != 0 {
 		q = q.Select(updateColumns)
 	} else {
-		q = q.Select("name", "description", "proxy", "avatar", "grant_type", "grant_mode", "status")
+		q = q.Select("name", "description", "avatar", "grant_type", "grant_mode", "status")
 	}
 
 	if err := q.Updates(&app).Error; err != nil {
 		return nil, err
 	}
 
-	if len(app.Role) > 0 {
+	if len(app.Roles) > 0 {
 		var roleIds []string
-		for _, role := range app.Role {
-			for _, user := range app.User {
+		for _, role := range app.Roles {
+			for _, user := range app.Users {
 				if len(role.Id) != 0 {
 					if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
-						role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
+						role.Users = append(role.Users, &models.User{Model: models.Model{Id: user.Id}})
 					}
 				} else if len(role.Name) != 0 && string(user.Role) == role.Name {
-					role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
+					role.Users = append(role.Users, &models.User{Model: models.Model{Id: user.Id}})
 				}
 			}
 			role.AppId = app.Id
@@ -238,10 +238,10 @@ func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name strin
 	//}
 	if err = conn.Model(&models.User{}).Select("`t_user`.`id`,`t_user`.`create_time`,`t_user`.`update_time`,`t_user`.`is_delete`,`t_user`.`username`,`t_user`.`salt`,`t_user`.`password`,`t_user`.`email`,`t_user`.`phone_number`,`t_user`.`full_name`,`t_user`.`avatar`,`t_user`.`status`,`t_user`.`login_time`, `t_app_role`.`name` as role, `t_app_role`.`id` as role_id").
 		Joins("JOIN `t_app_user` ON `t_app_user`.`user_id` = `t_user`.`id` AND `t_app_user`.`app_id` = ?", app.Id).
-		Joins("JOIN `t_app_role` ON `t_app_user`.`role_id` = `t_app_role`.`id`").Find(&app.User).Error; err != nil {
+		Joins("JOIN `t_app_role` ON `t_app_user`.`role_id` = `t_app_role`.`id`").Find(&app.Users).Error; err != nil {
 		return nil, err
 	}
-	if err = conn.Model(&app).Association("Role").Find(&app.Role); err != nil {
+	if err = conn.Model(&app).Association("Roles").Find(&app.Roles); err != nil {
 		return nil, err
 	}
 	return
@@ -262,26 +262,26 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 		app.Proxy = nil
 	}
 
-	if err := tx.Omit("User").Create(app).Error; err != nil {
+	if err := tx.Omit("Users").Create(app).Error; err != nil {
 		return nil, err
 	}
-	if len(app.Role) > 0 {
-		var roleIds []string
-		for _, role := range app.Role {
-			for _, user := range app.User {
+	if len(app.Roles) > 0 {
+		//var roleIds []string
+		for _, role := range app.Roles {
+			for _, user := range app.Users {
 				if len(role.Id) != 0 {
 					if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
-						role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
+						role.Users = append(role.Users, &models.User{Model: models.Model{Id: user.Id}})
 					}
 				} else if len(role.Name) != 0 && user.Role == role.Name {
-					role.User = append(role.User, &models.User{Model: models.Model{Id: user.Id}})
+					role.Users = append(role.Users, &models.User{Model: models.Model{Id: user.Id}})
 				}
 			}
 			role.AppId = app.Id
 			if err := s.PatchAppRole(context.WithValue(ctx, global.GormConnName, tx), role); err != nil {
 				return nil, err
 			}
-			roleIds = append(roleIds, role.Id)
+			//roleIds = append(roleIds, role.Id)
 		}
 	}
 

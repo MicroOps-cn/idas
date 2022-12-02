@@ -29,10 +29,8 @@ import (
 	"time"
 )
 
-func testUserService(t *testing.T, ctx context.Context, storage string, svc Service) {
-
+func testUserService(ctx context.Context, t *testing.T, storage string, svc Service) {
 	var userId string
-
 	oriUser := models.User{
 		Username:    "lion",
 		Email:       "lion@idas.local",
@@ -44,7 +42,7 @@ func testUserService(t *testing.T, ctx context.Context, storage string, svc Serv
 
 	if !t.Run("Test Create User", func(t *testing.T) {
 		cUser := oriUser
-		count, users, err := svc.GetUsers(ctx, storage, "", models.UserMeta_status_all, "", 1, 1024)
+		count, users, err := svc.GetUsers(ctx, storage, "", models.UserMetaStatusAll, "", 1, 1024)
 		require.NoError(t, err)
 		require.Len(t, users, 0)
 		require.Equal(t, count, int64(0))
@@ -70,7 +68,7 @@ func testUserService(t *testing.T, ctx context.Context, storage string, svc Serv
 		require.NoError(t, err)
 		userId = user.Id
 
-		require.True(t, time.Now().Sub(user.CreateTime) < time.Second*3 && time.Now().Sub(user.CreateTime) > -time.Second)
+		require.True(t, time.Since(user.CreateTime) < time.Second*3 && time.Since(user.CreateTime) > -time.Second)
 		require.Equal(t, user.Username, "lion")
 		require.Equal(t, user.FullName, "Lion")
 		require.Equal(t, user.Email, "lion@idas.local")
@@ -95,7 +93,7 @@ func testUserService(t *testing.T, ctx context.Context, storage string, svc Serv
 			require.NoError(t, err)
 		}
 
-		count, users, err = svc.GetUsers(ctx, storage, "", models.UserMeta_status_all, "", 1, 20)
+		count, users, err = svc.GetUsers(ctx, storage, "", models.UserMetaStatusAll, "", 1, 20)
 		require.NoError(t, err)
 		require.Len(t, users, 11)
 		require.Equal(t, count, int64(11))
@@ -104,7 +102,7 @@ func testUserService(t *testing.T, ctx context.Context, storage string, svc Serv
 			if u.Id == userId {
 				_, err = uuid.FromString(u.Id)
 				require.NoError(t, err)
-				require.Truef(t, time.Now().Sub(u.CreateTime) <= time.Minute && time.Now().Sub(u.CreateTime) >= -time.Second, "now=%s, createTime=%s,sub=%s", time.Now(), u.CreateTime, time.Now().Sub(u.CreateTime).String())
+				require.Truef(t, time.Since(u.CreateTime) <= time.Minute && time.Since(u.CreateTime) >= -time.Second, "now=%s, createTime=%s,sub=%s", time.Now(), u.CreateTime, time.Since(u.CreateTime).String())
 				require.Equal(t, u.Username, "lion")
 				require.Equal(t, u.FullName, "Lion")
 				require.Equal(t, u.Email, "lion@idas.local")
@@ -118,24 +116,24 @@ func testUserService(t *testing.T, ctx context.Context, storage string, svc Serv
 	}
 
 	t.Run("Test Get Users", func(t *testing.T) {
-		count, users, err := svc.GetUsers(ctx, storage, "Asdooa299shdoiasgd8269bw3i7y9fdsahigf", models.UserMeta_status_all, "", 1, 20)
+		count, users, err := svc.GetUsers(ctx, storage, "Asdooa299shdoiasgd8269bw3i7y9fdsahigf", models.UserMetaStatusAll, "", 1, 20)
 		require.NoError(t, err)
 		require.Len(t, users, 0)
 		require.Equal(t, count, int64(0))
 
-		count, users, err = svc.GetUsers(ctx, storage, "", models.UserMeta_inactive, "", 1, 20)
+		_, users, err = svc.GetUsers(ctx, storage, "", models.UserMeta_inactive, "", 1, 20)
 		require.NoError(t, err)
 		for _, user := range users {
 			require.Equal(t, user.Status, models.UserMeta_inactive)
 		}
 
-		count, users, err = svc.GetUsers(ctx, storage, "", models.UserMeta_normal, "", 1, 20)
+		_, users, err = svc.GetUsers(ctx, storage, "", models.UserMeta_normal, "", 1, 20)
 		require.NoError(t, err)
 		for _, user := range users {
 			require.Equal(t, user.Status, models.UserMeta_normal)
 		}
 
-		count, users, err = svc.GetUsers(ctx, "", "", oriUser.Status, "", 1, 20)
+		_, users, err = svc.GetUsers(ctx, "", "", oriUser.Status, "", 1, 20)
 		require.NoError(t, err)
 		found := false
 		for _, user := range users {
@@ -160,14 +158,14 @@ func testUserService(t *testing.T, ctx context.Context, storage string, svc Serv
 		require.NoError(t, err)
 		_, err = uuid.FromString(user.Id)
 		require.NoError(t, err)
-		require.Truef(t, time.Now().Sub(user.CreateTime) <= time.Minute && time.Now().Sub(user.CreateTime) >= -time.Second, "now=%s, createTime=%s,sub=%s", time.Now(), user.CreateTime, time.Now().Sub(user.CreateTime).String())
+		require.Truef(t, time.Since(user.CreateTime) <= time.Minute && time.Since(user.CreateTime) >= -time.Second, "now=%s, createTime=%s,sub=%s", time.Now(), user.CreateTime, time.Since(user.CreateTime).String())
 		require.Equal(t, user.Username, "lion")
 		require.Equal(t, user.FullName, "Lion_u")
 		require.Equal(t, user.Email, "lion_u@idas.local")
 		require.Equal(t, user.PhoneNumber, "+01123456789")
 		require.Equal(t, user.Avatar, "xxxxxxxxxxx_u")
 		require.Equal(t, user.Status, models.UserMeta_normal)
-		count, users, err := svc.GetUsers(ctx, storage, "", models.UserMeta_status_all, "", 1, 20)
+		count, users, err := svc.GetUsers(ctx, storage, "", models.UserMetaStatusAll, "", 1, 20)
 		require.NoError(t, err)
 		require.Len(t, users, 11)
 		require.Equal(t, count, int64(11))
@@ -176,7 +174,7 @@ func testUserService(t *testing.T, ctx context.Context, storage string, svc Serv
 			if u.Id == userId {
 				_, err = uuid.FromString(u.Id)
 				require.NoError(t, err)
-				require.True(t, time.Now().Sub(u.CreateTime) < time.Second*3 && time.Now().Sub(u.CreateTime) > -time.Second)
+				require.True(t, time.Since(u.CreateTime) < time.Second*3 && time.Since(u.CreateTime) > -time.Second)
 				require.Equal(t, u.Username, "lion")
 				require.Equal(t, u.FullName, "Lion_u")
 				require.Equal(t, u.Email, "lion_u@idas.local")
@@ -202,14 +200,14 @@ func testUserService(t *testing.T, ctx context.Context, storage string, svc Serv
 		require.NoError(t, err)
 		_, err = uuid.FromString(user.Id)
 		require.NoError(t, err)
-		require.True(t, time.Now().Sub(user.CreateTime) < time.Second*3 && time.Now().Sub(user.CreateTime) > -time.Second)
+		require.True(t, time.Since(user.CreateTime) < time.Second*3 && time.Since(user.CreateTime) > -time.Second)
 		require.Equal(t, user.Username, "lion")
 		require.Equal(t, user.FullName, "Lion_u")
 		require.Equal(t, user.Email, "lion_u2@idas.local")
 		require.Equal(t, user.PhoneNumber, "+01123456789")
 		require.Equal(t, user.Avatar, "xxxxxxxxxxx_u2")
 		require.Equal(t, user.Status, models.UserMeta_normal)
-		count, users, err := svc.GetUsers(ctx, storage, "", models.UserMeta_status_all, "", 1, 20)
+		count, users, err := svc.GetUsers(ctx, storage, "", models.UserMetaStatusAll, "", 1, 20)
 		require.NoError(t, err)
 		require.Len(t, users, 11)
 		require.Equal(t, count, int64(11))
@@ -218,7 +216,7 @@ func testUserService(t *testing.T, ctx context.Context, storage string, svc Serv
 			if u.Id == userId {
 				_, err = uuid.FromString(u.Id)
 				require.NoError(t, err)
-				require.True(t, time.Now().Sub(u.CreateTime) < time.Second*3 && time.Now().Sub(u.CreateTime) > -time.Second)
+				require.True(t, time.Since(u.CreateTime) < time.Second*3 && time.Since(u.CreateTime) > -time.Second)
 				require.Equal(t, u.Username, "lion")
 				require.Equal(t, u.FullName, "Lion_u")
 				require.Equal(t, u.Email, "lion_u2@idas.local")
@@ -234,7 +232,7 @@ func testUserService(t *testing.T, ctx context.Context, storage string, svc Serv
 		require.NoError(t, err)
 		require.Equal(t, user.Status, models.UserMeta_disable)
 
-		_, users, err := svc.GetUsers(ctx, storage, "", models.UserMeta_status_all, "", 1, 20)
+		_, users, err := svc.GetUsers(ctx, storage, "", models.UserMetaStatusAll, "", 1, 20)
 		require.NoError(t, err)
 
 		require.Len(t, users, 11)
@@ -279,7 +277,7 @@ func testUserService(t *testing.T, ctx context.Context, storage string, svc Serv
 	t.Run("Test Delete User", func(t *testing.T) {
 		err := svc.DeleteUser(ctx, storage, userId)
 		require.NoError(t, err)
-		count, users, err := svc.GetUsers(ctx, storage, "", models.UserMeta_status_all, "", 1, 20)
+		count, users, err := svc.GetUsers(ctx, storage, "", models.UserMetaStatusAll, "", 1, 20)
 		require.NoError(t, err)
 		require.Len(t, users, 10)
 		require.Equal(t, count, int64(10))

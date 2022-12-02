@@ -79,14 +79,14 @@ func (p *PoolConn) MarkUnusable() {
 	p.unusable = true
 }
 
-func (p *PoolConn) autoClose(err error) {
-	for _, code := range p.closeAt {
-		if ldap.IsErrorWithCode(err, code) {
-			p.MarkUnusable()
-			return
-		}
-	}
-}
+//func (p *PoolConn) autoClose(err error) {
+//	for _, code := range p.closeAt {
+//		if ldap.IsErrorWithCode(err, code) {
+//			p.MarkUnusable()
+//			return
+//		}
+//	}
+//}
 
 func (p *PoolConn) SetTimeout(t time.Duration) {
 	p.Conn.SetTimeout(t)

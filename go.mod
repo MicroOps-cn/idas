@@ -3,12 +3,13 @@ module github.com/MicroOps-cn/idas
 go 1.18
 
 require (
+	github.com/MicroOps-cn/fuck v1.0.0
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/docker/docker v20.10.18+incompatible
 	github.com/emicklei/go-restful-openapi/v2 v2.9.0
 	github.com/emicklei/go-restful/v3 v3.8.1
 	github.com/go-kit/kit v0.12.0
-	github.com/go-kit/log v0.2.0
+	github.com/go-kit/log v0.2.1
 	github.com/go-ldap/ldap v3.0.3+incompatible
 	github.com/go-logfmt/logfmt v0.5.1
 	github.com/go-openapi/spec v0.20.4
@@ -30,15 +31,15 @@ require (
 	github.com/spf13/afero v1.8.2
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.8.1
 	github.com/tredoe/osutil v1.0.6
 	golang.org/x/exp v0.0.0-20200224162631-6cc2880d07d6
 	golang.org/x/image v0.0.0-20190802002840-cff245a6509b
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
-	google.golang.org/protobuf v1.27.1
+	google.golang.org/protobuf v1.28.1
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 	gopkg.in/yaml.v2 v2.4.0
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/mysql v1.3.2
 	gorm.io/driver/sqlite v1.3.1
 	gorm.io/gorm v1.23.3
@@ -65,7 +66,7 @@ require (
 	github.com/go-openapi/jsonreference v0.19.6 // indirect
 	github.com/go-openapi/swag v0.19.15 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/go-cmp v0.5.6 // indirect
+	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.4 // indirect
@@ -95,17 +96,18 @@ require (
 	github.com/tklauser/numcpus v0.2.1 // indirect
 	golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
-	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
-	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/net v0.2.0 // indirect
+	golang.org/x/sys v0.2.0 // indirect
+	golang.org/x/term v0.2.0 // indirect
+	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/tools v0.1.12 // indirect
-	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
-	google.golang.org/grpc v1.43.0 // indirect
+	google.golang.org/genproto v0.0.0-20221114212237-e4508ebdbee1 // indirect
+	google.golang.org/grpc v1.50.1 // indirect
 	gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect
 )
 
 replace (
+	github.com/MicroOps-cn/fuck v1.0.0 => ../fuck
 	github.com/emicklei/go-restful-openapi/v2 v2.9.0 => ../go-restful-openapi
 	github.com/emicklei/go-restful/v3 v3.8.1 => github.com/MicroOps-cn/go-restful/v3 v3.8.1
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df => github.com/MicroOps-cn/gomail/v2 v2.0.1

@@ -18,23 +18,31 @@ package service
 
 import (
 	"context"
-	"github.com/MicroOps-cn/idas/pkg/service/models"
-	"github.com/MicroOps-cn/idas/pkg/utils/sets"
-	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/util/rand"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/util/rand"
+
+	"github.com/MicroOps-cn/idas/pkg/service/models"
+	"github.com/MicroOps-cn/idas/pkg/utils/sets"
 )
 
-func testAppService(t *testing.T, ctx context.Context, storage string, svc Service) {
+func testAppService(ctx context.Context, t *testing.T, storage string, svc Service) {
 	var userIds []string
 	var getRandomUsers = func(roles models.AppRoles) []*models.User {
-		rCount := rand.Intn(20)
+		aUserIds := sets.New[string](userIds...)
+		rCount := rand.IntnRange(1, 21)
 		users := make([]*models.User, rCount)
 
 		for i := 0; i < rCount; i++ {
-			users[i] = &models.User{Model: models.Model{Id: userIds[rand.Intn(len(userIds))]}}
+			userId, ok := aUserIds.PopAny()
+			if !ok {
+				continue
+			}
+			users[i] = &models.User{Model: models.Model{Id: userId}}
 			if len(roles) > 0 {
 				if rand.Intn(3) > 1 {
 					users[i].Role = roles[rand.Intn(len(roles))].Name
@@ -72,7 +80,7 @@ func testAppService(t *testing.T, ctx context.Context, storage string, svc Servi
 			})
 			require.NoError(t, err)
 		}
-		_, users, err := svc.GetUsers(ctx, storage, "", models.UserMeta_status_all, "", 1, 200)
+		_, users, err := svc.GetUsers(ctx, storage, "", models.UserMetaStatusAll, "", 1, 200)
 		require.NoError(t, err)
 		require.Truef(t, len(users) >= 100, "Failed to obtain the information of all current users: the number of users (%s) is less than 100.", len(users))
 		for _, user := range users {
@@ -94,23 +102,24 @@ func testAppService(t *testing.T, ctx context.Context, storage string, svc Servi
 			_, err := svc.CreateApp(ctx, storage, &models.App{})
 			require.Error(t, err)
 		})
-		t.Run("Test Create duplicate App", func(t *testing.T) {
-			_, err := svc.CreateApp(ctx, storage, &models.App{Name: "Test App - AAA - 01"})
+		t.Run("Test Create duplicate Name", func(t *testing.T) {
+			users := models.Users{{Model: models.Model{Id: userIds[rand.Intn(len(userIds))]}}}
+			_, err := svc.CreateApp(ctx, storage, &models.App{Name: "Test App - AAA - 01", Users: users})
 			require.NoError(t, err)
-			_, err = svc.CreateApp(ctx, storage, &models.App{Name: "Test App - AAA - 01"})
+			_, err = svc.CreateApp(ctx, storage, &models.App{Name: "Test App - AAA - 01", Users: users})
 			require.Error(t, err)
 		})
 		t.Run("Test Create App with empty role name ", func(t *testing.T) {
 			_, err := svc.CreateApp(ctx, storage, &models.App{
-				Name: rand.String(rand.IntnRange(1, 20)),
-				Role: models.AppRoles{{Name: ""}},
+				Name:  rand.String(rand.IntnRange(1, 20)),
+				Roles: models.AppRoles{{Name: ""}},
 			})
 			require.EqualError(t, err, "Parameter Error: role name and id is nil")
 		})
 		t.Run("Test Create App with duplicate role", func(t *testing.T) {
 			_, err := svc.CreateApp(ctx, storage, &models.App{
-				Name: rand.String(rand.IntnRange(1, 20)),
-				Role: models.AppRoles{{Name: "AAA"}, {Name: "AAA"}},
+				Name:  rand.String(rand.IntnRange(1, 20)),
+				Roles: models.AppRoles{{Name: "AAA"}, {Name: "AAA"}},
 			})
 			require.EqualError(t, err, "Parameter Error: duplicate role: AAA")
 		})
@@ -127,6 +136,8 @@ func testAppService(t *testing.T, ctx context.Context, storage string, svc Servi
 				for _, user := range users {
 					userRoles[user.Id] = user.Role
 				}
+				var proxy [][5]string
+
 				app := &models.App{
 					Name:        rand.String(rand.IntnRange(1, 20)) + "_" + strconv.Itoa(i),
 					Description: rand.String(rand.Intn(20)),
@@ -134,23 +145,50 @@ func testAppService(t *testing.T, ctx context.Context, storage string, svc Servi
 					GrantType:   models.AppMeta_GrantType(rand.Intn(len(models.AppMeta_GrantType_value))),
 					GrantMode:   models.AppMeta_GrantMode(rand.Intn(len(models.AppMeta_GrantMode_value))),
 					Status:      models.AppMeta_Status(rand.Intn(len(models.AppMeta_Status_value))),
-					User:        users,
-					Role:        roles,
+					Users:       users,
+					Roles:       roles,
 				}
+				if app.GrantType&models.AppMeta_proxy == models.AppMeta_proxy {
+					app.Proxy = &models.AppProxy{
+						Domain:   rand.String(rand.Intn(20)),
+						Upstream: rand.String(rand.Intn(20)),
+					}
+					for j := 0; j < rand.IntnRange(1, 10); j++ {
+						app.Proxy.Urls = append(app.Proxy.Urls, &models.AppProxyUrl{
+							Model:  models.Model{Id: rand.String(rand.Intn(20))},
+							Method: "GET",
+							Url:    rand.String(10),
+							Name:   rand.String(10),
+						})
+					}
+					for _, url := range app.Proxy.Urls {
+						proxy = append(proxy, [5]string{app.Proxy.Domain, app.Proxy.Upstream, url.Method, url.Url, url.Name})
+					}
+				}
+
 				app, err := svc.CreateApp(ctx, storage, app)
 				require.NoError(t, err)
 				info, err := svc.GetAppInfo(ctx, storage, app.Id)
 				require.NoError(t, err)
-				var roleNames1 = make([]string, len(info.Role))
-				var userRoles1 = make(map[string]string, len(info.User))
+				var roleNames1 = make([]string, len(info.Roles))
+				var userRoles1 = make(map[string]string, len(info.Users))
 				for j, role := range roles {
 					roleNames1[j] = role.Name
 				}
 				for _, user := range users {
 					userRoles1[user.Id] = user.Role
 				}
+				var proxy2 [][5]string
+				if info.Proxy != nil {
+					for _, url := range info.Proxy.Urls {
+						proxy2 = append(proxy2, [5]string{info.Proxy.Domain, info.Proxy.Upstream, url.Method, url.Url, url.Id})
+					}
+				}
+				sort.Strings(roleNames)
+				sort.Strings(roleNames1)
 				require.Equal(t, roleNames, roleNames1)
 				require.Equal(t, userRoles, userRoles1)
+				require.Equal(t, proxy, proxy2)
 			}
 		})
 	}) {
@@ -186,40 +224,39 @@ func testAppService(t *testing.T, ctx context.Context, storage string, svc Servi
 		appInfo, err := svc.GetAppInfo(ctx, storage, appId)
 		require.NoError(t, err)
 
-		var roleNames = make([]string, len(appInfo.Role))
-		var userRoles = make(map[string]string, len(appInfo.User))
-		for j, role := range appInfo.Role {
+		var roleNames = make([]string, len(appInfo.Roles))
+		var userRoles = make(map[string]string, len(appInfo.Users))
+		for j, role := range appInfo.Roles {
 			roleNames[j] = role.Name
 		}
-		for _, user := range appInfo.User {
+		for _, user := range appInfo.Users {
 			userRoles[user.Id] = user.Role
 		}
 		var newAppInfo = *appInfo
-		newAppInfo.Name = rand.String(10)
 		newAppInfo.Description = rand.String(10)
 		newAppInfo.Avatar = rand.String(10)
 		newAppInfo.GrantMode = (newAppInfo.GrantMode + 1) % models.AppMeta_GrantMode(len(models.AppMeta_GrantMode_name))
 		newAppInfo.GrantType = (newAppInfo.GrantType + 1) % models.AppMeta_GrantType(len(models.AppMeta_GrantType_name))
 		newAppInfo.Status = (newAppInfo.Status + 1) % models.AppMeta_Status(len(models.AppMeta_Status_name))
 		aUserIds := sets.New[string](userIds...)
-		for _, user := range newAppInfo.User {
+		for _, user := range newAppInfo.Users {
 			if aUserIds.Has(user.Id) {
 				aUserIds.Delete(user.Id)
 			}
 		}
-		app := models.AppRole{
+		appRole := models.AppRole{
 			Name: "X_1asl",
 		}
-		roleNames = append(roleNames, app.Name)
+		roleNames = append(roleNames, appRole.Name)
 		userId, ok := aUserIds.PopAny()
 		if ok {
-			newAppInfo.User = append(newAppInfo.User, &models.User{
+			newAppInfo.Users = append(newAppInfo.Users, &models.User{
 				Model: models.Model{Id: userId},
-				Role:  app.Name,
+				Role:  appRole.Name,
 			})
-			userRoles[userId] = app.Name
+			userRoles[userId] = appRole.Name
 		}
-		newAppInfo.Role = append(newAppInfo.Role, &app)
+		newAppInfo.Roles = append(newAppInfo.Roles, &appRole)
 		tmpAppInfo := newAppInfo
 		_, err = svc.UpdateApp(ctx, storage, &tmpAppInfo)
 		require.NoError(t, err)
@@ -233,15 +270,16 @@ func testAppService(t *testing.T, ctx context.Context, storage string, svc Servi
 		require.Equal(t, newAppInfo.GrantMode, newAppInfo1.GrantMode)
 		require.Equal(t, newAppInfo.Status, newAppInfo1.Status)
 
-		var roleNames1 = make([]string, len(newAppInfo1.Role))
-		var userRoles1 = make(map[string]string, len(newAppInfo1.User))
-		for j, role := range newAppInfo1.Role {
+		var roleNames1 = make([]string, len(newAppInfo1.Roles))
+		var userRoles1 = make(map[string]string, len(newAppInfo1.Users))
+		for j, role := range newAppInfo1.Roles {
 			roleNames1[j] = role.Name
 		}
-		for _, user := range newAppInfo1.User {
+		for _, user := range newAppInfo1.Users {
 			userRoles1[user.Id] = user.Role
 		}
-
+		sort.Strings(roleNames)
+		sort.Strings(roleNames1)
 		require.Equal(t, roleNames, roleNames1)
 		require.Equal(t, userRoles, userRoles1)
 	})
@@ -253,8 +291,8 @@ func testAppService(t *testing.T, ctx context.Context, storage string, svc Servi
 		t.Run("Test List App", func(t *testing.T) {
 			count, apps, err := svc.GetApps(ctx, storage, "", 1, 1024)
 			require.NoError(t, err)
-			require.Truef(t, len(apps) == 100, "Failed to obtain the information of all current apps: the number of users (%s) is not equal 100.", len(apps))
-			require.Truef(t, count == 100, "Failed to obtain the information of all current apps: the number of users (%s) is not equal 100.", len(apps))
+			require.Truef(t, len(apps) == len(appIds)-1, "Failed to obtain the information of all current apps: the number of users (%d) is not equal %d.", len(apps), len(appIds)-1)
+			require.Truef(t, int(count) == len(appIds)-1, "Failed to obtain the information of all current apps: the number of users (%d) is not equal %d.", len(apps), len(appIds)-1)
 		})
 	})
 }

@@ -29,8 +29,17 @@ awk_group_by_go_package='{
   }
 }'
 
+
+if [ -z "$PROTO_DEFS" ] ;then
+    echo "PROTO_DEFS not defined"
+    exit 1
+fi
+
+cd $(dirname $0)/..
+
 TMP_DIR="gogo_out"
 mkdir -p "${TMP_DIR}"
+trap "rm -rf '${TMP_DIR}'" SIGINT SIGQUIT EXIT
 grep -HoP '(?<=option go_package = ")[^;]+' ${PROTO_DEFS} | awk -F: "${awk_group_by_go_package}" | while read line; do
     log=$(${PROTOC} ${PROTOC_OPTS} $line 2>&1)
     if [ $? -ne 0 ]; then
@@ -51,4 +60,3 @@ find gogo_out -type f -name '*.pb.go' -print | while read tmp_path; do
     mv "${tmp_path}" "${filename}"
 done
 
-rm -rf "${TMP_DIR}"

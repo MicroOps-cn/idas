@@ -19,10 +19,13 @@ package gormservice
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 
 	gogorm "gorm.io/gorm"
 
 	"github.com/MicroOps-cn/idas/pkg/client/gorm"
+	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/utils/sign"
 )
@@ -41,7 +44,14 @@ func (c CommonService) Name() string {
 }
 
 func (c CommonService) AutoMigrate(ctx context.Context) error {
-	err := c.Session(ctx).AutoMigrate(&models.File{}, &models.Permission{}, &models.Role{}, &models.UserKey{})
+	err := c.Session(ctx).AutoMigrate(
+		&models.File{},
+		&models.Permission{},
+		&models.Role{},
+		&models.UserKey{},
+		&models.AppProxy{},
+		&models.AppProxyUrl{},
+	)
 	if err != nil {
 		return err
 	}
@@ -124,4 +134,71 @@ func (c CommonService) DeleteUserKeys(ctx context.Context, userId string, id []s
 		return deleted.RowsAffected, err
 	}
 	return deleted.RowsAffected, nil
+}
+
+func (c CommonService) GetProxyConfig(ctx context.Context, host string, method string, path string) (*models.AppProxyConfig, error) {
+	conn := c.Session(ctx)
+	var proxy []models.AppProxy
+
+	if err := conn.Find(&proxy, "host = ?", host).Error; err != nil {
+		return nil, err
+	}
+	var dftURL *models.AppProxyConfig
+	for _, appProxy := range proxy {
+		sort.Sort(appProxy.Urls)
+		for _, url := range appProxy.Urls {
+			if url.Method == "*" && url.Url == "/" {
+				dftURL = &models.AppProxyConfig{
+					AppProxyUrl: url,
+					Domain:      appProxy.Domain,
+					Upstream:    appProxy.Domain,
+				}
+			} else if url.Method == "*" || url.Method == method {
+				if strings.HasPrefix(path, url.Url) {
+					return &models.AppProxyConfig{
+						AppProxyUrl: url,
+						Domain:      appProxy.Domain,
+						Upstream:    appProxy.Domain,
+					}, nil
+				}
+			}
+		}
+	}
+	if dftURL != nil {
+		return dftURL, nil
+	}
+	return nil, errors.NotFoundError
+}
+
+func (c CommonService) UpdateProxyConfig(ctx context.Context, proxy *models.AppProxy) (newProxy *models.AppProxy, err error) {
+	conn := c.Session(ctx)
+	var model models.Model
+	for i, url := range proxy.Urls {
+		url.Index = uint32(i)
+	}
+	if err = conn.Model(&models.AppProxy{}).Select("id").Where("app_id = ?", proxy.AppId).First(&model).Error; err != nil && err != gogorm.ErrRecordNotFound {
+		return nil, err
+	}
+	proxy.Id = model.Id
+	if len(proxy.Id) > 0 {
+		if err = conn.Updates(proxy).Error; err != nil {
+			return nil, err
+		}
+	} else {
+		if err = conn.Create(proxy).Error; err != nil {
+			return nil, err
+		}
+	}
+	newProxy = new(models.AppProxy)
+	if err = conn.Where("id = ?", proxy.Id).First(&newProxy).Error; err != nil {
+		return nil, err
+	}
+	return newProxy, nil
+}
+
+func (c CommonService) GetAppProxyConfig(ctx context.Context, appId string) (proxy *models.AppProxy, err error) {
+	if err = c.Session(ctx).Where("app_id = ?", appId).Preload("Urls").First(&proxy).Error; err != nil {
+		return nil, err
+	}
+	return proxy, nil
 }

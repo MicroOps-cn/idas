@@ -18,30 +18,11 @@ package models
 
 import (
 	"crypto/sha1"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
-	"time"
 )
-
-type User struct {
-	Model
-	Username    string              `gorm:"type:varchar(20);unique" json:"username"`
-	Salt        sql.RawBytes        `gorm:"type:tinyblob;" json:"-" `
-	Password    sql.RawBytes        `gorm:"type:tinyblob;" json:"password,omitempty"`
-	Email       string              `gorm:"type:varchar(50);" json:"email" valid:"email,optional"`
-	PhoneNumber string              `gorm:"type:varchar(50);" json:"phoneNumber" valid:"numeric,optional"`
-	FullName    string              `gorm:"type:varchar(50);" json:"fullName"`
-	Avatar      string              `gorm:"type:varchar(128);" json:"avatar"`
-	Status      UserMeta_UserStatus `gorm:"not null;default:0" json:"status"`
-	LoginTime   *time.Time          `json:"loginTime,omitempty"`
-	RoleId      string              `gorm:"->;-:migration" json:"roleId,omitempty"`
-	Role        string              `gorm:"->;-:migration" json:"role,omitempty"`
-	App         []*App              `gorm:"many2many:app_user" json:"app,omitempty"`
-	Storage     string              `gorm:"-" json:"storage"`
-}
 
 func (u User) MarshalJSON() ([]byte, error) {
 	type plain User
@@ -83,6 +64,8 @@ func (u User) GetAttr(name string) string {
 	}
 	return ""
 }
+
+type Users []*User
 
 type UserKey struct {
 	Model

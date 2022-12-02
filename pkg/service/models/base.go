@@ -49,7 +49,7 @@ func NewId(seed ...string) string {
 		ts += hash
 	}
 
-	var id = uuid.NewV4()
+	id := uuid.NewV4()
 	binary.BigEndian.PutUint64(id[:8], ts)
 	return id.String()
 }

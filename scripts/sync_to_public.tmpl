@@ -1,0 +1,29 @@
+package main
+
+import (
+	"fmt"
+{{- range .modules }}
+	{{ .Name }} "github.com/MicroOps-cn/idas/{{ .Path }}"
+{{- end }}
+	"os"
+)
+func init(){
+    fmt.Println(os.Getwd())
+}
+func main() {
+	filename := "{{ .filename }}"
+	f, err := os.OpenFile(filename, os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		panic(fmt.Errorf("failed to open file %s: %s", filename, err))
+	}
+	defer f.Close()
+{{- range $m := .modules }}
+{{ range $t := .Types  }}
+	f.WriteString("export enum {{ .DstType }}{\n")
+	for name, value := range {{ $m.Name }}.{{ $t.SourceType }}_value {
+		f.WriteString(fmt.Sprintf("  %s = %d,\n", name, value))
+	}
+	f.WriteString("}\n\n")
+{{- end }}
+{{- end }}
+}

@@ -32,7 +32,7 @@ import (
 
 func (s Set) CreateLoginSession(ctx context.Context, username string, password string, rememberMe bool) (session string, err error) {
 	users, err := s.VerifyPassword(ctx, username, password)
-	if len(users) == 0 {
+	if len(users) == 0 || err != nil {
 		return "", errors.UnauthorizedError
 	}
 	for _, user := range users {

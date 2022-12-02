@@ -21,7 +21,6 @@ package logs
 
 import (
 	"context"
-	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
 	"io"
 	"os"
 	"strings"
@@ -34,6 +33,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/MicroOps-cn/idas/pkg/global"
+	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
 )
 
 // This timestamp format differs from RFC3339Nano by using .000 instead

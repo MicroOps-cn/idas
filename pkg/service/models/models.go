@@ -19,24 +19,41 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
 func (x AppMeta_GrantType) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + x.String() + `"`), nil
+	var ret []string
+	for val := range AppMeta_GrantType_name {
+		if val != 0 && int32(x)&val == val {
+			ret = append(ret, strconv.Itoa(int(val)))
+		}
+	}
+
+	return []byte("[" + strings.Join(ret, ", ") + "]"), nil
 }
 
-func (x AppMeta_GrantMode) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + x.String() + `"`), nil
+func NewGrantType(gs ...AppMeta_GrantType) AppMeta_GrantType {
+	var ret AppMeta_GrantType
+	for _, g := range gs {
+		ret |= g
+	}
+	return ret
 }
 
-func (x AppMeta_Status) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + x.String() + `"`), nil
-}
+//func (x AppMeta_GrantMode) MarshalJSON() ([]byte, error) {
+//	return []byte(`"` + x.String() + `"`), nil
+//}
+//
+//func (x AppMeta_Status) MarshalJSON() ([]byte, error) {
+//	return []byte(`"` + x.String() + `"`), nil
+//}
+//
+//func (x UserMeta_UserStatus) MarshalJSON() ([]byte, error) {
+//	return []byte(`"` + x.String() + `"`), nil
+//}
 
-func (x UserMeta_UserStatus) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + x.String() + `"`), nil
-}
 func (x *UserMeta_UserStatus) UnmarshalJSON(bytes []byte) error {
 	if strings.HasPrefix(string(bytes), `"`) {
 		var name string
@@ -66,5 +83,5 @@ func (x *UserMeta_UserStatus) UnmarshalJSON(bytes []byte) error {
 }
 
 const (
-	UserMeta_status_all UserMeta_UserStatus = -1
+	UserMetaStatusAll UserMeta_UserStatus = -1
 )

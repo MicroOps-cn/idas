@@ -86,6 +86,7 @@ func getValElem(valOf reflect.Value) reflect.Value {
 	}
 	return valOf
 }
+
 func getTypeElem(typeOf reflect.Type) reflect.Type {
 	if typeOf.Kind() == reflect.Ptr || typeOf.Kind() == reflect.Pointer {
 		return getTypeElem(typeOf.Elem())

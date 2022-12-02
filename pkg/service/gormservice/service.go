@@ -24,10 +24,10 @@ import (
 
 func NewUserAndAppService(ctx context.Context, name string, client *gorm.Client) *UserAndAppService {
 	conn := client.Session(ctx)
-	if err := conn.SetupJoinTable(&models.App{}, "User", models.AppUser{}); err != nil {
+	if err := conn.SetupJoinTable(&models.App{}, "Users", models.AppUser{}); err != nil {
 		panic(err)
 	}
-	if err := conn.SetupJoinTable(&models.User{}, "App", models.AppUser{}); err != nil {
+	if err := conn.SetupJoinTable(&models.User{}, "Apps", models.AppUser{}); err != nil {
 		panic(err)
 	}
 	set := &UserAndAppService{name: name, Client: client}

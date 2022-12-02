@@ -60,7 +60,7 @@ func MakeUserLogoutEndpoint(s service.Service) endpoint.Endpoint {
 				}
 			}
 			loginCookie := fmt.Sprintf("%s=%s; Path=/;Expires=%s", global.LoginSession, cookie.Value, time.Now().UTC().Format(global.LoginSessionExpiresFormat))
-			request.(RestfulRequester).GetRestfulResponse().AddHeader("Set-Cookie", fmt.Sprintf(loginCookie))
+			request.(RestfulRequester).GetRestfulResponse().AddHeader("Set-Cookie", loginCookie)
 		} else {
 			resp.Error = errors.NewServerError(http.StatusUnauthorized, "Invalid identity information")
 		}
