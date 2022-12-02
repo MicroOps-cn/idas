@@ -39,12 +39,13 @@ import (
 const GroupStatusName = "status"
 
 // getAppDnByEntryUUID
-//  @Description[en-US]: Search and obtain the application dn (LDAP distinguished name) through UUID under "app_search_base".
-//  @Description[zh-CN]: 从“app_search_base”下通过UUID搜索并获取应用dn(LDAP distinguished name)。
-//  @param ctx  context.Context
-//  @param id   string
-//  @return dn  string
-//  @return err error
+//
+//	@Description[en-US]: Search and obtain the application dn (LDAP distinguished name) through UUID under "app_search_base".
+//	@Description[zh-CN]: 从“app_search_base”下通过UUID搜索并获取应用dn(LDAP distinguished name)。
+//	@param ctx  context.Context
+//	@param id   string
+//	@return dn  string
+//	@return err error
 func (s UserAndAppService) getAppDnByEntryUUID(ctx context.Context, id string) (dn string, err error) {
 	u, err := uuid.FromString(id)
 	if err != nil {
@@ -69,12 +70,13 @@ func (s UserAndAppService) getAppDnByEntryUUID(ctx context.Context, id string) (
 }
 
 // getAppDetailByDn
-//  @Description[en-US]: Use the dn(LDAP distinguished name) or application name to search for application information from the LDAP directory specified by "app_search_base". The directory level of the search is 1.
-//  @Description[zh-CN]: 使用dn(LDAP distinguished name)或应用名称从 app_search_base 指定的LDAP目录内搜索应用信息, 搜索的目录层级为1
-//  @param ctx         context.Context
-//  @param dn          string
-//  @return appDetail  *models.App
-//  @return err        error
+//
+//	@Description[en-US]: Use the dn(LDAP distinguished name) or application name to search for application information from the LDAP directory specified by "app_search_base". The directory level of the search is 1.
+//	@Description[zh-CN]: 使用dn(LDAP distinguished name)或应用名称从 app_search_base 指定的LDAP目录内搜索应用信息, 搜索的目录层级为1
+//	@param ctx         context.Context
+//	@param dn          string
+//	@return appDetail  *models.App
+//	@return err        error
 func (s UserAndAppService) getAppDetailByDn(ctx context.Context, dn string) (*models.App, error) {
 	searchReq := goldap.NewSearchRequest(
 		dn, goldap.ScopeBaseObject, goldap.NeverDerefAliases, 1, 0, false,
@@ -83,13 +85,14 @@ func (s UserAndAppService) getAppDetailByDn(ctx context.Context, dn string) (*mo
 	return s.getAppDetailByReq(ctx, searchReq)
 }
 
-//getAppDetailByReq
-//  @Description[en-US]: Use the <ldap.SearchRequest> to search for application information from the LDAP directory specified by "app_search_base". The directory level of the search is 1.
-//  @Description[zh-CN]: 使用<ldap.SearchRequest>从 app_search_base 指定的LDAP目录内搜索应用信息, 搜索的目录层级为1
-//  @param ctx         context.Context
-//  @param searchReq   *ldap.SearchRequest
-//  @return appDetail  *models.App
-//  @return err        error
+// getAppDetailByReq
+//
+//	@Description[en-US]: Use the <ldap.SearchRequest> to search for application information from the LDAP directory specified by "app_search_base". The directory level of the search is 1.
+//	@Description[zh-CN]: 使用<ldap.SearchRequest>从 app_search_base 指定的LDAP目录内搜索应用信息, 搜索的目录层级为1
+//	@param ctx         context.Context
+//	@param searchReq   *ldap.SearchRequest
+//	@return appDetail  *models.App
+//	@return err        error
 func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *goldap.SearchRequest) (*models.App, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -172,14 +175,15 @@ func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *gol
 }
 
 // getAppRoleByUserDnAndAppDn
-//  @Description[en-US]: Get the permission of the specified user under the application
-//  @Description[zh-CN]: 获取应用下指定用户的权限
-//  @param ctx       context.Context
-//  @param appDn     string
-//  @param userDn    string
-//  @return roleId   string
-//  @return roleName string
-//  @return err      error
+//
+//	@Description[en-US]: Get the permission of the specified user under the application
+//	@Description[zh-CN]: 获取应用下指定用户的权限
+//	@param ctx       context.Context
+//	@param appDn     string
+//	@param userDn    string
+//	@return roleId   string
+//	@return roleName string
+//	@return err      error
 func (s UserAndAppService) getAppRoleByUserDnAndAppDn(ctx context.Context, appDn string, userDn string) (roleId, roleName string, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -221,15 +225,16 @@ func (s UserAndAppService) getAppRoleByUserDnAndAppDn(ctx context.Context, appDn
 }
 
 // GetApps
-//  @Description[en-US]: Get the application list. The application information does not include agent, role, user and other information.
-//  @Description[zh-CN]: 获取应用列表，应用信息中不包含代理、角色、用户等信息。
-//  @param ctx       context.Context
-//  @param keywords  string
-//  @param current   int64
-//  @param pageSize  int64
-//  @return total    int64
-//  @return apps     []*models.App
-//  @return err      error
+//
+//	@Description[en-US]: Get the application list. The application information does not include agent, role, user and other information.
+//	@Description[zh-CN]: 获取应用列表，应用信息中不包含代理、角色、用户等信息。
+//	@param ctx       context.Context
+//	@param keywords  string
+//	@param current   int64
+//	@param pageSize  int64
+//	@return total    int64
+//	@return apps     []*models.App
+//	@return err      error
 func (s UserAndAppService) GetApps(ctx context.Context, keywords string, current, pageSize int64) (total int64, apps []*models.App, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -304,12 +309,13 @@ func (s UserAndAppService) DeepDeleteEntry(ctx context.Context, dn string) (err 
 }
 
 // DeleteApps
-//  @Description[en-US]: Delete apps in batch.
-//  @Description[zh-CN]: 批量删除应用。
-//  @param ctx     context.Context
-//  @param ids     []string         : ID List
-//  @return total  int64            : The quantity has been deleted. Since go ldap does not support transactions temporarily, an error may be reported after deleting a part.
-//  @return err    error
+//
+//	@Description[en-US]: Delete apps in batch.
+//	@Description[zh-CN]: 批量删除应用。
+//	@param ctx     context.Context
+//	@param ids     []string         : ID List
+//	@return total  int64            : The quantity has been deleted. Since go ldap does not support transactions temporarily, an error may be reported after deleting a part.
+//	@return err    error
 func (s UserAndAppService) DeleteApps(ctx context.Context, ids []string) (total int64, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -330,23 +336,25 @@ func (s UserAndAppService) DeleteApps(ctx context.Context, ids []string) (total 
 }
 
 // DeleteApp
-//  @Description[en-US]: Delete an app.
-//  @Description[zh-CN]: 删除应用。
-//  @param ctx 	context.Context
-//  @param id 	string
-//  @return err	error
+//
+//	@Description[en-US]: Delete an app.
+//	@Description[zh-CN]: 删除应用。
+//	@param ctx 	context.Context
+//	@param id 	string
+//	@return err	error
 func (s UserAndAppService) DeleteApp(ctx context.Context, id string) (err error) {
 	return w.Error[int64](s.DeleteApps(ctx, []string{id}))
 }
 
 // UpdateApp
-//  @Description[en-US]: Update applies the value of the specified column. If no column is specified, all column information is updated.
-//  @Description[zh-CN]: 更新应用指定列的值，如果未指定列，则表示更新所有列信息。
-//  @param ctx           context.Context
-//  @param app           *models.App
-//  @param updateColumns ...string
-//  @return newApp       *models.App
-//  @return err          error
+//
+//	@Description[en-US]: Update applies the value of the specified column. If no column is specified, all column information is updated.
+//	@Description[zh-CN]: 更新应用指定列的值，如果未指定列，则表示更新所有列信息。
+//	@param ctx           context.Context
+//	@param app           *models.App
+//	@param updateColumns ...string
+//	@return newApp       *models.App
+//	@return err          error
 func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updateColumns ...string) (newApp *models.App, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -420,13 +428,14 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 }
 
 // GetAppInfo
-//  @Description[en-US]: Use the ID or application name to search for application information from the LDAP directory specified by "app_search_base". The directory level of the search is 1.
-//  @Description[zh-CN]: 使用ID或应用名称从 app_search_base 指定的LDAP目录内搜索应用信息, 搜索的目录层级为1
-//  @param ctx  context.Context
-//  @param id   string          : App ID
-//  @param name string          : App Name
-//  @return app *models.App     : App Details
-//  @return err error
+//
+//	@Description[en-US]: Use the ID or application name to search for application information from the LDAP directory specified by "app_search_base". The directory level of the search is 1.
+//	@Description[zh-CN]: 使用ID或应用名称从 app_search_base 指定的LDAP目录内搜索应用信息, 搜索的目录层级为1
+//	@param ctx  context.Context
+//	@param id   string          : App ID
+//	@param name string          : App Name
+//	@return app *models.App     : App Details
+//	@return err error
 func (s UserAndAppService) GetAppInfo(ctx context.Context, id, name string) (appDetail *models.App, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -454,12 +463,13 @@ func (s UserAndAppService) GetAppInfo(ctx context.Context, id, name string) (app
 }
 
 // CreateApp
-//  @Description[en-US]: Create an app.
-//  @Description[zh-CN]: 创建应用
-//  @param ctx        context.Context
-//  @param app        *models.App
-//  @return appDetail *models.App
-//  @return error
+//
+//	@Description[en-US]: Create an app.
+//	@Description[zh-CN]: 创建应用
+//	@param ctx        context.Context
+//	@param app        *models.App
+//	@return appDetail *models.App
+//	@return error
 func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*models.App, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -534,12 +544,13 @@ var ldapColumnMap = map[string]string{
 }
 
 // PatchApp
-//  @Description[en-US]: Incremental update application.
-//  @Description[zh-CN]: 增量更新应用。
-//  @param ctx        context.Context
-//  @param fields     map[string]interface{}
-//  @return appDetail app *models.App
-//  @return err       error
+//
+//	@Description[en-US]: Incremental update application.
+//	@Description[zh-CN]: 增量更新应用。
+//	@param ctx        context.Context
+//	@param fields     map[string]interface{}
+//	@return appDetail app *models.App
+//	@return err       error
 func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]interface{}) (app *models.App, err error) {
 	id, ok := fields["id"].(string)
 	if !ok {
@@ -580,12 +591,13 @@ func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]inter
 }
 
 // PatchApps
-//  @Description[en-US]: Incrementally update information of multiple applications.
-//  @Description[zh-CN]: 增量更新多个应用的信息。
-//  @param ctx     context.Context
-//  @param patch   []map[string]interface{}
-//  @return total  int64
-//  @return err    error
+//
+//	@Description[en-US]: Incrementally update information of multiple applications.
+//	@Description[zh-CN]: 增量更新多个应用的信息。
+//	@param ctx     context.Context
+//	@param patch   []map[string]interface{}
+//	@return total  int64
+//	@return err    error
 func (s UserAndAppService) PatchApps(ctx context.Context, patch []map[string]interface{}) (total int64, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -619,12 +631,13 @@ func (s UserAndAppService) PatchApps(ctx context.Context, patch []map[string]int
 }
 
 // PatchAppRole
-//  @Description[en-US]: Update App Role.
-//  @Description[zh-CN]: 更新应用角色。
-//  @param ctx     context.Context
-//  @param dn      string
-//  @param patch   *models.AppRole
-//  @return err    error
+//
+//	@Description[en-US]: Update App Role.
+//	@Description[zh-CN]: 更新应用角色。
+//	@param ctx     context.Context
+//	@param dn      string
+//	@param patch   *models.AppRole
+//	@return err    error
 func (s UserAndAppService) PatchAppRole(ctx context.Context, dn string, role *models.AppRole) (err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -672,13 +685,14 @@ func (s UserAndAppService) PatchAppRole(ctx context.Context, dn string, role *mo
 }
 
 // VerifyUserAuthorizationForApp
-//  @Description[en-US]: Verify user authorization for the application.
-//  @Description[zh-CN]: 验证应用程序的用户授权
-//  @param ctx    context.Context
-//  @param appId  string
-//  @param userId string
-//  @return role  string   :Role name, such as admin, viewer, editor ...
-//  @return err   error
+//
+//	@Description[en-US]: Verify user authorization for the application.
+//	@Description[zh-CN]: 验证应用程序的用户授权
+//	@param ctx    context.Context
+//	@param appId  string
+//	@param userId string
+//	@return role  string   :Role name, such as admin, viewer, editor ...
+//	@return err   error
 func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, appId string, userId string) (role string, err error) {
 	info, err := s.GetAppInfo(ctx, appId, "")
 	if err != nil {

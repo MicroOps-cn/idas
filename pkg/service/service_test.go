@@ -20,9 +20,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/MicroOps-cn/idas/config"
-	"github.com/MicroOps-cn/idas/pkg/logs"
-	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
+	"net"
+	"os"
+	"path"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -32,12 +36,10 @@ import (
 	"github.com/moby/term"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/util/rand"
-	"net"
-	"os"
-	"path"
-	"strings"
-	"testing"
-	"time"
+
+	"github.com/MicroOps-cn/idas/config"
+	"github.com/MicroOps-cn/idas/pkg/logs"
+	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
 )
 
 type testServiceGenerate func(ctx context.Context, t *testing.T, testFunc func(name string, svc Service))
@@ -223,7 +225,7 @@ func newLDAPTestService(ctx context.Context, t *testing.T, testFunc func(name st
 	runWithOpenLDAPContainer(ctx, t, func(ldapHost, ldapPassword string) {
 		runWithMySQLContainer(ctx, t, func(host, rootPassword string) {
 			const dsName = "LDAP"
-			var sqliteYamlConfig = fmt.Sprintf(`
+			sqliteYamlConfig := fmt.Sprintf(`
 storage:
   user:
   - name: "LDAP"

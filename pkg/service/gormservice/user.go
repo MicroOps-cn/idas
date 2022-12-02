@@ -34,12 +34,13 @@ import (
 )
 
 // ResetPassword
-//  @Description[en-US]: Reset User Password.
-//  @Description[zh-CN]: 重置用户密码。
-//  @param ctx       context.Context
-//  @param id        string
-//  @param password  string           : New password.
-//  @return err      error
+//
+//	@Description[en-US]: Reset User Password.
+//	@Description[zh-CN]: 重置用户密码。
+//	@param ctx       context.Context
+//	@param id        string
+//	@param password  string           : New password.
+//	@return err      error
 func (s UserAndAppService) ResetPassword(ctx context.Context, ids string, password string) error {
 	conn := s.Session(ctx).Begin()
 	defer conn.Callback()
@@ -57,11 +58,12 @@ func (s UserAndAppService) ResetPassword(ctx context.Context, ids string, passwo
 }
 
 // UpdateLoginTime
-//  @Description[en-US]: Update the user's last login time.
-//  @Description[zh-CN]: 更新用户最后一次登陆时间。
-//  @param ctx 	context.Context
-//  @param id 	string
-//  @return error
+//
+//	@Description[en-US]: Update the user's last login time.
+//	@Description[zh-CN]: 更新用户最后一次登陆时间。
+//	@param ctx 	context.Context
+//	@param id 	string
+//	@return error
 func (s UserAndAppService) UpdateLoginTime(ctx context.Context, id string) error {
 	tx := s.Session(ctx).Begin()
 	defer tx.Rollback()
@@ -89,12 +91,13 @@ WHERE
 `
 
 // VerifyPasswordById
-//  @Description[en-US]: Verify the user's password through ID.
-//  @Description[zh-CN]: 通过ID验证用户密码。
-//  @param ctx 	context.Context
-//  @param id 	string
-//  @param password 	string
-//  @return users	[]*models.User
+//
+//	@Description[en-US]: Verify the user's password through ID.
+//	@Description[zh-CN]: 通过ID验证用户密码。
+//	@param ctx 	context.Context
+//	@param id 	string
+//	@param password 	string
+//	@return users	[]*models.User
 func (s UserAndAppService) VerifyPasswordById(ctx context.Context, id, password string) (users []*models.User) {
 	logger := logs.GetContextLogger(ctx)
 	var user models.User
@@ -130,12 +133,13 @@ WHERE
 `
 
 // VerifyPassword
-//  @Description[en-US]: Verify password for user.
-//  @Description[zh-CN]: 验证用户密码。
-//  @param ctx 	context.Context
-//  @param username 	string
-//  @param password 	string
-//  @return users	[]*models.User
+//
+//	@Description[en-US]: Verify password for user.
+//	@Description[zh-CN]: 验证用户密码。
+//	@param ctx 	context.Context
+//	@param username 	string
+//	@param password 	string
+//	@return users	[]*models.User
 func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) []*models.User {
 	logger := logs.GetContextLogger(ctx)
 	var user models.User
@@ -155,13 +159,14 @@ func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, 
 }
 
 // GetUserInfoByUsernameAndEmail
-//  @Description[en-US]: Use username or email to obtain user information.
-//  @Description[zh-CN]: 使用用户名或email获取用户信息。
-//  @param ctx           context.Context
-//  @param username      string
-//  @param email         string
-//  @return userDetail   *models.User
-//  @return err          error
+//
+//	@Description[en-US]: Use username or email to obtain user information.
+//	@Description[zh-CN]: 使用用户名或email获取用户信息。
+//	@param ctx           context.Context
+//	@param username      string
+//	@param email         string
+//	@return userDetail   *models.User
+//	@return err          error
 func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (user *models.User, err error) {
 	user = new(models.User)
 	query := s.Session(ctx).Where("username = ? and email = ? and is_delete = 0", username, email)
@@ -172,17 +177,18 @@ func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, us
 }
 
 // GetUsers
-//  @Description[en-US]: Get user list.
-//  @Description[zh-CN]: 获取用户列表。
-//  @param ctx       context.Context
-//  @param keywords  string
-//  @param status    models.UserMeta_UserStatus
-//  @param appId     string
-//  @param current   int64
-//  @param pageSize  int64
-//  @return total    int64
-//  @return users    []*models.User
-//  @return err      error
+//
+//	@Description[en-US]: Get user list.
+//	@Description[zh-CN]: 获取用户列表。
+//	@param ctx       context.Context
+//	@param keywords  string
+//	@param status    models.UserMeta_UserStatus
+//	@param appId     string
+//	@param current   int64
+//	@param pageSize  int64
+//	@return total    int64
+//	@return users    []*models.User
+//	@return err      error
 func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserMeta_UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error) {
 	query := s.Session(ctx).Where("t_user.is_delete = 0")
 	if len(keywords) > 0 {
@@ -215,12 +221,13 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 }
 
 // PatchUsers
-//  @Description[en-US]: Incrementally update information of multiple users.
-//  @Description[zh-CN]: 增量更新多个用户的信息。
-//  @param ctx 		context.Context
-//  @param patch 	[]map[string]interface{}
-//  @return count	int64
-//  @return err		error
+//
+//	@Description[en-US]: Incrementally update information of multiple users.
+//	@Description[zh-CN]: 增量更新多个用户的信息。
+//	@param ctx 		context.Context
+//	@param patch 	[]map[string]interface{}
+//	@return count	int64
+//	@return err		error
 func (s UserAndAppService) PatchUsers(ctx context.Context, patch []map[string]interface{}) (int64, error) {
 	var patchCount int64
 	tx := s.Session(ctx).Begin()
@@ -272,12 +279,13 @@ func (s UserAndAppService) PatchUsers(ctx context.Context, patch []map[string]in
 }
 
 // DeleteUsers
-//  @Description[en-US]: Delete users in batch.
-//  @Description[zh-CN]: 批量删除用户。
-//  @param ctx 		context.Context
-//  @param ids 		[]string
-//  @return count	int64
-//  @return err		error
+//
+//	@Description[en-US]: Delete users in batch.
+//	@Description[zh-CN]: 批量删除用户。
+//	@param ctx 		context.Context
+//	@param ids 		[]string
+//	@return count	int64
+//	@return err		error
 func (s UserAndAppService) DeleteUsers(ctx context.Context, id []string) (int64, error) {
 	deleted := s.Session(ctx).Model(&models.User{}).Where("id in ?", id).Update("is_delete", true)
 	if err := deleted.Error; err != nil {
@@ -287,13 +295,14 @@ func (s UserAndAppService) DeleteUsers(ctx context.Context, id []string) (int64,
 }
 
 // UpdateUser
-//  @Description[en-US]: Update user information.
-//  @Description[zh-CN]: 更新用户信息.
-//  @param ctx	context.Context
-//  @param user	*models.User
-//  @param updateColumns	...string
-//  @return userDetail	*models.User
-//  @return err	error
+//
+//	@Description[en-US]: Update user information.
+//	@Description[zh-CN]: 更新用户信息.
+//	@param ctx	context.Context
+//	@param user	*models.User
+//	@param updateColumns	...string
+//	@return userDetail	*models.User
+//	@return err	error
 func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (*models.User, error) {
 	tx := s.Session(ctx).Begin()
 	defer tx.Rollback()
@@ -318,13 +327,14 @@ func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, up
 }
 
 // GetUserInfo
-//  @Description[en-US]: Obtain user information through ID or username.
-//  @Description[zh-CN]: 通过ID或用户名获取用户信息。
-//  @param ctx 	context.Context
-//  @param id 	string
-//  @param username 	string
-//  @return userDetail	*models.User
-//  @return err	error
+//
+//	@Description[en-US]: Obtain user information through ID or username.
+//	@Description[zh-CN]: 通过ID或用户名获取用户信息。
+//	@param ctx 	context.Context
+//	@param id 	string
+//	@param username 	string
+//	@return userDetail	*models.User
+//	@return err	error
 func (s UserAndAppService) GetUserInfo(ctx context.Context, id string, username string) (*models.User, error) {
 	conn := s.Session(ctx)
 	var user models.User
@@ -349,12 +359,13 @@ func (s UserAndAppService) GetUserInfo(ctx context.Context, id string, username 
 }
 
 // CreateUser
-//  @Description[en-US]: Create a user.
-//  @Description[zh-CN]: 创建用户。
-//  @param ctx 	context.Context
-//  @param user 	*models.User
-//  @return userDetail	*models.User
-//  @return err	error
+//
+//	@Description[en-US]: Create a user.
+//	@Description[zh-CN]: 创建用户。
+//	@param ctx 	context.Context
+//	@param user 	*models.User
+//	@return userDetail	*models.User
+//	@return err	error
 func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*models.User, error) {
 	conn := s.Session(ctx)
 	if len(user.Password) != 0 {
@@ -368,12 +379,13 @@ func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*
 }
 
 // PatchUser
-//  @Description[en-US]: Incremental update user.
-//  @Description[zh-CN]: 增量更新用户。
-//  @param ctx 	context.Context
-//  @param user 	map[string]interface{}
-//  @return userDetail	*models.User
-//  @return err	error
+//
+//	@Description[en-US]: Incremental update user.
+//	@Description[zh-CN]: 增量更新用户。
+//	@param ctx 	context.Context
+//	@param user 	map[string]interface{}
+//	@return userDetail	*models.User
+//	@return err	error
 func (s UserAndAppService) PatchUser(ctx context.Context, patch map[string]interface{}) (*models.User, error) {
 	if id, ok := patch["id"].(string); ok {
 		tx := s.Session(ctx).Begin()
@@ -391,11 +403,12 @@ func (s UserAndAppService) PatchUser(ctx context.Context, patch map[string]inter
 }
 
 // DeleteUser
-//  @Description[en-US]: Delete a user.
-//  @Description[zh-CN]: 删除用户。
-//  @param ctx 	context.Context
-//  @param id 	string
-//  @return error
+//
+//	@Description[en-US]: Delete a user.
+//	@Description[zh-CN]: 删除用户。
+//	@param ctx 	context.Context
+//	@param id 	string
+//	@return error
 func (s UserAndAppService) DeleteUser(ctx context.Context, id string) (err error) {
 	_, err = s.DeleteUsers(ctx, []string{id})
 	return err

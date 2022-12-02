@@ -32,7 +32,7 @@ import (
 
 func testAppService(ctx context.Context, t *testing.T, storage string, svc Service) {
 	var userIds []string
-	var getRandomUsers = func(roles models.AppRoles) []*models.User {
+	getRandomUsers := func(roles models.AppRoles) []*models.User {
 		aUserIds := sets.New[string](userIds...)
 		rCount := rand.IntnRange(1, 21)
 		users := make([]*models.User, rCount)
@@ -55,7 +55,7 @@ func testAppService(ctx context.Context, t *testing.T, storage string, svc Servi
 		return users
 	}
 
-	var getRandomRoles = func() models.AppRoles {
+	getRandomRoles := func() models.AppRoles {
 		rCount := rand.Intn(20)
 		roles := make(models.AppRoles, rCount)
 		for i := 0; i < rCount; i++ {
@@ -128,8 +128,8 @@ func testAppService(ctx context.Context, t *testing.T, storage string, svc Servi
 			for i := 0; i < 100; i++ {
 				roles := getRandomRoles()
 				users := getRandomUsers(roles)
-				var roleNames = make([]string, len(roles))
-				var userRoles = make(map[string]string, len(users))
+				roleNames := make([]string, len(roles))
+				userRoles := make(map[string]string, len(users))
 				for j, role := range roles {
 					roleNames[j] = role.Name
 				}
@@ -170,8 +170,8 @@ func testAppService(ctx context.Context, t *testing.T, storage string, svc Servi
 				require.NoError(t, err)
 				info, err := svc.GetAppInfo(ctx, storage, app.Id)
 				require.NoError(t, err)
-				var roleNames1 = make([]string, len(info.Roles))
-				var userRoles1 = make(map[string]string, len(info.Users))
+				roleNames1 := make([]string, len(info.Roles))
+				userRoles1 := make(map[string]string, len(info.Users))
 				for j, role := range roles {
 					roleNames1[j] = role.Name
 				}
@@ -224,15 +224,15 @@ func testAppService(ctx context.Context, t *testing.T, storage string, svc Servi
 		appInfo, err := svc.GetAppInfo(ctx, storage, appId)
 		require.NoError(t, err)
 
-		var roleNames = make([]string, len(appInfo.Roles))
-		var userRoles = make(map[string]string, len(appInfo.Users))
+		roleNames := make([]string, len(appInfo.Roles))
+		userRoles := make(map[string]string, len(appInfo.Users))
 		for j, role := range appInfo.Roles {
 			roleNames[j] = role.Name
 		}
 		for _, user := range appInfo.Users {
 			userRoles[user.Id] = user.Role
 		}
-		var newAppInfo = *appInfo
+		newAppInfo := *appInfo
 		newAppInfo.Description = rand.String(10)
 		newAppInfo.Avatar = rand.String(10)
 		newAppInfo.GrantMode = (newAppInfo.GrantMode + 1) % models.AppMeta_GrantMode(len(models.AppMeta_GrantMode_name))
@@ -270,8 +270,8 @@ func testAppService(ctx context.Context, t *testing.T, storage string, svc Servi
 		require.Equal(t, newAppInfo.GrantMode, newAppInfo1.GrantMode)
 		require.Equal(t, newAppInfo.Status, newAppInfo1.Status)
 
-		var roleNames1 = make([]string, len(newAppInfo1.Roles))
-		var userRoles1 = make(map[string]string, len(newAppInfo1.Users))
+		roleNames1 := make([]string, len(newAppInfo1.Roles))
+		userRoles1 := make(map[string]string, len(newAppInfo1.Users))
 		for j, role := range newAppInfo1.Roles {
 			roleNames1[j] = role.Name
 		}

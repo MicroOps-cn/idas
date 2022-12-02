@@ -42,8 +42,9 @@ import (
 const UserStatusName = "status"
 
 // option
-//  @Description[en-US]: Used to dynamically add extensions for function/method calls.
-//  @Description[zh-CN]: 用于为函数/方法调用时动态增加扩展.
+//
+//	@Description[en-US]: Used to dynamically add extensions for function/method calls.
+//	@Description[zh-CN]: 用于为函数/方法调用时动态增加扩展.
 type option struct {
 	// getUserRole
 	//  @Description[en-US]: Get user role information.
@@ -52,23 +53,26 @@ type option struct {
 }
 
 // Option
-//  @Description[en-US]: Used to dynamically add extensions for function/method calls.
-//  @Description[zh-CN]: 用于为函数/方法调用时动态增加扩展.
+//
+//	@Description[en-US]: Used to dynamically add extensions for function/method calls.
+//	@Description[zh-CN]: 用于为函数/方法调用时动态增加扩展.
 type Option func(*option)
 
 // WithUserRole
-//  @Description[en-US]: Update the value of option.getUserRole to true.
-//  @Description[zh-CN]: 更新option.getUserRole的值为true。
+//
+//	@Description[en-US]: Update the value of option.getUserRole to true.
+//	@Description[zh-CN]: 更新option.getUserRole的值为true。
 var WithUserRole Option = func(o *option) {
 	o.getUserRole = true
 }
 
 // hash
-//  @Description[en-US]: Use sha256 to generate the hash value of the password
-//  @Description[zh-CN]: 使用sha256生成密码的hash值
-//  @param password string
-//  @return sha256 string
-//  @return error
+//
+//	@Description[en-US]: Use sha256 to generate the hash value of the password
+//	@Description[zh-CN]: 使用sha256生成密码的hash值
+//	@param password string
+//	@return sha256 string
+//	@return error
 func hash(password []byte) (string, error) {
 	c := sha256_crypt.New()
 	salt := string(uuid.NewV4().Bytes())
@@ -76,12 +80,13 @@ func hash(password []byte) (string, error) {
 }
 
 // getAppDnByEntryUUID
-//  @Description[en-US]: Search and obtain the user dn (LDAP distinguished name) through UUID under "user_search_base".
-//  @Description[zh-CN]: 从“user_search_base”下通过UUID搜索并获取用户dn(LDAP distinguished name)。
-//  @param ctx  context.Context
-//  @param id   string
-//  @return dn  string
-//  @return err error
+//
+//	@Description[en-US]: Search and obtain the user dn (LDAP distinguished name) through UUID under "user_search_base".
+//	@Description[zh-CN]: 从“user_search_base”下通过UUID搜索并获取用户dn(LDAP distinguished name)。
+//	@param ctx  context.Context
+//	@param id   string
+//	@return dn  string
+//	@return err error
 func (s UserAndAppService) getUserDnByEntryUUID(ctx context.Context, id string) (dn string, err error) {
 	u, err := uuid.FromString(id)
 	if err != nil {
@@ -105,12 +110,13 @@ func (s UserAndAppService) getUserDnByEntryUUID(ctx context.Context, id string) 
 }
 
 // getUserObjectClass
-//  @Description[en-US]: Get the current objectClass of the user
-//  @Description[zh-CN]: 获取用户当前的objectClass
-//  @param ctx           context.Context
-//  @param dn            string
-//  @return objectClass  sets.Set[string]
-//  @return err          error
+//
+//	@Description[en-US]: Get the current objectClass of the user
+//	@Description[zh-CN]: 获取用户当前的objectClass
+//	@param ctx           context.Context
+//	@param dn            string
+//	@return objectClass  sets.Set[string]
+//	@return err          error
 func (s UserAndAppService) getUserObjectClass(ctx context.Context, dn string) (objectClass sets.Set[string], err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -134,12 +140,13 @@ func (s UserAndAppService) getUserObjectClass(ctx context.Context, dn string) (o
 }
 
 // getDNSByReq
-//  @Description[en-US]: Get DNs (LDAP distinguished name) by <*ldap.SearchRequest>.
-//  @Description[zh-CN]: 通过<*ldap.SearchRequest>获取DNs(LDAP distinguished name)
-//  @param ctx        context.Context
-//  @param searchReq  *ldap.SearchRequest
-//  @return dns       []string
-//  @return err       error
+//
+//	@Description[en-US]: Get DNs (LDAP distinguished name) by <*ldap.SearchRequest>.
+//	@Description[zh-CN]: 通过<*ldap.SearchRequest>获取DNs(LDAP distinguished name)
+//	@param ctx        context.Context
+//	@param searchReq  *ldap.SearchRequest
+//	@return dns       []string
+//	@return err       error
 func (s UserAndAppService) getDNSByReq(ctx context.Context, searchReq *goldap.SearchRequest) (dns []string, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -154,13 +161,14 @@ func (s UserAndAppService) getDNSByReq(ctx context.Context, searchReq *goldap.Se
 }
 
 // getUserDetailByReq
-//  @Description[en-US]: Use the <ldap.SearchRequest> to search for application information from the LDAP directory specified by "user_search_base". The directory level of the search is 1.
-//  @Description[zh-CN]: 使用<ldap.SearchRequest>从 user_search_base 指定的LDAP目录内搜索应用信息, 搜索的目录层级为1
-//  @param ctx         context.Context
-//  @param searchReq   *ldap.SearchRequest
-//  @param options     ...Option           : Search option, you can use WithUserRole to control whether to obtain user roles.
-//  @return userDetail *models.User
-//  @return err        error
+//
+//	@Description[en-US]: Use the <ldap.SearchRequest> to search for application information from the LDAP directory specified by "user_search_base". The directory level of the search is 1.
+//	@Description[zh-CN]: 使用<ldap.SearchRequest>从 user_search_base 指定的LDAP目录内搜索应用信息, 搜索的目录层级为1
+//	@param ctx         context.Context
+//	@param searchReq   *ldap.SearchRequest
+//	@param options     ...Option           : Search option, you can use WithUserRole to control whether to obtain user roles.
+//	@return userDetail *models.User
+//	@return err        error
 func (s UserAndAppService) getUserDetailByReq(ctx context.Context, searchReq *goldap.SearchRequest, options ...Option) (*models.User, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -209,13 +217,14 @@ func (s UserAndAppService) getUserDetailByReq(ctx context.Context, searchReq *go
 }
 
 // getUserDetailByDn
-//  @Description[en-US]: Use DN to obtain user information.
-//  @Description[zh-CN]: 使用DN获取用户信息。
-//  @param ctx           context.Context
-//  @param dn            string
-//  @param options       ...Option           : Search option, you can use WithUserRole to control whether to obtain user roles.
-//  @return userDetail   *models.User
-//  @return err          error
+//
+//	@Description[en-US]: Use DN to obtain user information.
+//	@Description[zh-CN]: 使用DN获取用户信息。
+//	@param ctx           context.Context
+//	@param dn            string
+//	@param options       ...Option           : Search option, you can use WithUserRole to control whether to obtain user roles.
+//	@return userDetail   *models.User
+//	@return err          error
 func (s UserAndAppService) getUserDetailByDn(ctx context.Context, dn string, options ...Option) (*models.User, error) {
 	searchReq := goldap.NewSearchRequest(
 		dn, goldap.ScopeBaseObject, goldap.NeverDerefAliases, 1, 0, false,
@@ -225,12 +234,13 @@ func (s UserAndAppService) getUserDetailByDn(ctx context.Context, dn string, opt
 }
 
 // getUserDetailByUsername
-//  @Description[en-US]: Use username to obtain user information.
-//  @Description[zh-CN]: 使用用户名获取用户信息。
-//  @param ctx           context.Context
-//  @param username      string
-//  @return userDetail   *models.User
-//  @return err          error
+//
+//	@Description[en-US]: Use username to obtain user information.
+//	@Description[zh-CN]: 使用用户名获取用户信息。
+//	@param ctx           context.Context
+//	@param username      string
+//	@return userDetail   *models.User
+//	@return err          error
 func (s UserAndAppService) getUserDetailByUsername(ctx context.Context, username string) (*models.User, error) {
 	searchReq := goldap.NewSearchRequest(
 		s.Options().UserSearchBase,
@@ -241,13 +251,14 @@ func (s UserAndAppService) getUserDetailByUsername(ctx context.Context, username
 }
 
 // GetUserInfoByUsernameAndEmail
-//  @Description[en-US]: Use username or email to obtain user information.
-//  @Description[zh-CN]: 使用用户名或email获取用户信息。
-//  @param ctx           context.Context
-//  @param username      string
-//  @param email         string
-//  @return userDetail   *models.User
-//  @return err          error
+//
+//	@Description[en-US]: Use username or email to obtain user information.
+//	@Description[zh-CN]: 使用用户名或email获取用户信息。
+//	@param ctx           context.Context
+//	@param username      string
+//	@param email         string
+//	@return userDetail   *models.User
+//	@return err          error
 func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (*models.User, error) {
 	searchReq := goldap.NewSearchRequest(
 		s.Options().UserSearchBase,
@@ -261,12 +272,13 @@ func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, us
 }
 
 // ResetPassword
-//  @Description[en-US]: Reset User Password.
-//  @Description[zh-CN]: 重置用户密码。
-//  @param ctx       context.Context
-//  @param id        string
-//  @param password  string           : New password.
-//  @return err      error
+//
+//	@Description[en-US]: Reset User Password.
+//	@Description[zh-CN]: 重置用户密码。
+//	@param ctx       context.Context
+//	@param id        string
+//	@param password  string           : New password.
+//	@return err      error
 func (s UserAndAppService) ResetPassword(ctx context.Context, id string, password string) error {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -294,27 +306,29 @@ func (s UserAndAppService) ResetPassword(ctx context.Context, id string, passwor
 }
 
 // UpdateLoginTime [Not Supported]
-//  @Description[en-US]: Update the user's last login time.
-//  @Description[zh-CN]: 更新用户最后一次登陆时间。
-//  @param _
-//  @param _
-//  @return error
+//
+//	@Description[en-US]: Update the user's last login time.
+//	@Description[zh-CN]: 更新用户最后一次登陆时间。
+//	@param _
+//	@param _
+//	@return error
 func (s UserAndAppService) UpdateLoginTime(_ context.Context, _ string) error {
 	return nil
 }
 
 // GetUsers
-//  @Description[en-US]: Get user list.
-//  @Description[zh-CN]: 获取用户列表。
-//  @param ctx       context.Context
-//  @param keywords  string
-//  @param status    models.UserMeta_UserStatus
-//  @param appId     string
-//  @param current   int64
-//  @param pageSize  int64
-//  @return total    int64
-//  @return users    []*models.User
-//  @return err      error
+//
+//	@Description[en-US]: Get user list.
+//	@Description[zh-CN]: 获取用户列表。
+//	@param ctx       context.Context
+//	@param keywords  string
+//	@param status    models.UserMeta_UserStatus
+//	@param appId     string
+//	@param current   int64
+//	@param pageSize  int64
+//	@return total    int64
+//	@return users    []*models.User
+//	@return err      error
 func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserMeta_UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -375,12 +389,13 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 }
 
 // PatchUsers
-//  @Description[en-US]: Incrementally update information of multiple users.
-//  @Description[zh-CN]: 增量更新多个用户的信息。
-//  @param ctx 		context.Context
-//  @param patch 	[]map[string]interface{}
-//  @return count	int64
-//  @return err		error
+//
+//	@Description[en-US]: Incrementally update information of multiple users.
+//	@Description[zh-CN]: 增量更新多个用户的信息。
+//	@param ctx 		context.Context
+//	@param patch 	[]map[string]interface{}
+//	@return count	int64
+//	@return err		error
 func (s UserAndAppService) PatchUsers(ctx context.Context, patch []map[string]interface{}) (count int64, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -421,12 +436,13 @@ func (s UserAndAppService) PatchUsers(ctx context.Context, patch []map[string]in
 }
 
 // DeleteUsers
-//  @Description[en-US]: Delete users in batch.
-//  @Description[zh-CN]: 批量删除用户。
-//  @param ctx 		context.Context
-//  @param ids 		[]string
-//  @return count	int64
-//  @return err		error
+//
+//	@Description[en-US]: Delete users in batch.
+//	@Description[zh-CN]: 批量删除用户。
+//	@param ctx 		context.Context
+//	@param ids 		[]string
+//	@return count	int64
+//	@return err		error
 func (s UserAndAppService) DeleteUsers(ctx context.Context, ids []string) (count int64, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -443,13 +459,14 @@ func (s UserAndAppService) DeleteUsers(ctx context.Context, ids []string) (count
 }
 
 // UpdateUser
-//  @Description[en-US]: Update user information.
-//  @Description[zh-CN]: 更新用户信息.
-//  @param ctx	context.Context
-//  @param user	*models.User
-//  @param updateColumns	...string
-//  @return userDetail	*models.User
-//  @return err	error
+//
+//	@Description[en-US]: Update user information.
+//	@Description[zh-CN]: 更新用户信息.
+//	@param ctx	context.Context
+//	@param user	*models.User
+//	@param updateColumns	...string
+//	@return userDetail	*models.User
+//	@return err	error
 func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (*models.User, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -499,12 +516,13 @@ func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, up
 }
 
 // GetUserInfoById
-//  @Description[en-US]: Obtain user information through ID.
-//  @Description[zh-CN]: 通过ID获取用户信息。
-//  @param ctx 	context.Context
-//  @param id 	string
-//  @return userDetail	*models.User
-//  @return err	error
+//
+//	@Description[en-US]: Obtain user information through ID.
+//	@Description[zh-CN]: 通过ID获取用户信息。
+//	@param ctx 	context.Context
+//	@param id 	string
+//	@return userDetail	*models.User
+//	@return err	error
 func (s UserAndAppService) GetUserInfoById(ctx context.Context, id string) (*models.User, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -517,13 +535,14 @@ func (s UserAndAppService) GetUserInfoById(ctx context.Context, id string) (*mod
 }
 
 // GetUserInfo
-//  @Description[en-US]: Obtain user information through ID or username.
-//  @Description[zh-CN]: 通过ID或用户名获取用户信息。
-//  @param ctx 	context.Context
-//  @param id 	string
-//  @param username 	string
-//  @return userDetail	*models.User
-//  @return err	error
+//
+//	@Description[en-US]: Obtain user information through ID or username.
+//	@Description[zh-CN]: 通过ID或用户名获取用户信息。
+//	@param ctx 	context.Context
+//	@param id 	string
+//	@param username 	string
+//	@return userDetail	*models.User
+//	@return err	error
 func (s UserAndAppService) GetUserInfo(ctx context.Context, id string, username string) (*models.User, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -543,12 +562,13 @@ func (s UserAndAppService) GetUserInfo(ctx context.Context, id string, username 
 }
 
 // CreateUser
-//  @Description[en-US]: Create a user.
-//  @Description[zh-CN]: 创建用户。
-//  @param ctx 	context.Context
-//  @param user 	*models.User
-//  @return userDetail	*models.User
-//  @return err	error
+//
+//	@Description[en-US]: Create a user.
+//	@Description[zh-CN]: 创建用户。
+//	@param ctx 	context.Context
+//	@param user 	*models.User
+//	@return userDetail	*models.User
+//	@return err	error
 func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*models.User, error) {
 	logger := logs.GetContextLogger(ctx)
 	conn := s.Session(ctx)
@@ -599,12 +619,13 @@ func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*
 }
 
 // PatchUser
-//  @Description[en-US]: Incremental update user.
-//  @Description[zh-CN]: 增量更新用户。
-//  @param ctx 	context.Context
-//  @param user 	map[string]interface{}
-//  @return userDetail	*models.User
-//  @return err	error
+//
+//	@Description[en-US]: Incremental update user.
+//	@Description[zh-CN]: 增量更新用户。
+//	@param ctx 	context.Context
+//	@param user 	map[string]interface{}
+//	@return userDetail	*models.User
+//	@return err	error
 func (s UserAndAppService) PatchUser(ctx context.Context, user map[string]interface{}) (*models.User, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -654,22 +675,24 @@ func (s UserAndAppService) PatchUser(ctx context.Context, user map[string]interf
 }
 
 // DeleteUser
-//  @Description[en-US]: Delete a user.
-//  @Description[zh-CN]: 删除用户。
-//  @param ctx 	context.Context
-//  @param id 	string
-//  @return error
+//
+//	@Description[en-US]: Delete a user.
+//	@Description[zh-CN]: 删除用户。
+//	@param ctx 	context.Context
+//	@param id 	string
+//	@return error
 func (s UserAndAppService) DeleteUser(ctx context.Context, id string) error {
 	return w.Error[int64](s.DeleteUsers(ctx, []string{id}))
 }
 
 // VerifyPasswordById
-//  @Description[en-US]: Verify the user's password through ID.
-//  @Description[zh-CN]: 通过ID验证用户密码。
-//  @param ctx 	context.Context
-//  @param id 	string
-//  @param password 	string
-//  @return users	[]*models.User
+//
+//	@Description[en-US]: Verify the user's password through ID.
+//	@Description[zh-CN]: 通过ID验证用户密码。
+//	@param ctx 	context.Context
+//	@param id 	string
+//	@param password 	string
+//	@return users	[]*models.User
 func (s UserAndAppService) VerifyPasswordById(ctx context.Context, id, password string) (users []*models.User) {
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -706,12 +729,13 @@ func (s UserAndAppService) VerifyPasswordById(ctx context.Context, id, password 
 }
 
 // VerifyPassword
-//  @Description[en-US]: Verify password for user.
-//  @Description[zh-CN]: 验证用户密码。
-//  @param ctx 	context.Context
-//  @param username 	string
-//  @param password 	string
-//  @return users	[]*models.User
+//
+//	@Description[en-US]: Verify password for user.
+//	@Description[zh-CN]: 验证用户密码。
+//	@param ctx 	context.Context
+//	@param username 	string
+//	@param password 	string
+//	@return users	[]*models.User
 func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) (users []*models.User) {
 	conn := s.Session(ctx)
 	defer conn.Close()

@@ -29,12 +29,13 @@ import (
 )
 
 // PatchApps
-//  @Description[en-US]: Incrementally update information of multiple applications.
-//  @Description[zh-CN]: 增量更新多个应用的信息。
-//  @param ctx     context.Context
-//  @param patch   []map[string]interface{}
-//  @return total  int64
-//  @return err    error
+//
+//	@Description[en-US]: Incrementally update information of multiple applications.
+//	@Description[zh-CN]: 增量更新多个应用的信息。
+//	@param ctx     context.Context
+//	@param patch   []map[string]interface{}
+//	@return total  int64
+//	@return err    error
 func (s UserAndAppService) PatchApps(ctx context.Context, patch []map[string]interface{}) (total int64, err error) {
 	tx := s.Session(ctx).Begin()
 	defer tx.Rollback()
@@ -85,12 +86,13 @@ func (s UserAndAppService) PatchApps(ctx context.Context, patch []map[string]int
 }
 
 // DeleteApps
-//  @Description[en-US]: Delete apps in batch.
-//  @Description[zh-CN]: 批量删除应用。
-//  @param ctx     context.Context
-//  @param ids     []string         : ID List
-//  @return total  int64
-//  @return err    error
+//
+//	@Description[en-US]: Delete apps in batch.
+//	@Description[zh-CN]: 批量删除应用。
+//	@param ctx     context.Context
+//	@param ids     []string         : ID List
+//	@return total  int64
+//	@return err    error
 func (s UserAndAppService) DeleteApps(ctx context.Context, id []string) (total int64, err error) {
 	deleted := s.Session(ctx).Model(&models.App{}).Where("id in ?", id).Update("is_delete", true)
 	if err = deleted.Error; err != nil {
@@ -100,12 +102,13 @@ func (s UserAndAppService) DeleteApps(ctx context.Context, id []string) (total i
 }
 
 // PatchAppRole
-//  @Description[en-US]: Update App Role.
-//  @Description[zh-CN]: 更新应用角色。
-//  @param ctx     context.Context
-//  @param dn      string
-//  @param patch   *models.AppRole
-//  @return err    error
+//
+//	@Description[en-US]: Update App Role.
+//	@Description[zh-CN]: 更新应用角色。
+//	@param ctx     context.Context
+//	@param dn      string
+//	@param patch   *models.AppRole
+//	@return err    error
 func (s UserAndAppService) PatchAppRole(ctx context.Context, role *models.AppRole) error {
 	conn := s.Session(ctx)
 
@@ -150,13 +153,14 @@ func (s UserAndAppService) PatchAppRole(ctx context.Context, role *models.AppRol
 }
 
 // UpdateApp
-//  @Description[en-US]: Update applies the value of the specified column. If no column is specified, all column information is updated.
-//  @Description[zh-CN]: 更新应用指定列的值，如果未指定列，则表示更新所有列信息。
-//  @param ctx           context.Context
-//  @param app           *models.App
-//  @param updateColumns ...string
-//  @return newApp       *models.App
-//  @return err          error
+//
+//	@Description[en-US]: Update applies the value of the specified column. If no column is specified, all column information is updated.
+//	@Description[zh-CN]: 更新应用指定列的值，如果未指定列，则表示更新所有列信息。
+//	@param ctx           context.Context
+//	@param app           *models.App
+//	@param updateColumns ...string
+//	@return newApp       *models.App
+//	@return err          error
 func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updateColumns ...string) (*models.App, error) {
 	tx := s.Session(ctx).Begin()
 	defer tx.Rollback()
@@ -209,13 +213,14 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 }
 
 // GetAppInfo
-//  @Description[en-US]: Use the ID or application name to get app info.
-//  @Description[zh-CN]: 使用ID或应用名称获取应用信息。
-//  @param ctx  context.Context
-//  @param id   string          : App ID
-//  @param name string          : App Name
-//  @return app *models.App     : App Details
-//  @return err error
+//
+//	@Description[en-US]: Use the ID or application name to get app info.
+//	@Description[zh-CN]: 使用ID或应用名称获取应用信息。
+//	@param ctx  context.Context
+//	@param id   string          : App ID
+//	@param name string          : App Name
+//	@return app *models.App     : App Details
+//	@return err error
 func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name string) (app *models.App, err error) {
 	conn := s.Session(ctx)
 	app = new(models.App)
@@ -248,12 +253,13 @@ func (s UserAndAppService) GetAppInfo(ctx context.Context, id string, name strin
 }
 
 // CreateApp
-//  @Description[en-US]: Create an app.
-//  @Description[zh-CN]: 创建应用
-//  @param ctx        context.Context
-//  @param app        *models.App
-//  @return appDetail *models.App
-//  @return error
+//
+//	@Description[en-US]: Create an app.
+//	@Description[zh-CN]: 创建应用
+//	@param ctx        context.Context
+//	@param app        *models.App
+//	@return appDetail *models.App
+//	@return error
 func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*models.App, error) {
 	tx := s.Session(ctx).Begin()
 	defer tx.Rollback()
@@ -266,7 +272,6 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 		return nil, err
 	}
 	if len(app.Roles) > 0 {
-		//var roleIds []string
 		for _, role := range app.Roles {
 			for _, user := range app.Users {
 				if len(role.Id) != 0 {
@@ -281,7 +286,6 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 			if err := s.PatchAppRole(context.WithValue(ctx, global.GormConnName, tx), role); err != nil {
 				return nil, err
 			}
-			//roleIds = append(roleIds, role.Id)
 		}
 	}
 
@@ -295,12 +299,13 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 }
 
 // PatchApp
-//  @Description[en-US]: Incremental update application.
-//  @Description[zh-CN]: 增量更新应用。
-//  @param ctx        context.Context
-//  @param fields     map[string]interface{}
-//  @return appDetail app *models.App
-//  @return err       error
+//
+//	@Description[en-US]: Incremental update application.
+//	@Description[zh-CN]: 增量更新应用。
+//	@param ctx        context.Context
+//	@param fields     map[string]interface{}
+//	@return appDetail app *models.App
+//	@return err       error
 func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]interface{}) (app *models.App, err error) {
 	if id, ok := fields["id"].(string); ok {
 		tx := s.Session(ctx).Begin()
@@ -317,26 +322,28 @@ func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]inter
 }
 
 // DeleteApp
-//  @Description[en-US]: Delete an app.
-//  @Description[zh-CN]: 删除应用。
-//  @param ctx 	context.Context
-//  @param id 	string
-//  @return err	error
+//
+//	@Description[en-US]: Delete an app.
+//	@Description[zh-CN]: 删除应用。
+//	@param ctx 	context.Context
+//	@param id 	string
+//	@return err	error
 func (s UserAndAppService) DeleteApp(ctx context.Context, id string) (err error) {
 	_, err = s.DeleteApps(ctx, []string{id})
 	return err
 }
 
 // GetApps
-//  @Description[en-US]: Get the application list. The application information does not include agent, role, user and other information.
-//  @Description[zh-CN]: 获取应用列表，应用信息中不包含代理、角色、用户等信息。
-//  @param ctx       context.Context
-//  @param keywords  string
-//  @param current   int64
-//  @param pageSize  int64
-//  @return total    int64
-//  @return apps     []*models.App
-//  @return err      error
+//
+//	@Description[en-US]: Get the application list. The application information does not include agent, role, user and other information.
+//	@Description[zh-CN]: 获取应用列表，应用信息中不包含代理、角色、用户等信息。
+//	@param ctx       context.Context
+//	@param keywords  string
+//	@param current   int64
+//	@param pageSize  int64
+//	@return total    int64
+//	@return apps     []*models.App
+//	@return err      error
 func (s UserAndAppService) GetApps(ctx context.Context, keywords string, current, pageSize int64) (total int64, apps []*models.App, err error) {
 	query := s.Session(ctx).Model(&models.App{}).Where("is_delete = 0")
 	if len(keywords) > 0 {
@@ -360,13 +367,14 @@ type RoleResult struct {
 }
 
 // VerifyUserAuthorizationForApp
-//  @Description[en-US]: Verify user authorization for the application.
-//  @Description[zh-CN]: 验证应用程序的用户授权
-//  @param ctx    context.Context
-//  @param appId  string
-//  @param userId string
-//  @return role  string   :Role name, such as admin, viewer, editor ...
-//  @return err   error
+//
+//	@Description[en-US]: Verify user authorization for the application.
+//	@Description[zh-CN]: 验证应用程序的用户授权
+//	@param ctx    context.Context
+//	@param appId  string
+//	@param userId string
+//	@return role  string   :Role name, such as admin, viewer, editor ...
+//	@return err   error
 func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, appId string, userId string) (role string, err error) {
 	var result RoleResult
 	if err = s.Session(ctx).Model(&models.AppUser{}).Select("t_app_role.name as `role`").

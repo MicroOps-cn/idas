@@ -107,7 +107,6 @@ type Set struct {
 	userAndAppService UserAndAppServices
 	sessionService    SessionService
 	commonService     CommonService
-	//smtpClient        *email.SMTPClient
 }
 
 func (s Set) GetProxyConfig(ctx context.Context, user *models.User, host string, method string, path string) (*models.AppProxyConfig, error) {

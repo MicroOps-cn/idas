@@ -19,14 +19,16 @@ package service
 import (
 	"bytes"
 	"context"
-	"github.com/MicroOps-cn/idas/pkg/service/models"
-	"github.com/MicroOps-cn/idas/pkg/utils/sign"
-	uuid "github.com/satori/go.uuid"
-	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/util/rand"
 	"net/http"
 	"testing"
 	"time"
+
+	uuid "github.com/satori/go.uuid"
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/util/rand"
+
+	"github.com/MicroOps-cn/idas/pkg/service/models"
+	"github.com/MicroOps-cn/idas/pkg/utils/sign"
 )
 
 func testUserService(ctx context.Context, t *testing.T, storage string, svc Service) {
@@ -227,7 +229,6 @@ func testUserService(ctx context.Context, t *testing.T, storage string, svc Serv
 		}
 	})
 	t.Run("Test Patch User", func(t *testing.T) {
-
 		user, err := svc.PatchUser(ctx, storage, map[string]interface{}{"id": userId, "status": models.UserMeta_disable})
 		require.NoError(t, err)
 		require.Equal(t, user.Status, models.UserMeta_disable)
@@ -242,7 +243,7 @@ func testUserService(ctx context.Context, t *testing.T, storage string, svc Serv
 			}
 		}
 	})
-	var keyPairName = rand.String(rand.Intn(20))
+	keyPairName := rand.String(rand.Intn(20))
 	t.Run("Test Create User Keypair", func(t *testing.T) {
 		keypair, err := svc.CreateUserKey(ctx, userId, keyPairName)
 		require.NoError(t, err)
