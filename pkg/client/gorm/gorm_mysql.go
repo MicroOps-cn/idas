@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"time"
 
+	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/types"
@@ -30,7 +31,6 @@ import (
 	"gorm.io/gorm/schema"
 
 	"github.com/MicroOps-cn/idas/api"
-	"github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 

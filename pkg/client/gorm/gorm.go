@@ -20,11 +20,11 @@ import (
 	"context"
 	"fmt"
 
+	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log/level"
 	"gorm.io/gorm"
 
 	"github.com/MicroOps-cn/idas/pkg/global"
-	"github.com/MicroOps-cn/idas/pkg/logs"
 )
 
 type Database struct {

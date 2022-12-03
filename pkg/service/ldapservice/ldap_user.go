@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log/level"
 	goldap "github.com/go-ldap/ldap"
 	uuid "github.com/satori/go.uuid"
@@ -32,7 +33,6 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/client/ldap"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
-	"github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/utils/httputil"
 	"github.com/MicroOps-cn/idas/pkg/utils/sets"
@@ -210,7 +210,7 @@ func (s UserAndAppService) getUserDetailByReq(ctx context.Context, searchReq *go
 			userInfo.Role = roleName
 			userInfo.RoleId = roleId
 		} else {
-			level.Debug(logs.GetContextLogger(ctx)).Log("msg", fmt.Sprintf("%s is not authorized to user %s", appDn, userEntry.DN))
+			level.Debug(log.GetContextLogger(ctx)).Log("msg", fmt.Sprintf("%s is not authorized to user %s", appDn, userEntry.DN))
 		}
 	}
 	return userInfo, nil
@@ -284,7 +284,7 @@ func (s UserAndAppService) ResetPassword(ctx context.Context, id string, passwor
 	defer conn.Close()
 	phash, err := hash([]byte(password))
 	if err != nil {
-		logger := logs.GetContextLogger(ctx)
+		logger := log.GetContextLogger(ctx)
 		level.Error(logger).Log("failed to general password hash")
 		return err
 	}
@@ -570,7 +570,7 @@ func (s UserAndAppService) GetUserInfo(ctx context.Context, id string, username 
 //	@return userDetail	*models.User
 //	@return err	error
 func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*models.User, error) {
-	logger := logs.GetContextLogger(ctx)
+	logger := log.GetContextLogger(ctx)
 	conn := s.Session(ctx)
 	defer conn.Close()
 	dn := fmt.Sprintf("%s=%s,%s", s.Options().GetAttrUsername(), user.Username, s.Options().UserSearchBase)
@@ -696,7 +696,7 @@ func (s UserAndAppService) DeleteUser(ctx context.Context, id string) error {
 func (s UserAndAppService) VerifyPasswordById(ctx context.Context, id, password string) (users []*models.User) {
 	conn := s.Session(ctx)
 	defer conn.Close()
-	logger := logs.GetContextLogger(ctx)
+	logger := log.GetContextLogger(ctx)
 	searchReq := goldap.NewSearchRequest(
 		s.Options().UserSearchBase,
 		goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 10, 0, false,
@@ -739,7 +739,7 @@ func (s UserAndAppService) VerifyPasswordById(ctx context.Context, id, password 
 func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) (users []*models.User) {
 	conn := s.Session(ctx)
 	defer conn.Close()
-	logger := logs.GetContextLogger(ctx)
+	logger := log.GetContextLogger(ctx)
 	searchReq := goldap.NewSearchRequest(
 		s.Options().UserSearchBase,
 		goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 10, 0, false,

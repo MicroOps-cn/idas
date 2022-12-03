@@ -23,11 +23,11 @@ import (
 	"reflect"
 	"time"
 
+	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-ldap/ldap"
 
-	"github.com/MicroOps-cn/idas/pkg/logs"
 	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
 )
 

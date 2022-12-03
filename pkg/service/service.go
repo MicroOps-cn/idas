@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 
+	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 
@@ -29,7 +30,6 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/client/email"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
-	"github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/MicroOps-cn/idas/pkg/service/gormservice"
 	"github.com/MicroOps-cn/idas/pkg/service/ldapservice"
 	"github.com/MicroOps-cn/idas/pkg/service/models"

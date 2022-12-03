@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -38,7 +39,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 
 	"github.com/MicroOps-cn/idas/config"
-	"github.com/MicroOps-cn/idas/pkg/logs"
 	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
 )
 

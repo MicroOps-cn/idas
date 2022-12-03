@@ -19,11 +19,11 @@ package cmd
 import (
 	"os"
 
+	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log/level"
 	"github.com/howeyc/gopass"
 	"github.com/spf13/cobra"
 
-	"github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 )

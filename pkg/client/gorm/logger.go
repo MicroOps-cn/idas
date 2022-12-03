@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -31,12 +31,12 @@ import (
 )
 
 type logContext struct {
-	logger        log.Logger
+	logger        kitlog.Logger
 	SlowThreshold time.Duration
 }
 
 func (l *logContext) LogMode(lvl logger.LogLevel) logger.Interface {
-	var filter log.Logger
+	var filter kitlog.Logger
 	switch lvl {
 	case logger.Silent:
 		filter = level.NewFilter(l.logger, level.AllowNone())
@@ -80,7 +80,7 @@ func (l logContext) Trace(_ context.Context, begin time.Time, fc func() (string,
 	}
 }
 
-func NewLogAdapter(l log.Logger) logger.Interface {
+func NewLogAdapter(l kitlog.Logger) logger.Interface {
 	return &logContext{logger: l}
 }
 

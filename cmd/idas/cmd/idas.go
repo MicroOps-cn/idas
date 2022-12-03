@@ -27,9 +27,11 @@ import (
 	"path"
 	"strings"
 
+	"github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/fuck/log/flag"
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/metrics/prometheus"
-	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/jsonpb"
 	lightstep "github.com/lightstep/lightstep-tracer-go"
@@ -47,8 +49,6 @@ import (
 	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/endpoint"
 	"github.com/MicroOps-cn/idas/pkg/global"
-	"github.com/MicroOps-cn/idas/pkg/logs"
-	"github.com/MicroOps-cn/idas/pkg/logs/flag"
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/transport"
 	"github.com/MicroOps-cn/idas/pkg/utils/httputil"
@@ -58,7 +58,7 @@ import (
 var (
 	cfgFile         string
 	configDisplay   bool
-	logConfig       logs.Config
+	logConfig       log.Config
 	debugAddr       string
 	httpExternalURL httputil.URL
 	webPrefix       string
@@ -79,14 +79,14 @@ var rootCmd = &cobra.Command{
 	Short: "The idas gateway server.",
 	Long:  `The idas gateway server.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return Run(context.Background(), logs.GetRootLogger(), signals.SetupSignalHandler(logs.GetRootLogger()))
+		return Run(context.Background(), log.GetRootLogger(), signals.SetupSignalHandler(log.GetRootLogger()))
 	},
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	//	Run: func(cmd *cobra.Command, args []string) { },
 }
 
-func Run(ctx context.Context, logger log.Logger, stopCh *signals.StopChan) (err error) {
+func Run(ctx context.Context, logger kitlog.Logger, stopCh *signals.StopChan) (err error) {
 	var zipkinTracer *zipkin.Tracer
 	{
 		if zipkinURL != "" {
@@ -150,7 +150,7 @@ func Run(ctx context.Context, logger log.Logger, stopCh *signals.StopChan) (err 
 	ctx = context.WithValue(ctx, global.HTTPLoginURLKey, httpLoginURL.String())
 	ctx = context.WithValue(ctx, global.HTTPExternalURLKey, httpExternalURL.String())
 	ctx = context.WithValue(ctx, global.HTTPWebPrefixKey, webPrefix)
-	level.Info(logger).Log("externalUrl", httpExternalURL, "webPrefix", webPrefix, "loginUrl", httpLoginURL)
+	level.Info(logger).Log("msg", "Start service", "externalUrl", httpExternalURL, "webPrefix", webPrefix, "loginUrl", httpLoginURL)
 	var (
 		svc          = service.New(ctx)
 		endpoints    = endpoint.New(ctx, svc, duration, tracer, zipkinTracer)
@@ -182,7 +182,7 @@ func Run(ctx context.Context, logger log.Logger, stopCh *signals.StopChan) (err 
 			os.Exit(1)
 		}
 		g.Add(func() error {
-			level.Info(logger).Log("transport", "debug/HTTP", "addr", debugAddr)
+			level.Info(logger).Log("msg", "Listening port", "transport", "debug/HTTP", "addr", debugAddr)
 			return http.Serve(debugListener, http.DefaultServeMux)
 		}, func(error) {
 			debugListener.Close()
@@ -196,7 +196,7 @@ func Run(ctx context.Context, logger log.Logger, stopCh *signals.StopChan) (err 
 			os.Exit(1)
 		}
 		g.Add(func() error {
-			level.Info(logger).Log("transport", "HTTP", "addr", httpAddr)
+			level.Info(logger).Log("msg", "Listening port", "transport", "HTTP", "addr", httpAddr)
 			httpServer.Handle("/", httpHandler)
 			return http.Serve(httpListener, httpServer)
 		}, func(error) {
@@ -211,7 +211,7 @@ func Run(ctx context.Context, logger log.Logger, stopCh *signals.StopChan) (err 
 			os.Exit(1)
 		}
 		g.Add(func() error {
-			level.Info(logger).Log("transport", "Proxy/HTTP", "addr", proxyHTTPAddr)
+			level.Info(logger).Log("msg", "Listening port", "transport", "Proxy/HTTP", "addr", proxyHTTPAddr)
 			return http.Serve(proxyHTTPListener, proxyHandler)
 		}, func(error) {
 			proxyHTTPListener.Close()
@@ -256,7 +256,7 @@ func init() {
 }
 
 func initParameter() {
-	logger := logs.GetRootLogger()
+	logger := log.GetRootLogger()
 
 	if httpExternalURL.Scheme == "" {
 		httpExternalURL.Scheme = "http"
@@ -314,8 +314,8 @@ func initConfig() {
 	if cfgFile == "" {
 		cfgFile = "./idas.yaml"
 	}
-	logger := logs.GetRootLogger()
-	if err := config.ReloadConfigFromFile(logs.GetRootLogger(), cfgFile); err != nil {
+	logger := log.GetRootLogger()
+	if err := config.ReloadConfigFromFile(log.GetRootLogger(), cfgFile); err != nil {
 		level.Error(logger).Log("msg", "failed to load config", "err", err)
 		os.Exit(1)
 	}
@@ -344,6 +344,6 @@ func initConfig() {
 
 // initLogger
 func initLogger() {
-	logger := logs.New(&logConfig)
-	logs.SetRootLogger(logger)
+	logger := log.New(&logConfig)
+	log.SetRootLogger(logger)
 }

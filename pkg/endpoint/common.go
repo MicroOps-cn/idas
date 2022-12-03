@@ -22,10 +22,10 @@ import (
 	"io"
 	"mime/multipart"
 
+	"github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log/level"
 
-	"github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/MicroOps-cn/idas/pkg/service"
 )
 
@@ -63,7 +63,7 @@ type FileDownloadRequest struct {
 
 func MakeDownloadFileEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		logger := logs.GetContextLogger(ctx)
+		logger := log.GetContextLogger(ctx)
 		req := request.(Requester).GetRequestData().(*FileDownloadRequest)
 		stdResp := request.(RestfulRequester).GetRestfulResponse()
 		var (

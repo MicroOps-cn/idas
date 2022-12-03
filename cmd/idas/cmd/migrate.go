@@ -19,10 +19,10 @@ package cmd
 import (
 	"context"
 
+	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/spf13/cobra"
 
 	"github.com/MicroOps-cn/idas/pkg/endpoint"
-	"github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )

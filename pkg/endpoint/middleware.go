@@ -21,12 +21,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/log/level"
 
 	"github.com/MicroOps-cn/idas/pkg/global"
-	"github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 )
@@ -51,7 +51,7 @@ func InstrumentingMiddleware(duration metrics.Histogram) endpoint.Middleware {
 func LoggingMiddleware(method string) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-			logger := logs.GetContextLogger(ctx)
+			logger := log.GetContextLogger(ctx)
 			defer func(begin time.Time) {
 				level.Debug(logger).Log("transport_error", err, "method", method, "took", time.Since(begin))
 			}(time.Now())

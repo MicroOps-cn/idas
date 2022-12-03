@@ -22,12 +22,12 @@ import (
 	"net/url"
 	"strconv"
 
+	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log/level"
 
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
-	"github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 )

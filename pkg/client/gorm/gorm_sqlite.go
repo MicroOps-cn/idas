@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/proto"
 	"gorm.io/driver/sqlite"
@@ -28,13 +29,12 @@ import (
 	"gorm.io/gorm/schema"
 
 	"github.com/MicroOps-cn/idas/api"
-	"github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
 func NewSQLiteClient(ctx context.Context, options *SQLiteOptions) (*Client, error) {
 	var m Client
-	logger := logs.GetContextLogger(ctx)
+	logger := log.GetContextLogger(ctx)
 	db, err := gorm.Open(sqlite.Open(options.Path), &gorm.Config{
 		NamingStrategy: schema.NamingStrategy{
 			TablePrefix:   "t_",

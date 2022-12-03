@@ -22,11 +22,11 @@ import (
 	"bytes"
 	"testing"
 
+	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/stretchr/testify/require"
 
 	"github.com/MicroOps-cn/idas/pkg/client/gorm"
-	"github.com/MicroOps-cn/idas/pkg/logs"
 )
 
 var conf = `

@@ -29,6 +29,7 @@ import (
 	"strconv"
 	"strings"
 
+	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/asaskevich/govalidator"
 	restfulspec "github.com/emicklei/go-restful-openapi/v2"
 	"github.com/emicklei/go-restful/v3"
@@ -50,7 +51,6 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/endpoint"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
-	"github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/MicroOps-cn/idas/pkg/utils/buffer"
 	"github.com/MicroOps-cn/idas/pkg/utils/httputil"
 	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"

@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/emicklei/go-restful/v3"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -33,7 +34,6 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/endpoint"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
-	"github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/utils/buffer"
 	"github.com/MicroOps-cn/idas/pkg/utils/httputil"

@@ -24,19 +24,19 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-ldap/ldap"
 	"github.com/gogo/protobuf/proto"
 
 	"github.com/MicroOps-cn/idas/api"
 	"github.com/MicroOps-cn/idas/pkg/global"
-	"github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/MicroOps-cn/idas/pkg/utils/sets"
 	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
 func NewLdapPool(ctx context.Context, options *LdapOptions) (pool Pool, err error) {
-	logger := logs.GetContextLogger(ctx)
+	logger := log.GetContextLogger(ctx)
 	if err = options.Valid(); err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func (l *Client) Session(ctx context.Context) ldap.Client {
 		case ldap.Client:
 			return &NopCloser{Client: db}
 		default:
-			logger := logs.GetContextLogger(ctx)
+			logger := log.GetContextLogger(ctx)
 			level.Warn(logger).Log("msg", "未知的上下文属性(global.LDAPConnName)值", global.LDAPConnName, fmt.Sprintf("%#v", conn))
 		}
 	}

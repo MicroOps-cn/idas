@@ -25,10 +25,10 @@ import (
 	"testing"
 	"time"
 
+	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/stretchr/testify/require"
 
 	"github.com/MicroOps-cn/idas/config"
-	"github.com/MicroOps-cn/idas/pkg/logs"
 )
 
 const cfg = `

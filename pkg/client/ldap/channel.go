@@ -21,11 +21,10 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/go-kit/log"
+	"github.com/MicroOps-cn/fuck/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-ldap/ldap"
-
-	"github.com/MicroOps-cn/idas/pkg/logs"
 )
 
 // channelPool implements the Pool interface based on buffered channels.
@@ -40,7 +39,7 @@ type channelPool struct {
 	// net.Conn generator
 	factory PoolFactory
 	closeAt []uint16
-	logger  log.Logger
+	logger  kitlog.Logger
 }
 
 // PoolFactory is a function to create new connections.
@@ -57,7 +56,7 @@ type PoolFactory func(string) (ldap.Client, error)
 // of the call is one of those passed, most likely you want to set this to something
 // like []uint8{ldap.LDAPResultTimeLimitExceeded, ldap.ErrorNetwork}
 func NewChannelPool(ctx context.Context, initialCap, maxCap int, name string, factory PoolFactory, closeAt []uint16) (Pool, error) {
-	logger := logs.GetContextLogger(ctx)
+	logger := log.GetContextLogger(ctx)
 	if initialCap < 0 || maxCap <= 0 || initialCap > maxCap {
 		return nil, errors.New("invalid capacity settings")
 	}

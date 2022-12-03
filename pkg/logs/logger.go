@@ -25,8 +25,8 @@ import (
 	"strings"
 	"sync"
 
-	log2 "github.com/MicroOps-cn/fuck/log"
-	"github.com/go-kit/log"
+	"github.com/MicroOps-cn/fuck/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-logfmt/logfmt"
 
 	"github.com/MicroOps-cn/idas/pkg/global"
@@ -94,11 +94,7 @@ var sourceDir = func() string {
 	return strings.TrimSuffix(currentFile, "pkg/logs/logger.go")
 }()
 
-func Relative(file string) string {
-	return strings.TrimPrefix(file, sourceDir)
-}
-
-func Caller(depth int) log.Valuer {
+func Caller(depth int) kitlog.Valuer {
 	return func() interface{} {
 		//for i := 1; i < 15; i++ {
 		//	_, f, l, _ := runtime.Caller(i)
@@ -149,17 +145,17 @@ func (l *idasLogger) Log(keyvals ...interface{}) error {
 		}
 	}
 	if ll.traceId == nil {
-		ll.traceId = NewTraceId()
+		ll.traceId = log.NewTraceId()
 	}
 	if ll.level == nil {
-		ll.level = LevelInfo
+		ll.level = log.LevelInfo
 	}
 	if ll.caller == nil {
 		_, file, line, _ := runtime.Caller(5)
 		ll.caller = file + ":" + strconv.Itoa(line)
 	}
 	if ll.ts == nil {
-		ll.ts = timestampFormat()
+		ll.ts = log.TimestampFormat()
 	}
 	if ll.msg == nil {
 		ll.msg = ""
@@ -198,8 +194,16 @@ func (l *idasLogger) Log(keyvals ...interface{}) error {
 // logfmt format. Each log event produces no more than one call to w.Write.
 // The passed Writer must be safe for concurrent use by multiple goroutines if
 // the returned Logger will be used concurrently.
-func NewIdasLogger(w io.Writer) log.Logger {
+func NewIdasLogger(w io.Writer) kitlog.Logger {
 	return &idasLogger{w}
 }
 
-const FormatIDAS log2.AllowedFormat = "idas"
+const FormatIDAS log.AllowedFormat = "idas"
+
+func init() {
+	log.RegisterLogFormat(FormatIDAS, NewIdasLogger)
+}
+
+func Relative(file string) string {
+	return strings.TrimPrefix(file, sourceDir)
+}
