@@ -1,7 +1,7 @@
 syntax = "proto3";
 package idas.endpoint;
 import public "gogoproto/gogo.proto";
-import "v1/base.proto";
+import "endpoints/base.proto";
 option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
 
 
@@ -39,22 +39,11 @@ message CreateRoleRequest{
   repeated string permission = 3;
 }
 
-message CreateRoleResponse{
-  idas.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
-  repeated RoleInfo data = 2;
-}
-
-
 message UpdateRoleRequest{
   string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
   string name = 2[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
   string description = 3;
   repeated string permission = 4;
-}
-
-message UpdateRoleResponse{
-  idas.endpoint.BaseListResponse base_list_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
-  repeated RoleInfo data = 2;
 }
 
 message DeleteRoleRequest{

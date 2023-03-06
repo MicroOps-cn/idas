@@ -1,0 +1,48 @@
+syntax = "proto3";
+package idas.service.models;
+import public "gogoproto/gogo.proto";
+option go_package = "github.com/MicroOps-cn/idas/pkg/service/models;models";
+
+message FieldValue{
+  string raw = 1;
+  string value = 2[(gogoproto.customtype) = "interface{}", (gogoproto.nullable) = false];
+}
+
+// @sync-to-public:public/src/services/idas/enums.ts:PageFieldType
+enum FieldType{
+  text = 0;
+  textarea = 2;
+  digit = 3;
+  digitRange = 4;
+  checkbox = 5;
+  radio = 6;
+  switch = 7;
+  select = 8;
+  multiSelect = 9;
+  timeRange = 10;
+  date = 11;
+  dateRange = 12;
+  dateTime = 13;
+  dateTimeRange = 14;
+}
+
+message FieldConfig{
+  string name = 1[(gogoproto.moretags) = 'valid:"required"',(gogoproto.jsontag) = "name"];
+  string display_name = 2[(gogoproto.jsontag) = "displayName,omitempty"];
+  FieldType value_type = 3[(gogoproto.jsontag) = "valueType",(gogoproto.moretags) = 'valid:"required"'];
+  map<string,string> value_enum = 4[(gogoproto.jsontag) = "valueEnum,omitempty"];
+  float max = 5;
+  float min = 6;
+  int32 max_width = 7[(gogoproto.jsontag) = "maxWidth,omitempty"];
+  int32 min_width = 8[(gogoproto.jsontag) = "minWidth,omitempty"];
+  string default_value = 9[(gogoproto.jsontag) = "defaultValue,omitempty"];
+  string tooltip = 10;
+}
+
+
+// @sync-to-public:public/src/services/idas/enums.ts:PageStatus
+enum PageStatus{
+  all = 0;
+  disabled = 1;
+  enabled = 2;
+}

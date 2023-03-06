@@ -27,8 +27,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/sets"
+
 	"github.com/MicroOps-cn/idas/config"
-	"github.com/MicroOps-cn/idas/pkg/utils/sets"
+	"github.com/MicroOps-cn/idas/pkg/errors"
 )
 
 const (
@@ -45,7 +47,7 @@ func GetPayloadFromHTTPRequest(r *http.Request) (string, error) {
 		if err != nil {
 			return "", err
 		} else if time.Since(requestTime) > time.Minute*10 {
-			return "", fmt.Errorf("request has expired")
+			return "", errors.ParameterError("request has expired")
 		}
 	}
 	var bodyHash string
@@ -56,7 +58,7 @@ func GetPayloadFromHTTPRequest(r *http.Request) (string, error) {
 			case MimeJSON, MimeXML, MimeUrlencoded:
 				if r.ContentLength < config.Get().Global.MaxBodySize.Capacity {
 					body, err := ioutil.ReadAll(r.Body)
-					r.Body.Close()
+					_ = r.Body.Close()
 					if err != nil {
 						return "", err
 					}
@@ -110,7 +112,7 @@ func GetSignFromHTTPRequest(r *http.Request, key, secret, private string, algori
 	case ECDSA:
 		return ECDSASign(private, payload)
 	}
-	return "", fmt.Errorf("unknown sign algorithm")
+	return "", errors.ParameterError("unknown sign algorithm")
 }
 
 func Verify(key, secret, private string, algorithm AuthAlgorithm, signStr, payload string) bool {

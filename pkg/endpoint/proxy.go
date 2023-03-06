@@ -18,59 +18,84 @@ package endpoint
 
 import (
 	"context"
-	"fmt"
 	"io"
-	"net/http"
+	gohttp "net/http"
+	"strings"
 
+	"github.com/emicklei/go-restful/v3"
 	"github.com/go-kit/kit/endpoint"
 
+	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
-	"github.com/MicroOps-cn/idas/pkg/utils/errors"
 )
 
 type ProxyResponse struct {
-	Header http.Header
-	Body   io.ReadCloser
-	Code   int
-	Error  error
+	Header gohttp.Header `json:"-"`
+	Body   io.ReadCloser `json:"-"`
+	Code   int           `json:"code"`
+	Error  error         `json:"error"`
+}
+
+type ProxyConfig struct {
+	Token                 string
+	ExternalURL           string
+	ClientId              string
+	RedirectURICookieName string
+}
+
+func MakeGetProxyConfigEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (interface{}, error) {
+		r, ok := request.(*restful.Request)
+		if !ok {
+			return nil, errors.NewServerError(500, "system error: request type exception")
+		}
+		host, _, _ := strings.Cut(r.Request.Host, ":")
+		proxyConfig, err := s.GetProxyConfig(ctx, host)
+		if err != nil {
+			return nil, err
+		}
+		token, err := s.CreateToken(ctx, models.TokenTypeAppProxyLogin, proxyConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		return &ProxyConfig{Token: token.Id, ClientId: proxyConfig.AppId}, nil
+	}
 }
 
 func MakeProxyRequestEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (interface{}, error) {
-		resp := &ProxyResponse{Code: 500, Error: fmt.Errorf("system error")}
-		r, ok := request.(http.Request)
+		resp := &ProxyResponse{Code: 500, Error: errors.NewServerError(500, "system error")}
+		r, ok := request.(*gohttp.Request)
 		if !ok {
 			return resp, nil
 		}
-		users, ok := ctx.Value(global.MetaUser).([]*models.User)
+		users, ok := ctx.Value(global.MetaUser).(models.Users)
 		if !ok || len(users) == 0 {
-			resp.Error = fmt.Errorf("system error: no authorization")
+			resp.Error = errors.NewServerError(401, "system error: no authorization")
 			resp.Code = 401
 			return resp, nil
 		}
-		err := errors.NewMultipleError()
-		var (
-			proxyConfig *models.AppProxyConfig
-			e           error
-		)
-		for _, user := range users {
-			if proxyConfig, e = s.GetProxyConfig(ctx, user, r.Host, r.Method, r.URL.EscapedPath()); err != nil {
-				_ = err.Append(e)
-			} else if proxyConfig != nil {
-				break
-			}
-		}
-		if err.HasError() {
-			resp.Error = err
-			return resp, nil
-		} else if proxyConfig == nil {
-			resp.Error = fmt.Errorf("not found")
-			resp.Code = 404
+		var proxyConfig *models.AppProxyConfig
+
+		proxyConfig, ok = ctx.Value(global.MetaProxyConfig).(*models.AppProxyConfig)
+		if !ok {
+			resp.Error = errors.NewServerError(403, "system error: forbidden")
+			resp.Code = 403
 			return resp, nil
 		}
 
-		return &ProxyResponse{Code: 200}, err
+		oriResp, err := s.SendProxyRequest(ctx, r, proxyConfig)
+		if err != nil {
+			resp.Error = err
+			resp.Code = 500
+			return resp, nil
+		}
+		resp.Header = oriResp.Header.Clone()
+		resp.Body = oriResp.Body
+		resp.Code = oriResp.StatusCode
+		return resp, nil
 	}
 }

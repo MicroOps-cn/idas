@@ -24,13 +24,14 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
+	"github.com/MicroOps-cn/idas/pkg/service/opts"
 )
 
 func MakeGetAppsEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*GetAppsRequest)
 		resp := NewBaseListResponse[[]*models.App](&req.BaseListRequest)
-		resp.Total, resp.Data, resp.BaseResponse.Error = s.GetApps(ctx, req.Storage, req.Keywords, req.Current, req.PageSize)
+		resp.Total, resp.Data, resp.BaseResponse.Error = s.GetApps(ctx, req.Storage, req.Keywords, nil, req.Current, req.PageSize)
 		return &resp, nil
 	}
 }
@@ -119,12 +120,17 @@ func (m UpdateAppRequest) GetUsers() (users []*models.User) {
 
 func (m UpdateAppRequest) GetRoles() (roles []*models.AppRole) {
 	for _, role := range m.Roles {
-		roles = append(roles, &models.AppRole{
+		appRole := &models.AppRole{
 			Model:     models.Model{Id: role.Id},
 			Name:      role.Name,
-			Urls:      role.Urls,
 			IsDefault: role.IsDefault,
-		})
+		}
+		for _, urlId := range role.Urls {
+			appRole.Urls = append(appRole.Urls, &models.AppProxyUrl{
+				Model: models.Model{Id: urlId},
+			})
+		}
+		roles = append(roles, appRole)
 	}
 	return roles
 }
@@ -132,8 +138,8 @@ func (m UpdateAppRequest) GetRoles() (roles []*models.AppRole) {
 func MakeUpdateAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*UpdateAppRequest)
-		resp := SimpleResponseWrapper[*models.App]{}
-		if resp.Data, resp.Error = s.UpdateApp(ctx, req.Storage, &models.App{
+		resp := BaseResponse{}
+		if resp.Error = s.UpdateApp(ctx, req.Storage, &models.App{
 			Model:       models.Model{Id: req.Id},
 			Name:        req.Name,
 			Description: req.Description,
@@ -155,7 +161,7 @@ func MakeGetAppInfoEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*GetAppRequest)
 		resp := SimpleResponseWrapper[*models.App]{}
-		resp.Data, resp.Error = s.GetAppInfo(ctx, req.Storage, req.Id)
+		resp.Data, resp.Error = s.GetAppInfo(ctx, req.Storage, opts.WithAppId(req.Id))
 		return &resp, nil
 	}
 }
@@ -169,21 +175,49 @@ func (r CreateAppRequest) GetUsers() (users []*models.User) {
 
 func (r CreateAppRequest) GetRoles() (roles []*models.AppRole) {
 	for _, role := range r.Roles {
-		roles = append(roles, &models.AppRole{
+		appRole := &models.AppRole{
 			Model:     models.Model{Id: role.Id},
 			Name:      role.Name,
-			Urls:      role.Urls,
 			IsDefault: role.IsDefault,
-		})
+		}
+		for _, urlId := range role.Urls {
+			appRole.Urls = append(appRole.Urls, &models.AppProxyUrl{
+				Model: models.Model{Id: urlId},
+			})
+		}
+		roles = append(roles, appRole)
 	}
 	return roles
+}
+
+func (r CreateAppRequest) GetProxyConfig() *models.AppProxy {
+	if r.Proxy == nil {
+		return nil
+	}
+	proxy := &models.AppProxy{
+		Domain:                r.Proxy.Domain,
+		Upstream:              r.Proxy.Upstream,
+		InsecureSkipVerify:    r.Proxy.InsecureSkipVerify,
+		TransparentServerName: r.Proxy.TransparentServerName,
+	}
+	for _, url := range r.Proxy.Urls {
+		proxy.Urls = append(
+			proxy.Urls,
+			&models.AppProxyUrl{
+				Model:  models.Model{Id: url.Id},
+				Name:   url.Name,
+				Method: url.Method,
+				Url:    url.Url,
+			})
+	}
+	return proxy
 }
 
 func MakeCreateAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*CreateAppRequest)
-		resp := SimpleResponseWrapper[interface{}]{}
-		resp.Data, resp.Error = s.CreateApp(ctx, req.Storage, &models.App{
+		resp := BaseResponse{}
+		resp.Error = s.CreateApp(ctx, req.Storage, &models.App{
 			Name:        req.Name,
 			Description: req.Description,
 			Avatar:      req.Avatar,
@@ -192,6 +226,7 @@ func MakeCreateAppEndpoint(s service.Service) endpoint.Endpoint {
 			Storage:     req.Storage,
 			Users:       req.GetUsers(),
 			Roles:       req.GetRoles(),
+			Proxy:       req.GetProxyConfig(),
 		})
 		return &resp, nil
 	}
@@ -200,7 +235,7 @@ func MakeCreateAppEndpoint(s service.Service) endpoint.Endpoint {
 func MakePatchAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*PatchAppRequest)
-		resp := SimpleResponseWrapper[interface{}]{}
+		resp := BaseResponse{}
 
 		if len(req.Storage) == 0 {
 			return nil, errors.ParameterError("There is an empty storage in the patch.")
@@ -225,7 +260,7 @@ func MakePatchAppEndpoint(s service.Service) endpoint.Endpoint {
 				patch[name] = val
 			}
 		}
-		resp.Data, resp.Error = s.PatchApp(ctx, req.Storage, patch)
+		resp.Error = s.PatchApp(ctx, req.Storage, patch)
 		return &resp, nil
 	}
 }
@@ -246,10 +281,11 @@ func (m *UpdateAppRequest) GetProxyConfig() *models.AppProxy {
 		return nil
 	}
 	proxy := &models.AppProxy{
-		Model:    models.Model{Id: m.Id},
-		AppId:    m.Id,
-		Domain:   m.Proxy.Domain,
-		Upstream: m.Proxy.Upstream,
+		AppId:                 m.Id,
+		Domain:                m.Proxy.Domain,
+		Upstream:              m.Proxy.Upstream,
+		InsecureSkipVerify:    m.Proxy.InsecureSkipVerify,
+		TransparentServerName: m.Proxy.TransparentServerName,
 	}
 	for _, url := range m.Proxy.Urls {
 		proxy.Urls = append(
@@ -262,4 +298,38 @@ func (m *UpdateAppRequest) GetProxyConfig() *models.AppProxy {
 			})
 	}
 	return proxy
+}
+
+func MakeAppAuthenticationEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(Requester).GetRequestData().(*AuthenticationRequest)
+		return s.AppAuthentication(ctx, req.AuthKey, req.AuthSecret)
+	}
+}
+
+func MakeCreateAppKeyEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(Requester).GetRequestData().(*CreateAppKeyRequest)
+		resp := SimpleResponseWrapper[*models.AppKey]{}
+		resp.Data, resp.Error = s.CreateAppKey(ctx, req.AppId, req.Name)
+		return &resp, nil
+	}
+}
+
+func MakeDeleteAppKeyEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(Requester).GetRequestData().(*DeleteAppKeysRequest)
+		resp := SimpleResponseWrapper[struct{}]{}
+		_, resp.Error = s.DeleteAppKey(ctx, req.AppId, req.Id)
+		return &resp, nil
+	}
+}
+
+func MakeGetAppKeysEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(Requester).GetRequestData().(*GetAppKeysRequest)
+		resp := NewBaseListResponse[[]*models.AppKey](&req.BaseListRequest)
+		resp.Total, resp.Data, resp.Error = s.GetAppKeys(ctx, req.AppId, req.Current, req.PageSize)
+		return &resp, nil
+	}
 }

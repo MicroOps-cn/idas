@@ -33,13 +33,12 @@ var migrateCmd = &cobra.Command{
 	Short: "自动迁移工具",
 	Long:  `自动迁移仅仅会创建表，缺少列和索引，并且不会改变现有列的类型或删除未使用的列以保护数据。`,
 	Run: func(cmd *cobra.Command, args []string) {
-		logger := logs.New(&logConfig)
-		logs.SetRootLogger(logger)
+		logger := logs.GetDefaultLogger()
 		Migrate(context.Background(), signals.SetupSignalHandler(logger))
 	},
 }
 
-func Migrate(ctx context.Context, stopCh *signals.StopChan) {
+func Migrate(ctx context.Context, _ *signals.StopChan) {
 	svc := service.New(ctx)
 	if err := svc.AutoMigrate(ctx); err != nil {
 		panic(err)

@@ -28,6 +28,7 @@ import (
 	"time"
 
 	logs "github.com/MicroOps-cn/fuck/log"
+	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -39,25 +40,24 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 
 	"github.com/MicroOps-cn/idas/config"
-	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
 )
 
 type testServiceGenerate func(ctx context.Context, t *testing.T, testFunc func(name string, svc Service))
 
-//func newSqliteTestService(ctx context.Context, t *testing.T, testFunc func(name string, svc Service)) {
-//	const dsName = "sqlite"
-//	const sqliteYamlConfig = `
-//storage:
-//  default:
-//    sqlite:
-//      path: 'file:testdatabase?mode=memory&cache=shared'
-//    name: "sqlite"
-//`
-//	logger := logs.GetContextLogger(ctx)
-//	err := config.ReloadConfigFromYamlReader(logger, config.NewConverter("", bytes.NewBuffer([]byte(sqliteYamlConfig))))
-//	require.NoError(t, err)
-//	testFunc(dsName, New(ctx))
-//}
+func newSqliteTestService(ctx context.Context, t *testing.T, testFunc func(name string, svc Service)) {
+	const dsName = "sqlite"
+	const sqliteYamlConfig = `
+storage:
+ default:
+   sqlite:
+     path: 'file:testdatabase?mode=memory&cache=shared'
+   name: "sqlite"
+`
+	logger := logs.GetContextLogger(ctx)
+	err := config.ReloadConfigFromYamlReader(logger, config.NewConverter("", bytes.NewBuffer([]byte(sqliteYamlConfig))))
+	require.NoError(t, err)
+	testFunc(dsName, New(ctx))
+}
 
 func runWithOpenLDAPContainer(ctx context.Context, t *testing.T, f func(host, rootPassword string)) {
 	wd, err := os.Getwd()
@@ -201,31 +201,31 @@ loop:
 	f(inspect.NetworkSettings.IPAddress, rootPassword)
 }
 
-//func newMySQLTestService(ctx context.Context, t *testing.T, testFunc func(name string, svc Service)) {
-//	runWithMySQLContainer(ctx, t, func(host, rootPassword string) {
-//		const dsName = "mysql"
-//		var sqliteYamlConfig = fmt.Sprintf(`
-//storage:
-//  default:
-//    name: "mysql"
-//    mysql:
-//      host: "%s"
-//      schema: "idas"
-//      username: "root"
-//      password: "%s"
-//`, host, rootPassword)
-//		logger := logs.GetContextLogger(ctx)
-//		err := config.ReloadConfigFromYamlReader(logger, config.NewConverter("", bytes.NewBuffer([]byte(sqliteYamlConfig))))
-//		require.NoError(t, err)
-//		testFunc(dsName, New(ctx))
-//	})
-//}
+func newMySQLTestService(ctx context.Context, t *testing.T, testFunc func(name string, svc Service)) {
+	runWithMySQLContainer(ctx, t, func(host, rootPassword string) {
+		const dsName = "mysql"
+		sqliteYamlConfig := fmt.Sprintf(`
+storage:
+ default:
+   name: "mysql"
+   mysql:
+     host: "%s"
+     schema: "idas"
+     username: "root"
+     password: "%s"
+`, host, rootPassword)
+		logger := logs.GetContextLogger(ctx)
+		err := config.ReloadConfigFromYamlReader(logger, config.NewConverter("", bytes.NewBuffer([]byte(sqliteYamlConfig))))
+		require.NoError(t, err)
+		testFunc(dsName, New(ctx))
+	})
+}
 
 func newLDAPTestService(ctx context.Context, t *testing.T, testFunc func(name string, svc Service)) {
 	runWithOpenLDAPContainer(ctx, t, func(ldapHost, ldapPassword string) {
 		runWithMySQLContainer(ctx, t, func(host, rootPassword string) {
 			const dsName = "LDAP"
-			sqliteYamlConfig := fmt.Sprintf(`
+			ldapYamlConfig := fmt.Sprintf(`
 storage:
   user:
   - name: "LDAP"
@@ -247,7 +247,7 @@ storage:
       password: "%s"
 `, ldapHost, ldapPassword, host, rootPassword)
 			logger := logs.GetContextLogger(ctx)
-			err := config.ReloadConfigFromYamlReader(logger, config.NewConverter("", bytes.NewBuffer([]byte(sqliteYamlConfig))))
+			err := config.ReloadConfigFromYamlReader(logger, config.NewConverter("", bytes.NewBuffer([]byte(ldapYamlConfig))))
 			require.NoError(t, err)
 			testFunc(dsName, New(ctx))
 		})
@@ -255,13 +255,13 @@ storage:
 }
 
 func TestService(t *testing.T) {
-	logs.SetRootLogger(logs.New(logs.MustNewConfig("debug", "idas")))
+	logs.SetDefaultLogger(logs.New())
 	tests := []struct {
 		name string
 		sg   testServiceGenerate
 	}{
-		//{name: "Test Sqlite", sg: newSqliteTestService},
-		//{name: "Test MySQL", sg: newMySQLTestService},
+		{name: "Test Sqlite", sg: newSqliteTestService},
+		{name: "Test MySQL", sg: newMySQLTestService},
 		{name: "Test LDAP", sg: newLDAPTestService},
 	}
 	for _, tt := range tests {

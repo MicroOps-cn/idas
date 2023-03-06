@@ -1,13 +1,12 @@
 syntax = "proto3";
 package idas.oauth2;
-import "v1/base.proto";
+import "endpoints/base.proto";
 option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
 
 message OAuthTokenResponse{
   string access_token = 1;
-  string token_type = 2;
-
-  int32 expires_in = 3[(gogoproto.customtype) = "int",(gogoproto.nullable) = false];
+  OAuthTokenType token_type = 2;
+  int32 expires_in = 3[(gogoproto.customtype) = "int", (gogoproto.nullable) = false];
   string refresh_token = 4;
   string error = 5;
 }
@@ -34,13 +33,22 @@ enum OAuthGrantType{
   client_credentials = 3;
 }
 
+enum OAuthTokenType{
+  Bearer = 0;
+  Mac = 1;
+  Cookie = 2;
+}
+
 message OAuthTokenRequest {
   OAuthGrantType grant_type = 1;
   string code = 2;
   string redirect_uri = 3;
   string client_id = 4;
   string client_secret = 5;
-  string username = 7;
-  string password = 6;
+  string username = 6;
+  string password = 7;
   string refresh_token = 8;
+  string state = 9;
+  bool disable_refresh_token = 10;
+  OAuthTokenType token_type = 11;
 }

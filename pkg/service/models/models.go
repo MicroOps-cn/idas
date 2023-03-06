@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/MicroOps-cn/idas/pkg/errors"
 )
 
 func (x AppMeta_GrantType) MarshalJSON() ([]byte, error) {
@@ -63,7 +65,7 @@ func (x *UserMeta_UserStatus) UnmarshalJSON(bytes []byte) error {
 		}
 		s, ok := UserMeta_UserStatus_value[name]
 		if !ok {
-			return fmt.Errorf("unknown status: %s", name)
+			return errors.ParameterError(fmt.Sprintf("unknown status: %s", name))
 		}
 		*x = UserMeta_UserStatus(s)
 	} else {
@@ -74,12 +76,30 @@ func (x *UserMeta_UserStatus) UnmarshalJSON(bytes []byte) error {
 		}
 
 		if _, ok := UserMeta_UserStatus_name[val]; !ok {
-			return fmt.Errorf("unknown status: %d", val)
+			return errors.ParameterError(fmt.Sprintf("unknown status: %d", val))
 		}
 		*x = UserMeta_UserStatus(val)
 	}
 
 	return nil
+}
+
+func (x UserMeta_UserStatus) Is(s ...UserMeta_UserStatus) bool {
+	for _, status := range s {
+		if x&status != status {
+			return false
+		}
+	}
+	return true
+}
+
+func (x UserMeta_UserStatus) IsAnyOne(s ...UserMeta_UserStatus) bool {
+	for _, status := range s {
+		if x&status == status {
+			return true
+		}
+	}
+	return false
 }
 
 const (

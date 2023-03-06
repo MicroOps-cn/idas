@@ -1,0 +1,14 @@
+<html>
+<meta charset="utf-8">
+<script type="application/javascript">
+    window.document.cookie = {{ .RedirectURICookieName }} + "=" + encodeURIComponent(window.location.href) + ";path=/";
+    let url = new URL({{ .ExternalURL }});
+    url.pathname="/api/v1/oauth/authorize";
+    url.searchParams.set("access_type","online")
+    url.searchParams.set("client_id",{{.ClientId}})
+    url.searchParams.set("redirect_uri",window.location.origin+"/-/oauth")
+    url.searchParams.set("response_type","code")
+    url.searchParams.set("state",{{.Token}})
+    window.location.replace(url.toString());
+</script>
+</html>

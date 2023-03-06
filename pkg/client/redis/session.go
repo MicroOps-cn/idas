@@ -1,5 +1,5 @@
 /*
- Copyright © 2022 MicroOps-cn.
+ Copyright © 2023 MicroOps-cn.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,17 +14,10 @@
  limitations under the License.
 */
 
-package capacity
+package redis
 
-import (
-	"testing"
+import "github.com/go-redis/redis"
 
-	"github.com/stretchr/testify/require"
-)
-
-func TestParseCapacity(t *testing.T) {
-	capacity, err := ParseCapacities("-1gb1M2MB5b")
-	require.NoError(t, err)
-	require.Equal(t, capacity.String(), "-1GB3MB5B")
-	require.Equal(t, int(capacity), -1076887557)
+type Session struct {
+	*redis.Client
 }

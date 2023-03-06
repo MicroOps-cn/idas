@@ -19,6 +19,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log/level"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
+	"github.com/MicroOps-cn/idas/pkg/service/opts"
 	"github.com/MicroOps-cn/idas/pkg/utils/sign"
 )
 
@@ -59,7 +61,7 @@ func (s Set) GetUserSource(_ context.Context) (total int64, data map[string]stri
 //	@return total    int64
 //	@return users    []*models.User
 //	@return err      error
-func (s Set) GetUsers(ctx context.Context, storage string, keywords string, status models.UserMeta_UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error) {
+func (s Set) GetUsers(ctx context.Context, storage string, keywords string, status models.UserMeta_UserStatus, appId string, current, pageSize int64) (total int64, users models.Users, err error) {
 	return s.SafeGetUserAndAppService(storage).GetUsers(ctx, keywords, status, appId, current, pageSize)
 }
 
@@ -97,9 +99,8 @@ func (s Set) DeleteUsers(ctx context.Context, storage string, id []string) (tota
 //	@param storage 	string
 //	@param user	*models.User
 //	@param updateColumns	...string
-//	@return userDetail	*models.User
 //	@return err	error
-func (s Set) UpdateUser(ctx context.Context, storage string, user *models.User, updateColumns ...string) (u *models.User, err error) {
+func (s Set) UpdateUser(ctx context.Context, storage string, user *models.User, updateColumns ...string) (err error) {
 	return s.GetUserAndAppService(storage).UpdateUser(ctx, user, updateColumns...)
 }
 
@@ -124,11 +125,10 @@ func (s Set) GetUserInfo(ctx context.Context, storage string, id string, usernam
 //	@param ctx 	context.Context
 //	@param storage 	string
 //	@param user 	*models.User
-//	@return userDetail	*models.User
 //	@return err	error
-func (s Set) CreateUser(ctx context.Context, storage string, user *models.User) (u *models.User, err error) {
+func (s Set) CreateUser(ctx context.Context, storage string, user *models.User) (err error) {
 	if len(user.Username) == 0 {
-		return nil, errors.ParameterError("username is null")
+		return errors.ParameterError("username is null")
 	}
 	return s.GetUserAndAppService(storage).CreateUser(ctx, user)
 }
@@ -170,9 +170,8 @@ func (s Set) GetUserKeys(ctx context.Context, userId string, current, pageSize i
 //	@param ctx 	context.Context
 //	@param storage 	string
 //	@param user 	map[string]interface{}
-//	@return userDetail	*models.User
 //	@return err	error
-func (s Set) PatchUser(ctx context.Context, storage string, user map[string]interface{}) (u *models.User, err error) {
+func (s Set) PatchUser(ctx context.Context, storage string, user map[string]interface{}) (err error) {
 	return s.GetUserAndAppService(storage).PatchUser(ctx, user)
 }
 
@@ -196,7 +195,7 @@ func (s Set) DeleteUser(ctx context.Context, storage string, id string) (err err
 //	@param id 	string
 //	@param password 	string
 //	@return users	[]*models.User
-func (s Set) VerifyPasswordById(ctx context.Context, storage, userId, password string) (users []*models.User) {
+func (s Set) VerifyPasswordById(ctx context.Context, storage, userId, password string) (users models.Users) {
 	return s.GetUserAndAppService(storage).VerifyPasswordById(ctx, userId, password)
 }
 
@@ -208,14 +207,27 @@ func (s Set) VerifyPasswordById(ctx context.Context, storage, userId, password s
 //	@param username 	string
 //	@param password 	string
 //	@return users	[]*models.User
-func (s Set) VerifyPassword(ctx context.Context, username string, password string) (users []*models.User, err error) {
+func (s Set) VerifyPassword(ctx context.Context, username string, password string) (users models.Users, err error) {
+	logger := logs.GetContextLogger(ctx)
 	for _, userService := range s.userAndAppService {
 		for _, user := range userService.VerifyPassword(ctx, username, password) {
-			if user.Status == models.UserMeta_inactive || user.Status == models.UserMeta_disable {
+			if user.Status != models.UserMeta_normal {
 				continue
+			}
+			user.ExtendedData, err = s.commonService.GetUserExtendedData(ctx, user.Id)
+			if err != nil {
+				return nil, err
+			}
+			user.LoginTime = new(time.Time)
+			*user.LoginTime = time.Now().UTC()
+			if err = userService.UpdateLoginTime(ctx, user.Id); err != nil {
+				level.Error(logger).Log("msg", "failed to update user login time", "err", err)
 			}
 			user.Storage = userService.Name()
 			users = append(users, user)
+			//if global.UserInactiveTime > 0 && time.Since(*user.LoginTime) > global.UserInactiveTime {
+			//	return nil, errors.NewServerError(http.StatusForbidden, "The user is disabled due to inactivity. Please change the password and log in again.", errors.CodeUserNeedResetPassword)
+			//}
 		}
 	}
 	return users, nil
@@ -234,12 +246,13 @@ func (s Set) VerifyPassword(ctx context.Context, username string, password strin
 //	@param signStr 	string
 //	@return ${ret_name}	[]*models.User
 //	@return ${ret_name}	error
-func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm sign.AuthAlgorithm, key, secret, payload, signStr string) ([]*models.User, error) {
+func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm sign.AuthAlgorithm, key, secret, payload, signStr string) (models.Users, error) {
 	if method == models.AuthMeta_basic {
 		if _, err := uuid.FromString(key); err != nil {
 			return s.VerifyPassword(ctx, key, secret)
 		}
 	}
+	var user *models.User
 	userKey, err := s.commonService.GetUserKey(ctx, key)
 	if err != nil {
 		return nil, err
@@ -250,22 +263,22 @@ func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, 
 			if info, err := service.GetUserInfo(ctx, userKey.UserId, ""); err != nil {
 				continue
 			} else {
-				userKey.User = info
+				user = info
 				break
 			}
 		}
 	}
-	if userKey.User == nil {
+	if user == nil {
 		return nil, errors.StatusNotFound("user")
 	}
 	switch method {
 	case models.AuthMeta_basic:
 		if userKey.Secret == secret {
-			return []*models.User{userKey.User}, nil
+			return []*models.User{user}, nil
 		}
 	case models.AuthMeta_signature:
 		if sign.Verify(userKey.Key, userKey.Secret, userKey.Private, algorithm, signStr, payload) {
-			return []*models.User{userKey.User}, nil
+			return []*models.User{user}, nil
 		}
 		return nil, errors.ParameterError("Failed to verify the signature")
 	default:
@@ -274,7 +287,7 @@ func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, 
 	return nil, errors.ParameterError("unknown auth request")
 }
 
-// GetAuthCodeByClientId
+// GetAuthCodeByAppId
 //
 //	@Description[en-US]: Get auth code by client id.
 //	@Description[zh-CN]: 通过客户端id获取授权代。
@@ -285,16 +298,19 @@ func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, 
 //	@param storage 	string
 //	@return code	string
 //	@return err	error
-func (s Set) GetAuthCodeByClientId(ctx context.Context, clientId string, user *models.User, sessionId, storage string) (code string, err error) {
+func (s Set) GetAuthCodeByAppId(ctx context.Context, clientId string, user *models.User, sessionId, storage string) (code string, err error) {
 	svc := s.GetUserAndAppService(storage)
 	if svc == nil {
 		return "", errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
 	}
-	user.Role, err = svc.VerifyUserAuthorizationForApp(ctx, clientId, user.Id)
+	app := models.App{Model: models.Model{Id: clientId}}
+	err = s.GetAppAccessControl(ctx, &app, opts.WithoutUsers, opts.WithUsers(user.Id))
 	if err != nil {
 		return "", err
 	}
-
+	if len(app.Roles) == 0 || len(app.Users) == 0 {
+		return "", errors.NotFoundError()
+	}
 	token, err := s.CreateToken(ctx, models.TokenTypeCode, user)
 	if err != nil {
 		return "", err
@@ -302,9 +318,10 @@ func (s Set) GetAuthCodeByClientId(ctx context.Context, clientId string, user *m
 	return token.Id, nil
 }
 
-func (s Set) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (users []*models.User) {
+func (s Set) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (users models.Users) {
 	for _, service := range s.userAndAppService {
 		if info, err := service.GetUserInfoByUsernameAndEmail(ctx, username, email); err == nil {
+			info.Storage = service.Name()
 			users = append(users, info)
 		} else {
 			level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "Failed to get user from username and email")

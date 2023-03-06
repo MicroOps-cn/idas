@@ -23,14 +23,7 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 )
 
-func NewUserAndAppService(ctx context.Context, name string, client *gorm.Client) *UserAndAppService {
-	conn := client.Session(ctx)
-	if err := conn.SetupJoinTable(&models.App{}, "Users", models.AppUser{}); err != nil {
-		panic(err)
-	}
-	if err := conn.SetupJoinTable(&models.User{}, "Apps", models.AppUser{}); err != nil {
-		panic(err)
-	}
+func NewUserAndAppService(_ context.Context, name string, client *gorm.Client) *UserAndAppService {
 	set := &UserAndAppService{name: name, Client: client}
 	return set
 }
@@ -41,7 +34,7 @@ type UserAndAppService struct {
 }
 
 func (s UserAndAppService) AutoMigrate(ctx context.Context) error {
-	err := s.Session(ctx).AutoMigrate(&models.App{}, &models.AppUser{}, &models.AppRole{}, &models.User{}, &models.AppAuthCode{})
+	err := s.Session(ctx).AutoMigrate(&models.App{}, &models.User{})
 	if err != nil {
 		return err
 	}

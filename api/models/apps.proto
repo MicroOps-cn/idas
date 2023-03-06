@@ -30,7 +30,8 @@ message AppProxy {
   string domain = 3 [(gogoproto.jsontag) = "domain", (gogoproto.moretags) = 'gorm:"type:varchar(50);" valid:"required"'];
   string upstream = 4 [(gogoproto.jsontag) = "upstream", (gogoproto.moretags) = 'gorm:"type:varchar(50);" valid:"required"'];
   string urls = 5 [(gogoproto.jsontag) = "urls", (gogoproto.customtype) = "AppProxyUrls", (gogoproto.nullable) = false, (gogoproto.moretags) = 'gorm:"foreignKey:AppProxyId"'];
-  string storage = 6 [(gogoproto.moretags) = 'gorm:"type:varchar(50);"'];
+  bool insecure_skip_verify = 6[(gogoproto.jsontag) = "insecureSkipVerify",(gogoproto.moretags) = 'gorm:"not null;default:0"'];
+  bool transparent_server_name = 7[(gogoproto.jsontag) = "transparentServerName",(gogoproto.moretags) = 'gorm:"not null;default:0"'];
 }
 
 message AppRole {
@@ -41,9 +42,10 @@ message AppRole {
   idas.service.models.Model model = 1 [(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
   string app_id = 2 [(gogoproto.jsontag) = "appId", (gogoproto.moretags) = 'gorm:"type:char(36);not null" valid:"required"'];
   string name = 3 [(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'gorm:"type:varchar(50);" valid:"required"'];
-  repeated string urls = 4 [(gogoproto.jsontag) = "urls", (gogoproto.moretags) = 'gorm:"-" valid:"required"'];
-  repeated string users = 5 [(gogoproto.customtype) = "*User", (gogoproto.jsontag) = "urls", (gogoproto.moretags) = 'gorm:"-" valid:"required"'];
-  bool is_default = 6 [(gogoproto.jsontag) = "isDefault,omitempty"];
+  repeated string urls = 4 [(gogoproto.customtype) = "*AppProxyUrl", (gogoproto.jsontag) = "-", (gogoproto.moretags) = 'gorm:"many2many:app_role_url" valid:"required"'];
+  repeated string urlsId = 5[(gogoproto.jsontag) = "urls", (gogoproto.moretags) = 'gorm:"-"'];
+  repeated string users = 6 [(gogoproto.customtype) = "*User", (gogoproto.jsontag) = "users", (gogoproto.moretags) = 'gorm:"-" valid:"required"'];
+  bool is_default = 7 [(gogoproto.jsontag) = "isDefault,omitempty"];
 }
 
 message App {
@@ -58,8 +60,8 @@ message App {
   idas.service.models.AppMeta.GrantType grant_type = 5 [(gogoproto.jsontag) = "grantType", (gogoproto.moretags) = 'gorm:"type:TINYINT(3);not null;default:0"'];
   idas.service.models.AppMeta.GrantMode grant_mode = 6 [(gogoproto.jsontag) = "grantMode", (gogoproto.moretags) = 'gorm:"type:TINYINT(3);not null;default:0"'];
   idas.service.models.AppMeta.Status status = 7 [(gogoproto.jsontag) = "status", (gogoproto.moretags) = 'gorm:"type:TINYINT(3);not null;default:0"'];
-  string users = 8 [(gogoproto.customtype) = "Users",(gogoproto.nullable) = false, (gogoproto.jsontag) = "users,omitempty", (gogoproto.moretags) = 'gorm:"many2many:app_user"'];
-  string roles = 9 [(gogoproto.customtype) = "AppRoles",(gogoproto.nullable) = false, (gogoproto.jsontag) = "roles,omitempty", (gogoproto.moretags) = 'gorm:"foreignKey:AppId"'];
+  string users = 8 [(gogoproto.customtype) = "Users", (gogoproto.nullable) = false, (gogoproto.jsontag) = "users,omitempty", (gogoproto.moretags) = 'gorm:"-"'];
+  string roles = 9 [(gogoproto.customtype) = "AppRoles", (gogoproto.nullable) = false, (gogoproto.jsontag) = "roles,omitempty", (gogoproto.moretags) = 'gorm:"-"'];
   idas.service.models.AppProxy proxy = 10 [(gogoproto.jsontag) = "proxy,omitempty", (gogoproto.moretags) = 'gorm:"-"'];
   string storage = 11 [(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'gorm:"-"'];
 

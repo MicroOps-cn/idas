@@ -18,8 +18,14 @@ package models
 
 import (
 	"crypto/sha1"
+	"crypto/sha256"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/MicroOps-cn/fuck/crypto"
+	"github.com/MicroOps-cn/idas/config"
+	"github.com/MicroOps-cn/idas/pkg/errors"
+	uuid "github.com/satori/go.uuid"
 	"reflect"
 	"strings"
 )
@@ -67,12 +73,69 @@ func (u User) GetAttr(name string) string {
 
 type Users []*User
 
+func (u Users) Id() (ids []string) {
+	for _, user := range u {
+		ids = append(ids, user.Id)
+	}
+	return
+}
+
+func (u Users) GetById(id string) *User {
+	for _, user := range u {
+		if user.Id == id {
+			return user
+		}
+	}
+	return nil
+}
+
 type UserKey struct {
 	Model
 	Name    string `gorm:"type:varchar(50)" json:"name"`
-	User    *User  `gorm:"-" json:"-"`
 	UserId  string `gorm:"type:char(36);" json:"userId"`
 	Key     string `gorm:"type:varchar(50);" json:"key"`
 	Secret  string `gorm:"type:varchar(50);" json:"secret"`
 	Private string `gorm:"-" json:"private,omitempty"`
+}
+
+type AppKey struct {
+	Model
+	Name   string `gorm:"type:varchar(50)" json:"name"`
+	AppId  string `gorm:"type:char(36);" json:"appId"`
+	Key    string `gorm:"type:varchar(50);" json:"key"`
+	Secret string `gorm:"type:varchar(50);" json:"secret"`
+}
+
+type UserExt struct {
+	UserId     string `json:"userId" gorm:"unique"`
+	ForceMFA   bool
+	TOTPSecret sql.RawBytes `json:"-" gorm:"column:totp_secret;type:tinyblob"`
+	TOTPSalt   sql.RawBytes `json:"-" gorm:"column:totp_salt;type:tinyblob"`
+	EmailAsMFA bool         `json:"emailAsMFA" gorm:"column:email_as_mfa"`
+	SmsAsMFA   bool         `json:"smsAsMFA" gorm:"column:sms_as_mfa"`
+	TOTPAsMFA  bool         `json:"totpAsMFA" gorm:"column:totp_as_mfa"`
+}
+
+func (u *UserExt) SetSecret(secret string) (err error) {
+	globalSecret := config.Get().GetGlobal().GetSecret()
+	if globalSecret == "" {
+		return errors.NewServerError(500, "global secret is not set")
+	}
+	u.TOTPSalt = uuid.NewV4().Bytes()
+	key := sha256.Sum256([]byte(string(u.TOTPSalt) + (globalSecret)))
+	u.TOTPSecret, err = crypto.NewAESCipher(key[:]).CBCEncrypt([]byte(secret))
+	return err
+}
+
+func (u UserExt) GetSecret() (secret string, err error) {
+	if len(u.TOTPSecret) == 0 || len(u.TOTPSalt) == 0 {
+		return "", nil
+	}
+	globalSecret := config.Get().GetGlobal().GetSecret()
+	if globalSecret == "" {
+		return "", errors.NewServerError(500, "global secret is not set")
+	}
+	key := sha256.Sum256([]byte(string(u.TOTPSalt) + (globalSecret)))
+	sec, err := crypto.NewAESCipher(key[:]).CBCDecrypt(u.TOTPSecret)
+	return string(sec), err
 }

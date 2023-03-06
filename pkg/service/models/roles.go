@@ -20,7 +20,7 @@ import "strings"
 
 type Permission struct {
 	Model
-	Name        string      `gorm:"type:varchar(100);unique" json:"name"`
+	Name        string      `gorm:"type:varchar(100);uniqueIndex:idx_t_permission_name" json:"name"`
 	Description string      `gorm:"type:varchar(100);" json:"description" `
 	ParentId    string      `gorm:"type:char(36)" json:"parentId"`
 	EnableAuth  bool        `json:"enableAuth"`
@@ -77,9 +77,10 @@ func (r Roles) Get(name string) *Role {
 
 type Role struct {
 	Model
-	Name        string        `gorm:"type:varchar(50);unique" json:"name"`
+	Name        string        `gorm:"type:varchar(50);uniqueIndex:idx_t_role_name" json:"name"`
 	Description string        `gorm:"type:varchar(250);" json:"describe"`
 	Type        RoleMeta_Type `json:"type"`
+	AppId       string        `json:"app_id"`
 	Permission  []*Permission `gorm:"association_save_reference:false;association_autoupdate:false;association_autocreate:false;many2many:rel_role_permission" json:"permission,omitempty"`
 }
 

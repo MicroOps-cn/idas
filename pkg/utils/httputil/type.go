@@ -17,16 +17,15 @@
 package httputil
 
 import (
-	"encoding/json"
 	"net/url"
 
-	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
+	w "github.com/MicroOps-cn/fuck/wrapper"
 )
 
 type Map[KT comparable, VT any] map[KT]VT
 
 func (m Map[KT, VT]) String() string {
-	return string(w.M[[]byte](json.Marshal(m)))
+	return w.JSONStringer(m).String()
 }
 
 type URL url.URL

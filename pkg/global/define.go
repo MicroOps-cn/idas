@@ -21,17 +21,18 @@ import "time"
 const (
 	AppName                     = "idas"
 	IdasAppName                 = "IDAS"
-	LoginSession                = "LOGIN_SESSION"
-	LoggerName                  = "__logger__"
-	TraceIdName                 = "traceId"
-	CallerName                  = "caller"
+	OAuthStateCookieName        = "oauth_state"
+	RedirectURICookieName       = "oauth_redirect_uri"
+	ClientIDCookieName          = "client_id"
+	LoginSession                = "IDAS_LOGIN_SESSION"
 	RestfulRequestContextName   = "__restful_request__"
 	RestfulResponseContextName  = "__restful_response__"
 	MetaUser                    = "__user__"
+	MetaProxyConfig             = "__proxy_config__"
 	MetaNeedLogin               = "__need_login__"
+	MetaForceOk                 = "__force_ok__"
+	MetaSensitiveData           = "__sensitive_data__"
 	MetaAutoRedirectToLoginPage = "__auto_redirect_to_login_page__"
-	GormConnName                = "__mysql_conn__"
-	LDAPConnName                = "__ldap_conn__"
 	LoginSessionExpiration      = 7 * 24 * time.Hour
 	ActiveExpiration            = 7 * 24 * time.Hour
 	AuthCodeExpiration          = 5 * time.Minute
@@ -42,4 +43,5 @@ const (
 	HTTPExternalURLKey          = "__http_external_url__"
 	HTTPLoginURLKey             = "__http_login_url__"
 	HTTPWebPrefixKey            = "__http_web_prefix__"
+	RedisKeyPrefix              = "IDAS"
 )

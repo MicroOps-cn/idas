@@ -38,21 +38,52 @@ func (roles AppRoles) GetRole(name string) *AppRole {
 	return nil
 }
 
+func (roles AppRoles) GetRoleById(id string) *AppRole {
+	for _, role := range roles {
+		if role.Id == id {
+			return role
+		}
+	}
+	return nil
+}
+
+func (roles AppRoles) GetId() (ids []string) {
+	for _, role := range roles {
+		ids = append(ids, role.Id)
+	}
+	return
+}
+
+type AppUsers []*AppUser
+
+func (s AppUsers) Id() (ids []string) {
+	for _, user := range s {
+		ids = append(ids, user.Id)
+	}
+	return
+}
+
+func (s AppUsers) GetByUserId(id string) *AppUser {
+	for _, user := range s {
+		if user.UserId == id {
+			return user
+		}
+	}
+	return nil
+}
+
+func (s AppUsers) UserId() (ids []string) {
+	for _, user := range s {
+		ids = append(ids, user.UserId)
+	}
+	return
+}
+
 type AppUser struct {
 	Model
 	AppId  string `json:"appId" gorm:"type:char(36);not null;index:idx_app_user,unique"`
-	App    *App   `json:"app,omitempty"`
 	UserId string `json:"userId" gorm:"type:char(36);not null;index:idx_app_user,unique"`
-	User   *User  `json:"user,omitempty"`
 	RoleId string `json:"roleId" gorm:"default:'';type:char(36);not null"`
-}
-
-type AppAuthCode struct {
-	Model
-	SessionId string `json:"session_id" gorm:"type:CHAR(36);not null"`
-	AppId     string `json:"appId" gorm:"type:CHAR(36);not null"`
-	Scope     string `json:"scope" gorm:"type:varchar(128);not null"`
-	Storage   string `json:"storage" gorm:"type:varchar(128);not null"`
 }
 
 type AppProxyUrls []*AppProxyUrl
@@ -69,8 +100,9 @@ func (a AppProxyUrls) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
-type AppProxyConfig struct {
-	*AppProxyUrl
-	Domain   string `json:"domain" gorm:"type:varchar(50);"`
-	Upstream string `json:"upstream" gorm:"type:varchar(50);"`
+func (a AppProxyUrls) Id() (ids []string) {
+	for _, url := range a {
+		ids = append(ids, url.Id)
+	}
+	return
 }

@@ -24,6 +24,16 @@ func main() {
 		f.WriteString(fmt.Sprintf("  %s = %d,\n", name, value))
 	}
 	f.WriteString("}\n\n")
+	f.WriteString("export type {{ .DstType }}Name =")
+	for name := range {{ $m.Name }}.{{ $t.SourceType }}_value {
+		f.WriteString(fmt.Sprintf("\n    | '%s'", name))
+	}
+	f.WriteString(";\n\n")
+	f.WriteString("export type {{ .DstType }}Value =")
+	for _, value := range {{ $m.Name }}.{{ $t.SourceType }}_value {
+		f.WriteString(fmt.Sprintf("\n    | %d", value))
+	}
+	f.WriteString(";\n\n")
 {{- end }}
 {{- end }}
 }

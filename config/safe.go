@@ -148,10 +148,10 @@ func (sc *safeConfig) ReloadConfigFromJSONReader(logger log.Logger, reader Reade
 	if c.GetWorkspace() == nil {
 		if absPath, err := filepath.Abs(path.Dir(reader.Name())); err != nil {
 			c.SetWorkspace(path.Dir(reader.Name()))
-			level.Debug(logger).Log("workspace", path.Dir(reader.Name()))
+			level.Debug(logger).Log("msg", "set workspace", "workspace", path.Dir(reader.Name()))
 		} else {
 			c.SetWorkspace(absPath)
-			level.Debug(logger).Log("workspace", absPath)
+			level.Debug(logger).Log("msg", "set workspace", "workspace", absPath)
 		}
 	}
 	sc.SetConfig(&c)

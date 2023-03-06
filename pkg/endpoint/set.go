@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/metrics"
@@ -34,7 +35,6 @@ import (
 
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
-	"github.com/MicroOps-cn/idas/pkg/utils/sets"
 )
 
 type UserEndpoints struct {
@@ -56,29 +56,37 @@ type UserEndpoints struct {
 	CreateKey        endpoint.Endpoint `auth:"false"`
 	SendActivateMail endpoint.Endpoint `description:"Send activation link to user mail" role:"admin"`
 	ActivateAccount  endpoint.Endpoint `auth:"false"`
+	CreateTOTPSecret endpoint.Endpoint `auth:"false"`
+	CreateTOTP       endpoint.Endpoint `auth:"false"`
+	SendLoginCaptcha endpoint.Endpoint `auth:"false"`
 }
 
 type AppEndpoints struct {
-	PatchApps    endpoint.Endpoint `description:"Batch modify application information (incremental)" role:"admin"`
-	DeleteApps   endpoint.Endpoint `description:"Batch delete applications" role:"admin"`
-	GetAppSource endpoint.Endpoint `description:"Get the data source that stores applications information" role:"admin|viewer"`
-	GetAppInfo   endpoint.Endpoint `description:"Get application details" role:"admin|viewer"`
-	CreateApp    endpoint.Endpoint `description:"Create an application" role:"admin"`
-	UpdateApp    endpoint.Endpoint `description:"Modify application information" role:"admin"`
-	PatchApp     endpoint.Endpoint `description:"Modify application information (incremental)" role:"admin"`
-	DeleteApp    endpoint.Endpoint `description:"Delete a application" role:"admin"`
-	GetApps      endpoint.Endpoint `description:"Get application list" role:"admin|viewer"`
+	PatchApps         endpoint.Endpoint `description:"Batch modify application information (incremental)" role:"admin"`
+	DeleteApps        endpoint.Endpoint `description:"Batch delete applications" role:"admin"`
+	GetAppSource      endpoint.Endpoint `description:"Get the data source that stores applications information" role:"admin|viewer"`
+	GetAppInfo        endpoint.Endpoint `description:"Get application details" role:"admin|viewer"`
+	CreateApp         endpoint.Endpoint `description:"Create an application" role:"admin"`
+	UpdateApp         endpoint.Endpoint `description:"Modify application information" role:"admin"`
+	PatchApp          endpoint.Endpoint `description:"Modify application information (incremental)" role:"admin"`
+	DeleteApp         endpoint.Endpoint `description:"Delete a application" role:"admin"`
+	GetApps           endpoint.Endpoint `description:"Get application list" role:"admin|viewer"`
+	AppAuthentication endpoint.Endpoint `auth:"false"`
+	CreateAppKey      endpoint.Endpoint `description:"Create a app key-pair" role:"admin"`
+	DeleteAppKey      endpoint.Endpoint `description:"Delete a app key-pair" role:"admin"`
+	GetAppKeys        endpoint.Endpoint `description:"Get a app key-pairs" role:"admin"`
 }
 
 type SessionEndpoints struct {
-	GetSessions       endpoint.Endpoint `description:"Get the user's session list" role:"admin"`
-	DeleteSession     endpoint.Endpoint `description:"Delete the user's session" role:"admin"`
-	UserLogin         endpoint.Endpoint `auth:"false"`
-	UserLogout        endpoint.Endpoint `auth:"false"`
-	GetSessionByToken endpoint.Endpoint `auth:"false"`
-	OAuthTokens       endpoint.Endpoint `auth:"false"`
-	OAuthAuthorize    endpoint.Endpoint `auth:"false"`
-	Authentication    endpoint.Endpoint `auth:"false"`
+	GetSessions            endpoint.Endpoint `description:"Get the user's session list" role:"admin"`
+	DeleteSession          endpoint.Endpoint `description:"Delete the user's session" role:"admin"`
+	UserLogin              endpoint.Endpoint `auth:"false"`
+	UserLogout             endpoint.Endpoint `auth:"false"`
+	GetSessionByToken      endpoint.Endpoint `auth:"false"`
+	GetProxySessionByToken endpoint.Endpoint `auth:"false"`
+	OAuthTokens            endpoint.Endpoint `auth:"false"`
+	OAuthAuthorize         endpoint.Endpoint `auth:"false"`
+	Authentication         endpoint.Endpoint `auth:"false"`
 }
 
 type RoleEndpoints struct {
@@ -90,13 +98,30 @@ type RoleEndpoints struct {
 	DeleteRole     endpoint.Endpoint `description:"Delete a role" role:"admin"`
 }
 
+type PageEndpoints struct {
+	GetPages   endpoint.Endpoint `description:"Get page list" role:"admin|viewer"`
+	GetPage    endpoint.Endpoint `description:"Get page" role:"admin|viewer"`
+	CreatePage endpoint.Endpoint `description:"Create a page" role:"admin"`
+	UpdatePage endpoint.Endpoint `description:"Modify page information" role:"admin"`
+	DeletePage endpoint.Endpoint `description:"Delete a page" role:"admin"`
+	PatchPages endpoint.Endpoint `description:"Patch pages" role:"admin"`
+
+	GetPageDatas   endpoint.Endpoint `description:"Get data list of page" role:"admin|viewer"`
+	GetPageData    endpoint.Endpoint `description:"Get a data of page" role:"admin|viewer"`
+	CreatePageData endpoint.Endpoint `description:"Create a data of page" role:"admin"`
+	UpdatePageData endpoint.Endpoint `description:"Modify a data of page" role:"admin"`
+	DeletePageData endpoint.Endpoint `description:"Delete a data of page" role:"admin"`
+	PatchPageDatas endpoint.Endpoint `description:"Patch page data" role:"admin"`
+}
+
 type FileEndpoints struct {
 	UploadFile   endpoint.Endpoint `name:"" description:"Upload files to the server" role:"admin"`
 	DownloadFile endpoint.Endpoint `name:"" description:"Download/view files" role:"admin|viewer"`
 }
 
 type ProxyEndpoints struct {
-	ProxyRequest endpoint.Endpoint `auth:"false"`
+	ProxyRequest   endpoint.Endpoint `auth:"false"`
+	GetProxyConfig endpoint.Endpoint `auth:"false"`
 }
 
 // Set collects all of the endpoints that compose an add service. It's meant to
@@ -109,6 +134,7 @@ type Set struct {
 	RoleEndpoints    `name:"Role" description:"Role of current platform"`
 	FileEndpoints    `name:"File" description:"File"`
 	ProxyEndpoints   `name:"Proxy" description:"Proxy"`
+	PageEndpoints    `name:"Page" description:"Page"`
 }
 
 func GetPermissionsDefine(typeOf reflect.Type) models.Permissions {
@@ -202,27 +228,35 @@ func New(ctx context.Context, svc service.Service, duration metrics.Histogram, o
 			CreateKey:        injectEndpoint("CreateKey", MakeCreateKeyEndpoint(svc)),
 			SendActivateMail: injectEndpoint("SendActivateMail", MakeSendActivationMailEndpoint(svc)),
 			ActivateAccount:  injectEndpoint("ActivateAccount", MakeActivateAccountEndpoint(svc)),
+			CreateTOTPSecret: injectEndpoint("CreateTOTPSecret", MakeCreateTOTPSecretEndpoint(svc)),
+			CreateTOTP:       injectEndpoint("CreateTOTP", MakeCreateTOTPEndpoint(svc)),
+			SendLoginCaptcha: injectEndpoint("SendLoginCaptcha", MakeSendLoginCaptchaEndpoint(svc)),
 		},
 		SessionEndpoints: SessionEndpoints{
-			GetSessions:       injectEndpoint("GetSessions", MakeGetSessionsEndpoint(svc)),
-			DeleteSession:     injectEndpoint("DeleteSession", MakeDeleteSessionEndpoint(svc)),
-			UserLogin:         injectEndpoint("UserLogin", MakeUserLoginEndpoint(svc)),
-			Authentication:    injectEndpoint("Authentication", MakeAuthenticationEndpoint(svc)),
-			UserLogout:        injectEndpoint("UserLogout", MakeUserLogoutEndpoint(svc)),
-			GetSessionByToken: injectEndpoint("GetSessionByToken", MakeGetSessionByTokenEndpoint(svc)),
-			OAuthTokens:       injectEndpoint("OAuthTokens", MakeOAuthTokensEndpoint(svc)),
-			OAuthAuthorize:    injectEndpoint("OAuthAuthorize", MakeOAuthAuthorizeEndpoint(svc)),
+			GetSessions:            injectEndpoint("GetSessions", MakeGetSessionsEndpoint(svc)),
+			DeleteSession:          injectEndpoint("DeleteSession", MakeDeleteSessionEndpoint(svc)),
+			UserLogin:              injectEndpoint("UserLogin", MakeUserLoginEndpoint(svc)),
+			Authentication:         injectEndpoint("Authentication", MakeAuthenticationEndpoint(svc)),
+			UserLogout:             injectEndpoint("UserLogout", MakeUserLogoutEndpoint(svc)),
+			GetSessionByToken:      injectEndpoint("GetSessionByToken", MakeGetSessionByTokenEndpoint(svc)),
+			GetProxySessionByToken: injectEndpoint("GetProxySessionByToken", MakeGetProxySessionByTokenEndpoint(svc)),
+			OAuthTokens:            injectEndpoint("OAuthTokens", MakeOAuthTokensEndpoint(svc)),
+			OAuthAuthorize:         injectEndpoint("OAuthAuthorize", MakeOAuthAuthorizeEndpoint(svc)),
 		},
 		AppEndpoints: AppEndpoints{
-			GetApps:      injectEndpoint("GetApps", MakeGetAppsEndpoint(svc)),
-			DeleteApps:   injectEndpoint("DeleteApps", MakeDeleteAppsEndpoint(svc)),
-			PatchApps:    injectEndpoint("PatchApps", MakePatchAppsEndpoint(svc)),
-			UpdateApp:    injectEndpoint("UpdateApp", MakeUpdateAppEndpoint(svc)),
-			GetAppInfo:   injectEndpoint("GetAppInfo", MakeGetAppInfoEndpoint(svc)),
-			CreateApp:    injectEndpoint("CreateApp", MakeCreateAppEndpoint(svc)),
-			PatchApp:     injectEndpoint("PatchApp", MakePatchAppEndpoint(svc)),
-			DeleteApp:    injectEndpoint("DeleteApp", MakeDeleteAppEndpoint(svc)),
-			GetAppSource: injectEndpoint("GetAppSource", MakeGetAppSourceRequestEndpoint(svc)),
+			GetApps:           injectEndpoint("GetApps", MakeGetAppsEndpoint(svc)),
+			DeleteApps:        injectEndpoint("DeleteApps", MakeDeleteAppsEndpoint(svc)),
+			PatchApps:         injectEndpoint("PatchApps", MakePatchAppsEndpoint(svc)),
+			UpdateApp:         injectEndpoint("UpdateApp", MakeUpdateAppEndpoint(svc)),
+			GetAppInfo:        injectEndpoint("GetAppInfo", MakeGetAppInfoEndpoint(svc)),
+			CreateApp:         injectEndpoint("CreateApp", MakeCreateAppEndpoint(svc)),
+			PatchApp:          injectEndpoint("PatchApp", MakePatchAppEndpoint(svc)),
+			DeleteApp:         injectEndpoint("DeleteApp", MakeDeleteAppEndpoint(svc)),
+			GetAppSource:      injectEndpoint("GetAppSource", MakeGetAppSourceRequestEndpoint(svc)),
+			AppAuthentication: injectEndpoint("AppAuthentication", MakeAppAuthenticationEndpoint(svc)),
+			CreateAppKey:      injectEndpoint("CreateAppKey", MakeCreateAppKeyEndpoint(svc)),
+			DeleteAppKey:      injectEndpoint("DeleteAppKey", MakeDeleteAppKeyEndpoint(svc)),
+			GetAppKeys:        injectEndpoint("GetAppKeys", MakeGetAppKeysEndpoint(svc)),
 		},
 		RoleEndpoints: RoleEndpoints{
 			GetRoles:       injectEndpoint("GetRoles", MakeGetRolesEndpoint(svc)),
@@ -233,7 +267,23 @@ func New(ctx context.Context, svc service.Service, duration metrics.Histogram, o
 			GetPermissions: injectEndpoint("GetPermissions", MakeGetPermissionsEndpoint(svc)),
 		},
 		ProxyEndpoints: ProxyEndpoints{
-			ProxyRequest: injectEndpoint("ProxyRequest", MakeProxyRequestEndpoint(svc)),
+			ProxyRequest:   injectEndpoint("ProxyRequest", MakeProxyRequestEndpoint(svc)),
+			GetProxyConfig: injectEndpoint("GetProxyConfig", MakeGetProxyConfigEndpoint(svc)),
+		},
+		PageEndpoints: PageEndpoints{
+			GetPages:   injectEndpoint("GetPages", MakeGetPagesEndpoint(svc)),
+			GetPage:    injectEndpoint("GetPage", MakeGetPageEndpoint(svc)),
+			CreatePage: injectEndpoint("CreatePage", MakeCreatePageEndpoint(svc)),
+			UpdatePage: injectEndpoint("UpdatePage", MakeUpdatePageEndpoint(svc)),
+			DeletePage: injectEndpoint("DeletePage", MakeDeletePageEndpoint(svc)),
+			PatchPages: injectEndpoint("PatchPages", MakePatchPagesEndpoint(svc)),
+
+			GetPageDatas:   injectEndpoint("GetPageDatas", MakeGetPageDatasEndpoint(svc)),
+			GetPageData:    injectEndpoint("GetPageData", MakeGetPageDataEndpoint(svc)),
+			CreatePageData: injectEndpoint("CreatePageData", MakeCreatePageDataEndpoint(svc)),
+			UpdatePageData: injectEndpoint("UpdatePageData", MakeUpdatePageDataEndpoint(svc)),
+			DeletePageData: injectEndpoint("DeletePageData", MakeDeletePageDataEndpoint(svc)),
+			PatchPageDatas: injectEndpoint("PatchPageDatas", MakePatchPageDatasEndpoint(svc)),
 		},
 	}
 }

@@ -33,13 +33,12 @@ var initDataCmd = &cobra.Command{
 	Short: "Data initialization tool",
 	Long:  `The data initialization tool will create a table with missing columns and indexes. And create the required user and application data.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		logger := logs.New(&logConfig)
-		logs.SetRootLogger(logger)
+		logger := logs.GetDefaultLogger()
 		InitData(context.Background(), signals.SetupSignalHandler(logger))
 	},
 }
 
-func InitData(ctx context.Context, stopCh *signals.StopChan) {
+func InitData(ctx context.Context, _ *signals.StopChan) {
 	svc := service.New(ctx)
 	if err := svc.AutoMigrate(ctx); err != nil {
 		panic(err)

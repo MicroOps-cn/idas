@@ -19,21 +19,20 @@ package ldapservice
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/sets"
+	w "github.com/MicroOps-cn/fuck/wrapper"
 	goldap "github.com/go-ldap/ldap"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/MicroOps-cn/idas/pkg/client/ldap"
 	"github.com/MicroOps-cn/idas/pkg/errors"
-	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
+	"github.com/MicroOps-cn/idas/pkg/service/opts"
 	"github.com/MicroOps-cn/idas/pkg/utils/httputil"
-	"github.com/MicroOps-cn/idas/pkg/utils/sets"
-	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
 )
 
 const GroupStatusName = "status"
@@ -77,12 +76,12 @@ func (s UserAndAppService) getAppDnByEntryUUID(ctx context.Context, id string) (
 //	@param dn          string
 //	@return appDetail  *models.App
 //	@return err        error
-func (s UserAndAppService) getAppDetailByDn(ctx context.Context, dn string) (*models.App, error) {
+func (s UserAndAppService) getAppDetailByDn(ctx context.Context, dn string, options *opts.GetAppOptions) (*models.App, error) {
 	searchReq := goldap.NewSearchRequest(
 		dn, goldap.ScopeBaseObject, goldap.NeverDerefAliases, 1, 0, false,
 		"(objectClass=*)", nil, nil,
 	)
-	return s.getAppDetailByReq(ctx, searchReq)
+	return s.getAppDetailByReq(ctx, searchReq, options)
 }
 
 // getAppDetailByReq
@@ -93,7 +92,7 @@ func (s UserAndAppService) getAppDetailByDn(ctx context.Context, dn string) (*mo
 //	@param searchReq   *ldap.SearchRequest
 //	@return appDetail  *models.App
 //	@return err        error
-func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *goldap.SearchRequest) (*models.App, error) {
+func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *goldap.SearchRequest, opt *opts.GetAppOptions) (*models.App, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	searchReq.Attributes = []string{"entryUUID", "description", "cn", "avatar", "uniqueMember", "member", "createTimestamp", "modifyTimestamp", "grantMode", "grantType", GroupStatusName}
@@ -107,51 +106,18 @@ func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *gol
 	}
 	appEntry := ret.Entries[0]
 	var users []*models.User
-	var userMap map[string]*models.User
-	var roles []*models.AppRole
-
-	member := append(appEntry.GetAttributeValues("uniqueMember"), appEntry.GetAttributeValues("member")...)
-	if len(member) > 0 {
-		userMap = make(map[string]*models.User, len(member))
-		for _, userDn := range member {
-			userInfo, err := s.getUserDetailByDn(ctx, userDn)
-			if err != nil {
-				if ldap.IsLdapError(err, goldap.LDAPResultControlNotFound) {
-					return nil, err
-				}
-				continue
-			}
-			userMap[userDn] = userInfo
-			users = append(users, userInfo)
-		}
-		searchMemberGroupReq := goldap.NewSearchRequest(
-			appEntry.DN,
-			goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 0, 0, false,
-			s.GetAppRoleSearchFilter(),
-			[]string{"entryUUID", "member", "cn", "isDefault"},
-			nil,
-		)
-		searchMemberGroupRet, err := conn.Search(searchMemberGroupReq)
-		if err != nil {
-			if !ldap.IsLdapError(err, goldap.LDAPResultNoSuchObject) {
-				return nil, err
-			}
-		} else {
-			roles = make([]*models.AppRole, len(searchMemberGroupRet.Entries))
-			for idx, entry := range searchMemberGroupRet.Entries {
-				roleName := entry.GetAttributeValue("cn")
-				roles[idx] = &models.AppRole{Model: models.Model{Id: entry.GetAttributeValue("entryUUID")}, Name: roleName}
-				if strings.ToLower(entry.GetAttributeValue("isDefault")) == "true" {
-					roles[idx].IsDefault = true
-				}
-				for _, m := range entry.GetAttributeValues("member") {
-					for userDn, user := range userMap {
-						if userDn == m {
-							user.Role = roleName
-							user.RoleId = entry.GetAttributeValue("entryUUID")
-						}
+	if opt == nil || !opt.DisableGetUsers {
+		member := append(appEntry.GetAttributeValues("uniqueMember"), appEntry.GetAttributeValues("member")...)
+		if len(member) > 0 {
+			for _, userDn := range member {
+				userInfo, err := s.getUserByDn(ctx, userDn)
+				if err != nil {
+					if ldap.IsLdapError(err, goldap.LDAPResultControlNotFound) {
+						return nil, err
 					}
+					continue
 				}
+				users = append(users, userInfo)
 			}
 		}
 	}
@@ -169,59 +135,8 @@ func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *gol
 		GrantMode:   models.AppMeta_GrantMode(w.M[int](httputil.NewValue(appEntry.GetAttributeValue("grantMode")).Default("0").Int())),
 		GrantType:   models.AppMeta_GrantType(w.M[int](httputil.NewValue(appEntry.GetAttributeValue("grantType")).Default("0").Int())),
 		Storage:     s.name,
-		Roles:       roles,
 		Users:       users,
 	}, nil
-}
-
-// getAppRoleByUserDnAndAppDn
-//
-//	@Description[en-US]: Get the permission of the specified user under the application
-//	@Description[zh-CN]: 获取应用下指定用户的权限
-//	@param ctx       context.Context
-//	@param appDn     string
-//	@param userDn    string
-//	@return roleId   string
-//	@return roleName string
-//	@return err      error
-func (s UserAndAppService) getAppRoleByUserDnAndAppDn(ctx context.Context, appDn string, userDn string) (roleId, roleName string, err error) {
-	conn := s.Session(ctx)
-	defer conn.Close()
-	searchReq := goldap.NewSearchRequest(
-		appDn, goldap.ScopeBaseObject, goldap.NeverDerefAliases, 1, 0, false,
-		"(objectClass=*)", []string{"cn", "member", "uniqueMember", "objectClass"}, nil,
-	)
-	ret, err := conn.Search(searchReq)
-	if err != nil {
-		return "", "", err
-	}
-	if len(ret.Entries) == 0 {
-		return "", "", errors.StatusNotFound("app")
-	}
-	appEntry := ret.Entries[0]
-	if !sets.New[string](append(appEntry.GetAttributeValues("uniqueMember"), appEntry.GetAttributeValues("member")...)...).Has(userDn) {
-		return "", "", fmt.Errorf("%s is not authorized to user %s", appDn, userDn)
-	}
-	searchMemberGroupReq := goldap.NewSearchRequest(
-		appEntry.DN,
-		goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 0, 0, false,
-		fmt.Sprintf(`(&%s(member=%s))`, s.GetAppRoleSearchFilter(), userDn),
-		[]string{"entryUUID", "member", "cn", "isDefault"}, nil,
-	)
-	searchMemberGroupRet, err := conn.Search(searchMemberGroupReq)
-	if err != nil {
-		if ldap.IsLdapError(err, goldap.LDAPResultNoSuchObject) {
-			return "", "", err
-		}
-	} else if len(searchMemberGroupRet.Entries) > 0 {
-		entry := searchMemberGroupRet.Entries[0]
-		if strings.ToLower(entry.GetAttributeValue("isDefault")) == "true" {
-			roleName = entry.GetAttributeValue("cn")
-			roleId = entry.GetAttributeValue("entryUUID")
-		}
-		return entry.GetAttributeValue("entryUUID"), entry.GetAttributeValue("cn"), nil
-	}
-	return roleId, roleName, nil
 }
 
 // GetApps
@@ -235,16 +150,23 @@ func (s UserAndAppService) getAppRoleByUserDnAndAppDn(ctx context.Context, appDn
 //	@return total    int64
 //	@return apps     []*models.App
 //	@return err      error
-func (s UserAndAppService) GetApps(ctx context.Context, keywords string, current, pageSize int64) (total int64, apps []*models.App, err error) {
+func (s UserAndAppService) GetApps(ctx context.Context, keywords string, filters map[string]interface{}, current, pageSize int64) (total int64, apps []*models.App, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
-	filters := []string{s.GetAppSearchFilter()}
+	fts := []string{s.GetAppSearchFilter()}
 	if len(keywords) > 0 {
-		filters = append(filters, fmt.Sprintf("(|(cn=*%s*)(description=*%s*))", keywords, keywords))
+		fts = append(fts, fmt.Sprintf("(|(cn=*%s*)(description=*%s*))", keywords, keywords))
+	}
+	for name, val := range filters {
+		switch name {
+		case "id":
+			name = "entryUUID"
+		}
+		fts = append(fts, fmt.Sprintf("(%s=%v)", name, val))
 	}
 	var filter string
-	if len(filters) >= 1 {
-		filter = fmt.Sprintf("(&%s)", strings.Join(filters, ""))
+	if len(fts) >= 1 {
+		filter = fmt.Sprintf("(&%s)", strings.Join(fts, ""))
 	}
 	req := goldap.NewSearchRequest(
 		s.Options().AppSearchBase,
@@ -321,10 +243,9 @@ func (s UserAndAppService) DeleteApps(ctx context.Context, ids []string) (total 
 	defer conn.Close()
 	for _, id := range ids {
 		var dn string
-		if dn, err = s.getAppDnByEntryUUID(context.WithValue(ctx, global.LDAPConnName, conn), id); err != nil {
+		if dn, err = s.getAppDnByEntryUUID(ldap.WithConnContext(ctx, conn), id); err != nil {
 			return total, err
 		} else if err = conn.Del(goldap.NewDelRequest(dn, nil)); err != nil {
-			fmt.Println("delete: ", dn)
 			err = s.DeepDeleteEntry(ctx, dn)
 			if err != nil {
 				return
@@ -343,7 +264,7 @@ func (s UserAndAppService) DeleteApps(ctx context.Context, ids []string) (total 
 //	@param id 	string
 //	@return err	error
 func (s UserAndAppService) DeleteApp(ctx context.Context, id string) (err error) {
-	return w.Error[int64](s.DeleteApps(ctx, []string{id}))
+	return w.E[int64](s.DeleteApps(ctx, []string{id}))
 }
 
 // UpdateApp
@@ -353,15 +274,14 @@ func (s UserAndAppService) DeleteApp(ctx context.Context, id string) (err error)
 //	@param ctx           context.Context
 //	@param app           *models.App
 //	@param updateColumns ...string
-//	@return newApp       *models.App
 //	@return err          error
-func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updateColumns ...string) (newApp *models.App, err error) {
+func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updateColumns ...string) (err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 
-	dn, err := s.getAppDnByEntryUUID(context.WithValue(ctx, global.LDAPConnName, conn), app.Id)
+	dn, err := s.getAppDnByEntryUUID(ldap.WithConnContext(ctx, conn), app.Id)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if len(updateColumns) == 0 {
 		updateColumns = []string{"name", "description", "avatar", "grant_type", "grant_mode", "status", "user"}
@@ -371,8 +291,8 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 
 	member := make([]string, len(app.Users))
 	for idx, user := range app.Users {
-		if member[idx], err = s.getUserDnByEntryUUID(context.WithValue(ctx, global.LDAPConnName, conn), user.Id); err != nil {
-			return nil, err
+		if member[idx], err = s.getUserDnByEntryUUID(ldap.WithConnContext(ctx, conn), user.Id); err != nil {
+			return err
 		}
 	}
 
@@ -393,38 +313,11 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 
 	if len(req.Changes) > 0 {
 		if err = conn.Modify(req); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	if len(app.Roles) > 0 {
-		for _, role := range app.Roles {
-			for _, user := range app.Users {
-				if len(role.Id) != 0 {
-					if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
-						role.Users = append(role.Users, &models.User{Model: models.Model{Id: user.Id}})
-					}
-				} else if len(role.Name) != 0 && user.Role == role.Name {
-					role.Users = append(role.Users, &models.User{Model: models.Model{Id: user.Id}})
-				}
-			}
-			roleDn := fmt.Sprintf("cn=%s,%s", role.Name, dn)
-			for _, user := range role.Users {
-				fmt.Println(role.Name, role.Id, ">>", user.Id, user.Username)
-			}
-			if err = s.PatchAppRole(context.WithValue(ctx, global.LDAPConnName, conn), roleDn, role); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	newApp, err = s.GetAppInfo(context.WithValue(ctx, global.LDAPConnName, conn), app.Id, "")
-	if err != nil {
-		return nil, errors.NewServerError(http.StatusInternalServerError, "Internal Server Error. It may have been modified successfully, but the query result failed: "+err.Error())
-	} else if newApp == nil {
-		return nil, errors.NewServerError(http.StatusInternalServerError, "Internal Server Error. It may have been modified successfully, but the query result failed. ")
-	}
-	return newApp, nil
+	return nil
 }
 
 // GetAppInfo
@@ -436,30 +329,39 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 //	@param name string          : App Name
 //	@return app *models.App     : App Details
 //	@return err error
-func (s UserAndAppService) GetAppInfo(ctx context.Context, id, name string) (appDetail *models.App, err error) {
+func (s UserAndAppService) GetAppInfo(ctx context.Context, o ...opts.WithGetAppOptions) (appDetail *models.App, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
-	if len(id) > 0 {
-		dn, err := s.getAppDnByEntryUUID(context.WithValue(ctx, global.LDAPConnName, conn), id)
+	opt := opts.NewAppOptions(o...)
+	if len(opt.Id) == 0 && len(opt.Name) == 0 {
+		return nil, errors.ParameterError("require id or name")
+	}
+	if len(opt.Id) > 0 {
+		u, err := uuid.FromString(opt.Id)
 		if err != nil {
-			return nil, err
+			return nil, errors.ParameterError(fmt.Sprintf("id <%s> format error", opt.Id))
 		}
-		if len(dn) > 0 {
-			return s.getAppDetailByDn(ctx, dn)
-		}
+		searchReq := goldap.NewSearchRequest(
+			s.Options().AppSearchBase,
+			goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 1, 0, false,
+			fmt.Sprintf("(entryUUID=%s)", u.String()),
+			[]string{},
+			nil,
+		)
+		return s.getAppDetailByReq(ldap.WithConnContext(ctx, conn), searchReq, opt)
 	}
 
-	if len(name) > 0 {
+	if len(opt.Name) > 0 {
 		req := goldap.NewSearchRequest(
 			s.Options().AppSearchBase,
 			goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 1, 0, false,
-			s.GetAppSearchFilter(name),
+			s.GetAppSearchFilter(opt.Name),
 			nil,
 			nil,
 		)
-		return s.getAppDetailByReq(ctx, req)
+		return s.getAppDetailByReq(ctx, req, opt)
 	}
-	return nil, errors.NotFoundError
+	return nil, errors.NotFoundError()
 }
 
 // CreateApp
@@ -468,19 +370,17 @@ func (s UserAndAppService) GetAppInfo(ctx context.Context, id, name string) (app
 //	@Description[zh-CN]: 创建应用
 //	@param ctx        context.Context
 //	@param app        *models.App
-//	@return appDetail *models.App
 //	@return error
-func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*models.App, error) {
+func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	dn := fmt.Sprintf("cn=%s,%s", app.Name, s.Options().AppSearchBase)
 	req := goldap.NewAddRequest(dn, nil)
 
-	var err error
 	member := make([]string, len(app.Users))
 	for idx, user := range app.Users {
-		if member[idx], err = s.getUserDnByEntryUUID(context.WithValue(ctx, global.LDAPConnName, conn), user.Id); err != nil {
-			return nil, err
+		if member[idx], err = s.getUserDnByEntryUUID(ldap.WithConnContext(ctx, conn), user.Id); err != nil {
+			return err
 		}
 	}
 
@@ -503,34 +403,17 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (*mod
 			req.Attribute(name, value)
 		}
 	}
-	if err = conn.Add(req); err != nil {
-		return nil, err
-	}
 
-	if len(app.Roles) > 0 {
-		for _, role := range app.Roles {
-			for _, user := range app.Users {
-				if len(role.Id) != 0 {
-					if user.RoleId == role.Id || (user.RoleId == "" && role.IsDefault) {
-						role.Users = append(role.Users, &models.User{Model: models.Model{Id: user.Id}})
-					}
-				} else if len(role.Name) != 0 && string(user.Role) == role.Name {
-					role.Users = append(role.Users, &models.User{Model: models.Model{Id: user.Id}})
-				}
-			}
-			roleDn := fmt.Sprintf("cn=%s,%s", role.Name, dn)
-			if err = s.PatchAppRole(context.WithValue(ctx, global.LDAPConnName, conn), roleDn, role); err != nil {
-				return nil, err
-			}
-		}
-	}
-	newAppInfo, err := s.getAppDetailByDn(context.WithValue(ctx, global.LDAPConnName, conn), dn)
+	err = conn.Add(req)
 	if err != nil {
-		return nil, errors.NewServerError(http.StatusInternalServerError, "Internal Server Error. It may have been created successfully, but the query result failed: "+err.Error())
-	} else if newAppInfo == nil {
-		return nil, errors.NewServerError(http.StatusInternalServerError, "Internal Server Error. It may have been created successfully, but the query result failed. ")
+		return err
 	}
-	return newAppInfo, nil
+	newApp, err := s.getAppDetailByDn(ldap.WithConnContext(ctx, conn), dn, opts.NewAppOptions(opts.WithoutUsers))
+	if err != nil {
+		return err
+	}
+	app.Model = newApp.Model
+	return nil
 }
 
 var ldapColumnMap = map[string]string{
@@ -549,22 +432,21 @@ var ldapColumnMap = map[string]string{
 //	@Description[zh-CN]: 增量更新应用。
 //	@param ctx        context.Context
 //	@param fields     map[string]interface{}
-//	@return appDetail app *models.App
 //	@return err       error
-func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]interface{}) (app *models.App, err error) {
+func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]interface{}) (err error) {
 	id, ok := fields["id"].(string)
 	if !ok {
-		return nil, errors.ParameterError("unknown id")
+		return errors.ParameterError("unknown id")
 	}
 	if !strings.HasSuffix(id, s.Options().AppSearchBase) {
-		return nil, errors.ParameterError("Illegal parameter id")
+		return errors.ParameterError("Illegal parameter id")
 	}
 	req := goldap.NewModifyRequest(id, nil)
 
 	for name, value := range fields {
 		ldapColumnName, ok := ldapColumnMap[name]
 		if !ok {
-			return nil, errors.ParameterError("unsupported field name: " + name)
+			return errors.ParameterError("unsupported field name: " + name)
 		}
 		switch val := value.(type) {
 		case float64:
@@ -572,22 +454,13 @@ func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]inter
 		case string:
 			req.Replace(ldapColumnName, []string{val})
 		default:
-			return nil, errors.ParameterError(fmt.Sprintf("unsupported field value type: name=%s,type=%T", name, value))
+			return errors.ParameterError(fmt.Sprintf("unsupported field value type: name=%s,type=%T", name, value))
 		}
 	}
 
 	conn := s.Session(ctx)
 	defer conn.Close()
-	if err := conn.Modify(req); err != nil {
-		return nil, err
-	}
-	newAppInfo, err := s.GetAppInfo(context.WithValue(ctx, global.LDAPConnName, conn), fields["id"].(string), "")
-	if err != nil {
-		return nil, errors.NewServerError(http.StatusInternalServerError, "Internal Server Error. It may have been modified successfully, but the query result failed: "+err.Error())
-	} else if newAppInfo == nil {
-		return nil, errors.NewServerError(http.StatusInternalServerError, "Internal Server Error. It may have been modified successfully, but the query result failed. ")
-	}
-	return newAppInfo, nil
+	return conn.Modify(req)
 }
 
 // PatchApps
@@ -606,7 +479,8 @@ func (s UserAndAppService) PatchApps(ctx context.Context, patch []map[string]int
 		if !ok {
 			return total, errors.ParameterError("unknown id")
 		}
-		dn, err := s.getAppDnByEntryUUID(context.WithValue(ctx, global.LDAPConnName, conn), id)
+
+		dn, err := s.getAppDnByEntryUUID(ldap.WithConnContext(ctx, conn), id)
 		if err != nil {
 			return total, err
 		}
@@ -628,80 +502,4 @@ func (s UserAndAppService) PatchApps(ctx context.Context, patch []map[string]int
 		total++
 	}
 	return
-}
-
-// PatchAppRole
-//
-//	@Description[en-US]: Update App Role.
-//	@Description[zh-CN]: 更新应用角色。
-//	@param ctx     context.Context
-//	@param dn      string
-//	@param patch   *models.AppRole
-//	@return err    error
-func (s UserAndAppService) PatchAppRole(ctx context.Context, dn string, role *models.AppRole) (err error) {
-	conn := s.Session(ctx)
-	defer conn.Close()
-	var member []string
-	if len(role.Users) == 0 {
-		member = []string{""}
-	} else {
-		member = make([]string, len(role.Users))
-		for idx, user := range role.Users {
-			if member[idx], err = s.getUserDnByEntryUUID(context.WithValue(ctx, global.LDAPConnName, conn), user.Id); err != nil {
-				return err
-			}
-		}
-	}
-
-	searchReq := goldap.NewSearchRequest(dn,
-		goldap.ScopeBaseObject, goldap.NeverDerefAliases, 1, 0, false,
-		s.GetAppRoleSearchFilter(role.Name), nil, nil,
-	)
-	if _, err = conn.Search(searchReq); err != nil {
-		if !ldap.IsLdapError(err, goldap.LDAPResultNoSuchObject) { // 如果返回错误且错误不为搜索结果为空，则返回异常
-			return errors.NewServerError(http.StatusInternalServerError, "Internal Server Error.")
-		}
-	} else {
-		updateReq := goldap.NewModifyRequest(dn, nil)
-		updateReq.Replace("objectClass", s.GetAppRoleGroupClass().Insert("groupOfNames", "top").List())
-		updateReq.Replace("member", member)
-		updateReq.Replace("isDefault", []string{strings.ToUpper(strconv.FormatBool(role.IsDefault))})
-		if err = conn.Modify(updateReq); err == nil {
-			return nil
-		} else if ldap.IsLdapError(err, goldap.LDAPResultObjectClassModsProhibited) {
-			if err = conn.Del(goldap.NewDelRequest(dn, nil)); err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
-	}
-
-	createReq := goldap.NewAddRequest(dn, nil)
-	createReq.Attribute("objectClass", append(s.GetAppRoleGroupClass().List(), "groupOfNames", "top"))
-	createReq.Attribute("member", member)
-	createReq.Attribute("isDefault", []string{strings.ToUpper(strconv.FormatBool(role.IsDefault))})
-	return conn.Add(createReq)
-}
-
-// VerifyUserAuthorizationForApp
-//
-//	@Description[en-US]: Verify user authorization for the application.
-//	@Description[zh-CN]: 验证应用程序的用户授权
-//	@param ctx    context.Context
-//	@param appId  string
-//	@param userId string
-//	@return role  string   :Role name, such as admin, viewer, editor ...
-//	@return err   error
-func (s UserAndAppService) VerifyUserAuthorizationForApp(ctx context.Context, appId string, userId string) (role string, err error) {
-	info, err := s.GetAppInfo(ctx, appId, "")
-	if err != nil {
-		return "", err
-	}
-	for _, user := range info.Users {
-		if user.Id == userId {
-			return user.Role, nil
-		}
-	}
-	return "", errors.StatusNotFound("authorization")
 }

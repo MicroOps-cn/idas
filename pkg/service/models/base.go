@@ -18,6 +18,7 @@ package models
 
 import (
 	"encoding/binary"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -68,10 +69,26 @@ func (m *Model) BeforeCreate(db *gorm.DB) error {
 	if m.CreateTime.IsZero() {
 		db.Statement.SetColumn("CreateTime", time.Now().UTC())
 	}
+	if m.IsDelete && !m.DeleteTime.Valid {
+		m.DeleteTime = gorm.DeletedAt{Time: time.Now(), Valid: true}
+		db.Statement.SetColumn("DeleteTime", m.DeleteTime)
+	}
 	return nil
 }
 
 func (m *Model) BeforeSave(db *gorm.DB) error {
 	db.Statement.SetColumn("UpdateTime", time.Now().UTC())
+	if m.IsDelete && !m.DeleteTime.Valid {
+		fmt.Println("-----", *m)
+		m.DeleteTime = gorm.DeletedAt{Time: time.Now(), Valid: true}
+		db.Statement.SetColumn("DeleteTime", m.DeleteTime)
+	}
+	return nil
+}
+
+func (m *Model) AfterFind(_ *gorm.DB) error {
+	if m.DeleteTime.Valid {
+		m.IsDelete = true
+	}
 	return nil
 }

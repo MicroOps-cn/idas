@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -28,8 +29,6 @@ import (
 	"github.com/MicroOps-cn/fuck/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-logfmt/logfmt"
-
-	"github.com/MicroOps-cn/idas/pkg/global"
 )
 
 const titleBg = "---------------------------------------------------------------------------------------\n"
@@ -50,6 +49,24 @@ var idasEncoderPool = sync.Pool{
 		enc.Encoder = logfmt.NewEncoder(&enc.buf)
 		return &enc
 	},
+}
+
+type titleKey struct{}
+
+func (titleKey) String() string {
+	return "title"
+}
+
+var TitleKey = &titleKey{}
+
+type wrapKeyName string
+
+func (n wrapKeyName) String() string {
+	return string(n)
+}
+
+func WrapKeyName(name string) fmt.Stringer {
+	return wrapKeyName(name)
 }
 
 type logKvPair struct {
@@ -89,55 +106,40 @@ func (l *idasLogger) encodeKeyvals(keyvals ...interface{}) ([]byte, error) {
 	return enc.buf.Bytes(), nil
 }
 
-var sourceDir = func() string {
-	_, currentFile, _, _ := runtime.Caller(0)
-	return strings.TrimSuffix(currentFile, "pkg/logs/logger.go")
-}()
-
-func Caller(depth int) kitlog.Valuer {
-	return func() interface{} {
-		//for i := 1; i < 15; i++ {
-		//	_, f, l, _ := runtime.Caller(i)
-		//	if strings.HasPrefix(f, sourceDir) {
-		//		fmt.Printf("%d/%d => %s:%d\n", depth, i, f, l)
-		//	}
-		//}
-		_, file, line, _ := runtime.Caller(depth)
-		return strings.TrimPrefix(file, sourceDir) + ":" + strconv.Itoa(line)
-	}
-}
-
-var DefaultCaller = Caller(3)
-
 func (l *idasLogger) Log(keyvals ...interface{}) error {
-	ll := &idasLog{otherKeyMaxLen: 18, caller: DefaultCaller}
+	ll := &idasLog{otherKeyMaxLen: 18, caller: log.DefaultCaller}
 	for i := 0; ; {
 		v := keyvals[i+1]
-		if k, ok := keyvals[i].(string); ok {
+		if keyvals[i] == TitleKey {
+			ll.title = fmt.Sprintf("%s", v)
+		}
+		switch k := keyvals[i].(type) {
+		case titleKey, *titleKey:
+			ll.title = fmt.Sprintf("%s", v)
+		case wrapKeyName, *wrapKeyName:
+			key := fmt.Sprintf("[%s]", k)
+			ll.other = append(ll.other, logKvPair{key: key, val: v})
+			if len(key) > ll.otherKeyMaxLen {
+				ll.otherKeyMaxLen = len(key)
+			}
+		case string:
 			if k == "level" {
 				ll.level = v
 			} else if k == "ts" {
 				ll.ts = v
-			} else if k == global.CallerName {
-				ll.caller = v
 			} else if k == "msg" {
 				ll.msg = v
-			} else if k == "title" {
-				ll.title = fmt.Sprintf("%s", v)
-			} else if k == global.TraceIdName {
+			} else if k == log.TraceIdName {
 				ll.traceId = v
 			} else {
-				if len(k) > 0 && k[0] == '[' && k[len(k)-1] == ']' {
-					ll.other = append(ll.other, logKvPair{key: k, val: v})
-					if len(k) > ll.otherKeyMaxLen {
-						ll.otherKeyMaxLen = len(k)
-					}
-				} else {
-					ll.kvs = append(ll.kvs, k, v)
-				}
+				ll.kvs = append(ll.kvs, k, v)
 			}
-		} else {
-			ll.kvs = append(ll.kvs, k, v)
+		default:
+			if k == log.CallerName {
+				ll.caller = v
+			} else {
+				ll.kvs = append(ll.kvs, k, v)
+			}
 		}
 		i += 2
 		if i >= len(keyvals) {
@@ -185,7 +187,7 @@ func (l *idasLogger) Log(keyvals ...interface{}) error {
 		}
 	}
 	if _, err := l.w.Write(buffer.Bytes()); err != nil {
-		fmt.Printf("格式化异常==>%s(%s)\n", buffer.String(), err)
+		fmt.Fprintf(os.Stderr, "Failed to write log: log=%s,err=%s\n", buffer.String(), err)
 	}
 	return nil
 }
@@ -198,10 +200,13 @@ func NewIdasLogger(w io.Writer) kitlog.Logger {
 	return &idasLogger{w}
 }
 
+var sourceDir = log.GetSourceCodeDir("pkg/logs/logger.go")
+
 const FormatIDAS log.AllowedFormat = "idas"
 
 func init() {
 	log.RegisterLogFormat(FormatIDAS, NewIdasLogger)
+	log.SetSourceCodeDir(sourceDir)
 }
 
 func Relative(file string) string {

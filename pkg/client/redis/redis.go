@@ -17,14 +17,20 @@
 package redis
 
 import (
+	"bytes"
 	"context"
+	"encoding"
 	"encoding/json"
+	"fmt"
+	"strconv"
 	"time"
 
 	logs "github.com/MicroOps-cn/fuck/log"
+	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/go-kit/log/level"
 	"github.com/go-redis/redis"
 	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
 
 	"github.com/MicroOps-cn/idas/api"
 	"github.com/MicroOps-cn/idas/pkg/utils/signals"
@@ -126,6 +132,121 @@ func NewRedisClient(ctx context.Context, option *RedisOptions) (*redis.Client, e
 	return client, nil
 }
 
+func parseArg(v interface{}) (string, error) {
+	switch v := v.(type) {
+	case nil:
+		return "", nil
+	case string:
+		return v, nil
+	case []byte:
+		return string(v), nil
+	case int:
+		return strconv.Itoa(v), nil
+	case int8:
+		return strconv.Itoa(int(v)), nil
+	case int16:
+		return strconv.Itoa(int(v)), nil
+	case int32:
+		return strconv.Itoa(int(v)), nil
+	case int64:
+		return strconv.FormatInt(v, 10), nil
+	case uint:
+		return strconv.FormatUint(uint64(v), 10), nil
+	case uint8:
+		return strconv.FormatUint(uint64(v), 10), nil
+	case uint16:
+		return strconv.FormatUint(uint64(v), 10), nil
+	case uint32:
+		return strconv.FormatUint(uint64(v), 10), nil
+	case uint64:
+		return strconv.FormatUint(v, 10), nil
+	case float32:
+		return strconv.FormatFloat(float64(v), 'f', -1, 64), nil
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64), nil
+	case bool:
+		return strconv.FormatBool(v), nil
+	case encoding.BinaryMarshaler:
+		b, err := v.MarshalBinary()
+		if err != nil {
+			return "", err
+		}
+		return string(b), nil
+	default:
+		return "", fmt.Errorf(
+			"redis: can't marshal %T (implement encoding.BinaryMarshaler)", v)
+	}
+}
+
+type Cmder struct {
+	redis.Cmder
+}
+
+func (c Cmder) String() string {
+	var buf bytes.Buffer
+	for idx, arg := range c.Args() {
+		if idx != 0 {
+			buf.WriteString(" ")
+		}
+		if s, err := parseArg(arg); err != nil {
+			buf.Write(w.M(json.Marshal(fmt.Sprintf("<%s>", err))))
+		} else {
+			buf.WriteString(s)
+		}
+	}
+	return buf.String()
+}
+
 func (r *Client) Redis(ctx context.Context) *redis.Client {
-	return r.client.WithContext(ctx)
+	logger := logs.GetContextLogger(ctx, logs.WithCaller(7))
+	session := r.client.WithContext(ctx)
+	session.WrapProcess(func(oldProcess func(cmd redis.Cmder) error) func(cmd redis.Cmder) error {
+		return func(cmd redis.Cmder) (err error) {
+			defer func() {
+				if err != nil {
+					level.Error(logger).Log("msg", "failed to exec Redis Command", "cmd", Cmder{Cmder: cmd}, "err", err)
+				} else {
+					level.Debug(logger).Log("msg", "exec Redis Command", "cmd", Cmder{Cmder: cmd})
+				}
+			}()
+			return oldProcess(cmd)
+		}
+	})
+	return session
+}
+
+var ErrStopLoop = errors.New("stop")
+
+func ForeachSet(ctx context.Context, c *redis.Client, key string, cursor uint64, pageSize int64, f func(key, val string) error) (err error) {
+	var listLength int64
+	if ret, err := c.SCard(key).Result(); err != nil {
+		return err
+	} else if listLength = ret; listLength == 0 {
+		return nil
+	}
+	if pageSize == 0 {
+		pageSize = 100
+	}
+	var ret []string
+	for {
+		select {
+		case <-ctx.Done():
+		default:
+			ret, cursor, err = c.SScan(key, cursor, "*", pageSize).Result()
+			if err != nil {
+				return err
+			}
+			for _, member := range ret {
+				if err = f(key, member); err != nil {
+					if err == ErrStopLoop {
+						break
+					}
+					return err
+				}
+			}
+			if int64(len(ret)) < pageSize {
+				return nil
+			}
+		}
+	}
 }

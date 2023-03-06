@@ -19,12 +19,11 @@ package gorm
 import (
 	"context"
 	"fmt"
+	"time"
 
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log/level"
 	"gorm.io/gorm"
-
-	"github.com/MicroOps-cn/idas/pkg/global"
 )
 
 type Database struct {
@@ -32,21 +31,32 @@ type Database struct {
 }
 
 type Client struct {
-	database *Database
+	database      *Database
+	slowThreshold time.Duration
 }
 
 func (c *Client) Session(ctx context.Context) *Database {
 	logger := logs.GetContextLogger(ctx)
-	session := &gorm.Session{Logger: NewLogAdapter(logger)}
-	if conn := ctx.Value(global.GormConnName); conn != nil {
+	session := &gorm.Session{Logger: NewLogAdapter(logger, c.slowThreshold)}
+	if conn := ctx.Value(gormConn{}); conn != nil {
 		switch db := conn.(type) {
 		case *Database:
 			return &Database{DB: db.Session(session)}
 		case *gorm.DB:
 			return &Database{DB: db.Session(session)}
 		default:
-			level.Warn(logger).Log("msg", "未知的上下文属性(global.GormConnName)值", global.GormConnName, fmt.Sprintf("%#v", conn))
+			level.Warn(logger).Log("msg", "Unknown context value type.", "name", fmt.Sprintf("%T", gormConn{}), "value", fmt.Sprintf("%T", conn))
 		}
 	}
 	return &Database{DB: c.database.Session(session).WithContext(ctx)}
 }
+
+type ConnType interface {
+	*Database | *gorm.DB
+}
+
+func WithConnContext[T ConnType](ctx context.Context, client T) context.Context {
+	return context.WithValue(ctx, gormConn{}, client)
+}
+
+type gormConn struct{}

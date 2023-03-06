@@ -29,7 +29,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/MicroOps-cn/fuck/buffer"
 	logs "github.com/MicroOps-cn/fuck/log"
+	w "github.com/MicroOps-cn/fuck/wrapper"
+	idasLogs "github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/asaskevich/govalidator"
 	restfulspec "github.com/emicklei/go-restful-openapi/v2"
 	"github.com/emicklei/go-restful/v3"
@@ -51,10 +54,11 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/endpoint"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
-	"github.com/MicroOps-cn/idas/pkg/utils/buffer"
 	"github.com/MicroOps-cn/idas/pkg/utils/httputil"
-	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
 )
+
+//go:embed template
+var templFs embed.FS
 
 //go:embed static
 var staticFs embed.FS
@@ -64,7 +68,6 @@ var staticFs embed.FS
 func NewHTTPHandler(ctx context.Context, logger log.Logger, endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer, openapiPath string) http.Handler {
 	options := []httptransport.ServerOption{
 		httptransport.ServerErrorEncoder(errorEncoder),
-		httptransport.ServerErrorHandler(transport.NewLogErrorHandler(log.With(logger, "caller", logs.Caller(9)))),
 	}
 
 	if zipkinTracer != nil {
@@ -77,12 +80,13 @@ func NewHTTPHandler(ctx context.Context, logger log.Logger, endpoints endpoint.S
 	}
 
 	m := restful.NewContainer()
+	m.Filter(HTTPContextFilter(ctx))
+	m.Filter(HTTPLoggingFilter(ctx))
 	options = append(options, httptransport.ServerBefore(opentracing.HTTPToContext(otTracer, "Concat", logger)))
 	restful.TraceLogger(stdlog.New(log.NewStdlibAdapter(level.Info(logger)), "[restful]", stdlog.LstdFlags|stdlog.Lshortfile))
-	m.Filter(HTTPLoggingFilter)
 	var specTags []spec.Tag
 	for _, serviceGenerator := range apiServiceSet {
-		specTag, svcs := serviceGenerator(options, endpoints)
+		specTag, svcs := serviceGenerator(ctx, options, endpoints)
 		for _, svc := range svcs {
 			m.Add(svc)
 		}
@@ -111,25 +115,35 @@ func NewHTTPHandler(ctx context.Context, logger log.Logger, endpoints endpoint.S
 	return m
 }
 
-func errorEncoder(ctx context.Context, err error, w http.ResponseWriter) {
-	logger := ctx.Value(global.LoggerName).(log.Logger)
-	level.Error(logger).Log("err", err, "msg", "failed to http request")
-	traceId := ctx.Value(global.TraceIdName).(string)
+const DisableStackTrace = "__disable_stack_trace__"
+
+func errorEncoder(ctx context.Context, err error, writer http.ResponseWriter) {
+	logger := logs.GetContextLogger(ctx)
+
+	if ctx.Value(DisableStackTrace) != true && logs.DefaultLoggerConfig.Level.String() == "debug" {
+		level.Error(logs.WithPrint(w.NewStringer(func() string {
+			return fmt.Sprintf("%+v", err)
+		}))(logger)).Log("msg", "failed to http request", "err", err)
+	} else {
+		level.Error(logger).Log("msg", "failed to http request", "err", err)
+	}
+
+	traceId := logs.GetTraceId(ctx)
 	resp := responseWrapper{
 		ErrorMessage: err.Error(),
 		TraceId:      traceId,
 		Success:      false,
 	}
 	if serverErr, ok := err.(errors.ServerError); ok {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(serverErr.StatusCode())
+		writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+		writer.WriteHeader(serverErr.StatusCode())
 		resp.ErrorCode = serverErr.Code()
 	} else {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(http.StatusInternalServerError)
+		writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+		writer.WriteHeader(http.StatusInternalServerError)
 	}
-	if err = json.NewEncoder(w).Encode(resp); err != nil {
-		level.Info(logger).Log("msg", "failed to write response")
+	if err = json.NewEncoder(writer).Encode(resp); err != nil {
+		level.Info(logger).Log("msg", "failed to write response", "err", err)
 	}
 }
 
@@ -193,6 +207,7 @@ func valid(data interface{}) (bool, error) {
 func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request) (interface{}, error) {
 	restfulReq := stdReq.Context().Value(global.RestfulRequestContextName).(*restful.Request)
 	restfulResp := stdReq.Context().Value(global.RestfulResponseContextName).(*restful.Response)
+	hasSensitiveData, _ := stdReq.Context().Value(global.MetaSensitiveData).(bool)
 	req := HTTPRequest[RequestType]{restfulRequest: restfulReq, restfulResponse: restfulResp}
 	var err error
 	logger := logs.GetContextLogger(stdReq.Context())
@@ -208,22 +223,30 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 			r.Body = http.MaxBytesReader(restfulResp.ResponseWriter, r.Body, config.Get().Global.MaxBodySize.Capacity)
 			if contentType == "application/x-www-form-urlencoded" {
 				if err = r.ParseForm(); err != nil {
-					return nil, fmt.Errorf("failed to parse form data：%s", err)
+					return nil, errors.WithServerError(http.StatusBadRequest, err, "failed to parse form data")
 				} else if len(r.Form) > 0 {
 					if err = httputil.UnmarshalURLValues(r.Form, &req.Data); err != nil {
-						return nil, fmt.Errorf("failed to decode form data: data=%s, err=%s", r.Form, err)
+						return nil, errors.WithServerError(http.StatusBadRequest, err, fmt.Sprintf("failed to decode form data: data=%s", r.Form))
 					}
 				}
 			} else if contentType == restful.MIME_JSON {
 				if data, ok := isProtoMessage(&req.Data); ok {
-					logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "caller", logs.Caller(12))), logs.Prefix("decode http request: ", true))
-					if err = jsonpb.Unmarshal(io.TeeReader(r.Body, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError)), data); err != nil {
-						return nil, fmt.Errorf("failed to decode request body：%s", err)
+					var reader io.Reader = r.Body
+					if !hasSensitiveData {
+						logWriter := logs.NewWriterAdapter(level.Debug(logs.WithCaller(12)(logger)), logs.Prefix("decode http request: ", true))
+						reader = io.TeeReader(r.Body, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))
+					}
+					if err = jsonpb.Unmarshal(reader, data); err != nil {
+						return nil, errors.WithServerError(http.StatusBadRequest, err, "failed to decode request body")
 					}
 				} else {
-					logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "caller", logs.Caller(9))), logs.Prefix("decode http request: ", true))
-					if err = json.NewDecoder(io.TeeReader(r.Body, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Decode(&req.Data); err != nil {
-						return nil, fmt.Errorf("failed to decode request body：%s", err)
+					var reader io.Reader = r.Body
+					if !hasSensitiveData {
+						logWriter := logs.NewWriterAdapter(level.Debug(logs.WithCaller(9)(logger)), logs.Prefix("decode http request: ", true))
+						reader = io.TeeReader(r.Body, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))
+					}
+					if err = json.NewDecoder(reader).Decode(&req.Data); err != nil {
+						return nil, errors.WithServerError(http.StatusBadRequest, err, "failed to decode request body")
 					}
 				}
 			}
@@ -233,18 +256,18 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 	query := restfulReq.Request.URL.Query()
 	if len(query) > 0 {
 		if err = httputil.UnmarshalURLValues(query, &req.Data); err != nil {
-			return nil, fmt.Errorf("failed to decode url query: %s", err)
+			return nil, errors.WithServerError(http.StatusBadRequest, err, "failed to decode url query")
 		}
 	}
 	if len(restfulReq.PathParameters()) > 0 {
 		if err = httputil.UnmarshalURLValues(httputil.MapToURLValues(restfulReq.PathParameters()), &req); err != nil {
-			return nil, fmt.Errorf("failed to decode path parameters：%s", err)
+			return nil, errors.WithServerError(http.StatusBadRequest, err, "failed to decode path parameters")
 		}
 	}
 
 	req.restfulRequest = restfulReq
 	req.restfulResponse = restfulResp
-	level.Debug(logger).Log("msg", "decoded http request", "req", string(w.Must[[]byte](json.Marshal(req))))
+	level.Debug(logger).Log("msg", "decoded http request", idasLogs.WrapKeyName("data"), w.JSONStringer(req.Data), idasLogs.WrapKeyName("type"), fmt.Sprintf("%T", req.Data))
 	if ok, err := valid(req.Data); err != nil {
 		return &req, errors.NewServerError(http.StatusBadRequest, err.Error())
 	} else if !ok {
@@ -262,7 +285,7 @@ func encodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response int
 		return nil
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	traceId := ctx.Value(global.TraceIdName).(string)
+	traceId := logs.GetTraceId(ctx)
 	resp := responseWrapper{Success: true, TraceId: traceId}
 	if l, ok := response.(endpoint.Lister); ok {
 		resp.Data = l.GetData()
@@ -280,8 +303,7 @@ func encodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response int
 			resp.Data = response
 		}
 	}
-
-	logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "resp", fmt.Sprintf("%#v", resp), "caller", logs.Caller(7))), logs.Prefix("encoded http response: ", true))
+	logWriter := logs.NewWriterAdapter(level.Debug(log.With(logs.WithCaller(7)(logger), "resp", fmt.Sprintf("%#v", resp))), logs.Prefix("encoded http response: ", true))
 	return json.NewEncoder(io.MultiWriter(w, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Encode(resp)
 }
 
@@ -292,23 +314,23 @@ func simpleEncodeHTTPResponse(ctx context.Context, w http.ResponseWriter, respon
 		return nil
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	logWriter := logs.NewWriterAdapter(level.Debug(log.With(logger, "resp", fmt.Sprintf("%#v", response), "caller", logs.Caller(7))), logs.Prefix("encoded http response: ", true))
+	logWriter := logs.NewWriterAdapter(level.Debug(log.With(logs.WithCaller(7)(logger), "resp", fmt.Sprintf("%#v", response))), logs.Prefix("encoded http response: ", true))
 	return json.NewEncoder(io.MultiWriter(w, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Encode(response)
 }
 
-func WrapHTTPHandler(h *httptransport.Server) func(*restful.Request, *restful.Response) {
+func WrapHTTPHandler(pctx context.Context, h *httptransport.Server) func(*restful.Request, *restful.Response) {
 	return func(req *restful.Request, resp *restful.Response) {
 		ctx := req.Request.Context()
 		if ctx == nil {
-			ctx = context.Background()
+			ctx = pctx
 		}
 		request := req.Request.WithContext(context.WithValue(context.WithValue(ctx, global.RestfulResponseContextName, resp), global.RestfulRequestContextName, req))
 		h.ServeHTTP(resp, request)
 	}
 }
 
-func NewKitHTTPServer[RequestType any](dp kitendpoint.Endpoint, options []httptransport.ServerOption) restful.RouteFunction {
-	return WrapHTTPHandler(httptransport.NewServer(
+func NewKitHTTPServer[RequestType any](ctx context.Context, dp kitendpoint.Endpoint, options []httptransport.ServerOption) restful.RouteFunction {
+	return WrapHTTPHandler(ctx, httptransport.NewServer(
 		dp,
 		decodeHTTPRequest[RequestType],
 		encodeHTTPResponse,
@@ -317,11 +339,12 @@ func NewKitHTTPServer[RequestType any](dp kitendpoint.Endpoint, options []httptr
 }
 
 func NewSimpleKitHTTPServer[RequestType any](
+	ctx context.Context,
 	dp kitendpoint.Endpoint,
 	dec httptransport.DecodeRequestFunc,
 	enc httptransport.EncodeResponseFunc, options []httptransport.ServerOption,
 ) restful.RouteFunction {
-	return WrapHTTPHandler(httptransport.NewServer(
+	return WrapHTTPHandler(ctx, httptransport.NewServer(
 		dp,
 		dec,
 		enc,
@@ -416,11 +439,11 @@ loopObjFields:
 
 func NewProxyHandler(c context.Context, logger log.Logger, endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer) http.Handler {
 	m := restful.NewContainer()
-	m.Filter(HTTPLoggingFilter)
+	m.Filter(HTTPLoggingFilter(c))
 	m.Filter(HTTPProxyAuthenticationFilter(c, endpoints))
 	options := []httptransport.ServerOption{
 		httptransport.ServerErrorEncoder(errorEncoder),
-		httptransport.ServerErrorHandler(transport.NewLogErrorHandler(log.With(logger, "caller", logs.Caller(9)))),
+		httptransport.ServerErrorHandler(transport.NewLogErrorHandler(logs.WithCaller(9)(logger))),
 	}
 	if zipkinTracer != nil {
 		// Zipkin HTTP Server Trace can either be instantiated per endpoint with a
@@ -442,17 +465,24 @@ func NewProxyHandler(c context.Context, logger log.Logger, endpoints endpoint.Se
 					for name, vals := range r.Header {
 						for i, val := range vals {
 							if i == 0 {
-								r.Header.Set(name, val)
+								writer.Header().Set(name, val)
 							} else {
-								r.Header.Add(name, val)
+								writer.Header().Add(name, val)
 							}
 						}
 					}
 				}
 				writer.WriteHeader(r.Code)
 				if r.Body != nil {
+					defer func() {
+						r.Body.Close()
+					}()
 					if _, err := io.Copy(writer, r.Body); err != nil {
 						level.Error(logs.GetContextLogger(ctx)).Log("msg", "failed to copy response", "err", err)
+					}
+				} else if r.Error != nil {
+					if err := json.NewEncoder(writer).Encode(r); err != nil {
+						level.Error(logs.GetContextLogger(ctx)).Log("msg", "failed to marshal response", "err", err)
 					}
 				}
 			}

@@ -20,30 +20,43 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/proto"
+	"github.com/gogo/protobuf/types"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
 	"github.com/MicroOps-cn/idas/api"
+	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
-func NewSQLiteClient(ctx context.Context, options *SQLiteOptions) (*Client, error) {
-	var m Client
+func NewSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *Client, err error) {
+	clt = new(Client)
 	logger := log.GetContextLogger(ctx)
+	if options.SlowThreshold != nil {
+		clt.slowThreshold, err = types.DurationFromProto(options.SlowThreshold)
+		if err != nil {
+			level.Error(logger).Log("msg", fmt.Sprintf("failed to connect to SQLite database: %s", options.Path), "err", fmt.Errorf("`slow_threshold` option is invalid: %s", err))
+			return nil, err
+		}
+	}
+
+	level.Debug(logger).Log("msg", "connect to sqlite", "dsn", options.Path)
 	db, err := gorm.Open(sqlite.Open(options.Path), &gorm.Config{
 		NamingStrategy: schema.NamingStrategy{
 			TablePrefix:   "t_",
 			SingularTable: true,
 		},
-		Logger: NewLogAdapter(logger),
+		Logger: NewLogAdapter(logger, clt.slowThreshold),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("连接SQLite数据库[%s]失败: %s", options.Path, err)
+		level.Error(logger).Log("msg", fmt.Sprintf("failed to connect to SQLite database: %s", options.Path), "err", err)
+		return nil, errors.WithServerError(http.StatusInternalServerError, err, fmt.Sprintf("failed to connect to SQLite database: %s", options.Path))
 	}
 
 	stopCh := signals.SetupSignalHandler(logger)
@@ -53,14 +66,14 @@ func NewSQLiteClient(ctx context.Context, options *SQLiteOptions) (*Client, erro
 		stopCh.WaitRequest()
 		if sqlDB, err := db.DB(); err == nil {
 			if err = sqlDB.Close(); err != nil {
-				level.Warn(logger).Log("msg", "关闭SQLite数据库连接失败", "err", err)
+				level.Warn(logger).Log("msg", "Failed to close SQLite database", "err", err)
 			}
 		}
 		stopCh.Done()
 	}()
 
-	m.database = &Database{DB: db}
-	return &m, nil
+	clt.database = &Database{DB: db}
+	return clt, nil
 }
 
 //

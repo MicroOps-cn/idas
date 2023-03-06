@@ -26,6 +26,7 @@ import (
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/log/level"
 
+	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
@@ -52,8 +53,13 @@ func LoggingMiddleware(method string) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 			logger := log.GetContextLogger(ctx)
+			level.Debug(logger).Log("msg", "call method", "method", method)
 			defer func(begin time.Time) {
-				level.Debug(logger).Log("transport_error", err, "method", method, "took", time.Since(begin))
+				if err != nil {
+					level.Debug(logger).Log("msg", "method call finished", "transport_error", err, "method", method, "took", time.Since(begin))
+				} else {
+					level.Debug(logger).Log("msg", "method call finished", "method", method, "took", time.Since(begin))
+				}
 			}(time.Now())
 			return next(ctx, request)
 		}
@@ -64,10 +70,13 @@ func AuthorizationMiddleware(svc service.Service, method string) endpoint.Middle
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 			if needLogin, ok := ctx.Value(global.MetaNeedLogin).(bool); !ok || needLogin {
-				if users, ok := ctx.Value(global.MetaUser).([]*models.User); !ok || len(users) == 0 {
-					return nil, fmt.Errorf("endpoint authentication failed: system error")
+				if users, ok := ctx.Value(global.MetaUser).(models.Users); !ok || len(users) == 0 {
+					return nil, errors.NewServerError(401, "need login")
 				} else if !svc.Authorization(ctx, users, method) {
-					return nil, fmt.Errorf("endpoint authentication failed")
+					if forceOk, ok := ctx.Value(global.MetaForceOk).(bool); ok && forceOk {
+						return nil, nil
+					}
+					return nil, errors.NewServerError(403, "forbidden")
 				}
 			}
 			return next(ctx, request)

@@ -6,8 +6,9 @@ require (
 	github.com/MicroOps-cn/fuck v1.0.0
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/docker/docker v20.10.18+incompatible
-	github.com/emicklei/go-restful-openapi/v2 v2.9.0
+	github.com/emicklei/go-restful-openapi/v2 v2.9.1
 	github.com/emicklei/go-restful/v3 v3.8.1
+	github.com/emicklei/proto v1.11.1
 	github.com/go-kit/kit v0.12.0
 	github.com/go-kit/log v0.2.1
 	github.com/go-ldap/ldap v3.0.3+incompatible
@@ -32,6 +33,7 @@ require (
 	github.com/spf13/cobra v1.4.0
 	github.com/stretchr/testify v1.8.1
 	github.com/tredoe/osutil v1.0.6
+	github.com/xlzd/gotp v0.1.0
 	golang.org/x/exp v0.0.0-20200224162631-6cc2880d07d6
 	golang.org/x/image v0.0.0-20190802002840-cff245a6509b
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
@@ -68,7 +70,6 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.4 // indirect
-	github.com/jonboulle/clockwork v0.3.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible // indirect
@@ -98,12 +99,12 @@ require (
 	github.com/tklauser/numcpus v0.2.1 // indirect
 	golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa // indirect
 	golang.org/x/mod v0.6.0-dev.0.20220419223038-86c51ed26bb4 // indirect
-	golang.org/x/net v0.2.0 // indirect
-	golang.org/x/sys v0.2.0 // indirect
-	golang.org/x/term v0.2.0 // indirect
-	golang.org/x/text v0.4.0 // indirect
+	golang.org/x/net v0.4.0 // indirect
+	golang.org/x/sys v0.3.0 // indirect
+	golang.org/x/term v0.3.0 // indirect
+	golang.org/x/text v0.5.0 // indirect
 	golang.org/x/tools v0.1.12 // indirect
-	google.golang.org/genproto v0.0.0-20221114212237-e4508ebdbee1 // indirect
+	google.golang.org/genproto v0.0.0-20221118155620-16455021b5e6 // indirect
 	google.golang.org/grpc v1.50.1 // indirect
 	gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
@@ -111,7 +112,8 @@ require (
 
 replace (
 	github.com/MicroOps-cn/fuck v1.0.0 => ../fuck
-	github.com/emicklei/go-restful-openapi/v2 v2.9.0 => ../go-restful-openapi
+	// github.com/emicklei/go-restful-openapi/v2 v2.9.0 => github.com/MicroOps-cn/go-restful-openapi/v2 v2.9.1-1
+	github.com/emicklei/go-restful-openapi/v2 => ../go-restful-openapi
 	github.com/emicklei/go-restful/v3 v3.8.1 => github.com/MicroOps-cn/go-restful/v3 v3.8.1
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df => github.com/MicroOps-cn/gomail/v2 v2.0.1
 )

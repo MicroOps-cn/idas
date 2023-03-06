@@ -32,10 +32,12 @@ func SumSha1Hmac(secret, payload string) string {
 	return signedString
 }
 
-func SumSha245Hmac(secret, payload string) string {
+func SumSha245Hmac(secret string, payload ...string) string {
 	key := []byte(secret)
 	hash := hmac.New(sha256.New, key)
-	hash.Write([]byte(payload))
+	for _, p := range payload {
+		hash.Write([]byte(p))
+	}
 	signedBytes := hash.Sum(nil)
 	signedString := base64.StdEncoding.EncodeToString(signedBytes)
 	return signedString

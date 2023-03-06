@@ -20,64 +20,67 @@ package config
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/util/rand"
 
 	"github.com/MicroOps-cn/idas/pkg/client/gorm"
+	"github.com/MicroOps-cn/idas/pkg/testutils"
 )
 
-var conf = `
-storage:
-  user:
-  - mysql:
-      maxIdleConnections: 2
-      maxOpenConnections: 100
-      maxConnectionLifeTime: 30s
-      charset: utf8
-      collation: utf8_general_ci
-      tablePrefix: t_idas_
-      host: localhost
-`
-
-func TestUnmarshalConfig(t *testing.T) {
-	logger := logs.New(logs.MustNewConfig("info", "json"))
-	logs.SetRootLogger(logger)
-	err := safeCfg.ReloadConfigFromYamlReader(logger, NewConverter("./", bytes.NewReader([]byte(conf))))
-	require.Equal(t, "error unmarshal config: Error 1045: Access denied for user 'idas'@'localhost' (using password: NO)", err.Error())
-	require.Equal(t, safeCfg.C.Storage.User[0].GetSource().(*Storage_Mysql).Mysql.Options().TablePrefix, "t_idas_")
-}
-
-func TestMarshalConfig(t *testing.T) {
-	mysqlOptions := gorm.NewMySQLOptions()
-	mysqlOptions.TablePrefix = "t_xsadfa9i83"
-	client := &gorm.MySQLClient{}
-	client.SetOptions(mysqlOptions)
-	c := Config{
-		Storage: &Storages{
-			User: []*Storage{{
-				Source: &Storage_Mysql{
-					Mysql: client,
+func TestConfig(t *testing.T) {
+	logger := logs.New(logs.WithConfig(logs.MustNewConfig("debug", "logfmt")))
+	logs.SetDefaultLogger(logger)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+	defer cancel()
+	ctx, logger = logs.NewContextLogger(ctx)
+	tablePrefix := "idas_" + rand.String(10)
+	schema := "idas_" + rand.String(10)
+	var rawCfg string
+	testutils.RunWithMySQLContainer(ctx, t, func(host, rootPassword string) {
+		var testCfg Config
+		t.Run("Test Marshal Config", func(t *testing.T) {
+			mysqlOptions := gorm.NewMySQLOptions()
+			mysqlOptions.Host = host
+			mysqlOptions.Username = "root"
+			mysqlOptions.Password = rootPassword
+			mysqlOptions.TablePrefix = tablePrefix
+			mysqlOptions.Schema = schema
+			marshaler := jsonpb.Marshaler{
+				Indent:   "    ",
+				OrigName: true,
+			}
+			client := &gorm.MySQLClient{}
+			client.SetOptions(mysqlOptions)
+			testCfg.Storage = &Storages{
+				Default: &Storage{
+					Source: &Storage_Mysql{
+						Mysql: client,
+					},
 				},
-			}},
-		},
-	}
-
-	marshaler := jsonpb.Marshaler{
-		Indent:   "    ",
-		OrigName: true,
-	}
-	buf := bytes.NewBuffer(nil)
-	err := marshaler.Marshal(buf, &c)
-	require.NoError(t, err)
-
-	t.Log(buf.String())
-	logger := logs.New(logs.MustNewConfig("info", "json"))
-	err = safeCfg.ReloadConfigFromYamlReader(logger, NewConverter("./", bytes.NewReader([]byte(conf))))
-	require.NoError(t, err)
-	t.Log(safeCfg.C.Storage)
-	require.Equal(t, safeCfg.C.Storage.User[0].GetSource().(*Storage_Mysql).Mysql.Options().TablePrefix, "t_xsadfa9i83")
-	require.NoError(t, err)
+			}
+			buf := bytes.NewBuffer(nil)
+			err := marshaler.Marshal(buf, &testCfg)
+			require.NoError(t, err, "Failed to Marshal config")
+			fmt.Println(buf.String())
+			rawCfg = buf.String()
+		})
+		t.Run("Test Unmarshal Config", func(t *testing.T) {
+			err := safeCfg.ReloadConfigFromYamlReader(logger, NewConverter("./", bytes.NewReader([]byte(rawCfg))))
+			require.NoError(t, err, "Failed to Unmarshal config")
+			dftSource, ok := safeCfg.C.Storage.Default.Source.(*Storage_Mysql)
+			require.True(t, ok)
+			require.Equal(t, dftSource.Mysql.Options().Host, host)
+			require.Equal(t, dftSource.Mysql.Options().Username, "root")
+			require.Equal(t, dftSource.Mysql.Options().Schema, schema)
+			require.Equal(t, dftSource.Mysql.Options().Password, rootPassword)
+			require.Equal(t, dftSource.Mysql.Options().TablePrefix, tablePrefix)
+		})
+	})
 }

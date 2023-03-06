@@ -1,0 +1,125 @@
+syntax = "proto3";
+package idas.endpoint;
+import public "gogoproto/gogo.proto";
+import "endpoints/base.proto";
+import "models/pages.proto";
+option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
+
+
+message PageConfig{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string update_time = 2[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
+  string create_time = 3[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
+  string name = 4[(gogoproto.jsontag) = "name"];
+  string description = 5;
+  repeated service.models.FieldConfig fields = 6;
+  string icon = 7;
+  bool  is_disable = 8[(gogoproto.jsontag) = "isDisable"];
+}
+
+
+message GetPagesRequest{
+  idas.endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  service.models.PageStatus status = 2;
+}
+
+message GetPagesResponse{
+  idas.endpoint.BaseListResponse base_list_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated PageConfig data = 2;
+}
+
+
+message GetPageRequest {
+  string id = 1 [(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+}
+
+message GetPageResponse {
+  idas.endpoint.BaseResponse base_response = 1 [(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  PageConfig data = 2;
+}
+
+message CreatePageRequest{
+  string name = 1[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
+  string description = 2;
+  repeated service.models.FieldConfig fields = 3;
+  string icon = 4;
+}
+
+message UpdatePageRequest{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string name = 2[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
+  string description = 3;
+  repeated service.models.FieldConfig fields = 4;
+  string icon = 5;
+  bool  is_disable = 8[(gogoproto.jsontag) = "isDisable"];
+}
+
+message PatchPageRequest{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string name = 2[(gogoproto.customtype) = "string"];
+  string description = 3[(gogoproto.customtype) = "string"];
+  repeated service.models.FieldConfig fields = 4;
+  string icon = 5[(gogoproto.customtype) = "string"];
+  bool  is_delete = 7[(gogoproto.customtype) = "bool", (gogoproto.jsontag) = "isDelete,omitempty"];
+  bool  is_disable = 8[(gogoproto.customtype) = "bool", (gogoproto.jsontag) = "isDisable,omitempty"];
+}
+
+message DeletePageRequest{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+}
+
+
+// page data
+
+message PageData {
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string page_id = 2[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required"'];
+  string update_time = 3[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
+  string create_time = 4[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
+  string data = 5[(gogoproto.customtype) = "encoding/json.RawMessage",(gogoproto.moretags) = 'type:"object"'];
+};
+
+message GetPageDatasRequest{
+  idas.endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  string page_id = 2[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required"'];
+  map<string, string> filters = 4;
+}
+
+message GetPageDatasResponse{
+  idas.endpoint.BaseListResponse base_list_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated PageData data = 2;
+}
+
+
+message GetPageDataRequest {
+  string page_id = 2[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required"'];
+  string id = 3[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+}
+
+message GetPageDataResponse {
+  idas.endpoint.BaseResponse base_response = 1 [(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  PageData data = 2;
+}
+
+message CreatePageDataRequest{
+  string page_id = 1[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required"'];
+  string data = 2[(gogoproto.customtype) = "encoding/json.RawMessage", (gogoproto.moretags) = 'type:"object"'];
+}
+
+message UpdatePageDataRequest{
+  string page_id = 1[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required"'];
+  string id = 2[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string data = 3[(gogoproto.customtype) = "encoding/json.RawMessage",(gogoproto.moretags) = 'type:"object"'];
+}
+
+message PatchPageDataRequest{
+  string page_id = 1[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required"'];
+  string id = 2[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  bool  is_delete = 3[(gogoproto.jsontag) = "isDelete,omitempty"];
+  string data = 4[(gogoproto.customtype) = "encoding/json.RawMessage",(gogoproto.moretags) = 'type:"object"'];
+}
+
+message DeletePageDataRequest{
+  string page_id = 1[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required"'];
+  string id = 2[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+}

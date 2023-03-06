@@ -47,8 +47,8 @@ func (s UserAndAppService) ResetPassword(ctx context.Context, ids string, passwo
 	for _, id := range strings.Split(ids, ",") {
 		u := models.User{Model: models.Model{Id: id}, Salt: uuid.NewV4().Bytes(), Status: models.UserMeta_normal}
 		u.Password = u.GenSecret(password)
-		if err := conn.Select("password", "salt", "status").Where("status in ?", []models.UserMeta_UserStatus{
-			models.UserMeta_inactive, models.UserMeta_inactive, models.UserMeta_unknown,
+		if err := conn.Select("password", "salt", "status").Where("status not in ?", []models.UserMeta_UserStatus{
+			models.UserMeta_disabled,
 		}).Updates(&u).Error; err != nil {
 			return err
 		}
@@ -65,9 +65,7 @@ func (s UserAndAppService) ResetPassword(ctx context.Context, ids string, passwo
 //	@param id 	string
 //	@return error
 func (s UserAndAppService) UpdateLoginTime(ctx context.Context, id string) error {
-	tx := s.Session(ctx).Begin()
-	defer tx.Rollback()
-	return tx.Model(&models.User{Model: models.Model{Id: id}}).UpdateColumn("login_time", time.Now().UTC()).Error
+	return s.Session(ctx).Model(&models.User{Model: models.Model{Id: id}}).UpdateColumn("login_time", time.Now().UTC()).Error
 }
 
 func (s UserAndAppService) Name() string {
@@ -116,22 +114,6 @@ func (s UserAndAppService) VerifyPasswordById(ctx context.Context, id, password 
 	return []*models.User{&user}
 }
 
-const sqlGetUserAndRoleInfo = `
-SELECT 
-    T4.id AS role_id, T4.name AS role, T1.*
-FROM
-    t_user T1
-        LEFT JOIN
-    t_app_user T2 ON T2.user_id = T1.id
-        LEFT JOIN
-    t_app T3 ON T3.id = T2.app_id 
-        LEFT JOIN
-    t_app_role T4 ON T2.role_id = T4.id
-WHERE
-    (T1.username = ? or T1.email = ?)
-    AND T3.name = 'IDAS'
-`
-
 // VerifyPassword
 //
 //	@Description[en-US]: Verify password for user.
@@ -143,7 +125,7 @@ WHERE
 func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) []*models.User {
 	logger := logs.GetContextLogger(ctx)
 	var user models.User
-	if err := s.Session(ctx).Raw(sqlGetUserAndRoleInfo, username, username).First(&user).Error; err != nil {
+	if err := s.Session(ctx).Where("(username = ? or email = ?) and delete_time is NULL", username, username).First(&user).Error; err != nil {
 		if err == gogorm.ErrRecordNotFound {
 			level.Debug(logger).Log("msg", "incorrect username", "username", username)
 		} else {
@@ -165,11 +147,11 @@ func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, 
 //	@param ctx           context.Context
 //	@param username      string
 //	@param email         string
-//	@return userDetail   *models.User
+//	@return userail   *models.User
 //	@return err          error
 func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (user *models.User, err error) {
 	user = new(models.User)
-	query := s.Session(ctx).Where("username = ? and email = ? and is_delete = 0", username, email)
+	query := s.Session(ctx).Where("username = ? and email = ? and delete_time is NULL", username, email)
 	if err = query.First(user).Error; err != nil {
 		return nil, err
 	}
@@ -190,7 +172,7 @@ func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, us
 //	@return users    []*models.User
 //	@return err      error
 func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserMeta_UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error) {
-	query := s.Session(ctx).Where("t_user.is_delete = 0")
+	query := s.Session(ctx).Where("t_user.delete_time is NULL").Model(&models.User{})
 	if len(keywords) > 0 {
 		keywords = fmt.Sprintf("%%%s%%", keywords)
 		query = query.Where(
@@ -208,9 +190,9 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 	if status != models.UserMetaStatusAll {
 		query = query.Where("status", status)
 	}
-	if err = query.Order("username,id").Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).Find(&users).Error; err != nil {
+	if err = query.Count(&total).Error; err != nil || total == 0 {
 		return 0, nil, err
-	} else if err = query.Count(&total).Error; err != nil {
+	} else if err = query.Order("username,id").Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).Find(&users).Error; err != nil {
 		return 0, nil, err
 	} else {
 		for _, user := range users {
@@ -246,9 +228,9 @@ func (s UserAndAppService) PatchUsers(ctx context.Context, patch []map[string]in
 			}
 		}
 		if tmpPatchId == "" {
-			return 0, fmt.Errorf("parameter exception: invalid id")
+			return 0, errors.ParameterError("invalid id")
 		} else if len(tmpPatch) == 0 {
-			return 0, fmt.Errorf("parameter exception: update content is empty")
+			return 0, errors.ParameterError("update content is empty")
 		}
 		if len(newPatchIds) == 0 {
 			newPatchIds = append(newPatchIds, tmpPatchId)
@@ -287,7 +269,7 @@ func (s UserAndAppService) PatchUsers(ctx context.Context, patch []map[string]in
 //	@return count	int64
 //	@return err		error
 func (s UserAndAppService) DeleteUsers(ctx context.Context, id []string) (int64, error) {
-	deleted := s.Session(ctx).Model(&models.User{}).Where("id in ?", id).Update("is_delete", true)
+	deleted := s.Session(ctx).Model(&models.User{}).Where("id in ?", id).Update("delete_time", time.Now())
 	if err := deleted.Error; err != nil {
 		return deleted.RowsAffected, err
 	}
@@ -301,9 +283,8 @@ func (s UserAndAppService) DeleteUsers(ctx context.Context, id []string) (int64,
 //	@param ctx	context.Context
 //	@param user	*models.User
 //	@param updateColumns	...string
-//	@return userDetail	*models.User
 //	@return err	error
-func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (*models.User, error) {
+func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (err error) {
 	tx := s.Session(ctx).Begin()
 	defer tx.Rollback()
 	q := tx.Omit("create_time")
@@ -313,17 +294,11 @@ func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, up
 		q = q.Select("email", "phone_number", "full_name", "avatar", "status")
 	}
 
-	if err := q.Updates(&user).Error; err != nil {
-		return nil, err
-	}
-	if err := tx.Find(&user).Error; err != nil {
-		return nil, err
-	}
-	if err := tx.Commit().Error; err != nil {
-		return nil, err
+	if err = q.Updates(&user).Error; err != nil {
+		return err
 	}
 
-	return user, nil
+	return tx.Commit().Error
 }
 
 // GetUserInfo
@@ -358,24 +333,32 @@ func (s UserAndAppService) GetUserInfo(ctx context.Context, id string, username 
 	return &user, nil
 }
 
+func (s UserAndAppService) GetUsersById(ctx context.Context, id []string) (users models.Users, err error) {
+	conn := s.Session(ctx)
+	query := conn.Model(&models.User{}).Where("id in ?", id)
+	if err = query.Find(&users).Error; err != nil {
+		if err == gogorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return
+}
+
 // CreateUser
 //
 //	@Description[en-US]: Create a user.
 //	@Description[zh-CN]: 创建用户。
 //	@param ctx 	context.Context
 //	@param user 	*models.User
-//	@return userDetail	*models.User
 //	@return err	error
-func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*models.User, error) {
+func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (err error) {
 	conn := s.Session(ctx)
 	if len(user.Password) != 0 {
 		user.Salt = uuid.NewV4().Bytes()
 		user.Password = user.GenSecret()
 	}
-	if err := conn.Omit("role", "role_id").Create(user).Error; err != nil {
-		return nil, err
-	}
-	return user, nil
+	return conn.Omit("role", "role_id").Create(user).Error
 }
 
 // PatchUser
@@ -384,22 +367,18 @@ func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*
 //	@Description[zh-CN]: 增量更新用户。
 //	@param ctx 	context.Context
 //	@param user 	map[string]interface{}
-//	@return userDetail	*models.User
 //	@return err	error
-func (s UserAndAppService) PatchUser(ctx context.Context, patch map[string]interface{}) (*models.User, error) {
+func (s UserAndAppService) PatchUser(ctx context.Context, patch map[string]interface{}) (err error) {
 	if id, ok := patch["id"].(string); ok {
 		tx := s.Session(ctx).Begin()
-		user := models.User{Model: models.Model{Id: id}}
 		delete(patch, "username")
-		if err := tx.Model(&models.User{}).Where("id = ?", id).Updates(patch).Error; err != nil {
-			return nil, err
-		} else if err = tx.First(&user).Error; err != nil {
-			return nil, err
+		if err = tx.Model(&models.User{}).Where("id = ?", id).Updates(patch).Error; err != nil {
+			return err
 		}
 		tx.Commit()
-		return &user, nil
+		return nil
 	}
-	return nil, errors.ParameterError("id is null")
+	return errors.ParameterError("id is null")
 }
 
 // DeleteUser
@@ -412,4 +391,17 @@ func (s UserAndAppService) PatchUser(ctx context.Context, patch map[string]inter
 func (s UserAndAppService) DeleteUser(ctx context.Context, id string) (err error) {
 	_, err = s.DeleteUsers(ctx, []string{id})
 	return err
+}
+
+func (c *CommonService) GetUserExtendedData(ctx context.Context, id string) (*models.UserExt, error) {
+	conn := c.Session(ctx)
+	var ext models.UserExt
+	err := conn.Where("user_id = ?", id).First(&ext).Error
+	if err == gogorm.ErrRecordNotFound {
+		return nil, nil
+	}
+	if ext.EmailAsMFA || ext.SmsAsMFA || ext.TOTPAsMFA {
+		ext.ForceMFA = true
+	}
+	return &ext, err
 }

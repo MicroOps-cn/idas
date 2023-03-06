@@ -26,24 +26,19 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/types"
-	"gorm.io/driver/mysql"
+	mysqldriver "gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
 	"github.com/MicroOps-cn/idas/api"
 	"github.com/MicroOps-cn/idas/pkg/utils/signals"
+	mysql "github.com/go-sql-driver/mysql"
 )
 
-func NewMySQLClient(ctx context.Context, options *MySQLOptions) (*Client, error) {
-	var m Client
+func openMysqlConn(ctx context.Context, slowThreshold time.Duration, options *MySQLOptions, autoCreateSchema bool) (*gorm.DB, error) {
 	logger := logs.GetContextLogger(ctx)
-	level.Debug(logger).Log("msg", "connect to mysql server",
-		"host", options.Host, "username", options.Username,
-		"schema", options.Schema,
-		"charset", options.Charset,
-		"collation", options.Collation)
 	db, err := gorm.Open(
-		mysql.New(mysql.Config{
+		mysqldriver.New(mysqldriver.Config{
 			DSN: fmt.Sprintf(
 				"%s:%s@tcp(%s)/%s?parseTime=1&multiStatements=1&charset=%s&collation=%s",
 				options.Username,
@@ -55,12 +50,54 @@ func NewMySQLClient(ctx context.Context, options *MySQLOptions) (*Client, error)
 			),
 		}), &gorm.Config{
 			NamingStrategy: schema.NamingStrategy{
-				TablePrefix:   "t_",
+				TablePrefix:   options.TablePrefix,
 				SingularTable: true,
 			},
-			Logger: NewLogAdapter(logger),
+			Logger: NewLogAdapter(logger, slowThreshold),
 		},
 	)
+	if err != nil && autoCreateSchema {
+		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
+			if mysqlErr.Number == 1049 && autoCreateSchema {
+				level.Info(logger).Log("msg", fmt.Sprintf("auto create schema: %s", options.Schema))
+				tmpOpts := *options
+				tmpOpts.Schema = "mysql"
+				db, err = openMysqlConn(ctx, slowThreshold, &tmpOpts, false)
+				if err != nil {
+					return nil, err
+				}
+				err = db.Exec(fmt.Sprintf("CREATE SCHEMA `%s` DEFAULT CHARACTER SET %s COLLATE %s", options.Schema, options.Charset, options.Collation)).Error
+				if err != nil {
+					return nil, err
+				}
+				if sqlDB, err := db.DB(); err == nil {
+					defer sqlDB.Close()
+				}
+
+				return openMysqlConn(ctx, slowThreshold, options, false)
+			}
+		}
+	}
+	return db, err
+}
+
+func NewMySQLClient(ctx context.Context, options MySQLOptions) (clt *Client, err error) {
+	clt = new(Client)
+	logger := logs.GetContextLogger(ctx)
+	if options.SlowThreshold != nil {
+		clt.slowThreshold, err = types.DurationFromProto(options.SlowThreshold)
+		if err != nil {
+			level.Error(logger).Log("msg", fmt.Errorf("failed to connect to mysql server: [%s@%s]", options.Username, options.Host), "err", fmt.Errorf("`slow_threshold` option is invalid: %s", err))
+			return nil, err
+		}
+	}
+	level.Debug(logger).Log("msg", "connect to mysql server",
+		"host", options.Host, "username", options.Username,
+		"schema", options.Schema,
+		"charset", options.Charset,
+		"collation", options.Collation)
+
+	db, err := openMysqlConn(ctx, clt.slowThreshold, &options, true)
 	if err != nil {
 		level.Error(logger).Log("msg", fmt.Errorf("failed to connect to mysql server: [%s@%s]", options.Username, options.Host), "err", err)
 		return nil, err
@@ -95,10 +132,10 @@ func NewMySQLClient(ctx context.Context, options *MySQLOptions) (*Client, error)
 		"schema", options.Schema,
 		"charset", options.Charset,
 		"collation", options.Collation)
-	m.database = &Database{
+	clt.database = &Database{
 		db,
 	}
-	return &m, nil
+	return clt, nil
 }
 
 func (x *MySQLOptions) GetStdMaxConnectionLifeTime() time.Duration {
@@ -173,7 +210,7 @@ func (c *MySQLClient) Unmarshal(data []byte) (err error) {
 	if err = proto.Unmarshal(data, c.options); err != nil {
 		return err
 	}
-	if c.Client, err = NewMySQLClient(context.Background(), c.options); err != nil {
+	if c.Client, err = NewMySQLClient(context.Background(), *c.options); err != nil {
 		return err
 	}
 	return
@@ -190,7 +227,7 @@ func (c *MySQLClient) UnmarshalJSON(data []byte) (err error) {
 	if err = json.Unmarshal(data, c.options); err != nil {
 		return err
 	}
-	if c.Client, err = NewMySQLClient(context.Background(), c.options); err != nil {
+	if c.Client, err = NewMySQLClient(context.Background(), *c.options); err != nil {
 		return err
 	}
 	return

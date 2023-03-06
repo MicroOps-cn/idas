@@ -40,9 +40,9 @@ global: {}
 `
 
 func TestSignHttpRequest(t *testing.T) {
-	logger := logs.New(&logs.Config{})
-	logs.SetRootLogger(logger)
-	err := config.ReloadConfigFromYamlReader(logs.GetRootLogger(), config.NewConverter("idas.yaml", strings.NewReader(cfg)))
+	logger := logs.New()
+	logs.SetDefaultLogger(logger)
+	err := config.ReloadConfigFromYamlReader(logs.NewTraceLogger(), config.NewConverter("idas.yaml", strings.NewReader(cfg)))
 	require.NoError(t, err)
 	type args struct {
 		method      string

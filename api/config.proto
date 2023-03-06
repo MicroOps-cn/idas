@@ -37,6 +37,7 @@ message GlobalOptions{
   idas.pkg.utils.Capacity max_body_size = 2;
   string upload_path = 3;
   string workspace = 4;
+  string secret = 5;
 }
 
 message Config {

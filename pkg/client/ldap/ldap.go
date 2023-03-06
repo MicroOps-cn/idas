@@ -25,13 +25,13 @@ import (
 	"time"
 
 	"github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/go-kit/log/level"
 	"github.com/go-ldap/ldap"
 	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
 
 	"github.com/MicroOps-cn/idas/api"
-	"github.com/MicroOps-cn/idas/pkg/global"
-	"github.com/MicroOps-cn/idas/pkg/utils/sets"
 	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
@@ -145,44 +145,50 @@ func (l Client) Close() {
 	l.pool.Close()
 }
 
-type NopCloser struct {
-	ldap.Client
+func (l *Client) Options() *LdapOptions {
+	return l.options
 }
 
-func (NopCloser) Close() {}
-
 func (l *Client) Session(ctx context.Context) ldap.Client {
-	if conn := ctx.Value(global.LDAPConnName); conn != nil {
+	if conn := ctx.Value(ldapConn{}); conn != nil {
 		switch db := conn.(type) {
 		case ldap.Client:
 			return &NopCloser{Client: db}
 		default:
 			logger := log.GetContextLogger(ctx)
-			level.Warn(logger).Log("msg", "未知的上下文属性(global.LDAPConnName)值", global.LDAPConnName, fmt.Sprintf("%#v", conn))
+			level.Warn(logger).Log("msg", "Unknown context value type.", "name", fmt.Sprintf("%T", ldapConn{}), "value", fmt.Sprintf("%T", conn))
 		}
 	}
 	s := &Session{ctx: ctx}
 	if l.pool == nil {
-		s.err = fmt.Errorf("LDAP connection pool not initialized")
+		s.err = errors.New("LDAP connection pool not initialized")
 		return s
 	}
 	s.c, s.err = l.pool.Get()
 	// cannot connect to ldap server or pool is closed
 	if s.err != nil {
-		s.err = fmt.Errorf("failed to get ldap connection: %s. ", s.err)
+		s.err = errors.WithMessage(s.err, "failed to get ldap connection")
 		return s
 	}
 	s.err = s.c.Bind(l.options.ManagerDn, l.options.ManagerPassword)
 	if s.err != nil {
 		s.c.Close()
-		s.err = fmt.Errorf("failed to connect to LDAP server: %s. ", s.err)
+		s.err = errors.WithMessage(s.err, "failed to connect to LDAP server")
 	}
 	return s
 }
 
-func (l *Client) Options() *LdapOptions {
-	return l.options
+func WithConnContext(ctx context.Context, client ldap.Client) context.Context {
+	return context.WithValue(ctx, ldapConn{}, client)
 }
+
+type ldapConn struct{}
+
+type NopCloser struct {
+	ldap.Client
+}
+
+func (NopCloser) Close() {}
 
 func init() {
 	ldap.DefaultTimeout = 3 * time.Second

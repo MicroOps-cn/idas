@@ -4,8 +4,8 @@ package idas.endpoint;
 
 import public "gogoproto/gogo.proto";
 import "models/models.proto";
-import "models/apps.proto";
-import "v1/base.proto";
+import "endpoints/users.proto";
+import "endpoints/base.proto";
 
 option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
 
@@ -21,6 +21,8 @@ message AppProxy {
   string domain = 3 [(gogoproto.jsontag) = "domain", (gogoproto.moretags) = 'gorm:"type:varchar(50);" valid:"required"'];
   string upstream = 4 [(gogoproto.jsontag) = "upstream", (gogoproto.moretags) = 'gorm:"type:varchar(50);" valid:"required"'];
   string urls = 5 [(gogoproto.jsontag) = "urls", (gogoproto.customtype) = "AppProxyUrls", (gogoproto.nullable) = false, (gogoproto.moretags) = 'gorm:"foreignKey:AppProxyId"'];
+  bool insecure_skip_verify = 6[(gogoproto.jsontag) = "insecureSkipVerify"];
+  bool transparent_server_name = 7[(gogoproto.jsontag) = "transparentServerName"];
 }
 
 message AppInfo {
@@ -35,7 +37,7 @@ message AppInfo {
   string update_time = 12 [(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
   string create_time = 13 [(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
   bool is_delete = 14 [(gogoproto.jsontag) = "isDelete", (gogoproto.moretags) = 'valid:"required"'];
-  repeated AppUser users = 15;
+  repeated idas.endpoint.UserInfo users = 15;
   repeated AppRole roles = 16;
   AppProxy proxy = 17;
 }
@@ -80,14 +82,6 @@ message PatchAppRequest {
   idas.service.models.AppMeta.Status status = 8 [(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.AppMeta_Status"];
   bool is_delete = 14 [(gogoproto.customtype) = "bool", (gogoproto.jsontag) = "isDelete,omitempty"];
   AppProxy proxy = 15 [(gogoproto.jsontag) = "proxy,omitempty"];
-}
-
-message PatchAppResponse {
-  idas.endpoint.BaseResponse base_response = 1 [(gogoproto.embed) = true, (gogoproto.nullable) = false];
-}
-
-message PatchAppsResponse {
-  idas.endpoint.BaseTotalResponse base_total_response = 1 [(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
 }
 
 message AppSourceType {
@@ -148,7 +142,47 @@ message UpdateAppRequest {
   AppProxy proxy = 17;
 }
 
-message UpdateAppResponse {
-  idas.endpoint.BaseResponse base_response = 1 [(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
-  AppInfo data = 2;
+message AppKeyInfo{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string update_time = 2[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
+  string create_time = 3[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
+  string name = 4[(gogoproto.jsontag) = "name"];
+  string app_id = 5[(gogoproto.jsontag) = "appId"];
+  string key = 6[(gogoproto.jsontag) = "key"];
+  string secret = 7[(gogoproto.jsontag) = "secret"];
+}
+
+message SimpleAppKeyInfo{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string update_time = 2[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
+  string create_time = 3[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
+  string name = 4[(gogoproto.jsontag) = "name"];
+  string app_id = 5[(gogoproto.jsontag) = "appId"];
+  string key = 6[(gogoproto.jsontag) = "key"];
+}
+
+message CreateAppKeyRequest{
+  string app_id = 1[(gogoproto.jsontag) = "appId", (gogoproto.moretags) = 'valid:"required"'];
+  string name = 3[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
+}
+
+message CreateAppKeyResponse{
+  idas.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  AppKeyInfo data = 2;
+}
+
+message GetAppKeysRequest{
+  idas.endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false];
+  string app_id = 2[(gogoproto.jsontag) = "appId", (gogoproto.moretags) = 'valid:"required"'];
+}
+
+
+message GetAppKeysResponse{
+  idas.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated SimpleAppKeyInfo data = 2;
+}
+
+message DeleteAppKeysRequest{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.customtype) = "github.com/go-openapi/spec.StringOrArray", (gogoproto.nullable) = false, (gogoproto.moretags) = 'valid:"required"'];
+  string appId = 2[(gogoproto.jsontag) = "appId", (gogoproto.moretags) = 'valid:"required"'];
 }

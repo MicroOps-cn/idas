@@ -19,12 +19,13 @@ package ldapservice
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/fuck/sets"
+	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/go-kit/log/level"
 	goldap "github.com/go-ldap/ldap"
 	uuid "github.com/satori/go.uuid"
@@ -32,39 +33,11 @@ import (
 
 	"github.com/MicroOps-cn/idas/pkg/client/ldap"
 	"github.com/MicroOps-cn/idas/pkg/errors"
-	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/utils/httputil"
-	"github.com/MicroOps-cn/idas/pkg/utils/sets"
-	w "github.com/MicroOps-cn/idas/pkg/utils/wrapper"
 )
 
 const UserStatusName = "status"
-
-// option
-//
-//	@Description[en-US]: Used to dynamically add extensions for function/method calls.
-//	@Description[zh-CN]: 用于为函数/方法调用时动态增加扩展.
-type option struct {
-	// getUserRole
-	//  @Description[en-US]: Get user role information.
-	//  @Description[zh-CN]: 获取用户角色信息。
-	getUserRole bool
-}
-
-// Option
-//
-//	@Description[en-US]: Used to dynamically add extensions for function/method calls.
-//	@Description[zh-CN]: 用于为函数/方法调用时动态增加扩展.
-type Option func(*option)
-
-// WithUserRole
-//
-//	@Description[en-US]: Update the value of option.getUserRole to true.
-//	@Description[zh-CN]: 更新option.getUserRole的值为true。
-var WithUserRole Option = func(o *option) {
-	o.getUserRole = true
-}
 
 // hash
 //
@@ -160,16 +133,15 @@ func (s UserAndAppService) getDNSByReq(ctx context.Context, searchReq *goldap.Se
 	return dns, err
 }
 
-// getUserDetailByReq
+// getUserByReq
 //
 //	@Description[en-US]: Use the <ldap.SearchRequest> to search for application information from the LDAP directory specified by "user_search_base". The directory level of the search is 1.
 //	@Description[zh-CN]: 使用<ldap.SearchRequest>从 user_search_base 指定的LDAP目录内搜索应用信息, 搜索的目录层级为1
 //	@param ctx         context.Context
 //	@param searchReq   *ldap.SearchRequest
-//	@param options     ...Option           : Search option, you can use WithUserRole to control whether to obtain user roles.
 //	@return userDetail *models.User
 //	@return err        error
-func (s UserAndAppService) getUserDetailByReq(ctx context.Context, searchReq *goldap.SearchRequest, options ...Option) (*models.User, error) {
+func (s UserAndAppService) getUserByReq(ctx context.Context, searchReq *goldap.SearchRequest) (*models.User, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	searchReq.Attributes = []string{s.Options().GetAttrUsername(), s.Options().GetAttrUserPhoneNo(), s.Options().GetAttrEmail(), s.Options().GetAttrUserDisplayName(), "entryUUID", "avatar", "createTimestamp", "modifyTimestamp", UserStatusName, "memberOf"}
@@ -180,10 +152,7 @@ func (s UserAndAppService) getUserDetailByReq(ctx context.Context, searchReq *go
 	if len(ret.Entries) == 0 {
 		return nil, errors.StatusNotFound("user")
 	}
-	var opts option
-	for _, o := range options {
-		o(&opts)
-	}
+
 	userEntry := ret.Entries[0]
 	userInfo := &models.User{
 		Model: models.Model{
@@ -199,41 +168,26 @@ func (s UserAndAppService) getUserDetailByReq(ctx context.Context, searchReq *go
 		Status:      models.UserMeta_UserStatus(w.M[int](httputil.NewValue(userEntry.GetAttributeValue(UserStatusName)).Default("0").Int())),
 		Storage:     s.name,
 	}
-	if opts.getUserRole {
-		memberOf := sets.New(userEntry.GetAttributeValue("memberOf"))
-		appDn := fmt.Sprintf("cn=%s,%s", global.IdasAppName, s.Options().AppSearchBase)
-		if memberOf.Has(appDn) {
-			roleId, roleName, err := s.getAppRoleByUserDnAndAppDn(context.WithValue(ctx, global.LDAPConnName, conn), appDn, userEntry.DN)
-			if err != nil {
-				return nil, err
-			}
-			userInfo.Role = roleName
-			userInfo.RoleId = roleId
-		} else {
-			level.Debug(log.GetContextLogger(ctx)).Log("msg", fmt.Sprintf("%s is not authorized to user %s", appDn, userEntry.DN))
-		}
-	}
 	return userInfo, nil
 }
 
-// getUserDetailByDn
+// getUserByDn
 //
 //	@Description[en-US]: Use DN to obtain user information.
 //	@Description[zh-CN]: 使用DN获取用户信息。
 //	@param ctx           context.Context
 //	@param dn            string
-//	@param options       ...Option           : Search option, you can use WithUserRole to control whether to obtain user roles.
 //	@return userDetail   *models.User
 //	@return err          error
-func (s UserAndAppService) getUserDetailByDn(ctx context.Context, dn string, options ...Option) (*models.User, error) {
+func (s UserAndAppService) getUserByDn(ctx context.Context, dn string) (*models.User, error) {
 	searchReq := goldap.NewSearchRequest(
 		dn, goldap.ScopeBaseObject, goldap.NeverDerefAliases, 1, 0, false,
 		"(objectClass=*)", nil, nil,
 	)
-	return s.getUserDetailByReq(ctx, searchReq, options...)
+	return s.getUserByReq(ctx, searchReq)
 }
 
-// getUserDetailByUsername
+// getUserByUsername
 //
 //	@Description[en-US]: Use username to obtain user information.
 //	@Description[zh-CN]: 使用用户名获取用户信息。
@@ -241,13 +195,13 @@ func (s UserAndAppService) getUserDetailByDn(ctx context.Context, dn string, opt
 //	@param username      string
 //	@return userDetail   *models.User
 //	@return err          error
-func (s UserAndAppService) getUserDetailByUsername(ctx context.Context, username string) (*models.User, error) {
+func (s UserAndAppService) getUserByUsername(ctx context.Context, username string) (*models.User, error) {
 	searchReq := goldap.NewSearchRequest(
 		s.Options().UserSearchBase,
 		goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 2, 0, false,
 		s.Options().ParseUserSearchFilter(username), nil, nil,
 	)
-	return s.getUserDetailByReq(ctx, searchReq)
+	return s.getUserByReq(ctx, searchReq)
 }
 
 // GetUserInfoByUsernameAndEmail
@@ -263,12 +217,12 @@ func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, us
 	searchReq := goldap.NewSearchRequest(
 		s.Options().UserSearchBase,
 		goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 1, 0, false,
-		fmt.Sprintf("(&(%s=*%s*)(%s=*%s*))",
+		fmt.Sprintf("(&(%s=%s)(%s=%s))",
 			s.Options().GetAttrUsername(), username,
 			s.Options().GetAttrEmail(), email),
 		nil, nil,
 	)
-	return s.getUserDetailByReq(ctx, searchReq)
+	return s.getUserByReq(ctx, searchReq)
 }
 
 // ResetPassword
@@ -292,12 +246,12 @@ func (s UserAndAppService) ResetPassword(ctx context.Context, id string, passwor
 	if err != nil {
 		return err
 	}
-	info, err := s.getUserDetailByDn(ctx, dn)
+	info, err := s.getUserByDn(ctx, dn)
 	if err != nil {
 		return err
 	}
-	if info.Status != models.UserMeta_unknown && info.Status != models.UserMeta_normal && info.Status != models.UserMeta_inactive {
-		return fmt.Errorf("unknown user status")
+	if info.Status.Is(models.UserMeta_disabled) {
+		return errors.NewServerError(500, "unknown user status: "+info.Status.String())
 	}
 	req := goldap.NewModifyRequest(dn, nil)
 	req.Replace("userPassword", []string{"{CRYPT}" + phash})
@@ -404,12 +358,13 @@ func (s UserAndAppService) PatchUsers(ctx context.Context, patch []map[string]in
 		if !ok {
 			return count, errors.ParameterError("unknown id")
 		}
+		delete(patchInfo, "id")
 		var dn string
-		dn, err = s.getUserDnByEntryUUID(context.WithValue(ctx, global.LDAPConnName, conn), id)
+		dn, err = s.getUserDnByEntryUUID(ldap.WithConnContext(ctx, conn), id)
 		if err != nil {
 			return count, err
 		}
-		objectClass, err := s.getUserObjectClass(context.WithValue(ctx, global.LDAPConnName, conn), dn)
+		objectClass, err := s.getUserObjectClass(ldap.WithConnContext(ctx, conn), dn)
 		if err != nil {
 			return count, err
 		}
@@ -448,7 +403,7 @@ func (s UserAndAppService) DeleteUsers(ctx context.Context, ids []string) (count
 	defer conn.Close()
 	for _, id := range ids {
 		var dn string
-		if dn, err = s.getUserDnByEntryUUID(context.WithValue(ctx, global.LDAPConnName, conn), id); err != nil {
+		if dn, err = s.getUserDnByEntryUUID(ldap.WithConnContext(ctx, conn), id); err != nil {
 			return count, err
 		} else if err = conn.Del(goldap.NewDelRequest(dn, nil)); err != nil {
 			return
@@ -465,19 +420,18 @@ func (s UserAndAppService) DeleteUsers(ctx context.Context, ids []string) (count
 //	@param ctx	context.Context
 //	@param user	*models.User
 //	@param updateColumns	...string
-//	@return userDetail	*models.User
 //	@return err	error
-func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (*models.User, error) {
+func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 
-	dn, err := s.getUserDnByEntryUUID(context.WithValue(ctx, global.LDAPConnName, conn), user.Id)
+	dn, err := s.getUserDnByEntryUUID(ldap.WithConnContext(ctx, conn), user.Id)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	objectClass, err := s.getUserObjectClass(context.WithValue(ctx, global.LDAPConnName, conn), dn)
+	objectClass, err := s.getUserObjectClass(ldap.WithConnContext(ctx, conn), dn)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	objectClass.Insert(s.GetUserClass().List()...)
 
@@ -502,17 +456,9 @@ func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, up
 	}
 
 	if len(req.Changes) > 0 {
-		if err = conn.Modify(req); err != nil {
-			return nil, err
-		}
+		return conn.Modify(req)
 	}
-	newUserInfo, err := s.getUserDetailByDn(context.WithValue(ctx, global.LDAPConnName, conn), dn)
-	if err != nil {
-		return nil, errors.NewServerError(http.StatusInternalServerError, "Internal Server Error. It may have been modified successfully, but the query result failed: "+err.Error())
-	} else if newUserInfo == nil {
-		return nil, errors.NewServerError(http.StatusInternalServerError, "Internal Server Error. It may have been modified successfully, but the query result failed. ")
-	}
-	return newUserInfo, nil
+	return nil
 }
 
 // GetUserInfoById
@@ -531,7 +477,7 @@ func (s UserAndAppService) GetUserInfoById(ctx context.Context, id string) (*mod
 		goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 1, 0, false,
 		fmt.Sprintf("(entryUUID=%s)", id), nil, nil,
 	)
-	return s.getUserDetailByReq(context.WithValue(ctx, global.LDAPConnName, conn), searchReq)
+	return s.getUserByReq(ldap.WithConnContext(ctx, conn), searchReq)
 }
 
 // GetUserInfo
@@ -553,10 +499,10 @@ func (s UserAndAppService) GetUserInfo(ctx context.Context, id string, username 
 	var userEntry *goldap.Entry
 
 	if len(id) != 0 {
-		return s.GetUserInfoById(context.WithValue(ctx, global.LDAPConnName, conn), id)
+		return s.GetUserInfoById(ldap.WithConnContext(ctx, conn), id)
 	}
 	if userEntry == nil && len(username) != 0 {
-		return s.getUserDetailByUsername(context.WithValue(ctx, global.LDAPConnName, conn), username)
+		return s.getUserByUsername(ldap.WithConnContext(ctx, conn), username)
 	}
 	return nil, errors.StatusNotFound("user")
 }
@@ -567,9 +513,8 @@ func (s UserAndAppService) GetUserInfo(ctx context.Context, id string, username 
 //	@Description[zh-CN]: 创建用户。
 //	@param ctx 	context.Context
 //	@param user 	*models.User
-//	@return userDetail	*models.User
 //	@return err	error
-func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*models.User, error) {
+func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (err error) {
 	logger := log.GetContextLogger(ctx)
 	conn := s.Session(ctx)
 	defer conn.Close()
@@ -605,17 +550,16 @@ func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*
 		}
 	}
 
-	if err := conn.Add(req); err != nil {
-		return nil, err
-	}
-
-	newUserInfo, err := s.getUserDetailByDn(context.WithValue(ctx, global.LDAPConnName, conn), dn)
+	err = conn.Add(req)
 	if err != nil {
-		return nil, errors.NewServerError(http.StatusInternalServerError, "Internal Server Error. It may have been created successfully, but the query result failed: "+err.Error())
-	} else if newUserInfo == nil {
-		return nil, errors.NewServerError(http.StatusInternalServerError, "Internal Server Error. It may have been created successfully, but the query result failed. ")
+		return err
 	}
-	return newUserInfo, nil
+	newUser, err := s.getUserByDn(ldap.WithConnContext(ctx, conn), dn)
+	if err != nil {
+		return err
+	}
+	user.Model = newUser.Model
+	return nil
 }
 
 // PatchUser
@@ -624,19 +568,18 @@ func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (*
 //	@Description[zh-CN]: 增量更新用户。
 //	@param ctx 	context.Context
 //	@param user 	map[string]interface{}
-//	@return userDetail	*models.User
 //	@return err	error
-func (s UserAndAppService) PatchUser(ctx context.Context, user map[string]interface{}) (*models.User, error) {
+func (s UserAndAppService) PatchUser(ctx context.Context, user map[string]interface{}) (err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 
 	id, ok := user["id"].(string)
 	if !ok {
-		return nil, errors.ParameterError("unknown id")
+		return errors.ParameterError("unknown id")
 	}
-	dn, err := s.getUserDnByEntryUUID(context.WithValue(ctx, global.LDAPConnName, conn), id)
+	dn, err := s.getUserDnByEntryUUID(ldap.WithConnContext(ctx, conn), id)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	req := goldap.NewModifyRequest(dn, nil)
 	columns := []ldapUpdateColumn{
@@ -662,16 +605,7 @@ func (s UserAndAppService) PatchUser(ctx context.Context, user map[string]interf
 		}
 	}
 
-	if err := conn.Modify(req); err != nil {
-		return nil, err
-	}
-	newUserInfo, err := s.GetUserInfoById(context.WithValue(ctx, global.LDAPConnName, conn), user["id"].(string))
-	if err != nil {
-		return nil, errors.NewServerError(http.StatusInternalServerError, "Internal Server Error. It may have been modified successfully, but the query result failed: "+err.Error())
-	} else if newUserInfo == nil {
-		return nil, errors.NewServerError(http.StatusInternalServerError, "Internal Server Error. It may have been modified successfully, but the query result failed. ")
-	}
-	return newUserInfo, nil
+	return conn.Modify(req)
 }
 
 // DeleteUser
@@ -682,7 +616,7 @@ func (s UserAndAppService) PatchUser(ctx context.Context, user map[string]interf
 //	@param id 	string
 //	@return error
 func (s UserAndAppService) DeleteUser(ctx context.Context, id string) error {
-	return w.Error[int64](s.DeleteUsers(ctx, []string{id}))
+	return w.E[int64](s.DeleteUsers(ctx, []string{id}))
 }
 
 // VerifyPasswordById
@@ -702,7 +636,7 @@ func (s UserAndAppService) VerifyPasswordById(ctx context.Context, id, password 
 		goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 10, 0, false,
 		fmt.Sprintf("(entryUUID=%s)", id), nil, nil,
 	)
-	dns, err := s.getDNSByReq(context.WithValue(ctx, global.LDAPConnName, conn), searchReq)
+	dns, err := s.getDNSByReq(ldap.WithConnContext(ctx, conn), searchReq)
 	if err != nil {
 		level.Error(logger).Log("msg", "unknown error", "id", id, "err", err)
 		return nil
@@ -715,7 +649,7 @@ func (s UserAndAppService) VerifyPasswordById(ctx context.Context, id, password 
 			level.Debug(logger).Log("msg", "incorrect password", "id", id, "err", err)
 			continue
 		}
-		userInfo, err := s.getUserDetailByDn(ctx, dn, WithUserRole)
+		userInfo, err := s.getUserByDn(ctx, dn)
 		if err != nil {
 			level.Error(logger).Log("msg", "failed to get user info", "id", id, "err", err)
 			return nil
@@ -745,7 +679,7 @@ func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, 
 		goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 10, 0, false,
 		s.Options().ParseUserSearchFilter(username), nil, nil,
 	)
-	dns, err := s.getDNSByReq(context.WithValue(ctx, global.LDAPConnName, conn), searchReq)
+	dns, err := s.getDNSByReq(ldap.WithConnContext(ctx, conn), searchReq)
 	if err != nil {
 		level.Error(logger).Log("msg", "unknown error", "username", username, "err", err)
 		return nil
@@ -758,7 +692,7 @@ func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, 
 			level.Debug(logger).Log("msg", "incorrect password", "username", username, "err", err)
 			continue
 		}
-		userInfo, err := s.getUserDetailByDn(ctx, dn, WithUserRole)
+		userInfo, err := s.getUserByDn(ctx, dn)
 		if err != nil {
 			level.Error(logger).Log("msg", "failed to get user info", "username", username, "err", err)
 			return nil
@@ -769,4 +703,17 @@ func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, 
 		users = append(users, userInfo)
 	}
 	return users
+}
+
+func (s UserAndAppService) GetUsersById(ctx context.Context, ids []string) (users models.Users, err error) {
+	for _, id := range ids {
+		userInfo, err := s.GetUserInfoById(ctx, id)
+		if err != nil && !strings.Contains(err.Error(), "Not Found") {
+			return nil, err
+		} else if userInfo == nil {
+			continue
+		}
+		users = append(users, userInfo)
+	}
+	return users, nil
 }

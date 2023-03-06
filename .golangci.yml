@@ -28,6 +28,7 @@ linters-settings:
     checks:
       - all
       - -SA1029
+      - -SA1019
   depguard:
     list-type: blacklist
     include-go-root: true
@@ -42,7 +43,7 @@ linters-settings:
   gofumpt:
     lang-version: "1.15"
     extra-rules: false
-    module-path: idas
+    module-path: github.com/MicroOps-cn/idas
   revive:
     rules:
       - name: exported
@@ -59,7 +60,7 @@ linters-settings:
         severity: warning
         disabled: false
         arguments:
-        - [ "ID" ] # AllowList
+        - [ "ID","OAuthGrantType" ] # AllowList
       - name: var-declaration
       - name: package-comments
       - name: range

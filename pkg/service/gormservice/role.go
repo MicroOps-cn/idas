@@ -18,54 +18,33 @@ package gormservice
 
 import (
 	"context"
-	"fmt"
+	"time"
 
 	gogorm "gorm.io/gorm"
 
-	"github.com/MicroOps-cn/idas/pkg/global"
+	"github.com/MicroOps-cn/idas/pkg/client/gorm"
+	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 )
 
-func (c *CommonService) CreateRole(ctx context.Context, role *models.Role) (newRole *models.Role, err error) {
+func (c *CommonService) CreateRole(ctx context.Context, role *models.Role) (err error) {
 	conn := c.Session(ctx)
 	tx := conn.Begin()
 	defer tx.Rollback()
 	if err = tx.Create(role).Error; err != nil {
-		return nil, err
+		return err
 	}
 	for _, permission := range role.Permission {
 		if err = tx.Model(role).Association("Permission").Append(permission); err != nil {
-			return nil, fmt.Errorf("failed to insert permission relationship: %s", err)
+			return errors.WithServerError(500, err, "failed to insert permission relationship")
 		}
 	}
-	newRole = &models.Role{Model: models.Model{Id: role.Id}}
-	err = tx.First(newRole).Error
-	if err != nil {
-		return nil, err
-	} else if err = tx.Commit().Error; err != nil {
-		return nil, err
-	}
-
-	return newRole, nil
+	return tx.Commit().Error
 }
 
-func (c *CommonService) UpdateRole(ctx context.Context, role *models.Role) (newRole *models.Role, err error) {
+func (c *CommonService) UpdateRole(ctx context.Context, role *models.Role) (err error) {
 	conn := c.Session(ctx)
-	tx := conn.Begin()
-	defer tx.Rollback()
-	if err = tx.Model(role).Association("Permission").Replace(role.Permission); err != nil {
-		return nil, err
-	}
-
-	newRole = &models.Role{Model: models.Model{Id: role.Id}}
-	err = tx.First(newRole).Error
-	if err != nil {
-		return nil, err
-	} else if err = tx.Commit().Error; err != nil {
-		return nil, err
-	}
-
-	return newRole, nil
+	return conn.Model(role).Association("Permission").Replace(role.Permission)
 }
 
 const sqlGetRolesPermission = `
@@ -83,7 +62,7 @@ WHERE
 
 func (c *CommonService) GetRoles(ctx context.Context, keywords string, current, pageSize int64) (count int64, roles []*models.Role, err error) {
 	conn := c.Session(ctx)
-	tb := conn.Model(&models.Role{})
+	tb := conn.Model(&models.Role{}).Where("delete_time is NULL")
 	if keywords != "" {
 		tb = tb.Where("Name LIKE ?", "%"+keywords+"%")
 	}
@@ -135,9 +114,9 @@ func (c CommonService) DeleteRoles(ctx context.Context, ids []string) error {
 	conn := c.Session(ctx)
 	tx := conn.Begin()
 	defer tx.Rollback()
-	if err := conn.Model(models.Role{}).Where("id in (?)", ids).Association("Permission").Delete(); err != nil {
+	if err := tx.Model(models.Role{}).Where("id in (?)", ids).Association("Permission").Delete(); err != nil {
 		return err
-	} else if err = conn.Model(models.Role{}).Where("id in (?)", ids).Update("is_delete = ?", 1).Error; err != nil {
+	} else if err = tx.Model(models.Role{}).Where("id in (?)", ids).Update("delete_time", time.Now()).Error; err != nil {
 		return err
 	}
 
@@ -173,7 +152,7 @@ func (c CommonService) RegisterPermission(ctx context.Context, permissions model
 		for _, child := range p.Children {
 			child.ParentId = p.Id
 		}
-		if err := c.RegisterPermission(context.WithValue(ctx, global.GormConnName, conn), p.Children); err != nil {
+		if err := c.RegisterPermission(gorm.WithConnContext(ctx, conn), p.Children); err != nil {
 			return err
 		}
 	}

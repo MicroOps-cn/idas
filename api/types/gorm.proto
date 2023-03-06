@@ -1,6 +1,7 @@
 syntax = "proto3";
 package idas.client.gorm;
-import "google/protobuf/duration.proto";
+import public "gogoproto/gogo.proto";
+import public "google/protobuf/duration.proto";
 option go_package = "github.com/MicroOps-cn/idas/pkg/client/gorm;gorm";
 
 message MySQLOptions{
@@ -15,9 +16,11 @@ message MySQLOptions{
   string charset = 9;
   string collation = 10;
   string table_prefix = 11;
+  google.protobuf.Duration slow_threshold = 12;
 }
 
 message SQLiteOptions{
   string path = 1;
   string table_prefix = 2;
+  google.protobuf.Duration slow_threshold = 12;
 }

@@ -18,11 +18,11 @@ package ldap
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 
 	"github.com/asaskevich/govalidator"
 	"github.com/gogo/protobuf/jsonpb"
+	"github.com/pkg/errors"
 )
 
 type pbLdapOptions LdapOptions
@@ -82,49 +82,49 @@ func (x *LdapOptions) ParseUserSearchFilter(username ...string) string {
 
 func (x *LdapOptions) Valid() error {
 	if x == nil {
-		return fmt.Errorf("ldap options is null")
+		return errors.New("ldap options is null")
 	}
 	if govalidator.IsNull(x.Host) {
-		return fmt.Errorf("ldap host option  is null")
+		return errors.New("ldap host option is null")
 	}
 	if govalidator.IsNull(x.ManagerDn) {
-		return fmt.Errorf("ldap manager_dn option is null")
+		return errors.New("ldap manager_dn option is null")
 	}
 	if govalidator.IsNull(x.ManagerPassword) {
-		return fmt.Errorf("ldap manager_password option is null")
+		return errors.New("ldap manager_password option is null")
 	}
 	if govalidator.IsNull(x.UserSearchBase) {
-		return fmt.Errorf("ldap user_search_base option is null")
+		return errors.New("ldap user_search_base option is null")
 	}
 	if govalidator.IsNull(x.UserSearchFilter) {
-		return fmt.Errorf("ldap user_search_filter option is null")
+		return errors.New("ldap user_search_filter option is null")
 	}
 	if !strings.Contains(x.UserSearchFilter, "{}") {
-		return fmt.Errorf("ldap user_search_filter option is invalid: does not contain {}")
+		return errors.New("ldap user_search_filter option is invalid: does not contain {}")
 	}
 	if govalidator.IsNull(x.AppSearchBase) {
-		return fmt.Errorf("ldap group_search_base option is null")
+		return errors.New("ldap group_search_base option is null")
 	}
 	if govalidator.IsNull(x.AppSearchFilter) {
-		return fmt.Errorf("ldap group_search_filter option is null")
+		return errors.New("ldap group_search_filter option is null")
 	}
 	if !strings.Contains(x.AppSearchFilter, "{}") {
-		return fmt.Errorf("ldap group_search_filter option is invalid: does not contain {}")
+		return errors.New("ldap group_search_filter option is invalid: does not contain {}")
 	}
 	if govalidator.IsNull(x.AppRoleSearchFilter) {
-		return fmt.Errorf("ldap group_search_filter option is null")
+		return errors.New("ldap group_search_filter option is null")
 	}
 	if !strings.Contains(x.AppRoleSearchFilter, "{}") {
-		return fmt.Errorf("ldap group_search_filter option is invalid: does not contain {}")
+		return errors.New("ldap group_search_filter option is invalid: does not contain {}")
 	}
 	if govalidator.IsNull(x.AttrEmail) {
-		return fmt.Errorf("ldap attr_email option is null")
+		return errors.New("ldap attr_email option is null")
 	}
 	if govalidator.IsNull(x.AttrUsername) {
-		return fmt.Errorf("ldap attr_username option is null")
+		return errors.New("ldap attr_username option is null")
 	}
 	if govalidator.IsNull(x.AttrUserDisplayName) {
-		return fmt.Errorf("ldap attr_user_display_name option is null")
+		return errors.New("ldap attr_user_display_name option is null")
 	}
 	return nil
 }

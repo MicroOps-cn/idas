@@ -19,6 +19,11 @@ package endpoint
 import (
 	"context"
 	"fmt"
+	"github.com/MicroOps-cn/fuck/sets"
+	w "github.com/MicroOps-cn/fuck/wrapper"
+	"github.com/MicroOps-cn/idas/pkg/service/opts"
+	uuid "github.com/satori/go.uuid"
+	"github.com/xlzd/gotp"
 	"net/http"
 	"strings"
 	"time"
@@ -33,15 +38,185 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 )
 
+type LoginCode struct {
+	UserId string `json:"userId"`
+	Code   string `json:"code"`
+}
+
+func MakeSendLoginCaptchaEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(Requester).GetRequestData().(*SendLoginCaptchaRequest)
+		resp := SimpleResponseWrapper[*SendLoginCaptchaResponseData]{}
+		switch req.Type {
+		case LoginType_mfa_email:
+			users := s.GetUserInfoByUsernameAndEmail(ctx, req.Username, req.Target)
+			for _, user := range users {
+				if user.Status.Is(models.UserMeta_normal) {
+					loginCode := LoginCode{UserId: user.Id, Code: strings.ToUpper(uuid.NewV4().String()[:6])}
+					token, err := s.CreateToken(ctx, models.TokenTypeLoginCode, &loginCode)
+					if err != nil {
+						return nil, errors.NewServerError(http.StatusInternalServerError, "Failed to create token")
+					}
+					to := fmt.Sprintf("%s<%s>", user.FullName, user.Email)
+					err = s.SendEmail(ctx, map[string]interface{}{
+						"user":   user,
+						"token":  token,
+						"code":   loginCode.Code,
+						"userId": user.Id,
+					}, "User:SendLoginCaptcha", to)
+					if err != nil {
+						level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to send email")
+						return nil, errors.NewServerError(500, "failed to send email")
+					}
+					resp.Data = &SendLoginCaptchaResponseData{Token: token.Id}
+					return &resp, nil
+				}
+			}
+		default:
+			return nil, errors.ParameterError("type")
+		}
+
+		return nil, errors.StatusNotFound("user")
+	}
+}
+
+func getMFAMethod(users models.Users) sets.Set[LoginType] {
+	method := sets.New[LoginType]()
+	for _, user := range users {
+		userExt := user.ExtendedData
+		if userExt.EmailAsMFA {
+			method.Insert(LoginType_mfa_email)
+		}
+		if userExt.TOTPAsMFA {
+			method.Insert(LoginType_mfa_totp)
+		}
+		if userExt.SmsAsMFA {
+			method.Insert(LoginType_mfa_sms)
+		}
+	}
+	return method
+}
+
+func getTOTPSecrets(users models.Users) ([]string, error) {
+	var secrets []string
+	for _, user := range users {
+		secret, err := user.ExtendedData.GetSecret()
+		if err != nil {
+			return nil, err
+		}
+		if len(secret) > 0 {
+			secrets = append(secrets, secret)
+		}
+	}
+	return secrets, nil
+}
+
 func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*UserLoginRequest)
-		resp := SimpleResponseWrapper[interface{}]{}
-		if loginCookie, err := s.CreateLoginSession(ctx, req.Username, req.Password, req.AutoLogin); err == nil {
-			request.(RestfulRequester).GetRestfulResponse().AddHeader("Set-Cookie", loginCookie)
-		} else {
-			resp.Error = errors.NewServerError(http.StatusUnauthorized, "Wrong user name or password")
+		resp := SimpleResponseWrapper[*UserLoginResponseData]{}
+		users, err := s.VerifyPassword(ctx, req.Username, string(req.Password))
+		if len(users) == 0 || err != nil {
+			resp.ErrorMessage = "Wrong user name or password. "
+			if err != nil {
+				resp.Error = err
+			}
 		}
+		logger := logs.GetContextLogger(ctx)
+		var forceMFA bool
+		for _, user := range users {
+			if user.ExtendedData != nil {
+				if user.ExtendedData.ForceMFA {
+					forceMFA = true
+				}
+			}
+		}
+
+		if forceMFA {
+			method := getMFAMethod(users)
+			switch req.Type {
+			case LoginType_mfa_totp:
+				if !method.Has(req.Type) {
+					resp.Error = errors.NewServerError(500, "The authentication method is not supported.")
+					return resp, nil
+				}
+				secrets, err := getTOTPSecrets(users)
+				if err != nil {
+					resp.Error = errors.NewServerError(500, "failed to get totp settings")
+					return resp, nil
+				} else if len(secrets) == 0 {
+					resp.Error = errors.NewServerError(500, "can't get totp settings")
+					return resp, nil
+				}
+				nowTime := time.Now()
+				ts := nowTime.Add(time.Second * time.Duration(-(nowTime.Second() % 30))).Unix()
+				for _, secret := range secrets {
+					totp := gotp.NewDefaultTOTP(secret)
+					if !totp.Verify(req.Code, ts) {
+						if !totp.Verify(req.Code, ts-30) {
+							resp.Error = errors.NewServerError(http.StatusBadRequest, "The verification code is invalid or expired")
+							return resp, nil
+						}
+					}
+				}
+			case LoginType_mfa_sms:
+				resp.Error = errors.NewServerError(500, "The authentication method is not supported.")
+				return resp, nil
+
+			case LoginType_mfa_email:
+				if !method.Has(req.Type) {
+					resp.Error = errors.NewServerError(500, "The authentication method is not supported.")
+					return resp, nil
+				}
+				if len(req.Token) == 0 {
+					resp.Error = errors.ParameterError("token")
+					return resp, nil
+				}
+				var code LoginCode
+				if !s.VerifyToken(ctx, req.Token, models.TokenTypeLoginCode, &code) {
+					resp.Error = errors.ParameterError("code")
+					return resp, nil
+				}
+				if code.Code != req.Code || users.GetById(code.UserId) == nil {
+					resp.Error = errors.ParameterError("code")
+					return resp, nil
+				}
+				_ = s.DeleteToken(ctx, models.TokenTypeLoginCode, req.Token)
+			default:
+				resp.Data = &UserLoginResponseData{NextMethod: method.List()}
+				resp.Success = false
+				return resp, nil
+			}
+		}
+		for _, user := range users {
+			app, err := s.GetAppInfo(ctx, user.Storage, opts.WithBasic, opts.WithAppName("IDAS"))
+			if err != nil && !errors.IsNotFount(err) {
+				level.Error(logger).Log("msg", "failed to get app info", "err", err)
+			} else if app != nil {
+				role, err := s.GetAppRoleByUserId(ctx, app.Id, user.Id)
+				if err == nil {
+					user.RoleId = role.Id
+					user.Role = role.Name
+				} else if !errors.IsNotFount(err) {
+					level.Error(logger).Log("msg", "failed to get app role", "err", err)
+				}
+			}
+		}
+
+		token, err := s.CreateToken(ctx, models.TokenTypeLoginSession, w.Interfaces[*models.User](users)...)
+		if err != nil {
+			return "", err
+		}
+		cookie := http.Cookie{
+			Name:  global.LoginSession,
+			Value: token.Id,
+			Path:  "/",
+		}
+		if req.AutoLogin {
+			cookie.Expires = token.Expiry
+		}
+		request.(RestfulRequester).GetRestfulResponse().AddHeader("Set-Cookie", cookie.String())
+
 		return &resp, nil
 	}
 }
@@ -51,11 +226,11 @@ func MakeUserLogoutEndpoint(s service.Service) endpoint.Endpoint {
 		resp := SimpleResponseWrapper[interface{}]{}
 		cookie, err := request.(RestfulRequester).GetRestfulRequest().Request.Cookie(global.LoginSession)
 		if err != nil {
-			resp.Error = errors.BadRequestError
+			resp.Error = errors.BadRequestError()
 		} else if len(cookie.Value) > 0 {
 			for _, id := range strings.Split(cookie.Value, ",") {
 				if err = s.DeleteLoginSession(ctx, id); err != nil {
-					resp.Error = errors.InternalServerError
+					resp.Error = errors.InternalServerError()
 					return resp, nil
 				}
 			}
@@ -82,19 +257,41 @@ type GetSessionParams struct {
 
 func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		params := request.(GetSessionParams)
-		var resp []*models.User
+		params := request.(*GetSessionParams)
+		var resp models.Users
 		if len(params.Token) > 0 {
-			if resp, err = s.GetSessionByToken(ctx, params.Token, params.TokenType); err != nil {
-				if err != errors.NotLoginError {
-					level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to get session")
-					err = errors.NotLoginError
+			if err = s.GetSessionByToken(ctx, params.Token, params.TokenType, &resp); err != nil {
+				if err != errors.NotLoginError() {
+					logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))
+					level.Error(logger).Log("err", err, "msg", "failed to get session")
+					err = errors.NotLoginError()
 				}
 			}
 		} else {
-			err = errors.NotLoginError
+			err = errors.NotLoginError()
 		}
 		return resp, err
+	}
+}
+
+func MakeGetProxySessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		params := request.(*GetSessionParams)
+		var session []*models.ProxySession
+		if len(params.Token) > 0 {
+			if err = s.GetSessionByToken(ctx, params.Token, params.TokenType, &session); err != nil {
+				if err != errors.NotLoginError() {
+					level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to get session")
+				}
+			} else if len(session) == 1 {
+				return session[0], nil
+			} else if len(session) > 1 {
+				return nil, errors.NewServerError(500, "proxy configuration exception")
+			}
+		} else {
+			err = errors.NotLoginError()
+		}
+		return nil, err
 	}
 }
 
@@ -111,7 +308,7 @@ func MakeDeleteSessionEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*DeleteSessionRequest)
 		resp := SimpleResponseWrapper[interface{}]{}
-		resp.Error = s.DeleteSession(ctx, req.Id)
+		resp.Error = s.DeleteToken(ctx, models.TokenTypeLoginSession, req.Id)
 		return &resp, nil
 	}
 }

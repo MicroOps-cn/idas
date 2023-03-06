@@ -19,9 +19,8 @@ package image
 import (
 	"context"
 
+	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/golang/freetype/truetype"
-
-	"github.com/MicroOps-cn/idas/pkg/utils/sets"
 )
 
 func LoadSystemFonts(ctx context.Context, fontNames ...string) (*truetype.Font, error) {

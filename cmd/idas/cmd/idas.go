@@ -34,7 +34,7 @@ import (
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/jsonpb"
-	lightstep "github.com/lightstep/lightstep-tracer-go"
+	"github.com/lightstep/lightstep-tracer-go"
 	"github.com/oklog/oklog/pkg/group"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	zipkinot "github.com/openzipkin-contrib/zipkin-go-opentracing"
@@ -58,7 +58,6 @@ import (
 var (
 	cfgFile         string
 	configDisplay   bool
-	logConfig       log.Config
 	debugAddr       string
 	httpExternalURL httputil.URL
 	webPrefix       string
@@ -79,21 +78,22 @@ var rootCmd = &cobra.Command{
 	Short: "The idas gateway server.",
 	Long:  `The idas gateway server.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return Run(context.Background(), log.GetRootLogger(), signals.SetupSignalHandler(log.GetRootLogger()))
+		logger := log.GetContextLogger(cmd.Context())
+		return Run(cmd.Context(), logger, signals.SetupSignalHandler(logger))
 	},
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	//	Run: func(cmd *cobra.Command, args []string) { },
 }
 
-func Run(ctx context.Context, logger kitlog.Logger, stopCh *signals.StopChan) (err error) {
+func Run(ctx context.Context, logger kitlog.Logger, _ *signals.StopChan) (err error) {
 	var zipkinTracer *zipkin.Tracer
 	{
 		if zipkinURL != "" {
 			var (
 				err         error
 				hostPort    = "localhost:80"
-				serviceName = "addsvc"
+				serviceName = "idas"
 				reporter    = zipkinhttp.NewReporter(zipkinURL)
 			)
 			defer reporter.Close()
@@ -198,7 +198,10 @@ func Run(ctx context.Context, logger kitlog.Logger, stopCh *signals.StopChan) (e
 		g.Add(func() error {
 			level.Info(logger).Log("msg", "Listening port", "transport", "HTTP", "addr", httpAddr)
 			httpServer.Handle("/", httpHandler)
-			return http.Serve(httpListener, httpServer)
+			serv := http.Server{Handler: httpServer, BaseContext: func(listener net.Listener) context.Context {
+				return ctx
+			}}
+			return serv.Serve(httpListener)
 		}, func(error) {
 			httpListener.Close()
 		})
@@ -212,7 +215,10 @@ func Run(ctx context.Context, logger kitlog.Logger, stopCh *signals.StopChan) (e
 		}
 		g.Add(func() error {
 			level.Info(logger).Log("msg", "Listening port", "transport", "Proxy/HTTP", "addr", proxyHTTPAddr)
-			return http.Serve(proxyHTTPListener, proxyHandler)
+			serv := http.Server{Handler: proxyHandler, BaseContext: func(listener net.Listener) context.Context {
+				return ctx
+			}}
+			return serv.Serve(proxyHTTPListener)
 		}, func(error) {
 			proxyHTTPListener.Close()
 		})
@@ -230,7 +236,7 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initLogger, initParameter, initConfig)
+	cobra.OnInitialize(initParameter, initConfig)
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
@@ -239,7 +245,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&configDisplay, "config.display", false, "display config")
 
 	// log level and format
-	flag.AddFlags(rootCmd.PersistentFlags(), &logConfig)
+	flag.AddFlags(rootCmd.PersistentFlags(), nil)
 
 	rootCmd.Flags().StringVar(&debugAddr, "debug.listen-address", ":8080", "Debug and metrics listen address")
 	rootCmd.Flags().StringVar(&proxyHTTPAddr, "proxy.listen-address", ":8082", "HTTP proxy listen address")
@@ -256,16 +262,18 @@ func init() {
 }
 
 func initParameter() {
-	logger := log.GetRootLogger()
+	logger := log.NewTraceLogger()
 
 	if httpExternalURL.Scheme == "" {
 		httpExternalURL.Scheme = "http"
-	} else if httpExternalURL.Path == "" {
+	}
+	if httpExternalURL.Path == "" {
 		httpExternalURL.Path = "/"
 	}
-	//if httpExternalURL.Path[len(httpExternalURL.Path)-1:] != "/" {
-	//	httpExternalURL.Path = httpExternalURL.Path + "/"
-	//}
+	if httpExternalURL.Path[len(httpExternalURL.Path)-1:] != "/" {
+		httpExternalURL.Path = httpExternalURL.Path + "/"
+	}
+
 	if httpExternalURL.Host == "" {
 		port := "80"
 		if h, p, err := net.SplitHostPort(httpAddr); err == nil {
@@ -314,8 +322,8 @@ func initConfig() {
 	if cfgFile == "" {
 		cfgFile = "./idas.yaml"
 	}
-	logger := log.GetRootLogger()
-	if err := config.ReloadConfigFromFile(log.GetRootLogger(), cfgFile); err != nil {
+	logger := log.NewTraceLogger()
+	if err := config.ReloadConfigFromFile(logger, cfgFile); err != nil {
 		level.Error(logger).Log("msg", "failed to load config", "err", err)
 		os.Exit(1)
 	}
@@ -340,10 +348,4 @@ func initConfig() {
 		}
 		os.Exit(0)
 	}
-}
-
-// initLogger
-func initLogger() {
-	logger := log.New(&logConfig)
-	log.SetRootLogger(logger)
 }

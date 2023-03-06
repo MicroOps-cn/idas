@@ -28,7 +28,7 @@ message User {
   option (gogoproto.goproto_unkeyed) = false;
 
   idas.service.models.Model model = 1 [(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
-  string username = 2[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'gorm:"type:varchar(20);unique"'];
+  string username = 2[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'gorm:"type:varchar(20);uniqueIndex:idx_user_username,sort:desc"'];
   string salt = 3[(gogoproto.customtype) = "database/sql.RawBytes", (gogoproto.nullable) = false, (gogoproto.jsontag) = "-", (gogoproto.moretags) = 'gorm:"type:tinyblob"'];
   string password = 4[(gogoproto.customtype) = "database/sql.RawBytes", (gogoproto.nullable) = false, (gogoproto.jsontag) = "password,omitempty", (gogoproto.moretags) = 'gorm:"type:tinyblob"'];
   string email = 5[(gogoproto.jsontag) = "email", (gogoproto.moretags) = 'gorm:"type:varchar(50)" valid:"email,optional"'];
@@ -39,7 +39,8 @@ message User {
   string login_time = 10[(gogoproto.customtype) = "time.Time", (gogoproto.jsontag) = "loginTime"];
   string role_id = 11[(gogoproto.jsontag) = "roleId,omitempty", (gogoproto.moretags) = 'gorm:"->;-:migration"'];
   string role = 12[(gogoproto.jsontag) = "role,omitempty", (gogoproto.moretags) = 'gorm:"->;-:migration"'];
-  string apps = 13[(gogoproto.customtype) = "Apps", (gogoproto.nullable) = false, (gogoproto.jsontag) = "apps,omitempty", (gogoproto.moretags) = 'gorm:"many2many:app_user"'];
+  string apps = 13[(gogoproto.customtype) = "Apps", (gogoproto.nullable) = false, (gogoproto.jsontag) = "apps,omitempty", (gogoproto.moretags) = 'gorm:"-"'];
   string storage = 14[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'gorm:"-"'];
+  string extended_data = 15[(gogoproto.jsontag) = "extendedData,omitempty",(gogoproto.customtype) = "UserExt", (gogoproto.moretags) = 'gorm:"-"'];
 }
 

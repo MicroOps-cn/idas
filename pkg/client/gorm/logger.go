@@ -19,6 +19,7 @@ package gorm
 import (
 	"context"
 	"fmt"
+	log2 "github.com/MicroOps-cn/fuck/log"
 	"time"
 
 	kitlog "github.com/go-kit/log"
@@ -32,7 +33,7 @@ import (
 
 type logContext struct {
 	logger        kitlog.Logger
-	SlowThreshold time.Duration
+	slowThreshold time.Duration
 }
 
 func (l *logContext) LogMode(lvl logger.LogLevel) logger.Interface {
@@ -50,19 +51,19 @@ func (l *logContext) LogMode(lvl logger.LogLevel) logger.Interface {
 		filter = l.logger
 	}
 
-	return NewLogAdapter(filter)
+	return NewLogAdapter(filter, l.slowThreshold)
 }
 
 func (l logContext) Info(_ context.Context, msg string, data ...interface{}) {
-	level.Info(l.logger).Log("caller", utils.FileWithLineNum(), "msg", fmt.Sprintf(msg, data...))
+	level.Info(l.logger).Log(log2.CallerName, logs.Relative(utils.FileWithLineNum()), "msg", fmt.Sprintf(msg, data...))
 }
 
 func (l logContext) Warn(_ context.Context, msg string, data ...interface{}) {
-	level.Warn(l.logger).Log("caller", utils.FileWithLineNum(), "msg", fmt.Sprintf(msg, data...))
+	level.Warn(l.logger).Log(log2.CallerName, logs.Relative(utils.FileWithLineNum()), "msg", fmt.Sprintf(msg, data...))
 }
 
 func (l logContext) Error(_ context.Context, msg string, data ...interface{}) {
-	level.Error(l.logger).Log("caller", utils.FileWithLineNum(), "msg", fmt.Sprintf(msg, data...))
+	level.Error(l.logger).Log(log2.CallerName, logs.Relative(utils.FileWithLineNum()), "msg", fmt.Sprintf(msg, data...))
 }
 
 func (l logContext) Trace(_ context.Context, begin time.Time, fc func() (string, int64), err error) {
@@ -70,18 +71,18 @@ func (l logContext) Trace(_ context.Context, begin time.Time, fc func() (string,
 	switch {
 	case err != nil && err != gorm.ErrRecordNotFound:
 		sql, rows := fc()
-		level.Error(l.logger).Log("caller", logs.Relative(utils.FileWithLineNum()), "msg", "SQL execution exception", "[ErrorMsg]", err, "[sql]", sql, "[ExecTime]", float64(elapsed.Nanoseconds())/1e6, "[RowReturnCount]", rows)
-	case elapsed > l.SlowThreshold && l.SlowThreshold != 0:
+		level.Error(l.logger).Log(log2.CallerName, logs.Relative(utils.FileWithLineNum()), "msg", "SQL execution exception", logs.WrapKeyName("errorMsg"), err, logs.WrapKeyName("sql"), sql, logs.WrapKeyName("execTime"), float64(elapsed.Nanoseconds())/1e6, logs.WrapKeyName("rowReturnCount"), rows)
+	case elapsed > l.slowThreshold && l.slowThreshold != 0:
 		sql, rows := fc()
-		level.Warn(l.logger).Log("caller", logs.Relative(utils.FileWithLineNum()), "msg", "exec SQL query", "[sql]", sql, "[ExecTime]", float64(elapsed.Nanoseconds())/1e6, "[RowReturnCount]", rows)
+		level.Warn(l.logger).Log(log2.CallerName, logs.Relative(utils.FileWithLineNum()), "msg", "exec SQL query", logs.WrapKeyName("sql"), sql, logs.WrapKeyName("execTime"), float64(elapsed.Nanoseconds())/1e6, logs.WrapKeyName("rowReturnCount"), rows)
 	default:
 		sql, rows := fc()
-		level.Debug(l.logger).Log("caller", logs.Relative(utils.FileWithLineNum()), "msg", "exec SQL query", "[sql]", sql, "[ExecTime]", float64(elapsed.Nanoseconds())/1e6, "[RowReturnCount]", rows)
+		level.Debug(l.logger).Log(log2.CallerName, logs.Relative(utils.FileWithLineNum()), "msg", "exec SQL query", logs.WrapKeyName("sql"), sql, logs.WrapKeyName("execTime"), float64(elapsed.Nanoseconds())/1e6, logs.WrapKeyName("rowReturnCount"), rows)
 	}
 }
 
-func NewLogAdapter(l kitlog.Logger) logger.Interface {
-	return &logContext{logger: l}
+func NewLogAdapter(l kitlog.Logger, slowThreshold time.Duration) logger.Interface {
+	return &logContext{logger: l, slowThreshold: slowThreshold}
 }
 
 var _ logger.Interface = new(logContext)

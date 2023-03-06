@@ -17,6 +17,7 @@
 package transport
 
 import (
+	"context"
 	"github.com/MicroOps-cn/idas/pkg/endpoint"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	restfulspec "github.com/emicklei/go-restful-openapi/v2"
@@ -26,26 +27,27 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-var apiServiceSet = []func(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService){
+var apiServiceSet = []func(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService){
 	UserService,
 	AppService,
 	FileService,
 	SessionService,
 	OAuthService,
-	UserAuthService,
+	CurrentUserService,
 	PermissionService,
 	RoleService,
+	PageService,
 }
 
 // UserService User Manager Service for restful Http container
-func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
+func UserService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "users", Description: "Managing users"}}
 	tags := []string{tag.Name}
 	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
-		To(NewKitHTTPServer[endpoint.GetUsersRequest](endpoints.GetUsers, options)).
+		To(NewKitHTTPServer[endpoint.GetUsersRequest](ctx, endpoints.GetUsers, options)).
 		Operation("getUsers").
 		Doc("Get user list.").
 		Params(StructToQueryParams(endpoint.GetUsersRequest{})...).
@@ -53,15 +55,15 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Returns(200, "OK", endpoint.GetUsersResponse{}),
 	)
 	v1ws.Route(v1ws.PATCH("").
-		To(NewKitHTTPServer[endpoint.PatchUsersRequest](endpoints.PatchUsers, options)).
+		To(NewKitHTTPServer[endpoint.PatchUsersRequest](ctx, endpoints.PatchUsers, options)).
 		Operation("patchUsers").
 		Reads(endpoint.PatchUsersRequest{}).
 		Doc("Batch update user information(Incremental).").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Returns(200, "OK", endpoint.PatchUsersResponse{}),
+		Returns(200, "OK", endpoint.BaseTotalResponse{}),
 	)
 	v1ws.Route(v1ws.DELETE("").
-		To(NewKitHTTPServer[endpoint.DeleteUsersRequest](endpoints.DeleteUsers, options)).
+		To(NewKitHTTPServer[endpoint.DeleteUsersRequest](ctx, endpoints.DeleteUsers, options)).
 		Operation("deleteUsers").
 		Doc("Delete users in batch.").
 		Reads(endpoint.DeleteUsersRequest{}).
@@ -69,15 +71,15 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Returns(200, "OK", endpoint.BaseTotalResponse{}),
 	)
 	v1ws.Route(v1ws.POST("").
-		To(NewKitHTTPServer[endpoint.CreateUserRequest](endpoints.CreateUser, options)).
+		To(NewKitHTTPServer[endpoint.CreateUserRequest](ctx, endpoints.CreateUser, options)).
 		Operation("createUser").
 		Doc("Create a user.").
 		Reads(endpoint.CreateUserRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Returns(200, "OK", endpoint.CreateUserResponse{}),
+		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
 	v1ws.Route(v1ws.GET("/{id}").
-		To(NewKitHTTPServer[endpoint.GetUserRequest](endpoints.GetUserInfo, options)).
+		To(NewKitHTTPServer[endpoint.GetUserRequest](ctx, endpoints.GetUserInfo, options)).
 		Operation("getUserInfo").
 		Param(v1ws.PathParameter("id", "identifier of the user").DataType("string")).
 		Param(v1ws.QueryParameter("storage", "storage of the user").DataType("string")).
@@ -86,7 +88,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Returns(200, "OK", endpoint.GetUserRequest{}),
 	)
 	v1ws.Route(v1ws.PUT("/{id}").
-		To(NewKitHTTPServer[endpoint.UpdateUserRequest](endpoints.UpdateUser, options)).
+		To(NewKitHTTPServer[endpoint.UpdateUserRequest](ctx, endpoints.UpdateUser, options)).
 		Operation("updateUser").
 		Param(v1ws.PathParameter("id", "identifier of the user").DataType("string")).
 		Doc("Update user information(full).").
@@ -95,7 +97,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Returns(200, "OK", endpoint.UpdateUserRequest{}),
 	)
 	v1ws.Route(v1ws.PATCH("/{id}").
-		To(NewKitHTTPServer[endpoint.PatchUserRequest](endpoints.PatchUser, options)).
+		To(NewKitHTTPServer[endpoint.PatchUserRequest](ctx, endpoints.PatchUser, options)).
 		Operation("patchUser").
 		Param(v1ws.PathParameter("id", "identifier of the user").DataType("string")).
 		Doc("Update user information(Incremental).").
@@ -105,7 +107,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 	)
 
 	v1ws.Route(v1ws.DELETE("/{id}").
-		To(NewKitHTTPServer[endpoint.DeleteUserRequest](endpoints.DeleteUser, options)).
+		To(NewKitHTTPServer[endpoint.DeleteUserRequest](ctx, endpoints.DeleteUser, options)).
 		Operation("deleteUser").
 		Param(v1ws.PathParameter("id", "identifier of the user").DataType("string")).
 		Param(v1ws.QueryParameter("storage", "storage source of the user").DataType("string")).
@@ -113,26 +115,9 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
-	v1ws.Route(v1ws.POST("/forgotPassword").
-		To(NewKitHTTPServer[endpoint.ForgotUserPasswordRequest](endpoints.ForgotPassword, options)).
-		Operation("forgotPassword").
-		Doc("Forgot the user password.").
-		Reads(endpoint.ForgotUserPasswordRequest{}).
-		Metadata(global.MetaNeedLogin, false).
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Returns(200, "OK", endpoint.BaseResponse{}),
-	)
 
-	v1ws.Route(v1ws.POST("/resetPassword").
-		To(NewKitHTTPServer[endpoint.ResetUserPasswordRequest](endpoints.ResetPassword, options)).
-		Operation("resetPassword").
-		Reads(endpoint.ResetUserPasswordRequest{}).
-		Doc("Reset the user password.").
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Returns(200, "OK", endpoint.BaseResponse{}),
-	)
 	v1ws.Route(v1ws.GET("/source").
-		To(NewKitHTTPServer[struct{}](endpoints.GetUserSource, options)).
+		To(NewKitHTTPServer[struct{}](ctx, endpoints.GetUserSource, options)).
 		Operation("getUserSource").
 		Doc("Get the user storage source.").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
@@ -140,7 +125,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 	)
 
 	v1ws.Route(v1ws.POST("/{userId}/key").
-		To(NewKitHTTPServer[endpoint.CreateUserKeyRequest](endpoints.CreateUserKey, options)).
+		To(NewKitHTTPServer[endpoint.CreateUserKeyRequest](ctx, endpoints.CreateUserKey, options)).
 		Operation("createUserKey").
 		Doc("Create a user key pair.").
 		Param(v1ws.PathParameter("userId", "identifier of the user").DataType("string")).
@@ -150,17 +135,17 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 	)
 
 	v1ws.Route(v1ws.DELETE("/{userId}/key/{id}").
-		To(NewKitHTTPServer[endpoint.DeleteUserKeyRequest](endpoints.DeleteUserKey, options)).
+		To(NewKitHTTPServer[endpoint.DeleteUserKeyRequest](ctx, endpoints.DeleteUserKey, options)).
 		Operation("deleteUserKey").
 		Doc("Delete a user key pair.").
 		Param(v1ws.PathParameter("userId", "identifier of the user").DataType("string")).
 		Param(v1ws.PathParameter("id", "identifier of the user key-pair").DataType("string")).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Returns(200, "OK", endpoint.DeleteUserKeyResponse{}),
+		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
 
 	v1ws.Route(v1ws.GET("/{userId}/key").
-		To(NewKitHTTPServer[endpoint.GetUserKeysRequest](endpoints.GetUserKeys, options)).
+		To(NewKitHTTPServer[endpoint.GetUserKeysRequest](ctx, endpoints.GetUserKeys, options)).
 		Operation("getUserKeys").
 		Doc("Get a user key-pairs.").
 		Param(v1ws.PathParameter("userId", "identifier of the user").DataType("string")).
@@ -169,7 +154,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 	)
 
 	v1ws.Route(v1ws.POST("/key").
-		To(NewKitHTTPServer[endpoint.CreateKeyRequest](endpoints.CreateKey, options)).
+		To(NewKitHTTPServer[endpoint.CreateKeyRequest](ctx, endpoints.CreateKey, options)).
 		Operation("createKey").
 		Doc("Create your own key pair.").
 		Reads(endpoint.CreateKeyRequest{}).
@@ -178,7 +163,7 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 	)
 
 	v1ws.Route(v1ws.POST("/sendActivateMail").
-		To(NewKitHTTPServer[endpoint.SendActivationMailRequest](endpoints.SendActivateMail, options)).
+		To(NewKitHTTPServer[endpoint.SendActivationMailRequest](ctx, endpoints.SendActivateMail, options)).
 		Operation("sendActivateMail").
 		Reads(endpoint.SendActivationMailRequest{}).
 		Doc("Send account activation email.").
@@ -186,26 +171,17 @@ func UserService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
 
-	v1ws.Route(v1ws.POST("/activateAccount").
-		To(NewKitHTTPServer[endpoint.ActivateAccountRequest](endpoints.ActivateAccount, options)).
-		Operation("activateAccount").
-		Reads(endpoint.ActivateAccountRequest{}).
-		Doc("Activate the user.").
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Metadata(global.MetaNeedLogin, false).
-		Returns(200, "OK", endpoint.BaseResponse{}),
-	)
 	return tag, []*restful.WebService{v1ws}
 }
 
-func AppService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
+func AppService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "apps", Description: "Application manager"}}
 	tags := []string{tag.Name}
 	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
-		To(NewKitHTTPServer[endpoint.GetAppsRequest](endpoints.GetApps, options)).
+		To(NewKitHTTPServer[endpoint.GetAppsRequest](ctx, endpoints.GetApps, options)).
 		Operation("getApps").
 		Doc("Get the application list.").
 		Params(StructToQueryParams(endpoint.GetAppsRequest{})...).
@@ -213,15 +189,15 @@ func AppService(options []httptransport.ServerOption, endpoints endpoint.Set) (s
 		Returns(200, "OK", endpoint.GetAppsResponse{}),
 	)
 	v1ws.Route(v1ws.PATCH("").
-		To(NewKitHTTPServer[endpoint.PatchAppsRequest](endpoints.PatchApps, options)).
+		To(NewKitHTTPServer[endpoint.PatchAppsRequest](ctx, endpoints.PatchApps, options)).
 		Operation("patchApps").
 		Doc("批量更新应用信息（增量）").
 		Reads(endpoint.PatchAppsRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Returns(200, "OK", endpoint.PatchAppsResponse{}),
+		Returns(200, "OK", endpoint.BaseTotalResponse{}),
 	)
 	v1ws.Route(v1ws.DELETE("").
-		To(NewKitHTTPServer[endpoint.DeleteAppsRequest](endpoints.DeleteApps, options)).
+		To(NewKitHTTPServer[endpoint.DeleteAppsRequest](ctx, endpoints.DeleteApps, options)).
 		Operation("deleteApps").
 		Doc("批量删除应用").
 		Reads(endpoint.DeleteAppsRequest{}).
@@ -229,21 +205,21 @@ func AppService(options []httptransport.ServerOption, endpoints endpoint.Set) (s
 		Returns(200, "OK", endpoint.BaseTotalResponse{}),
 	)
 	v1ws.Route(v1ws.POST("").
-		To(NewKitHTTPServer[endpoint.CreateAppRequest](endpoints.CreateApp, options)).
+		To(NewKitHTTPServer[endpoint.CreateAppRequest](ctx, endpoints.CreateApp, options)).
 		Operation("createApp").
 		Doc("创建应用").
 		Reads(endpoint.CreateAppRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
 	v1ws.Route(v1ws.GET("/source").
-		To(NewKitHTTPServer[struct{}](endpoints.GetAppSource, options)).
+		To(NewKitHTTPServer[struct{}](ctx, endpoints.GetAppSource, options)).
 		Operation("getAppSource").
 		Doc("获取应用存储源").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.GetAppSourceResponse{}),
 	)
 	v1ws.Route(v1ws.GET("/{id}").
-		To(NewKitHTTPServer[endpoint.GetAppRequest](endpoints.GetAppInfo, options)).
+		To(NewKitHTTPServer[endpoint.GetAppRequest](ctx, endpoints.GetAppInfo, options)).
 		Operation("getAppInfo").
 		Doc("获取应用信息").
 		Param(v1ws.PathParameter("id", "identifier of the app").DataType("string")).
@@ -252,7 +228,7 @@ func AppService(options []httptransport.ServerOption, endpoints endpoint.Set) (s
 		Returns(200, "OK", endpoint.GetAppResponse{}),
 	)
 	v1ws.Route(v1ws.PUT("/{id}").
-		To(NewKitHTTPServer[endpoint.UpdateAppRequest](endpoints.UpdateApp, options)).
+		To(NewKitHTTPServer[endpoint.UpdateAppRequest](ctx, endpoints.UpdateApp, options)).
 		Operation("updateApp").
 		Doc("更新应用信息（全量）").
 		Param(v1ws.PathParameter("id", "identifier of the app").DataType("string")).
@@ -261,7 +237,7 @@ func AppService(options []httptransport.ServerOption, endpoints endpoint.Set) (s
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
 	v1ws.Route(v1ws.PATCH("/{id}").
-		To(NewKitHTTPServer[endpoint.PatchAppRequest](endpoints.PatchApp, options)).
+		To(NewKitHTTPServer[endpoint.PatchAppRequest](ctx, endpoints.PatchApp, options)).
 		Operation("patchApp").
 		Doc("更新应用信息（增量）").
 		Param(v1ws.PathParameter("id", "identifier of the app").DataType("string")).
@@ -270,7 +246,7 @@ func AppService(options []httptransport.ServerOption, endpoints endpoint.Set) (s
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
 	v1ws.Route(v1ws.DELETE("/{id}").
-		To(NewKitHTTPServer[endpoint.DeleteAppRequest](endpoints.DeleteApp, options)).
+		To(NewKitHTTPServer[endpoint.DeleteAppRequest](ctx, endpoints.DeleteApp, options)).
 		Operation("deleteApp").
 		Doc("删除应用").
 		Param(v1ws.PathParameter("id", "identifier of the app").DataType("string")).
@@ -279,17 +255,46 @@ func AppService(options []httptransport.ServerOption, endpoints endpoint.Set) (s
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
 
+	v1ws.Route(v1ws.POST("/{appId}/key").
+		To(NewKitHTTPServer[endpoint.CreateAppKeyRequest](ctx, endpoints.CreateAppKey, options)).
+		Operation("createAppKey").
+		Doc("Create a app key pair.").
+		Param(v1ws.PathParameter("appId", "identifier of the app").DataType("string")).
+		Reads(endpoint.CreateAppKeyRequest{}).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.CreateAppKeyResponse{}),
+	)
+
+	v1ws.Route(v1ws.DELETE("/{appId}/key").
+		To(NewKitHTTPServer[endpoint.DeleteAppKeysRequest](ctx, endpoints.DeleteAppKey, options)).
+		Operation("deleteAppKeys").
+		Doc("Delete a app key pairs.").
+		Reads(endpoint.DeleteAppKeysRequest{}).
+		Param(v1ws.PathParameter("appId", "identifier of the app").DataType("string")).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseResponse{}),
+	)
+
+	v1ws.Route(v1ws.GET("/{appId}/key").
+		To(NewKitHTTPServer[endpoint.GetAppKeysRequest](ctx, endpoints.GetAppKeys, options)).
+		Operation("getAppKeys").
+		Doc("Get a app key-pairs.").
+		Param(v1ws.PathParameter("appId", "identifier of the app").DataType("string")).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.GetAppKeysResponse{}),
+	)
+
 	return tag, []*restful.WebService{v1ws}
 }
 
-func FileService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
+func FileService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "files", Description: "Managing files"}}
 	tags := []string{tag.Name}
 	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.POST("").
-		To(NewKitHTTPServer[struct{}](endpoints.UploadFile, options)).
+		To(NewKitHTTPServer[struct{}](ctx, endpoints.UploadFile, options)).
 		Operation("uploadFile").
 		Consumes("multipart/form-data").
 		Doc("Upload file").
@@ -298,7 +303,7 @@ func FileService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Returns(200, "OK", endpoint.FileUploadResponse{}),
 	)
 	v1ws.Route(v1ws.GET("/{id}").
-		To(NewKitHTTPServer[endpoint.FileDownloadRequest](endpoints.DownloadFile, options)).
+		To(NewKitHTTPServer[endpoint.FileDownloadRequest](ctx, endpoints.DownloadFile, options)).
 		Operation("downloadFile").
 		Param(v1ws.PathParameter("id", "identifier of the file").DataType("string").Required(true)).
 		Doc("Download/View File").
@@ -308,14 +313,129 @@ func FileService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 	return tag, []*restful.WebService{v1ws}
 }
 
-func SessionService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
+func PageService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
+	tag := spec.Tag{TagProps: spec.TagProps{Name: "pages", Description: "Managing pages"}}
+	tags := []string{tag.Name}
+	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
+
+	v1ws.Route(v1ws.GET("").
+		To(NewKitHTTPServer[endpoint.GetPagesRequest](ctx, endpoints.GetPages, options)).
+		Operation("getPages").
+		Doc("Get page list").
+		Params(StructToQueryParams(endpoint.GetPagesRequest{})...).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Metadata(global.MetaForceOk, true).
+		Returns(200, "OK", endpoint.GetPagesResponse{}),
+	)
+	v1ws.Route(v1ws.POST("").
+		To(NewKitHTTPServer[endpoint.CreatePageRequest](ctx, endpoints.CreatePage, options)).
+		Operation("createPage").
+		Doc("Create page.").
+		Reads(endpoint.CreatePageRequest{}).
+		Metadata(restfulspec.KeyOpenAPITags, tags),
+	)
+	v1ws.Route(v1ws.PATCH("").
+		To(NewKitHTTPServer[endpoint.PatchPagesRequest](ctx, endpoints.PatchPages, options)).
+		Operation("patchPages").
+		Reads(endpoint.PatchPagesRequest{}).
+		Doc("Batch patch page config(Incremental).").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseTotalResponse{}),
+	)
+	v1ws.Route(v1ws.GET("/{id}").
+		To(NewKitHTTPServer[endpoint.GetPageRequest](ctx, endpoints.GetPage, options)).
+		Operation("getPage").
+		Doc("Get a page configs.").
+		Param(v1ws.PathParameter("id", "identifier of the page").DataType("string")).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.GetPageResponse{}),
+	)
+	v1ws.Route(v1ws.PUT("/{id}").
+		To(NewKitHTTPServer[endpoint.UpdatePageRequest](ctx, endpoints.UpdatePage, options)).
+		Operation("updatePage").
+		Doc("Update page (full).").
+		Param(v1ws.PathParameter("id", "identifier of the page").DataType("string")).
+		Reads(endpoint.UpdatePageRequest{}).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseResponse{}),
+	)
+	v1ws.Route(v1ws.DELETE("/{id}").
+		To(NewKitHTTPServer[endpoint.DeletePageRequest](ctx, endpoints.DeletePage, options)).
+		Operation("deletePage").
+		Doc("Delete a page.").
+		Param(v1ws.PathParameter("id", "identifier of the page").DataType("string")).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseResponse{}),
+	)
+
+	v1ws.Route(v1ws.GET("/{pageId}/data").
+		To(NewKitHTTPServer[endpoint.GetPageDatasRequest](ctx, endpoints.GetPageDatas, options)).
+		Operation("getPageDatas").
+		Doc("Get data list of page").
+		Params(StructToQueryParams(endpoint.GetPageDatasRequest{})...).
+		Param(v1ws.PathParameter("pageId", "identifier of the page").DataType("string")).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.GetPageDatasResponse{}),
+	)
+	v1ws.Route(v1ws.POST("/{pageId}/data").
+		To(NewKitHTTPServer[endpoint.CreatePageDataRequest](ctx, endpoints.CreatePageData, options)).
+		Operation("createPageData").
+		Doc("Create a data of a page.").
+		Param(v1ws.PathParameter("pageId", "identifier of the page").DataType("string")).
+		Reads(endpoint.CreatePageDataRequest{}).
+		Metadata(restfulspec.KeyOpenAPITags, tags),
+	)
+	v1ws.Route(v1ws.PATCH("/{pageId}/data").
+		To(NewKitHTTPServer[endpoint.PatchPageDatasRequest](ctx, endpoints.PatchPageDatas, options)).
+		Operation("patchPageDatas").
+		Reads(endpoint.PatchPageDatasRequest{}).
+		Doc("Batch patch data of a page(Incremental).").
+		Param(v1ws.PathParameter("pageId", "identifier of the page").DataType("string")).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseTotalResponse{}),
+	)
+	v1ws.Route(v1ws.GET("/{pageId}/data/{id}").
+		To(NewKitHTTPServer[endpoint.GetPageDataRequest](ctx, endpoints.GetPageData, options)).
+		Operation("getPageData").
+		Doc("Get the specified data of a page.").
+		Param(v1ws.PathParameter("pageId", "identifier of the page").DataType("string")).
+		Param(v1ws.PathParameter("id", "data id of the page").DataType("string")).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.GetPageDataResponse{}),
+	)
+	v1ws.Route(v1ws.PUT("/{pageId}/data/{id}").
+		To(NewKitHTTPServer[endpoint.UpdatePageDataRequest](ctx, endpoints.UpdatePageData, options)).
+		Operation("updatePageData").
+		Doc("Update data of a page. (full).").
+		Param(v1ws.PathParameter("pageId", "identifier of the page").DataType("string")).
+		Param(v1ws.PathParameter("id", "data id of the page").DataType("string")).
+		Reads(endpoint.UpdatePageDataRequest{}).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseResponse{}),
+	)
+
+	v1ws.Route(v1ws.DELETE("/{pageId}/data/{id}").
+		To(NewKitHTTPServer[endpoint.DeletePageDataRequest](ctx, endpoints.DeletePageData, options)).
+		Operation("deletePageData").
+		Doc("Delete data of a page.").
+		Param(v1ws.PathParameter("pageId", "identifier of the page").DataType("string")).
+		Param(v1ws.PathParameter("id", "data id of the page").DataType("string")).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseResponse{}),
+	)
+
+	return tag, []*restful.WebService{v1ws}
+}
+
+func SessionService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "sessions", Description: "Managing sessions"}}
 	tags := []string{tag.Name}
 	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
-		To(NewKitHTTPServer[endpoint.GetSessionsRequest](endpoints.GetSessions, options)).
+		To(NewKitHTTPServer[endpoint.GetSessionsRequest](ctx, endpoints.GetSessions, options)).
 		Operation("getSessions").
 		Doc("获取会话列表").
 		Params(StructToQueryParams(endpoint.GetSessionsRequest{})...).
@@ -323,7 +443,7 @@ func SessionService(options []httptransport.ServerOption, endpoints endpoint.Set
 		Returns(200, "OK", endpoint.GetSessionsResponse{}),
 	)
 	v1ws.Route(v1ws.DELETE("/{id}").
-		To(NewKitHTTPServer[endpoint.DeleteSessionRequest](endpoints.DeleteSession, options)).
+		To(NewKitHTTPServer[endpoint.DeleteSessionRequest](ctx, endpoints.DeleteSession, options)).
 		Operation("deleteSession").
 		Param(v1ws.PathParameter("id", "identifier of the session").DataType("string").Required(true)).
 		Doc("会话过期").
@@ -333,27 +453,37 @@ func SessionService(options []httptransport.ServerOption, endpoints endpoint.Set
 	return tag, []*restful.WebService{v1ws}
 }
 
-func OAuthService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
+func OAuthService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "oauth", Description: "OAuth2.0 Support"}}
 	tags := []string{tag.Name}
 	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
-	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	// https://www.ruanyifeng.com/blog/2019/04/oauth-grant-types.html
 	v1ws.Route(v1ws.POST("/token").
-		To(NewSimpleKitHTTPServer[endpoint.OAuthTokenRequest](endpoints.OAuthTokens, decodeHTTPRequest[endpoint.OAuthTokenRequest], simpleEncodeHTTPResponse, options)).
+		To(NewSimpleKitHTTPServer[endpoint.OAuthTokenRequest](ctx, endpoints.OAuthTokens, decodeHTTPRequest[endpoint.OAuthTokenRequest], simpleEncodeHTTPResponse, options)).
 		Operation("oAuthTokens").
 		Doc("获取令牌").
-		Metadata(global.MetaNeedLogin, false).
+		Filter(HTTPApplicationAuthenticationFilter(endpoints)).
 		Reads(endpoint.OAuthTokenRequest{}).
 		Consumes("application/x-www-form-urlencoded", restful.MIME_JSON).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.OAuthTokenResponse{}),
 	)
+
+	v1ws.Route(v1ws.GET("/userinfo").
+		To(NewSimpleKitHTTPServer[endpoint.OAuthTokenRequest](ctx, endpoints.CurrentUser, decodeHTTPRequest[endpoint.OAuthTokenRequest], simpleEncodeHTTPResponse, options)).
+		Operation("oAuthUserInfo").
+		Doc("获取用户信息").
+		Filter(HTTPAuthenticationFilter(endpoints)).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseResponse{}),
+	)
+
 	v1ws.Route(v1ws.POST("/authorize").
-		To(NewKitHTTPServer[endpoint.OAuthAuthorizeRequest](endpoints.OAuthAuthorize, options)).
+		To(NewKitHTTPServer[endpoint.OAuthAuthorizeRequest](ctx, endpoints.OAuthAuthorize, options)).
 		Operation("oAuthAuthorize").
 		Doc("应用授权").
+		Filter(HTTPAuthenticationFilter(endpoints)).
 		Reads(endpoint.OAuthAuthorizeRequest{}).
 		Metadata(global.MetaAutoRedirectToLoginPage, true).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
@@ -361,43 +491,37 @@ func OAuthService(options []httptransport.ServerOption, endpoints endpoint.Set) 
 	)
 
 	v1ws.Route(v1ws.GET("/authorize").
-		To(NewKitHTTPServer[endpoint.OAuthAuthorizeRequest](endpoints.OAuthAuthorize, options)).
+		To(NewKitHTTPServer[endpoint.OAuthAuthorizeRequest](ctx, endpoints.OAuthAuthorize, options)).
 		Operation("oAuthAuthorize").
 		Doc("应用授权").
+		Filter(HTTPAuthenticationFilter(endpoints)).
 		Params(StructToQueryParams(endpoint.OAuthAuthorizeRequest{})...).
 		Metadata(global.MetaAutoRedirectToLoginPage, true).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
 
-	v1ws.Route(v1ws.GET("/userinfo").
-		To(NewSimpleKitHTTPServer[endpoint.OAuthTokenRequest](endpoints.CurrentUser, decodeHTTPRequest[endpoint.OAuthTokenRequest], simpleEncodeHTTPResponse, options)).
-		Operation("oAuthUserInfo").
-		Doc("获取用户信息").
-		Metadata(global.MetaNeedLogin, false).
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Returns(200, "OK", endpoint.BaseResponse{}),
-	)
 	return tag, []*restful.WebService{v1ws}
 }
 
-func UserAuthService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
-	tag := spec.Tag{TagProps: spec.TagProps{Name: "user", Description: "user login service"}}
+func CurrentUserService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
+	tag := spec.Tag{TagProps: spec.TagProps{Name: "user", Description: "Current user service"}}
 	tags := []string{tag.Name}
 	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.POST("/login").
-		To(NewKitHTTPServer[endpoint.UserLoginRequest](endpoints.UserLogin, options)).
+		To(NewKitHTTPServer[endpoint.UserLoginRequest](ctx, endpoints.UserLogin, options)).
 		Operation("userLogin").
 		Doc("用户登陆").
 		Reads(endpoint.UserLoginRequest{}).
 		Metadata(global.MetaNeedLogin, false).
+		Metadata(global.MetaSensitiveData, true).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Returns(200, "OK", endpoint.BaseResponse{}),
+		Returns(200, "OK", endpoint.UserLoginResponse{}),
 	)
 	v1ws.Route(v1ws.POST("/logout").
-		To(NewKitHTTPServer[struct{}](endpoints.UserLogout, options)).
+		To(NewKitHTTPServer[struct{}](ctx, endpoints.UserLogout, options)).
 		Operation("userLogout").
 		Doc("用户退出登录").
 		Consumes("*/*").
@@ -405,23 +529,81 @@ func UserAuthService(options []httptransport.ServerOption, endpoints endpoint.Se
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
 	v1ws.Route(v1ws.GET("").
-		To(NewKitHTTPServer[struct{}](endpoints.CurrentUser, options)).
+		To(NewKitHTTPServer[struct{}](ctx, endpoints.CurrentUser, options)).
 		Operation("currentUser").
 		Doc("获取当前登陆用户信息").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.GetUserResponse{}),
 	)
+
+	v1ws.Route(v1ws.GET("totp/secret").
+		To(NewKitHTTPServer[struct{}](ctx, endpoints.CreateTOTPSecret, options)).
+		Operation("getTOTPSecret").
+		Doc("get TOTP Secret").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.CreateTOTPSecretResponse{}),
+	)
+
+	v1ws.Route(v1ws.POST("totp").
+		To(NewKitHTTPServer[endpoint.CreateTOTPRequest](ctx, endpoints.CreateTOTP, options)).
+		Operation("bindingTOTP").
+		Doc("binding TOTP Secret").
+		Reads(endpoint.CreateTOTPRequest{}).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseResponse{}),
+	)
+
+	v1ws.Route(v1ws.POST("/activateAccount").
+		To(NewKitHTTPServer[endpoint.ActivateAccountRequest](ctx, endpoints.ActivateAccount, options)).
+		Operation("activateAccount").
+		Reads(endpoint.ActivateAccountRequest{}).
+		Doc("Activate the user.").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Metadata(global.MetaNeedLogin, false).
+		Returns(200, "OK", endpoint.BaseResponse{}),
+	)
+
+	v1ws.Route(v1ws.POST("/forgotPassword").
+		To(NewKitHTTPServer[endpoint.ForgotUserPasswordRequest](ctx, endpoints.ForgotPassword, options)).
+		Operation("forgotPassword").
+		Doc("Forgot the user password.").
+		Reads(endpoint.ForgotUserPasswordRequest{}).
+		Metadata(global.MetaNeedLogin, false).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseResponse{}),
+	)
+
+	v1ws.Route(v1ws.POST("/resetPassword").
+		To(NewKitHTTPServer[endpoint.ResetUserPasswordRequest](ctx, endpoints.ResetPassword, options)).
+		Operation("resetPassword").
+		Reads(endpoint.ResetUserPasswordRequest{}).
+		Doc("Reset the user password.").
+		Metadata(global.MetaNeedLogin, false).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseResponse{}),
+	)
+
+	v1ws.Route(v1ws.POST("/sendLoginCaptcha").
+		To(NewKitHTTPServer[endpoint.SendLoginCaptchaRequest](ctx, endpoints.SendLoginCaptcha, options)).
+		Operation("sendLoginCaptcha").
+		Reads(endpoint.SendLoginCaptchaRequest{}).
+		Doc("Send login code.").
+		Metadata(global.MetaNeedLogin, false).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.SendLoginCaptchaResponse{}),
+	)
+
 	return tag, []*restful.WebService{v1ws}
 }
 
-func PermissionService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
+func PermissionService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "permissions", Description: "permissions service"}}
 	tags := []string{tag.Name}
 	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
-		To(NewKitHTTPServer[endpoint.GetPermissionsRequest](endpoints.GetPermissions, options)).
+		To(NewKitHTTPServer[endpoint.GetPermissionsRequest](ctx, endpoints.GetPermissions, options)).
 		Operation("getPermissions").
 		Doc("获取权限列表").
 		Params(StructToQueryParams(endpoint.GetPermissionsRequest{})...).
@@ -431,14 +613,14 @@ func PermissionService(options []httptransport.ServerOption, endpoints endpoint.
 	return tag, []*restful.WebService{v1ws}
 }
 
-func RoleService(options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
+func RoleService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "roles", Description: "role service"}}
 	tags := []string{tag.Name}
 	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
-		To(NewKitHTTPServer[endpoint.GetRolesRequest](endpoints.GetRoles, options)).
+		To(NewKitHTTPServer[endpoint.GetRolesRequest](ctx, endpoints.GetRoles, options)).
 		Operation("getRoles").
 		Doc("获取角色列表").
 		Params(StructToQueryParams(endpoint.GetRolesRequest{})...).
@@ -446,7 +628,7 @@ func RoleService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Returns(200, "OK", endpoint.GetRolesResponse{}),
 	)
 	v1ws.Route(v1ws.DELETE("").
-		To(NewKitHTTPServer[endpoint.DeleteRolesRequest](endpoints.DeleteRoles, options)).
+		To(NewKitHTTPServer[endpoint.DeleteRolesRequest](ctx, endpoints.DeleteRoles, options)).
 		Operation("deleteRoles").
 		Doc("批量删除角色").
 		Reads(endpoint.DeleteRolesRequest{}).
@@ -454,14 +636,14 @@ func RoleService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Returns(200, "OK", endpoint.BaseTotalResponse{}),
 	)
 	v1ws.Route(v1ws.POST("").
-		To(NewKitHTTPServer[endpoint.CreateRoleRequest](endpoints.CreateRole, options)).
+		To(NewKitHTTPServer[endpoint.CreateRoleRequest](ctx, endpoints.CreateRole, options)).
 		Operation("createRole").
 		Doc("创建角色").
 		Reads(endpoint.CreateRoleRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
 	v1ws.Route(v1ws.PUT("/{id}").
-		To(NewKitHTTPServer[endpoint.UpdateRoleRequest](endpoints.UpdateRole, options)).
+		To(NewKitHTTPServer[endpoint.UpdateRoleRequest](ctx, endpoints.UpdateRole, options)).
 		Operation("updateRole").
 		Doc("更新角色信息（全量）").
 		Param(v1ws.PathParameter("id", "identifier of the role").DataType("string")).
@@ -470,7 +652,7 @@ func RoleService(options []httptransport.ServerOption, endpoints endpoint.Set) (
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
 	v1ws.Route(v1ws.DELETE("/{id}").
-		To(NewKitHTTPServer[endpoint.DeleteRoleRequest](endpoints.DeleteRole, options)).
+		To(NewKitHTTPServer[endpoint.DeleteRoleRequest](ctx, endpoints.DeleteRole, options)).
 		Operation("deleteRole").
 		Doc("删除角色").
 		Param(v1ws.PathParameter("id", "identifier of the role").DataType("string")).

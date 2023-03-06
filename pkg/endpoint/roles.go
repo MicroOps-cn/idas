@@ -48,7 +48,7 @@ func MakeGetRolesEndpoint(s service.Service) endpoint.Endpoint {
 func MakeCreateRoleEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*CreateRoleRequest)
-		resp := SimpleResponseWrapper[*models.Role]{}
+		resp := BaseResponse{}
 		role := &models.Role{
 			Name:        req.Name,
 			Description: req.Description,
@@ -56,7 +56,7 @@ func MakeCreateRoleEndpoint(s service.Service) endpoint.Endpoint {
 		for _, pid := range req.Permission {
 			role.Permission = append(role.Permission, &models.Permission{Model: models.Model{Id: pid}})
 		}
-		resp.Data, resp.Error = s.CreateRole(ctx, role)
+		resp.Error = s.CreateRole(ctx, role)
 		return &resp, nil
 	}
 }
@@ -64,7 +64,7 @@ func MakeCreateRoleEndpoint(s service.Service) endpoint.Endpoint {
 func MakeUpdateRoleEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*UpdateRoleRequest)
-		resp := SimpleResponseWrapper[*models.Role]{}
+		resp := BaseResponse{}
 		role := &models.Role{
 			Model:       models.Model{Id: req.Id},
 			Name:        req.Name,
@@ -73,7 +73,7 @@ func MakeUpdateRoleEndpoint(s service.Service) endpoint.Endpoint {
 		for _, pid := range req.Permission {
 			role.Permission = append(role.Permission, &models.Permission{Model: models.Model{Id: pid}})
 		}
-		resp.Data, resp.Error = s.UpdateRole(ctx, role)
+		resp.Error = s.UpdateRole(ctx, role)
 		return &resp, nil
 	}
 }

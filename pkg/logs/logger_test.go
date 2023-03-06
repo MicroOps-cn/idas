@@ -29,9 +29,10 @@ import (
 func TestRegisterLogger(t *testing.T) {
 	log.RegisterLogFormat(FormatIDAS, NewIdasLogger)
 	buf := bytes.NewBuffer(nil)
-	l := log.New(log.MustNewConfig("info", "idas"), log.WithWriter(buf))
-	level.Error(l).Log("msg", "test message", "[Name]", "Test")
-	matched, err := regexp.MatchString(`(?m)^[-.\d:TZ]+ \[error] \w+ \S+ - test message - \n\[Name]:\s+Test`, buf.String())
-	require.True(t, matched)
+	l := log.New(log.WithWriter(buf), log.WithConfig(log.MustNewConfig("info", string(FormatIDAS))))
+	level.Error(l).Log("msg", "test message", WrapKeyName("Name"), "Test")
+	const matchExpr = `(?m)^[-.\d:TZ]+ \[error] \w+ \S+ - test message - \n\[Name]:\s+Test`
+	matched, err := regexp.MatchString(matchExpr, buf.String())
+	require.Truef(t, matched, "%s can't match expr: %s", buf.String(), matchExpr)
 	require.NoError(t, err)
 }

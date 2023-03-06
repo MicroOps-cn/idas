@@ -15,3 +15,29 @@
 */
 
 package models
+
+import "strings"
+
+type AppRoleURL struct {
+	AppRoleId     string `json:"app_role_id"`
+	AppRoleName   string `json:"app_role_name"`
+	AppProxyURLId string `json:"app_proxy_url_id"`
+}
+
+type AppProxyConfig struct {
+	AppProxy
+	URLRoles []AppRoleURL
+}
+
+func (c *AppProxyConfig) GetId() string {
+	return c.AppProxy.GetAppId()
+}
+
+type ProxySession struct {
+	User  Users
+	Proxy *AppProxyConfig
+}
+
+func (c *ProxySession) GetId() string {
+	return strings.Join(c.User.Id(), ",")
+}

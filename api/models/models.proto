@@ -47,10 +47,10 @@ message RoleMeta {
 message UserMeta {
   // @sync-to-public:public/src/services/idas/enums.ts:UserStatus
   enum UserStatus {
-    unknown = 0;
-    normal = 1;
-    disable = 2;
-    inactive = 3;
+    normal = 0;
+    disabled = 1;
+    user_inactive = 2;
+    password_expired = 4;
   }
 }
 
@@ -62,5 +62,6 @@ message Model {
   string id = 1 [(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required" gorm:"primary_key;type:char(36)"'];
   string create_time = 2 [(gogoproto.jsontag) = "createTime,omitempty", (gogoproto.customtype) = "time.Time", (gogoproto.nullable) = false, (gogoproto.moretags) = 'gorm:"type:datetime;not null;omitempty"'];
   string update_time = 3 [(gogoproto.jsontag) = "updateTime,omitempty", (gogoproto.customtype) = "time.Time", (gogoproto.nullable) = false, (gogoproto.moretags) = 'gorm:"type:datetime;not null;omitempty"'];
-  bool is_delete = 4 [(gogoproto.jsontag) = "isDelete,omitempty", (gogoproto.moretags) = 'gorm:"not null;default:0"'];
+  bool is_delete = 4 [(gogoproto.jsontag) = "isDelete,omitempty", (gogoproto.moretags) = 'gorm:"-"'];
+  string delete_time = 5[(gogoproto.jsontag) = "-", (gogoproto.nullable) = false, (gogoproto.customtype) = "gorm.io/gorm.DeletedAt", (gogoproto.moretags) = 'gorm:"type:datetime;omitempty"'];
 }

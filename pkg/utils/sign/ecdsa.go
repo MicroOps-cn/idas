@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 func ECDSAVerify(pub1 string, pub2 string, payload string, sig string) bool {
@@ -65,7 +67,7 @@ func ECDSASign(priv string, payload string) (hash string, err error) {
 	}
 	var ok bool
 	if _, ok = privateKey.D.SetString(priv, 62); !ok {
-		return "", fmt.Errorf("私钥格式异常")
+		return "", errors.New("private key format exception")
 	}
 	r, s, err = ecdsa.Sign(rand.Reader, privateKey, []byte(payload))
 	if err != nil {

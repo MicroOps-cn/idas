@@ -24,10 +24,9 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/golang/freetype"
 	"github.com/golang/freetype/truetype"
-
-	"github.com/MicroOps-cn/idas/pkg/utils/sets"
 )
 
 func loadSystemFonts(ctx context.Context, fontNames sets.Set[string]) (font *truetype.Font, err error) {

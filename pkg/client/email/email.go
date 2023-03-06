@@ -24,6 +24,8 @@ import (
 	"path"
 
 	"gopkg.in/gomail.v2"
+
+	"github.com/MicroOps-cn/idas/pkg/errors"
 )
 
 type SMTPClient struct {
@@ -81,15 +83,15 @@ func (clt *SMTPClient) Send() error {
 
 func NewSMTPClient(_ context.Context, options *SmtpOptions) (*SMTPClient, error) {
 	if options == nil {
-		return nil, fmt.Errorf("smtp options is null")
+		return nil, errors.NewServerError(500, "smtp options is null")
 	}
 	if options.Host == "" || options.Username == "" || options.Password == "" {
-		return nil, fmt.Errorf("smtp host/username/password is null")
+		return nil, errors.NewServerError(500, "smtp host/username/password is null")
 	}
 	dialer := gomail.NewDialer(options.Host, int(options.Port), options.Username, options.Password)
 	clt, err := dialer.Dial()
 	if err != nil {
-		return nil, err
+		return nil, errors.WithServerError(500, err, "failed to connect mail server")
 	}
 	if options.From == "" {
 		options.From = options.Username

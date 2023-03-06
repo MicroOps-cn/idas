@@ -167,7 +167,7 @@ func (c *channelPool) put(conn ldap.Client) {
 func (c *channelPool) Close() {
 	defer func() {
 		if err := recover(); err != nil {
-			level.Info(c.logger).Log("err", "err")
+			level.Info(c.logger).Log("msg", "failed to close ldap pool", "err", err)
 		}
 	}()
 	c.mu.Lock()

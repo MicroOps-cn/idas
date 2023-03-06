@@ -19,7 +19,6 @@ package image
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -28,6 +27,8 @@ import (
 	"github.com/golang/freetype"
 	"golang.org/x/exp/utf8string"
 	"golang.org/x/image/font"
+
+	"github.com/MicroOps-cn/idas/pkg/errors"
 )
 
 func GenerateAvatar(ctx context.Context, content string) (reader io.Reader, err error) {
@@ -36,10 +37,10 @@ func GenerateAvatar(ctx context.Context, content string) (reader io.Reader, err 
 	c := freetype.NewContext()
 	tfont, err := LoadSystemFonts(ctx, "PingFangSC", "PingFangSC-Regular", "Microsoft YaHei", "STXihei", "华文细黑", "Georgia", "Times New Roman", "serif")
 	if err != nil {
-		return nil, err
+		return nil, errors.WithServerError(500, err, "failed to load font file")
 	}
 	if tfont == nil {
-		return nil, fmt.Errorf("failed to load font file")
+		return nil, errors.NewServerError(500, "failed to load font file")
 	}
 
 	for x := 0; x < img.Rect.Dx(); x++ {
@@ -58,10 +59,10 @@ func GenerateAvatar(ctx context.Context, content string) (reader io.Reader, err 
 	pt := freetype.Pt(img.Rect.Dx()/5, img.Rect.Dy()-img.Rect.Dy()/5)
 	_, err = c.DrawString(utf8string.NewString(content).Slice(0, 1), pt)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithServerError(500, err, "failed to draw text")
 	}
 	if err = png.Encode(buf, img); err != nil {
-		return nil, err
+		return nil, errors.WithServerError(500, err, "failed to write buffer")
 	}
 	return buf, err
 }
