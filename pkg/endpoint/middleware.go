@@ -70,9 +70,9 @@ func AuthorizationMiddleware(svc service.Service, method string) endpoint.Middle
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 			if needLogin, ok := ctx.Value(global.MetaNeedLogin).(bool); !ok || needLogin {
-				if users, ok := ctx.Value(global.MetaUser).(models.Users); !ok || len(users) == 0 {
+				if user, ok := ctx.Value(global.MetaUser).(*models.User); !ok || user == nil {
 					return nil, errors.NewServerError(401, "need login")
-				} else if !svc.Authorization(ctx, users, method) {
+				} else if !svc.Authorization(ctx, user, method) {
 					if forceOk, ok := ctx.Value(global.MetaForceOk).(bool); ok && forceOk {
 						return nil, nil
 					}

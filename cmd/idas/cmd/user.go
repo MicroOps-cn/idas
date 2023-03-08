@@ -70,37 +70,20 @@ var userAddCmd = &cobra.Command{
 			level.Error(logger).Log("msg", "password is null")
 			os.Exit(1)
 		}
-		var us []string
-		if len(storage) > 0 {
-			us = append(us, storage)
-		} else if _, uss, err := svc.GetUserSource(cmd.Context()); err != nil {
-			level.Error(logger).Log("msg", "failed to get user storage source")
-			os.Exit(1)
-		} else if len(uss) == 0 {
-			level.Error(logger).Log("msg", "can't get user storage source config")
-			os.Exit(1)
-		} else {
-			for _, val := range uss {
-				us = append(us, val)
-			}
-		}
 
 		if len(fullName) == 0 {
 			fullName = username
 		}
 
-		for _, s := range us {
-			err := svc.CreateUser(cmd.Context(), s, &models.User{
-				Username: username,
-				Password: []byte(password),
-				Email:    email,
-				FullName: fullName,
-				Role:     role,
-				Status:   models.UserMeta_normal,
-			})
-			if err != nil {
-				level.Error(logger).Log("msg", "failed to create user", "err", err, "storage", s)
-			}
+		if err := svc.CreateUser(cmd.Context(), &models.User{
+			Username: username,
+			Password: []byte(password),
+			Email:    email,
+			FullName: fullName,
+			Role:     role,
+			Status:   models.UserMeta_normal,
+		}); err != nil {
+			level.Error(logger).Log("msg", "failed to create user", "err", err)
 		}
 	},
 }

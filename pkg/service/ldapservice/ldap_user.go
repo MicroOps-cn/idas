@@ -19,6 +19,7 @@ package ldapservice
 import (
 	"context"
 	"fmt"
+	"github.com/MicroOps-cn/idas/pkg/service/opts"
 	"strconv"
 	"strings"
 	"time"
@@ -166,7 +167,6 @@ func (s UserAndAppService) getUserByReq(ctx context.Context, searchReq *goldap.S
 		FullName:    userEntry.GetAttributeValue(s.Options().GetAttrUserDisplayName()),
 		Avatar:      userEntry.GetAttributeValue("avatar"),
 		Status:      models.UserMeta_UserStatus(w.M[int](httputil.NewValue(userEntry.GetAttributeValue(UserStatusName)).Default("0").Int())),
-		Storage:     s.name,
 	}
 	return userInfo, nil
 }
@@ -314,32 +314,50 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 	} else if err != nil {
 		return 0, nil, err
 	}
-	total = int64(len(ret.Entries))
-	entrys := ret.Entries
-	if int((current-1)*pageSize) > len(entrys) {
+
+	if len(appId) > 0 {
+		info, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithUsers(w.Map(ret.Entries, func(item *goldap.Entry) string {
+			return item.GetAttributeValue("entryUUID")
+		})...), opts.WithAppId(appId))
+		if err != nil {
+			return 0, nil, err
+		}
+		total = int64(len(info.Users))
+		if int((current-1)*pageSize) > len(users) {
+			users = info.Users
+		} else if int(current*pageSize) < len(info.Users) {
+			users = info.Users[(current-1)*pageSize : current*pageSize]
+		} else {
+			users = info.Users[(current-1)*pageSize:]
+		}
 		return
-	} else if int(current*pageSize) < len(entrys) {
-		entrys = ret.Entries[(current-1)*pageSize : current*pageSize]
 	} else {
-		entrys = ret.Entries[(current-1)*pageSize:]
+		total = int64(len(ret.Entries))
+		entrys := ret.Entries
+		if int((current-1)*pageSize) > len(entrys) {
+
+		} else if int(current*pageSize) < len(entrys) {
+			entrys = ret.Entries[(current-1)*pageSize : current*pageSize]
+		} else {
+			entrys = ret.Entries[(current-1)*pageSize:]
+		}
+		for _, entry := range entrys {
+			users = append(users, &models.User{
+				Model: models.Model{
+					Id:         entry.GetAttributeValue("entryUUID"),
+					CreateTime: w.M[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("createTimestamp"))),
+					UpdateTime: w.M[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("modifyTimestamp"))),
+				},
+				Username:    entry.GetAttributeValue(s.Options().GetAttrUsername()),
+				Email:       entry.GetAttributeValue(s.Options().GetAttrEmail()),
+				PhoneNumber: entry.GetAttributeValue(s.Options().GetAttrUserPhoneNo()),
+				FullName:    entry.GetAttributeValue(s.Options().GetAttrUserDisplayName()),
+				Avatar:      entry.GetAttributeValue("avatar"),
+				Status:      models.UserMeta_UserStatus(w.M[int](httputil.NewValue(entry.GetAttributeValue(UserStatusName)).Default("0").Int())),
+			})
+		}
+		return
 	}
-	for _, entry := range entrys {
-		users = append(users, &models.User{
-			Model: models.Model{
-				Id:         entry.GetAttributeValue("entryUUID"),
-				CreateTime: w.M[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("createTimestamp"))),
-				UpdateTime: w.M[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("modifyTimestamp"))),
-			},
-			Username:    entry.GetAttributeValue(s.Options().GetAttrUsername()),
-			Email:       entry.GetAttributeValue(s.Options().GetAttrEmail()),
-			PhoneNumber: entry.GetAttributeValue(s.Options().GetAttrUserPhoneNo()),
-			FullName:    entry.GetAttributeValue(s.Options().GetAttrUserDisplayName()),
-			Avatar:      entry.GetAttributeValue("avatar"),
-			Status:      models.UserMeta_UserStatus(w.M[int](httputil.NewValue(entry.GetAttributeValue(UserStatusName)).Default("0").Int())),
-			Storage:     s.name,
-		})
-	}
-	return
 }
 
 // PatchUsers
@@ -627,7 +645,7 @@ func (s UserAndAppService) DeleteUser(ctx context.Context, id string) error {
 //	@param id 	string
 //	@param password 	string
 //	@return users	[]*models.User
-func (s UserAndAppService) VerifyPasswordById(ctx context.Context, id, password string) (users []*models.User) {
+func (s UserAndAppService) VerifyPasswordById(ctx context.Context, id, password string) (user *models.User) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	logger := log.GetContextLogger(ctx)
@@ -657,9 +675,9 @@ func (s UserAndAppService) VerifyPasswordById(ctx context.Context, id, password 
 			level.Warn(logger).Log("msg", "failed to get user info", "id", id, "err", err)
 			continue
 		}
-		users = append(users, userInfo)
+		return userInfo
 	}
-	return users
+	return nil
 }
 
 // VerifyPassword
@@ -670,7 +688,7 @@ func (s UserAndAppService) VerifyPasswordById(ctx context.Context, id, password 
 //	@param username 	string
 //	@param password 	string
 //	@return users	[]*models.User
-func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) (users []*models.User) {
+func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) *models.User {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	logger := log.GetContextLogger(ctx)
@@ -700,9 +718,9 @@ func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, 
 			level.Warn(logger).Log("msg", "failed to get user info", "username", username, "err", err)
 			continue
 		}
-		users = append(users, userInfo)
+		return userInfo
 	}
-	return users
+	return nil
 }
 
 func (s UserAndAppService) GetUsersById(ctx context.Context, ids []string) (users models.Users, err error) {

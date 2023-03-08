@@ -31,7 +31,7 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/utils/sign"
 )
 
-func testUserService(ctx context.Context, t *testing.T, storage string, svc Service) {
+func testUserService(ctx context.Context, t *testing.T, svc Service) {
 	var userId string
 	oriUser := models.User{
 		Username:    "lion",
@@ -44,16 +44,16 @@ func testUserService(ctx context.Context, t *testing.T, storage string, svc Serv
 
 	if !t.Run("Test Create User", func(t *testing.T) {
 		cUser := oriUser
-		count, users, err := svc.GetUsers(ctx, storage, "", models.UserMetaStatusAll, "", 1, 1024)
+		count, users, err := svc.GetUsers(ctx, "", models.UserMetaStatusAll, "", 1, 1024)
 		require.NoError(t, err)
 		require.Len(t, users, 0)
 		require.Equal(t, count, int64(0))
 		t.Run("Test Create Null User", func(t *testing.T) {
-			err = svc.CreateUser(ctx, storage, &models.User{})
+			err = svc.CreateUser(ctx, &models.User{})
 			require.Error(t, err)
 		})
 		for i := 0; i < 5; i++ {
-			err = svc.CreateUser(ctx, storage, &models.User{
+			err = svc.CreateUser(ctx, &models.User{
 				Username:    rand.String(5),
 				Email:       rand.String(7),
 				PhoneNumber: rand.String(9),
@@ -64,13 +64,13 @@ func testUserService(ctx context.Context, t *testing.T, storage string, svc Serv
 			require.NoError(t, err)
 		}
 
-		err = svc.CreateUser(ctx, storage, &cUser)
+		err = svc.CreateUser(ctx, &cUser)
 		require.NoError(t, err)
 		require.NotEmpty(t, cUser.Id)
 		_, err = uuid.FromString(cUser.Id)
 		require.NoError(t, err)
 		userId = cUser.Id
-		user, err := svc.GetUserInfo(ctx, storage, cUser.Id, "")
+		user, err := svc.GetUserInfo(ctx, cUser.Id, "")
 		require.NoError(t, err)
 		require.True(t, time.Since(cUser.CreateTime) < time.Second*3 && time.Since(user.CreateTime) > -time.Second)
 		require.Equal(t, user.Username, "lion")
@@ -82,11 +82,11 @@ func testUserService(ctx context.Context, t *testing.T, storage string, svc Serv
 
 		t.Run("Test Create Duplicate User", func(t *testing.T) {
 			cUser = oriUser
-			err = svc.CreateUser(ctx, storage, &cUser)
+			err = svc.CreateUser(ctx, &cUser)
 			require.Error(t, err)
 		})
 		for i := 0; i < 5; i++ {
-			err = svc.CreateUser(ctx, storage, &models.User{
+			err = svc.CreateUser(ctx, &models.User{
 				Username:    rand.String(5),
 				Email:       rand.String(7),
 				PhoneNumber: rand.String(9),
@@ -97,7 +97,7 @@ func testUserService(ctx context.Context, t *testing.T, storage string, svc Serv
 			require.NoError(t, err)
 		}
 
-		count, users, err = svc.GetUsers(ctx, storage, "", models.UserMetaStatusAll, "", 1, 20)
+		count, users, err = svc.GetUsers(ctx, "", models.UserMetaStatusAll, "", 1, 20)
 		require.NoError(t, err)
 		require.Len(t, users, 11)
 		require.Equal(t, count, int64(11))
@@ -120,24 +120,24 @@ func testUserService(ctx context.Context, t *testing.T, storage string, svc Serv
 	}
 
 	t.Run("Test Get Users", func(t *testing.T) {
-		count, users, err := svc.GetUsers(ctx, storage, "Asdooa299shdoiasgd8269bw3i7y9fdsahigf", models.UserMetaStatusAll, "", 1, 20)
+		count, users, err := svc.GetUsers(ctx, "Asdooa299shdoiasgd8269bw3i7y9fdsahigf", models.UserMetaStatusAll, "", 1, 20)
 		require.NoError(t, err)
 		require.Len(t, users, 0)
 		require.Equal(t, count, int64(0))
 
-		_, users, err = svc.GetUsers(ctx, storage, "", models.UserMeta_user_inactive, "", 1, 20)
+		_, users, err = svc.GetUsers(ctx, "", models.UserMeta_user_inactive, "", 1, 20)
 		require.NoError(t, err)
 		for _, user := range users {
 			require.Equal(t, user.Status, models.UserMeta_user_inactive)
 		}
 
-		_, users, err = svc.GetUsers(ctx, storage, "", models.UserMeta_normal, "", 1, 20)
+		_, users, err = svc.GetUsers(ctx, "", models.UserMeta_normal, "", 1, 20)
 		require.NoError(t, err)
 		for _, user := range users {
 			require.Equal(t, user.Status, models.UserMeta_normal)
 		}
 
-		_, users, err = svc.GetUsers(ctx, "", "", oriUser.Status, "", 1, 20)
+		_, users, err = svc.GetUsers(ctx, "", oriUser.Status, "", 1, 20)
 		require.NoError(t, err)
 		found := false
 		for _, user := range users {
@@ -159,9 +159,9 @@ func testUserService(ctx context.Context, t *testing.T, storage string, svc Serv
 			Avatar:      "xxxxxxxxxxx_u",
 			Status:      models.UserMeta_normal,
 		}
-		err := svc.UpdateUser(ctx, storage, oriUser1)
+		err := svc.UpdateUser(ctx, oriUser1)
 		require.NoError(t, err)
-		user, err := svc.GetUserInfo(ctx, storage, oriUser1.Id, "")
+		user, err := svc.GetUserInfo(ctx, oriUser1.Id, "")
 		require.NoError(t, err)
 		_, err = uuid.FromString(user.Id)
 		require.NoError(t, err)
@@ -172,7 +172,7 @@ func testUserService(ctx context.Context, t *testing.T, storage string, svc Serv
 		require.Equal(t, user.PhoneNumber, "+01123456789")
 		require.Equal(t, user.Avatar, "xxxxxxxxxxx_u")
 		require.Equal(t, user.Status, models.UserMeta_normal)
-		count, users, err := svc.GetUsers(ctx, storage, "", models.UserMetaStatusAll, "", 1, 20)
+		count, users, err := svc.GetUsers(ctx, "", models.UserMetaStatusAll, "", 1, 20)
 		require.NoError(t, err)
 		require.Len(t, users, 11)
 		require.Equal(t, count, int64(11))
@@ -204,12 +204,12 @@ func testUserService(ctx context.Context, t *testing.T, storage string, svc Serv
 			Avatar:      "xxxxxxxxxxx_u2",
 			Status:      models.UserMeta_user_inactive,
 		}
-		err := svc.UpdateUser(ctx, storage, oriUser1, "email", "avatar")
+		err := svc.UpdateUser(ctx, oriUser1, "email", "avatar")
 		require.NoError(t, err)
 		_, err = uuid.FromString(oriUser1.Id)
 		require.NoError(t, err)
 
-		user, err := svc.GetUserInfo(ctx, storage, oriUser1.Id, "")
+		user, err := svc.GetUserInfo(ctx, oriUser1.Id, "")
 		require.NoError(t, err)
 		require.True(t, time.Since(user.CreateTime) < time.Second*3 && time.Since(user.CreateTime) > -time.Second)
 		require.Equal(t, user.Username, "lion")
@@ -218,7 +218,7 @@ func testUserService(ctx context.Context, t *testing.T, storage string, svc Serv
 		require.Equal(t, user.PhoneNumber, "+01123456789")
 		require.Equal(t, user.Avatar, "xxxxxxxxxxx_u2")
 		require.Equal(t, user.Status, models.UserMeta_normal)
-		count, users, err := svc.GetUsers(ctx, storage, "", models.UserMetaStatusAll, "", 1, 20)
+		count, users, err := svc.GetUsers(ctx, "", models.UserMetaStatusAll, "", 1, 20)
 		require.NoError(t, err)
 		require.Len(t, users, 11)
 		require.Equal(t, count, int64(11))
@@ -238,13 +238,13 @@ func testUserService(ctx context.Context, t *testing.T, storage string, svc Serv
 		}
 	})
 	t.Run("Test Patch User", func(t *testing.T) {
-		err := svc.PatchUser(ctx, storage, map[string]interface{}{"id": userId, "status": models.UserMeta_disabled})
+		err := svc.PatchUser(ctx, map[string]interface{}{"id": userId, "status": models.UserMeta_disabled})
 		require.NoError(t, err)
 
-		user, err := svc.GetUserInfo(ctx, storage, userId, "")
+		user, err := svc.GetUserInfo(ctx, userId, "")
 		require.Equal(t, user.Status, models.UserMeta_disabled)
 		require.NoError(t, err)
-		_, users, err := svc.GetUsers(ctx, storage, "", models.UserMetaStatusAll, "", 1, 20)
+		_, users, err := svc.GetUsers(ctx, "", models.UserMetaStatusAll, "", 1, 20)
 		require.NoError(t, err)
 
 		require.Len(t, users, 11)
@@ -269,9 +269,9 @@ func testUserService(ctx context.Context, t *testing.T, storage string, svc Serv
 		require.NoError(t, err)
 		payload, err := sign.GetPayloadFromHTTPRequest(req)
 		require.NoError(t, err)
-		users, err := svc.Authentication(ctx, models.AuthMeta_signature, sign.ECDSA, keypair.Key, "", payload, signStr)
+		user, err := svc.Authentication(ctx, models.AuthMeta_signature, sign.ECDSA, keypair.Key, "", payload, signStr)
 		require.NoError(t, err)
-		require.Len(t, users, 1)
+		require.NotNil(t, user)
 	})
 	t.Run("Test List User Keypair", func(t *testing.T) {
 		count, pairs, err := svc.GetUserKeys(ctx, userId, 1, 100)
@@ -287,9 +287,9 @@ func testUserService(ctx context.Context, t *testing.T, storage string, svc Serv
 	})
 
 	t.Run("Test Delete User", func(t *testing.T) {
-		err := svc.DeleteUser(ctx, storage, userId)
+		err := svc.DeleteUser(ctx, userId)
 		require.NoError(t, err)
-		count, users, err := svc.GetUsers(ctx, storage, "", models.UserMetaStatusAll, "", 1, 20)
+		count, users, err := svc.GetUsers(ctx, "", models.UserMetaStatusAll, "", 1, 20)
 		require.NoError(t, err)
 		require.Len(t, users, 10)
 		require.Equal(t, count, int64(10))

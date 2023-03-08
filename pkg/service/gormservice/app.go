@@ -239,9 +239,6 @@ func (s UserAndAppService) GetApps(ctx context.Context, keywords string, filters
 		if err = query.Order("name,id").Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).Find(&apps).Error; err != nil {
 			return 0, nil, err
 		}
-		for _, app := range apps {
-			app.Storage = s.name
-		}
 	}
 	return total, apps, nil
 }

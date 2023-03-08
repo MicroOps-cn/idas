@@ -146,7 +146,7 @@ func Run(ctx context.Context, logger kitlog.Logger, _ *signals.StopChan) (err er
 		}, []string{"method", "success"})
 	}
 	httpLoginURL := httpExternalURL
-	httpLoginURL.Path = path.Join(webPrefix, "user/login")
+	httpLoginURL.Path = path.Join(webPrefix, "account/login")
 	ctx = context.WithValue(ctx, global.HTTPLoginURLKey, httpLoginURL.String())
 	ctx = context.WithValue(ctx, global.HTTPExternalURLKey, httpExternalURL.String())
 	ctx = context.WithValue(ctx, global.HTTPWebPrefixKey, webPrefix)

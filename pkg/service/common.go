@@ -78,7 +78,7 @@ type CommonService interface {
 	CreatePageData(ctx context.Context, pageId string, data *json.RawMessage) error
 	UpdatePageData(ctx context.Context, pageId string, id string, data *json.RawMessage) error
 	PatchPageDatas(ctx context.Context, patch []models.PageData) error
-	CreateTOTP(ctx context.Context, ids []string, secret string) error
+	CreateTOTP(ctx context.Context, ids string, secret string) error
 	GetTOTPSecrets(ctx context.Context, ids []string) ([]string, error)
 	GetUserExtendedData(ctx context.Context, id string) (*models.UserExt, error)
 }
@@ -171,13 +171,8 @@ func (s Set) DeleteRoles(ctx context.Context, ids []string) error {
 	return s.commonService.DeleteRoles(ctx, ids)
 }
 
-func (s Set) Authorization(ctx context.Context, users models.Users, method string) bool {
-	roles := sets.New[string]()
-	for _, user := range users {
-		if user.Role != "" {
-			roles.Insert(user.Role)
-		}
-	}
+func (s Set) Authorization(ctx context.Context, user *models.User, method string) bool {
+	roles := sets.New[string](user.Role)
 	return s.commonService.Authorization(ctx, roles.List(), method)
 }
 

@@ -106,6 +106,7 @@ func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *gol
 	}
 	appEntry := ret.Entries[0]
 	var users []*models.User
+
 	if opt == nil || !opt.DisableGetUsers {
 		member := append(appEntry.GetAttributeValues("uniqueMember"), appEntry.GetAttributeValues("member")...)
 		if len(member) > 0 {
@@ -117,7 +118,9 @@ func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *gol
 					}
 					continue
 				}
-				users = append(users, userInfo)
+				if len(opt.UserId) > 0 && !w.Include(opt.UserId, userInfo.Id) {
+					users = append(users, userInfo)
+				}
 			}
 		}
 	}
@@ -134,7 +137,6 @@ func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *gol
 		Status:      models.AppMeta_Status(w.M[int](httputil.NewValue(appEntry.GetAttributeValue(GroupStatusName)).Default("0").Int())),
 		GrantMode:   models.AppMeta_GrantMode(w.M[int](httputil.NewValue(appEntry.GetAttributeValue("grantMode")).Default("0").Int())),
 		GrantType:   models.AppMeta_GrantType(w.M[int](httputil.NewValue(appEntry.GetAttributeValue("grantType")).Default("0").Int())),
-		Storage:     s.name,
 		Users:       users,
 	}, nil
 }
@@ -201,7 +203,6 @@ func (s UserAndAppService) GetApps(ctx context.Context, keywords string, filters
 			Status:      models.AppMeta_Status(w.M[int](httputil.NewValue(entry.GetAttributeValue(GroupStatusName)).Default("0").Int())),
 			GrantMode:   models.AppMeta_GrantMode(w.M[int](httputil.NewValue(entry.GetAttributeValue("grantMode")).Default("0").Int())),
 			GrantType:   models.AppMeta_GrantType(w.M[int](httputil.NewValue(entry.GetAttributeValue("grantType")).Default("0").Int())),
-			Storage:     s.name,
 		})
 	}
 	return total, apps, nil

@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/MicroOps-cn/fuck/sets"
-	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/MicroOps-cn/idas/pkg/service/opts"
 	uuid "github.com/satori/go.uuid"
 	"github.com/xlzd/gotp"
@@ -49,28 +48,30 @@ func MakeSendLoginCaptchaEndpoint(s service.Service) endpoint.Endpoint {
 		resp := SimpleResponseWrapper[*SendLoginCaptchaResponseData]{}
 		switch req.Type {
 		case LoginType_mfa_email:
-			users := s.GetUserInfoByUsernameAndEmail(ctx, req.Username, req.Target)
-			for _, user := range users {
-				if user.Status.Is(models.UserMeta_normal) {
-					loginCode := LoginCode{UserId: user.Id, Code: strings.ToUpper(uuid.NewV4().String()[:6])}
-					token, err := s.CreateToken(ctx, models.TokenTypeLoginCode, &loginCode)
-					if err != nil {
-						return nil, errors.NewServerError(http.StatusInternalServerError, "Failed to create token")
-					}
-					to := fmt.Sprintf("%s<%s>", user.FullName, user.Email)
-					err = s.SendEmail(ctx, map[string]interface{}{
-						"user":   user,
-						"token":  token,
-						"code":   loginCode.Code,
-						"userId": user.Id,
-					}, "User:SendLoginCaptcha", to)
-					if err != nil {
-						level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to send email")
-						return nil, errors.NewServerError(500, "failed to send email")
-					}
-					resp.Data = &SendLoginCaptchaResponseData{Token: token.Id}
-					return &resp, nil
+			user, err := s.GetUserInfoByUsernameAndEmail(ctx, req.Username, req.Target)
+			if err != nil {
+				level.Warn(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed send login captcha", "username", req.Username)
+				return resp, nil
+			}
+			if user.Status.Is(models.UserMeta_normal) {
+				loginCode := LoginCode{UserId: user.Id, Code: strings.ToUpper(uuid.NewV4().String()[:6])}
+				token, err := s.CreateToken(ctx, models.TokenTypeLoginCode, &loginCode)
+				if err != nil {
+					return nil, errors.NewServerError(http.StatusInternalServerError, "Failed to create token")
 				}
+				to := fmt.Sprintf("%s<%s>", user.FullName, user.Email)
+				err = s.SendEmail(ctx, map[string]interface{}{
+					"user":   user,
+					"token":  token,
+					"code":   loginCode.Code,
+					"userId": user.Id,
+				}, "User:SendLoginCaptcha", to)
+				if err != nil {
+					level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to send email")
+					return nil, errors.NewServerError(500, "failed to send email")
+				}
+				resp.Data = &SendLoginCaptchaResponseData{Token: token.Id}
+				return &resp, nil
 			}
 		default:
 			return nil, errors.ParameterError("type")
@@ -80,83 +81,60 @@ func MakeSendLoginCaptchaEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
-func getMFAMethod(users models.Users) sets.Set[LoginType] {
+func getMFAMethod(user *models.User) sets.Set[LoginType] {
 	method := sets.New[LoginType]()
-	for _, user := range users {
-		userExt := user.ExtendedData
-		if userExt.EmailAsMFA {
-			method.Insert(LoginType_mfa_email)
-		}
-		if userExt.TOTPAsMFA {
-			method.Insert(LoginType_mfa_totp)
-		}
-		if userExt.SmsAsMFA {
-			method.Insert(LoginType_mfa_sms)
-		}
+	userExt := user.ExtendedData
+	if userExt.EmailAsMFA {
+		method.Insert(LoginType_mfa_email)
+	}
+	if userExt.TOTPAsMFA {
+		method.Insert(LoginType_mfa_totp)
+	}
+	if userExt.SmsAsMFA {
+		method.Insert(LoginType_mfa_sms)
 	}
 	return method
-}
-
-func getTOTPSecrets(users models.Users) ([]string, error) {
-	var secrets []string
-	for _, user := range users {
-		secret, err := user.ExtendedData.GetSecret()
-		if err != nil {
-			return nil, err
-		}
-		if len(secret) > 0 {
-			secrets = append(secrets, secret)
-		}
-	}
-	return secrets, nil
 }
 
 func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*UserLoginRequest)
 		resp := SimpleResponseWrapper[*UserLoginResponseData]{}
-		users, err := s.VerifyPassword(ctx, req.Username, string(req.Password))
-		if len(users) == 0 || err != nil {
+		user, err := s.VerifyPassword(ctx, req.Username, string(req.Password))
+		if user == nil || err != nil {
 			resp.ErrorMessage = "Wrong user name or password. "
 			if err != nil {
 				resp.Error = err
 			}
+			return resp, nil
 		}
 		logger := logs.GetContextLogger(ctx)
-		var forceMFA bool
-		for _, user := range users {
-			if user.ExtendedData != nil {
-				if user.ExtendedData.ForceMFA {
-					forceMFA = true
-				}
-			}
-		}
+		var forceMFA = user.ExtendedData != nil && user.ExtendedData.ForceMFA
 
 		if forceMFA {
-			method := getMFAMethod(users)
+			method := getMFAMethod(user)
 			switch req.Type {
 			case LoginType_mfa_totp:
 				if !method.Has(req.Type) {
 					resp.Error = errors.NewServerError(500, "The authentication method is not supported.")
 					return resp, nil
 				}
-				secrets, err := getTOTPSecrets(users)
+				secret, err := user.ExtendedData.GetSecret()
 				if err != nil {
 					resp.Error = errors.NewServerError(500, "failed to get totp settings")
 					return resp, nil
-				} else if len(secrets) == 0 {
+				} else if len(secret) == 0 {
 					resp.Error = errors.NewServerError(500, "can't get totp settings")
 					return resp, nil
 				}
 				nowTime := time.Now()
 				ts := nowTime.Add(time.Second * time.Duration(-(nowTime.Second() % 30))).Unix()
-				for _, secret := range secrets {
-					totp := gotp.NewDefaultTOTP(secret)
-					if !totp.Verify(req.Code, ts) {
-						if !totp.Verify(req.Code, ts-30) {
-							resp.Error = errors.NewServerError(http.StatusBadRequest, "The verification code is invalid or expired")
-							return resp, nil
-						}
+
+				totp := gotp.NewDefaultTOTP(secret)
+				if !totp.Verify(req.Code, ts) {
+					if !totp.Verify(req.Code, ts-30) {
+						resp.Error = errors.NewServerError(http.StatusBadRequest, "The verification code is invalid or expired")
+						return resp, nil
 					}
 				}
 			case LoginType_mfa_sms:
@@ -177,7 +155,7 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 					resp.Error = errors.ParameterError("code")
 					return resp, nil
 				}
-				if code.Code != req.Code || users.GetById(code.UserId) == nil {
+				if code.Code != req.Code || user.Id != code.UserId {
 					resp.Error = errors.ParameterError("code")
 					return resp, nil
 				}
@@ -188,22 +166,20 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 				return resp, nil
 			}
 		}
-		for _, user := range users {
-			app, err := s.GetAppInfo(ctx, user.Storage, opts.WithBasic, opts.WithAppName("IDAS"))
-			if err != nil && !errors.IsNotFount(err) {
-				level.Error(logger).Log("msg", "failed to get app info", "err", err)
-			} else if app != nil {
-				role, err := s.GetAppRoleByUserId(ctx, app.Id, user.Id)
-				if err == nil {
-					user.RoleId = role.Id
-					user.Role = role.Name
-				} else if !errors.IsNotFount(err) {
-					level.Error(logger).Log("msg", "failed to get app role", "err", err)
-				}
+		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithUsers(user.Id), opts.WithAppName("IDAS"))
+		if err != nil && !errors.IsNotFount(err) {
+			level.Error(logger).Log("msg", "failed to get app info", "err", err)
+		} else if app != nil {
+			role, err := s.GetAppRoleByUserId(ctx, app.Id, user.Id)
+			if err == nil {
+				user.RoleId = role.Id
+				user.Role = role.Name
+			} else if !errors.IsNotFount(err) {
+				level.Error(logger).Log("msg", "failed to get app role", "err", err)
 			}
 		}
 
-		token, err := s.CreateToken(ctx, models.TokenTypeLoginSession, w.Interfaces[*models.User](users)...)
+		token, err := s.CreateToken(ctx, models.TokenTypeLoginSession, user)
 		if err != nil {
 			return "", err
 		}
@@ -258,7 +234,7 @@ type GetSessionParams struct {
 func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		params := request.(*GetSessionParams)
-		var resp models.Users
+		var resp *models.User
 		if len(params.Token) > 0 {
 			if err = s.GetSessionByToken(ctx, params.Token, params.TokenType, &resp); err != nil {
 				if err != errors.NotLoginError() {

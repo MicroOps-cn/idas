@@ -228,7 +228,7 @@ func newLDAPTestService(ctx context.Context, t *testing.T, testFunc func(name st
 			ldapYamlConfig := fmt.Sprintf(`
 storage:
   user:
-  - name: "LDAP"
+    name: "LDAP"
     ldap:
       host: "%s:389"
       manager_dn: "cn=admin,dc=microops,dc=com"
@@ -281,8 +281,8 @@ func TestService(t *testing.T) {
 				}) {
 					return
 				}
-				testUserService(ctx, t, storage, svc)
-				testAppService(ctx, t, storage, svc)
+				testUserService(ctx, t, svc)
+				testAppService(ctx, t, svc)
 			})
 		})
 	}

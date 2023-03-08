@@ -24,7 +24,6 @@ import (
 	"time"
 
 	logs "github.com/MicroOps-cn/fuck/log"
-	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log/level"
 
@@ -59,7 +58,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					req.DisableRefreshToken = true
 					tokenType = models.TokenTypeLoginSession
 				}
-				var users models.Users
+				user := new(models.User)
 				switch req.GrantType {
 				case OAuthGrantType_proxy:
 					var session models.ProxySession
@@ -95,22 +94,22 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					resp.ExpiresIn = int(global.TokenExpiration / time.Minute)
 					return &resp, nil
 				case OAuthGrantType_authorization_code:
-					err = s.GetSessionByToken(ctx, req.Code, models.TokenTypeCode, &users)
+					err = s.GetSessionByToken(ctx, req.Code, models.TokenTypeCode, user)
 				case OAuthGrantType_password:
-					users, err = s.VerifyPassword(ctx, req.Username, req.Password)
+					user, err = s.VerifyPassword(ctx, req.Username, req.Password)
 				case OAuthGrantType_client_credentials:
 					if username, password, ok := restfulReq.Request.BasicAuth(); ok {
-						users, err = s.VerifyPassword(ctx, username, password)
+						user, err = s.VerifyPassword(ctx, username, password)
 					}
 				}
-				if err == nil && len(users) != 0 {
-					at, err := s.CreateToken(ctx, tokenType, w.Interfaces[*models.User](users)...)
+				if err == nil && user != nil && len(user.Id) > 0 {
+					at, err := s.CreateToken(ctx, tokenType, user)
 					if err != nil {
 						return "", errors.NewServerError(500, err.Error())
 					}
 					resp.AccessToken = at.Id
 					if !req.DisableRefreshToken {
-						rt, err := s.CreateToken(ctx, models.TokenTypeRefreshToken, w.Interfaces[*models.User](users)...)
+						rt, err := s.CreateToken(ctx, models.TokenTypeRefreshToken, user)
 						if err != nil {
 							return "", errors.NewServerError(500, err.Error())
 						}
@@ -145,8 +144,8 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 		if len(req.ClientId) == 0 {
 			return nil, errors.ParameterError("client_id")
 		}
-		users, ok := ctx.Value(global.MetaUser).(models.Users)
-		if !ok || len(users) == 0 {
+		user, ok := ctx.Value(global.MetaUser).(*models.User)
+		if !ok || user == nil {
 			level.Warn(logger).Log("msg", "failed to get user from context")
 			resp.Error = errors.NotLoginError()
 			return resp, nil
@@ -168,17 +167,14 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 		}
 
 		query := uri.Query()
-		for _, user := range users {
-			app, err := s.GetAppInfo(ctx, user.Storage, opts.WithAppId(appKey.AppId), opts.WithBasic)
-			if err != nil || app == nil {
-				continue
-			}
-			if code, err = s.GetAuthCodeByAppId(ctx, appKey.AppId, user, sessionId, user.Storage); errors.IsNotFount(err) {
-				continue
-			} else if err != nil {
-				return nil, err
-			}
-			break
+		app, err := s.GetAppInfo(ctx, opts.WithAppId(appKey.AppId), opts.WithBasic)
+		if err != nil {
+			return err, nil
+		} else if app == nil {
+			return nil, errors.StatusNotFound("Authorize")
+		}
+		if code, err = s.GetAuthCodeByAppId(ctx, appKey.AppId, user, sessionId); err != nil {
+			return nil, err
 		}
 		if code == "" {
 			httpExternalURL, ok := ctx.Value(global.HTTPExternalURLKey).(string)

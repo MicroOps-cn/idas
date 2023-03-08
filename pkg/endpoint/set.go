@@ -46,7 +46,6 @@ type UserEndpoints struct {
 	CreateUser       endpoint.Endpoint `description:"Create a user" role:"admin"`
 	PatchUser        endpoint.Endpoint `description:"Modify user information (incremental)" role:"admin"`
 	DeleteUser       endpoint.Endpoint `description:"Delete a user" role:"admin"`
-	GetUserSource    endpoint.Endpoint `description:"Get the data source that stores user information" role:"admin|viewer"`
 	ForgotPassword   endpoint.Endpoint `auth:"false"`
 	ResetPassword    endpoint.Endpoint `auth:"false"`
 	CurrentUser      endpoint.Endpoint `auth:"false"`
@@ -64,7 +63,6 @@ type UserEndpoints struct {
 type AppEndpoints struct {
 	PatchApps         endpoint.Endpoint `description:"Batch modify application information (incremental)" role:"admin"`
 	DeleteApps        endpoint.Endpoint `description:"Batch delete applications" role:"admin"`
-	GetAppSource      endpoint.Endpoint `description:"Get the data source that stores applications information" role:"admin|viewer"`
 	GetAppInfo        endpoint.Endpoint `description:"Get application details" role:"admin|viewer"`
 	CreateApp         endpoint.Endpoint `description:"Create an application" role:"admin"`
 	UpdateApp         endpoint.Endpoint `description:"Modify application information" role:"admin"`
@@ -221,7 +219,6 @@ func New(ctx context.Context, svc service.Service, duration metrics.Histogram, o
 			CreateUser:       injectEndpoint("CreateUser", MakeCreateUserEndpoint(svc)),
 			PatchUser:        injectEndpoint("PatchUser", MakePatchUserEndpoint(svc)),
 			DeleteUser:       injectEndpoint("DeleteUser", MakeDeleteUserEndpoint(svc)),
-			GetUserSource:    injectEndpoint("GetUserSource", MakeGetUserSourceRequestEndpoint(svc)),
 			CreateUserKey:    injectEndpoint("CreateUserKey", MakeCreateUserKeyEndpoint(svc)),
 			DeleteUserKey:    injectEndpoint("DeleteUserKey", MakeDeleteUserKeyEndpoint(svc)),
 			GetUserKeys:      injectEndpoint("GetUserKeys", MakeGetUserKeysEndpoint(svc)),
@@ -252,7 +249,6 @@ func New(ctx context.Context, svc service.Service, duration metrics.Histogram, o
 			CreateApp:         injectEndpoint("CreateApp", MakeCreateAppEndpoint(svc)),
 			PatchApp:          injectEndpoint("PatchApp", MakePatchAppEndpoint(svc)),
 			DeleteApp:         injectEndpoint("DeleteApp", MakeDeleteAppEndpoint(svc)),
-			GetAppSource:      injectEndpoint("GetAppSource", MakeGetAppSourceRequestEndpoint(svc)),
 			AppAuthentication: injectEndpoint("AppAuthentication", MakeAppAuthenticationEndpoint(svc)),
 			CreateAppKey:      injectEndpoint("CreateAppKey", MakeCreateAppKeyEndpoint(svc)),
 			DeleteAppKey:      injectEndpoint("DeleteAppKey", MakeDeleteAppKeyEndpoint(svc)),

@@ -39,7 +39,7 @@ func WithoutUsers(o *GetAppOptions) {
 }
 
 func WithoutACL(o *GetAppOptions) {
-	o.DisableGetUsers = true
+	o.DisableGetAccessController = true
 }
 
 func WithUsers(id ...string) func(o *GetAppOptions) {

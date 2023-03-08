@@ -286,7 +286,7 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 			ctx = context.WithValue(ctx, global.LoginSession, token.Token)
 			req.Request = req.Request.WithContext(ctx)
 			if user, err := endpoints.GetSessionByToken(ctx, token); err == nil {
-				if len(user.(models.Users)) >= 0 {
+				if user.(*models.User) != nil {
 					ctx = context.WithValue(ctx, global.MetaUser, user)
 					req.Request = req.Request.WithContext(ctx)
 					filterChan.ProcessFilter(req, resp)
@@ -302,7 +302,7 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 			return
 		} else if authReq != nil {
 			if user, err := endpoints.Authentication(ctx, authReq); err == nil {
-				if user != nil && len(user.(models.Users)) >= 0 {
+				if user.(*models.User) != nil {
 					req.Request = req.Request.WithContext(context.WithValue(ctx, global.MetaUser, user))
 					filterChan.ProcessFilter(req, resp)
 					return
@@ -316,7 +316,7 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 			if loginURL, ok := ctx.Value(global.HTTPLoginURLKey).(string); ok && len(loginURL) > 0 {
 				resp.Header().Set("Location", fmt.Sprintf("%s?redirect_uri=%s", loginURL, url.QueryEscape(req.Request.RequestURI)))
 			} else {
-				resp.Header().Set("Location", fmt.Sprintf("/admin/user/login?redirect_uri=%s", url.QueryEscape(req.Request.RequestURI)))
+				resp.Header().Set("Location", fmt.Sprintf("/admin/account/login?redirect_uri=%s", url.QueryEscape(req.Request.RequestURI)))
 			}
 			resp.WriteHeader(302)
 			return

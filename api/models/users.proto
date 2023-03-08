@@ -40,7 +40,6 @@ message User {
   string role_id = 11[(gogoproto.jsontag) = "roleId,omitempty", (gogoproto.moretags) = 'gorm:"->;-:migration"'];
   string role = 12[(gogoproto.jsontag) = "role,omitempty", (gogoproto.moretags) = 'gorm:"->;-:migration"'];
   string apps = 13[(gogoproto.customtype) = "Apps", (gogoproto.nullable) = false, (gogoproto.jsontag) = "apps,omitempty", (gogoproto.moretags) = 'gorm:"-"'];
-  string storage = 14[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'gorm:"-"'];
   string extended_data = 15[(gogoproto.jsontag) = "extendedData,omitempty",(gogoproto.customtype) = "UserExt", (gogoproto.moretags) = 'gorm:"-"'];
 }
 

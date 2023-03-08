@@ -31,15 +31,7 @@ func MakeGetAppsEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*GetAppsRequest)
 		resp := NewBaseListResponse[[]*models.App](&req.BaseListRequest)
-		resp.Total, resp.Data, resp.BaseResponse.Error = s.GetApps(ctx, req.Storage, req.Keywords, nil, req.Current, req.PageSize)
-		return &resp, nil
-	}
-}
-
-func MakeGetAppSourceRequestEndpoint(s service.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		resp := TotalResponseWrapper[map[string]string]{}
-		resp.Total, resp.Data, resp.Error = s.GetAppSource(ctx)
+		resp.Total, resp.Data, resp.BaseResponse.Error = s.GetApps(ctx, req.Keywords, nil, req.Current, req.PageSize)
 		return &resp, nil
 	}
 }
@@ -50,11 +42,8 @@ func MakePatchAppsEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*PatchAppsRequest)
 		resp := TotalResponseWrapper[interface{}]{}
-		patchApps := map[string][]map[string]interface{}{}
+		var patchApps []map[string]interface{}
 		for _, a := range *req {
-			if len(a.Storage) == 0 {
-				return nil, errors.ParameterError("There is an empty storage in the patch.")
-			}
 			if len(a.Id) == 0 {
 				return nil, errors.ParameterError("There is an empty id in the patch.")
 			}
@@ -65,18 +54,10 @@ func MakePatchAppsEndpoint(s service.Service) endpoint.Endpoint {
 			if a.IsDelete != nil {
 				patch["isDelete"] = a.IsDelete
 			}
-			patchApps[a.Storage] = append(patchApps[a.Storage], patch)
+			patchApps = append(patchApps, patch)
 		}
 
-		errs := errors.NewMultipleServerError(500, "Multiple errors have occurred: ")
-		for storage, patch := range patchApps {
-			total, err := s.PatchUsers(ctx, storage, patch)
-			resp.Total += total
-			if err != nil {
-				errs.Append(err)
-				resp.Error = err
-			}
-		}
+		resp.Total, resp.Error = s.PatchUsers(ctx, patchApps)
 
 		return &resp, nil
 	}
@@ -88,25 +69,14 @@ func MakeDeleteAppsEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*DeleteAppsRequest)
 		resp := TotalResponseWrapper[interface{}]{}
-		delApps := map[string][]string{}
+		delApps := []string{}
 		for _, app := range *req {
-			if len(app.Storage) == 0 {
-				return nil, errors.ParameterError("There is an empty storage in the request.")
-			}
 			if len(app.Id) == 0 {
 				return nil, errors.ParameterError("There is an empty id in the request.")
 			}
-			delApps[app.Storage] = append(delApps[app.Storage], app.Id)
+			delApps = append(delApps, app.Id)
 		}
-		errs := errors.NewMultipleServerError(500, "Multiple errors have occurred: ")
-		for storage, ids := range delApps {
-			total, err := s.DeleteApps(ctx, storage, ids)
-			resp.Total += total
-			if err != nil {
-				errs.Append(err)
-				resp.Error = err
-			}
-		}
+		resp.Total, resp.Error = s.DeleteApps(ctx, delApps)
 		return &resp, nil
 	}
 }
@@ -139,14 +109,13 @@ func MakeUpdateAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*UpdateAppRequest)
 		resp := BaseResponse{}
-		if resp.Error = s.UpdateApp(ctx, req.Storage, &models.App{
+		if resp.Error = s.UpdateApp(ctx, &models.App{
 			Model:       models.Model{Id: req.Id},
 			Name:        req.Name,
 			Description: req.Description,
 			Avatar:      req.Avatar,
 			GrantType:   models.NewGrantType(req.GrantType...),
 			GrantMode:   req.GrantMode,
-			Storage:     req.Storage,
 			Users:       req.GetUsers(),
 			Roles:       req.GetRoles(),
 			Proxy:       req.GetProxyConfig(),
@@ -161,7 +130,7 @@ func MakeGetAppInfoEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*GetAppRequest)
 		resp := SimpleResponseWrapper[*models.App]{}
-		resp.Data, resp.Error = s.GetAppInfo(ctx, req.Storage, opts.WithAppId(req.Id))
+		resp.Data, resp.Error = s.GetAppInfo(ctx, opts.WithAppId(req.Id))
 		return &resp, nil
 	}
 }
@@ -217,13 +186,12 @@ func MakeCreateAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*CreateAppRequest)
 		resp := BaseResponse{}
-		resp.Error = s.CreateApp(ctx, req.Storage, &models.App{
+		resp.Error = s.CreateApp(ctx, &models.App{
 			Name:        req.Name,
 			Description: req.Description,
 			Avatar:      req.Avatar,
 			GrantType:   models.NewGrantType(req.GrantType...),
 			GrantMode:   req.GrantMode,
-			Storage:     req.Storage,
 			Users:       req.GetUsers(),
 			Roles:       req.GetRoles(),
 			Proxy:       req.GetProxyConfig(),
@@ -237,15 +205,11 @@ func MakePatchAppEndpoint(s service.Service) endpoint.Endpoint {
 		req := request.(Requester).GetRequestData().(*PatchAppRequest)
 		resp := BaseResponse{}
 
-		if len(req.Storage) == 0 {
-			return nil, errors.ParameterError("There is an empty storage in the patch.")
-		}
 		if len(req.Id) == 0 {
 			return nil, errors.ParameterError("There is an empty id in the patch.")
 		}
 		tmpPatch := map[string]interface{}{
 			"id":          req.Id,
-			"storage":     req.Storage,
 			"name":        req.Name,
 			"description": req.Description,
 			"avatar":      req.Avatar,
@@ -260,7 +224,7 @@ func MakePatchAppEndpoint(s service.Service) endpoint.Endpoint {
 				patch[name] = val
 			}
 		}
-		resp.Error = s.PatchApp(ctx, req.Storage, patch)
+		resp.Error = s.PatchApp(ctx, patch)
 		return &resp, nil
 	}
 }
@@ -269,7 +233,7 @@ func MakeDeleteAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*DeleteAppRequest)
 		resp := SimpleResponseWrapper[interface{}]{}
-		resp.Error = s.DeleteApp(ctx, req.Storage, req.Id)
+		resp.Error = s.DeleteApp(ctx, req.Id)
 		return &resp, nil
 	}
 }

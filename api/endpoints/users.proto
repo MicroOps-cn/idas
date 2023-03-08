@@ -10,7 +10,6 @@ message UserInfo{
   string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
   string username = 2[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required"'];
   idas.service.models.UserMeta.UserStatus status = 3[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.UserMeta_UserStatus", (gogoproto.nullable) = false];
-  string storage = 4[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string email = 5;
   string full_name = 6[(gogoproto.jsontag) = "fullName,omitempty"];
   string avatar = 7;
@@ -27,7 +26,6 @@ message UserInfo{
 message GetUsersRequest{
   idas.endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
   string app = 2;
-  string storage = 3;
   idas.service.models.UserMeta.UserStatus status = 4[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.UserMeta_UserStatus", (gogoproto.nullable) = true];
 }
 
@@ -46,15 +44,8 @@ message PatchUserRequest{
   string id = 1;
   idas.service.models.UserMeta.UserStatus status = 2[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.UserMeta_UserStatus"];
   bool is_delete = 3[(gogoproto.customtype) = "bool", (gogoproto.jsontag) = "isDelete,omitempty"];
-  string storage = 4[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
 }
 
-message UserSourceType{}
-
-message GetUserSourceResponse{
-  idas.endpoint.BaseTotalResponse base_total_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
-  UserSourceType data = 8[(gogoproto.customtype) = "map[string]string", (gogoproto.nullable) = false];
-}
 
 message ResetUserPasswordRequest{
   string token = 1;
@@ -72,14 +63,12 @@ message ForgotUserPasswordRequest{
 
 message DeleteUserRequest{
   string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
-  string storage = 2[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
 }
 
 message UpdateUserRequest{
   string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
   string username = 2[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required"'];
   idas.service.models.UserMeta.UserStatus status = 3[(gogoproto.jsontag) = "status", (gogoproto.nullable) = false, (gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.UserMeta_UserStatus"];
-  string storage = 4[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string email = 5;
   string full_name = 6[(gogoproto.jsontag) = "fullName,omitempty"];
   string avatar = 7;
@@ -89,7 +78,6 @@ message UpdateUserRequest{
 
 message CreateUserRequest{
   string username = 1[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required"'];
-  string storage = 2[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string email = 3;
   string full_name = 4[(gogoproto.jsontag) = "fullName,omitempty"];
   string avatar = 5;
@@ -101,7 +89,6 @@ message CreateUserRequest{
 message GetUserRequest{
   string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
   string username = 2[(gogoproto.jsontag) = "-"];
-  string storage = 3[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
 }
 
 message UserKeyInfo{
@@ -163,13 +150,11 @@ message CreateKeyResponse{
 
 message SendActivationMailRequest{
   string user_id = 1[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"required"'];
-  string storage = 3[(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
 }
 
 message ActivateAccountRequest{
   string token = 1;
   string user_id = 2[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"required"'];
-  string storage = 3;
   string new_password = 4[(gogoproto.jsontag) = "newPassword", (gogoproto.moretags) = 'valid:"required"'];
 }
 

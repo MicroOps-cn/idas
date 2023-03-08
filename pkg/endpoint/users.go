@@ -38,8 +38,8 @@ import (
 func MakeCurrentUserEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		resp := SimpleResponseWrapper[interface{}]{}
-		if users, ok := ctx.Value(global.MetaUser).(models.Users); ok && len(users) > 0 {
-			return users[0], nil
+		if user, ok := ctx.Value(global.MetaUser).(*models.User); ok && user != nil {
+			return user, nil
 		}
 		if restfulRequester, ok := request.(RestfulRequester); ok {
 			restfulRequester.GetRestfulRequest()
@@ -70,7 +70,7 @@ func MakeResetUserPasswordEndpoint(s service.Service) endpoint.Endpoint {
 			if s.VerifyToken(ctx, req.Token, models.TokenTypeResetPassword, &users, strings.Split(req.UserId, ",")...) {
 				errs := errors.NewMultipleServerError(500, "")
 				for _, user := range users {
-					if e := s.ResetPassword(ctx, user.Id, user.Storage, req.NewPassword); e != nil {
+					if e := s.ResetPassword(ctx, user.Id, req.NewPassword); e != nil {
 						errs.Append(e)
 					}
 				}
@@ -82,25 +82,19 @@ func MakeResetUserPasswordEndpoint(s service.Service) endpoint.Endpoint {
 			}
 		} else if len(req.OldPassword) != 0 {
 			if len(req.Username) > 0 {
-				users, err := s.VerifyPassword(ctx, req.Username, req.OldPassword)
+				user, err := s.VerifyPassword(ctx, req.Username, req.OldPassword)
 				if err != nil {
 					return nil, err
 				}
-				if len(users) == 0 {
+				if user == nil {
 					return nil, errors.NewServerError(http.StatusBadRequest, "Invalid old password")
 				}
-				errs := errors.NewMultipleServerError(500, "")
-				for _, user := range users {
-					if e := s.ResetPassword(ctx, user.Id, user.Storage, req.NewPassword); e != nil {
-						errs.Append(e)
-					}
-				}
-				if errs.HasError() {
-					return nil, errs
+				if resp.Error = s.ResetPassword(ctx, user.Id, req.NewPassword); resp.Error != nil {
+					return nil, err
 				}
 			} else if len(req.UserId) > 0 {
-				if users := s.VerifyPasswordById(ctx, req.Storage, req.UserId, req.OldPassword); len(users) > 0 {
-					resp.Error = s.ResetPassword(ctx, req.UserId, req.Storage, req.NewPassword)
+				if user := s.VerifyPasswordById(ctx, req.UserId, req.OldPassword); user != nil {
+					resp.Error = s.ResetPassword(ctx, req.UserId, req.NewPassword)
 				} else {
 					return nil, errors.UnauthorizedError()
 				}
@@ -114,21 +108,20 @@ func MakeForgotPasswordEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*ForgotUserPasswordRequest)
 		resp := SimpleResponseWrapper[interface{}]{}
-		users := s.GetUserInfoByUsernameAndEmail(ctx, req.Username, req.Email)
-		if len(users) == 0 {
-			level.Warn(logs.GetContextLogger(ctx)).Log("err", "user not found", "msg", "failed to reset password", "username", req.Username, "email", req.Email)
+		user, err := s.GetUserInfoByUsernameAndEmail(ctx, req.Username, req.Email)
+		if err != nil {
+			level.Warn(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to reset password", "username", req.Username, "email", req.Email)
 			return resp, nil
 		}
 
-		token, err := s.CreateToken(ctx, models.TokenTypeResetPassword, w.Interfaces[*models.User](users)...)
+		token, err := s.CreateToken(ctx, models.TokenTypeResetPassword, user)
 		if err != nil {
 			return resp, err
 		}
 
-		to := fmt.Sprintf("%s<%s>", users[0].FullName, users[0].Email)
+		to := fmt.Sprintf("%s<%s>", user.FullName, user.Email)
 		err = s.SendEmail(ctx, map[string]interface{}{
-			"user":   users[0],
-			"users":  users,
+			"user":   user,
 			"userId": token.GetRelationId(),
 			"token":  token,
 		}, "User:ResetPassword", to)
@@ -148,18 +141,10 @@ func MakeGetUsersEndpoint(s service.Service) endpoint.Endpoint {
 			req.Status = w.P[models.UserMeta_UserStatus](models.UserMetaStatusAll)
 		}
 		resp.Total, resp.Data, resp.Error = s.GetUsers(
-			ctx, req.Storage, req.Keywords,
+			ctx, req.Keywords,
 			*req.Status,
 			req.App, req.Current, req.PageSize,
 		)
-		return &resp, nil
-	}
-}
-
-func MakeGetUserSourceRequestEndpoint(s service.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		resp := TotalResponseWrapper[map[string]string]{}
-		resp.Total, resp.Data, resp.BaseResponse.Error = s.GetUserSource(ctx)
 		return &resp, nil
 	}
 }
@@ -176,11 +161,8 @@ func MakePatchUsersEndpoint(s service.Service) endpoint.Endpoint {
 		req := request.(Requester).GetRequestData().(*PatchUsersRequest)
 		resp := TotalResponseWrapper[interface{}]{}
 
-		patchUsers := map[string][]map[string]interface{}{}
+		var patchUsers []map[string]interface{}
 		for _, u := range *req {
-			if len(u.Storage) == 0 {
-				return nil, errors.ParameterError("There is an empty storage in the patch.")
-			}
 			if len(u.Id) == 0 {
 				return nil, errors.ParameterError("There is an empty id in the patch.")
 			}
@@ -191,18 +173,9 @@ func MakePatchUsersEndpoint(s service.Service) endpoint.Endpoint {
 			if u.IsDelete != nil {
 				patch["isDelete"] = u.IsDelete
 			}
-			patchUsers[u.Storage] = append(patchUsers[u.Storage], patch)
+			patchUsers = append(patchUsers, patch)
 		}
-		errs := errors.NewMultipleServerError(500, "Multiple errors have occurred: ")
-		for storage, patch := range patchUsers {
-			total, err := s.PatchUsers(ctx, storage, patch)
-			resp.Total += total
-			if err != nil {
-				errs.Append(err)
-				resp.Error = err
-			}
-		}
-
+		resp.Total, resp.Error = s.PatchUsers(ctx, patchUsers)
 		return &resp, nil
 	}
 }
@@ -213,25 +186,14 @@ func MakeDeleteUsersEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*DeleteUsersRequest)
 		resp := TotalResponseWrapper[interface{}]{}
-		delUsers := map[string][]string{}
+		var delUsers []string
 		for _, u := range *req {
-			if len(u.Storage) == 0 {
-				return nil, errors.ParameterError("There is an empty storage in the request.")
-			}
 			if len(u.Id) == 0 {
 				return nil, errors.ParameterError("There is an empty id in the request.")
 			}
-			delUsers[u.Storage] = append(delUsers[u.Storage], u.Id)
+			delUsers = append(delUsers, u.Id)
 		}
-		errs := errors.NewMultipleServerError(500, "Multiple errors have occurred: ")
-		for storage, ids := range delUsers {
-			total, err := s.DeleteUsers(ctx, storage, ids)
-			resp.Total += total
-			if err != nil {
-				errs.Append(err)
-				resp.Error = err
-			}
-		}
+		resp.Total, resp.Error = s.DeleteUsers(ctx, delUsers)
 		return &resp, nil
 	}
 }
@@ -240,7 +202,7 @@ func MakeUpdateUserEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*UpdateUserRequest)
 		resp := BaseResponse{}
-		if resp.Error = s.UpdateUser(ctx, req.Storage, &models.User{
+		if resp.Error = s.UpdateUser(ctx, &models.User{
 			Model: models.Model{
 				Id:       req.Id,
 				IsDelete: req.IsDelete,
@@ -251,7 +213,6 @@ func MakeUpdateUserEndpoint(s service.Service) endpoint.Endpoint {
 			FullName:    req.FullName,
 			Avatar:      req.Avatar,
 			Status:      req.Status,
-			Storage:     req.Storage,
 		}); resp.Error != nil {
 			resp.Error = errors.NewServerError(200, resp.Error.Error())
 		}
@@ -263,7 +224,7 @@ func MakeGetUserInfoEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(GetUserRequest)
 		resp := SimpleResponseWrapper[*models.User]{}
-		resp.Data, resp.Error = s.GetUserInfo(ctx, req.Storage, req.Id, req.Username)
+		resp.Data, resp.Error = s.GetUserInfo(ctx, req.Id, req.Username)
 		return &resp, nil
 	}
 }
@@ -272,13 +233,12 @@ func MakeCreateUserEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*CreateUserRequest)
 		resp := BaseResponse{}
-		resp.Error = s.CreateUser(ctx, req.Storage, &models.User{
+		resp.Error = s.CreateUser(ctx, &models.User{
 			Username:    req.Username,
 			Email:       req.Email,
 			PhoneNumber: req.PhoneNumber,
 			FullName:    req.FullName,
 			Avatar:      req.Avatar,
-			Storage:     req.Storage,
 			Status:      models.UserMeta_user_inactive,
 		})
 		return &resp, nil
@@ -293,9 +253,6 @@ func MakePatchUserEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*PatchUserRequest)
 		resp := BaseResponse{}
-		if len(req.Storage) == 0 {
-			return nil, errors.ParameterError("There is an empty storage in the patch.")
-		}
 		if len(req.Id) == 0 {
 			return nil, errors.ParameterError("There is an empty id in the patch.")
 		}
@@ -306,7 +263,7 @@ func MakePatchUserEndpoint(s service.Service) endpoint.Endpoint {
 		if req.IsDelete != nil {
 			patch["isDelete"] = req.IsDelete
 		}
-		resp.Error = s.PatchUser(ctx, req.Storage, patch)
+		resp.Error = s.PatchUser(ctx, patch)
 		return &resp, nil
 	}
 }
@@ -315,7 +272,7 @@ func MakeDeleteUserEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*DeleteUserRequest)
 		resp := SimpleResponseWrapper[interface{}]{}
-		resp.Error = s.DeleteUser(ctx, req.Storage, req.Id)
+		resp.Error = s.DeleteUser(ctx, req.Id)
 		return &resp, nil
 	}
 }
@@ -351,16 +308,15 @@ func MakeCreateKeyEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*CreateKeyRequest)
 		resp := SimpleResponseWrapper[*models.UserKey]{}
-		users, ok := ctx.Value(global.MetaUser).(models.Users)
-		if !ok || len(users) == 0 {
+		user, ok := ctx.Value(global.MetaUser).(*models.User)
+		if !ok || user == nil {
 			return nil, errors.NotLoginError()
 		}
-		for _, user := range users {
-			if user.Id == req.UserId && user.Status == models.UserMeta_normal {
-				resp.Data, resp.Error = s.CreateUserKey(ctx, req.UserId, req.Name)
-				return &resp, nil
-			}
+		if user.Id == req.UserId && user.Status == models.UserMeta_normal {
+			resp.Data, resp.Error = s.CreateUserKey(ctx, req.UserId, req.Name)
+			return &resp, nil
 		}
+
 		return nil, errors.StatusNotFound("user")
 	}
 }
@@ -369,7 +325,7 @@ func MakeSendActivationMailEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*SendActivationMailRequest)
 		resp := SimpleResponseWrapper[interface{}]{}
-		user, err := s.GetUserInfo(ctx, req.Storage, req.UserId, "")
+		user, err := s.GetUserInfo(ctx, req.UserId, "")
 		if err != nil {
 			return nil, err
 		}
@@ -400,7 +356,7 @@ func MakeActivateAccountEndpoint(s service.Service) endpoint.Endpoint {
 		resp := TotalResponseWrapper[interface{}]{}
 		if len(req.Token) > 0 {
 			if s.VerifyToken(ctx, req.Token, models.TokenTypeActive, nil, req.UserId) {
-				resp.Error = s.ResetPassword(ctx, req.UserId, req.Storage, req.NewPassword)
+				resp.Error = s.ResetPassword(ctx, req.UserId, req.NewPassword)
 			} else {
 				return nil, errors.ParameterError("invalid token")
 			}
@@ -417,8 +373,8 @@ func MakeCreateTOTPSecretEndpoint(s service.Service) endpoint.Endpoint {
 		secret := gotp.RandomSecret(128)
 		resp := &SimpleResponseWrapper[CreateTOTPSecretResponseData]{}
 
-		users := ctx.Value(global.MetaUser).(models.Users)
-		if len(users) == 0 {
+		user := ctx.Value(global.MetaUser).(*models.User)
+		if user == nil {
 			return nil, errors.NotLoginError()
 		}
 		token, err := s.CreateToken(ctx, models.TokenTypeTotpSecret, secret)
@@ -426,7 +382,7 @@ func MakeCreateTOTPSecretEndpoint(s service.Service) endpoint.Endpoint {
 			resp.Error = err
 			return nil, err
 		}
-		resp.Data.Secret = gotp.NewDefaultTOTP(secret).ProvisioningUri(users[0].Username, "IDAS")
+		resp.Data.Secret = gotp.NewDefaultTOTP(secret).ProvisioningUri(user.Username, "IDAS")
 		resp.Data.Token = token.Id
 		return resp, nil
 	}
@@ -436,8 +392,8 @@ func MakeCreateTOTPEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*CreateTOTPRequest)
 		resp := SimpleResponseWrapper[interface{}]{}
-		users := ctx.Value(global.MetaUser).(models.Users)
-		if len(users) == 0 {
+		user := ctx.Value(global.MetaUser).(*models.User)
+		if user == nil {
 			return nil, errors.NotLoginError()
 		}
 		var secret string
@@ -454,7 +410,7 @@ func MakeCreateTOTPEndpoint(s service.Service) endpoint.Endpoint {
 		} else if !totp.Verify(req.SecondCode, ts) {
 			resp.Error = errors.NewServerError(http.StatusBadRequest, "The second code is invalid or expired")
 		} else {
-			resp.Error = s.CreateTOTP(ctx, users.Id(), secret)
+			resp.Error = s.CreateTOTP(ctx, user.Id, secret)
 			if resp.Error == nil {
 				s.DeleteToken(ctx, models.TokenTypeTotpSecret, req.Token)
 			}

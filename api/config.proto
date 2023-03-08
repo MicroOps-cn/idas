@@ -29,7 +29,7 @@ message Storage{
 message Storages{
   Storage default = 1;
   Storage session = 2;
-  repeated Storage user = 3;
+  Storage user = 3;
 }
 
 message GlobalOptions{

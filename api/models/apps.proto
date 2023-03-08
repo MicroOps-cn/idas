@@ -63,7 +63,6 @@ message App {
   string users = 8 [(gogoproto.customtype) = "Users", (gogoproto.nullable) = false, (gogoproto.jsontag) = "users,omitempty", (gogoproto.moretags) = 'gorm:"-"'];
   string roles = 9 [(gogoproto.customtype) = "AppRoles", (gogoproto.nullable) = false, (gogoproto.jsontag) = "roles,omitempty", (gogoproto.moretags) = 'gorm:"-"'];
   idas.service.models.AppProxy proxy = 10 [(gogoproto.jsontag) = "proxy,omitempty", (gogoproto.moretags) = 'gorm:"-"'];
-  string storage = 11 [(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'gorm:"-"'];
 
   // Custom fields
 }

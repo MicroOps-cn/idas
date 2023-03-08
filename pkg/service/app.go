@@ -18,8 +18,6 @@ package service
 
 import (
 	"context"
-	"fmt"
-
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/MicroOps-cn/idas/pkg/errors"
@@ -29,38 +27,16 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-func (s Set) SafeGetUserAndAppService(name string) UserAndAppService {
-	for _, svc := range s.userAndAppService {
-		if svc.Name() == name {
-			return svc
-		}
-	}
-	for _, svc := range s.userAndAppService {
-		return svc
-	}
-	return newNullService("", name)
+func (s Set) GetApps(ctx context.Context, keywords string, filter map[string]interface{}, current, pageSize int64) (total int64, apps []*models.App, err error) {
+	return s.GetUserAndAppService().GetApps(ctx, keywords, filter, current, pageSize)
 }
 
-func (s Set) GetApps(ctx context.Context, storage string, keywords string, filter map[string]interface{}, current, pageSize int64) (total int64, apps []*models.App, err error) {
-	return s.SafeGetUserAndAppService(storage).GetApps(ctx, keywords, filter, current, pageSize)
+func (s Set) PatchApps(ctx context.Context, patch []map[string]interface{}) (total int64, err error) {
+	return s.GetUserAndAppService().PatchApps(ctx, patch)
 }
 
-func (s Set) GetAppSource(_ context.Context) (total int64, data map[string]string, err error) {
-	total = int64(len(s.userAndAppService))
-	data = make(map[string]string, total)
-	for _, appService := range s.userAndAppService {
-		data[appService.Name()] = appService.Name()
-	}
-
-	return
-}
-
-func (s Set) PatchApps(ctx context.Context, storage string, patch []map[string]interface{}) (total int64, err error) {
-	return s.GetUserAndAppService(storage).PatchApps(ctx, patch)
-}
-
-func (s Set) DeleteApps(ctx context.Context, storage string, id []string) (total int64, err error) {
-	return s.GetUserAndAppService(storage).DeleteApps(ctx, id)
+func (s Set) DeleteApps(ctx context.Context, id []string) (total int64, err error) {
+	return s.GetUserAndAppService().DeleteApps(ctx, id)
 }
 
 func (s Set) GetAppAccessControl(ctx context.Context, app *models.App, o ...opts.WithGetAppOptions) (err error) {
@@ -85,31 +61,29 @@ func (s Set) GetAppAccessControl(ctx context.Context, app *models.App, o ...opts
 	}
 	if userIds.Len() > 0 && !opt.DisableGetUsers {
 		var tmpUsers models.Users
-		for _, svc := range s.userAndAppService {
-			tmpUsers, err = svc.GetUsersById(ctx, userIds.List())
-			if err != nil {
-				return err
+		tmpUsers, err = s.userAndAppService.GetUsersById(ctx, userIds.List())
+		if err != nil {
+			return err
+		}
+		for _, user := range tmpUsers {
+			userIds.Delete(user.Id)
+			if appUserRel := appUsersRel.GetByUserId(user.Id); appUserRel != nil {
+				user.RoleId = appUserRel.RoleId
+				if role := app.Roles.GetRoleById(appUserRel.RoleId); role != nil {
+					user.Role = role.Name
+				}
 			}
-			for _, user := range tmpUsers {
-				userIds.Delete(user.Id)
-				if appUserRel := appUsersRel.GetByUserId(user.Id); appUserRel != nil {
-					user.RoleId = appUserRel.RoleId
-					if role := app.Roles.GetRoleById(appUserRel.RoleId); role != nil {
-						user.Role = role.Name
-					}
-				}
-				if u := app.Users.GetById(user.Id); u != nil {
-					*u = *user
-				} else {
-					app.Users = append(app.Users, user)
-				}
+			if u := app.Users.GetById(user.Id); u != nil {
+				*u = *user
+			} else {
+				app.Users = append(app.Users, user)
 			}
 		}
 	}
 	return nil
 }
 
-func (s Set) UpdateApp(ctx context.Context, storage string, app *models.App, updateColumns ...string) (err error) {
+func (s Set) UpdateApp(ctx context.Context, app *models.App, updateColumns ...string) (err error) {
 	if len(app.Name) == 0 {
 		return errors.ParameterError("app name is null")
 	}
@@ -156,7 +130,7 @@ func (s Set) UpdateApp(ctx context.Context, storage string, app *models.App, upd
 		}
 	}
 
-	if err = s.GetUserAndAppService(storage).UpdateApp(ctx, app, updateColumns...); err != nil {
+	if err = s.GetUserAndAppService().UpdateApp(ctx, app, updateColumns...); err != nil {
 		return err
 	}
 
@@ -176,27 +150,11 @@ func (s Set) UpdateApp(ctx context.Context, storage string, app *models.App, upd
 	return nil
 }
 
-func (s Set) GetAppInfo(ctx context.Context, storage string, o ...opts.WithGetAppOptions) (app *models.App, err error) {
-	if len(storage) == 0 {
-		for _, service := range s.userAndAppService {
-			app, err = service.GetAppInfo(ctx, o...)
-			if err != nil {
-				continue
-			}
-			break
-		}
-	} else {
-		service := s.GetUserAndAppService(storage)
-		if service == nil {
-			err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
-			return
-		}
-		app, err = service.GetAppInfo(ctx, o...)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if app == nil {
+func (s Set) GetAppInfo(ctx context.Context, o ...opts.WithGetAppOptions) (app *models.App, err error) {
+	service := s.GetUserAndAppService()
+	if app, err = service.GetAppInfo(ctx, o...); err != nil {
+		return nil, err
+	} else if app == nil {
 		return nil, errors.StatusNotFound("app")
 	}
 	if !opts.NewAppOptions(o...).DisableGetProxy {
@@ -214,7 +172,7 @@ func (s Set) GetAppInfo(ctx context.Context, storage string, o ...opts.WithGetAp
 	return app, nil
 }
 
-func (s Set) CreateApp(ctx context.Context, storage string, app *models.App) (err error) {
+func (s Set) CreateApp(ctx context.Context, app *models.App) (err error) {
 	if len(app.Name) == 0 {
 		return errors.ParameterError("app name cannot be empty")
 	}
@@ -257,11 +215,8 @@ func (s Set) CreateApp(ctx context.Context, storage string, app *models.App) (er
 		}
 	}
 	logger := logs.GetContextLogger(ctx)
-	service := s.GetUserAndAppService(storage)
-	if service == nil {
-		err = errors.StatusNotFound(fmt.Sprintf("App Source [%s]", storage))
-		return
-	}
+	service := s.GetUserAndAppService()
+
 	if avatar, err := image.GenerateAvatar(ctx, app.Name); err != nil {
 		level.Error(logger).Log("err", err, "msg", "failed to generate avatar")
 	} else if fileKey, err := s.UploadFile(ctx, app.Name+".png", "image/png", avatar); err != nil {
@@ -284,12 +239,12 @@ func (s Set) CreateApp(ctx context.Context, storage string, app *models.App) (er
 	return s.commonService.UpdateAppAccessControl(ctx, app)
 }
 
-func (s Set) PatchApp(ctx context.Context, storage string, fields map[string]interface{}) (err error) {
-	return s.GetUserAndAppService(storage).PatchApp(ctx, fields)
+func (s Set) PatchApp(ctx context.Context, fields map[string]interface{}) (err error) {
+	return s.GetUserAndAppService().PatchApp(ctx, fields)
 }
 
-func (s Set) DeleteApp(ctx context.Context, storage string, id string) (err error) {
-	return s.GetUserAndAppService(storage).DeleteApp(ctx, id)
+func (s Set) DeleteApp(ctx context.Context, id string) (err error) {
+	return s.GetUserAndAppService().DeleteApp(ctx, id)
 }
 
 func (s Set) AppAuthentication(ctx context.Context, key string, secret string) (*models.App, error) {
@@ -297,7 +252,7 @@ func (s Set) AppAuthentication(ctx context.Context, key string, secret string) (
 	if appId, err := s.commonService.AppAuthorization(ctx, key, secret); err != nil {
 		level.Error(logger).Log("msg", "failed to authorization app", "err", err)
 	} else if len(appId) > 0 {
-		if app, err := s.GetAppInfo(ctx, "", opts.WithAppId(appId), opts.WithBasic); err != nil {
+		if app, err := s.GetAppInfo(ctx, opts.WithAppId(appId), opts.WithBasic); err != nil {
 			level.Error(logger).Log("msg", "failed to get app info", "err", err)
 		} else {
 			return app, nil

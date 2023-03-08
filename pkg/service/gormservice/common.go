@@ -18,7 +18,6 @@ package gormservice
 
 import (
 	"context"
-	"github.com/MicroOps-cn/fuck/sets"
 	"sort"
 	"time"
 
@@ -283,21 +282,23 @@ func (c CommonService) GetAppAccessControl(ctx context.Context, appId string, o 
 			return nil, nil, err
 		}
 	}
-	var results []models.AppRoleURL
-	if err := conn.Table("t_app_role_url").
-		Select("app_role_id", "`t_app_role`.`name` as `app_role_name`", "app_proxy_url_id").
-		Joins("JOIN `t_app_role` ON `t_app_role`.id = `t_app_role_url`.app_role_id").
-		Joins("JOIN `t_app_proxy_url` ON `t_app_proxy_url`.id = `t_app_role_url`.app_proxy_url_id").
-		Joins("JOIN `t_app_proxy` ON `t_app_proxy`.id = `t_app_proxy_url`.app_proxy_id").
-		Where("app_role_id IN ?", roles.GetId()).
-		Where("t_app_proxy.app_id = ?", appId).
-		Scan(&results).Error; err != nil {
-		return nil, nil, err
-	}
-	for _, role := range roles {
-		for _, result := range results {
-			if result.AppRoleId == role.Id {
-				role.UrlsId = append(role.UrlsId, result.AppProxyURLId)
+	if !opt.DisableGetProxy {
+		var results []models.AppRoleURL
+		if err = conn.Table("t_app_role_url").
+			Select("app_role_id", "`t_app_role`.`name` as `app_role_name`", "app_proxy_url_id").
+			Joins("JOIN `t_app_role` ON `t_app_role`.id = `t_app_role_url`.app_role_id").
+			Joins("JOIN `t_app_proxy_url` ON `t_app_proxy_url`.id = `t_app_role_url`.app_proxy_url_id").
+			Joins("JOIN `t_app_proxy` ON `t_app_proxy`.id = `t_app_proxy_url`.app_proxy_id").
+			Where("app_role_id IN ?", roles.GetId()).
+			Where("t_app_proxy.app_id = ?", appId).
+			Scan(&results).Error; err != nil {
+			return nil, nil, err
+		}
+		for _, role := range roles {
+			for _, result := range results {
+				if result.AppRoleId == role.Id {
+					role.UrlsId = append(role.UrlsId, result.AppProxyURLId)
+				}
 			}
 		}
 	}
@@ -412,39 +413,33 @@ func (c CommonService) AppAuthorization(ctx context.Context, key string, secret 
 	return appKey.AppId, nil
 }
 
-func (c *CommonService) CreateTOTP(ctx context.Context, ids []string, secret string) error {
+func (c *CommonService) CreateTOTP(ctx context.Context, id string, secret string) error {
 	tx := c.Session(ctx).Begin()
 	defer tx.Rollback()
-	var usersExt []*models.UserExt
-	if err := tx.Where("user_id in ?", ids).Find(&usersExt).Error; err != nil {
-		return err
-	}
-	var userIds = sets.New[string](ids...)
-	for _, ext := range usersExt {
+	ext := new(models.UserExt)
+	if err := tx.Where("user_id = ?", id).First(&ext).Error; err == gogorm.ErrRecordNotFound {
 
-		sec, err := ext.GetSecret()
-		if err != nil || sec != secret {
-			if err = ext.SetSecret(secret); err != nil {
-				return err
-			}
-		}
-		ext.TOTPAsMFA = true
-		if err = tx.Where("user_id = ?", ext.UserId).
-			Select("totp_salt", "totp_secret", "totp_as_mfa").Updates(ext).Error; err != nil {
-			return errors.NewServerError(500, "failed to update totp setting: "+err.Error())
-		}
-		userIds.Delete(ext.UserId)
-	}
-
-	for id := range userIds {
 		totp := models.UserExt{UserId: id, TOTPAsMFA: true}
-		err := totp.SetSecret(secret)
+		err = totp.SetSecret(secret)
 		if err != nil {
 			return err
 		}
 		if err = tx.Create(&totp).Error; err != nil {
 			return err
 		}
+	} else if err != nil {
+		return err
+	}
+	sec, err := ext.GetSecret()
+	if err != nil || sec != secret {
+		if err = ext.SetSecret(secret); err != nil {
+			return err
+		}
+	}
+	ext.TOTPAsMFA = true
+	if err = tx.Where("user_id = ?", ext.UserId).
+		Select("totp_salt", "totp_secret", "totp_as_mfa").Updates(ext).Error; err != nil {
+		return errors.NewServerError(500, "failed to update totp setting: "+err.Error())
 	}
 	return tx.Commit().Error
 }

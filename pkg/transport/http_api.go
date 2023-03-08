@@ -82,7 +82,6 @@ func UserService(ctx context.Context, options []httptransport.ServerOption, endp
 		To(NewKitHTTPServer[endpoint.GetUserRequest](ctx, endpoints.GetUserInfo, options)).
 		Operation("getUserInfo").
 		Param(v1ws.PathParameter("id", "identifier of the user").DataType("string")).
-		Param(v1ws.QueryParameter("storage", "storage of the user").DataType("string")).
 		Doc("Get user information.").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.GetUserRequest{}),
@@ -110,18 +109,9 @@ func UserService(ctx context.Context, options []httptransport.ServerOption, endp
 		To(NewKitHTTPServer[endpoint.DeleteUserRequest](ctx, endpoints.DeleteUser, options)).
 		Operation("deleteUser").
 		Param(v1ws.PathParameter("id", "identifier of the user").DataType("string")).
-		Param(v1ws.QueryParameter("storage", "storage source of the user").DataType("string")).
 		Doc("Delete user.").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.BaseResponse{}),
-	)
-
-	v1ws.Route(v1ws.GET("/source").
-		To(NewKitHTTPServer[struct{}](ctx, endpoints.GetUserSource, options)).
-		Operation("getUserSource").
-		Doc("Get the user storage source.").
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Returns(200, "OK", endpoint.GetUserSourceResponse{}),
 	)
 
 	v1ws.Route(v1ws.POST("/{userId}/key").
@@ -211,19 +201,11 @@ func AppService(ctx context.Context, options []httptransport.ServerOption, endpo
 		Reads(endpoint.CreateAppRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags),
 	)
-	v1ws.Route(v1ws.GET("/source").
-		To(NewKitHTTPServer[struct{}](ctx, endpoints.GetAppSource, options)).
-		Operation("getAppSource").
-		Doc("获取应用存储源").
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Returns(200, "OK", endpoint.GetAppSourceResponse{}),
-	)
 	v1ws.Route(v1ws.GET("/{id}").
 		To(NewKitHTTPServer[endpoint.GetAppRequest](ctx, endpoints.GetAppInfo, options)).
 		Operation("getAppInfo").
 		Doc("获取应用信息").
 		Param(v1ws.PathParameter("id", "identifier of the app").DataType("string")).
-		Param(v1ws.QueryParameter("storage", "storage of the app").DataType("string")).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.GetAppResponse{}),
 	)
@@ -250,7 +232,6 @@ func AppService(ctx context.Context, options []httptransport.ServerOption, endpo
 		Operation("deleteApp").
 		Doc("删除应用").
 		Param(v1ws.PathParameter("id", "identifier of the app").DataType("string")).
-		Param(v1ws.QueryParameter("storage", "storage source of the app").DataType("string")).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)

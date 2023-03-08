@@ -72,8 +72,8 @@ func MakeProxyRequestEndpoint(s service.Service) endpoint.Endpoint {
 		if !ok {
 			return resp, nil
 		}
-		users, ok := ctx.Value(global.MetaUser).(models.Users)
-		if !ok || len(users) == 0 {
+		user, ok := ctx.Value(global.MetaUser).(*models.User)
+		if !ok || user == nil {
 			resp.Error = errors.NewServerError(401, "system error: no authorization")
 			resp.Code = 401
 			return resp, nil

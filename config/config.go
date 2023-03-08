@@ -45,10 +45,9 @@ func ref(path string, val reflect.Value) interface{} {
 		return ref(path[1:], val.Elem())
 	}
 	typ := val.Type()
-
-	idx := strings.IndexAny(path, ".[")
-	if idx >= 0 {
-		downPath := path[idx:]
+	var curPath, downPath string
+	if idx := strings.IndexAny(path, ".["); idx >= 0 {
+		downPath = path[idx:]
 		if path[idx] == '.' {
 			downPath = path[idx+1:]
 		} else if path[idx] == '[' && idx == 0 {
@@ -62,31 +61,34 @@ func ref(path string, val reflect.Value) interface{} {
 			}
 			return nil
 		}
-		for i := 0; i < val.NumField(); i++ {
-			kt := typ.Field(i)
-			sv := val.Field(i)
-			if !(kt.Name[0] >= 'A' && kt.Name[0] <= 'Z') {
-				continue
-			}
-			var jsonName string
-			jsonTag := kt.Tag.Get("json")
-			if i1 := strings.Index(jsonTag, ","); i1 >= 0 {
-				jsonName = jsonTag[:i1]
-			} else {
-				for i2, c := range kt.Name {
-					if !(c >= 'A' && c <= 'Z') {
-						if i2 != 0 {
-							jsonName += "_"
-						}
-						jsonName += string([]int32{c + ('a' - 'A')})
-						continue
+		curPath = path[:idx]
+	} else {
+		curPath = path
+	}
+	for i := 0; i < val.NumField(); i++ {
+		kt := typ.Field(i)
+		sv := val.Field(i)
+		if !(kt.Name[0] >= 'A' && kt.Name[0] <= 'Z') {
+			continue
+		}
+		var jsonName string
+		jsonTag := kt.Tag.Get("json")
+		if i1 := strings.Index(jsonTag, ","); i1 >= 0 {
+			jsonName = jsonTag[:i1]
+		} else {
+			for i2, c := range kt.Name {
+				if !(c >= 'A' && c <= 'Z') {
+					if i2 != 0 {
+						jsonName += "_"
 					}
-					jsonName += string([]int32{c})
+					jsonName += string([]int32{c + ('a' - 'A')})
+					continue
 				}
+				jsonName += string([]int32{c})
 			}
-			if jsonName == path[:idx] {
-				return ref(downPath, sv)
-			}
+		}
+		if jsonName == curPath {
+			return ref(downPath, sv)
 		}
 	}
 	return nil
@@ -117,13 +119,13 @@ func (x *Config) Init(logger log.Logger) error {
 	if x.Storage == nil || x.Storage.Default == nil {
 		return fmt.Errorf("default storage is null")
 	}
-	if len(x.Storage.User) == 0 {
-		x.Storage.User = append(x.Storage.User, x.Storage.Default)
+	if x.Storage.User == nil {
+		x.Storage.User = x.Storage.Default
 	}
 	if x.Storage.Session == nil {
 		x.Storage.Session = x.Storage.Default
 	}
-	storages := append(x.Storage.User, x.Storage.Session, x.Storage.Default)
+	storages := []*Storage{x.Storage.User, x.Storage.Session, x.Storage.Default}
 	for _, storage := range storages {
 		switch s := storage.Source.(type) {
 		case *Storage_Ref:

@@ -96,7 +96,7 @@ WHERE
 //	@param id 	string
 //	@param password 	string
 //	@return users	[]*models.User
-func (s UserAndAppService) VerifyPasswordById(ctx context.Context, id, password string) (users []*models.User) {
+func (s UserAndAppService) VerifyPasswordById(ctx context.Context, id, password string) *models.User {
 	logger := logs.GetContextLogger(ctx)
 	var user models.User
 	if err := s.Session(ctx).Raw(sqlGetUserAndRoleInfoById, id).First(&user).Error; err != nil {
@@ -111,7 +111,7 @@ func (s UserAndAppService) VerifyPasswordById(ctx context.Context, id, password 
 		level.Debug(logger).Log("msg", "incorrect password", "id", id)
 		return nil
 	}
-	return []*models.User{&user}
+	return &user
 }
 
 // VerifyPassword
@@ -122,7 +122,7 @@ func (s UserAndAppService) VerifyPasswordById(ctx context.Context, id, password 
 //	@param username 	string
 //	@param password 	string
 //	@return users	[]*models.User
-func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) []*models.User {
+func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, password string) *models.User {
 	logger := logs.GetContextLogger(ctx)
 	var user models.User
 	if err := s.Session(ctx).Where("(username = ? or email = ?) and delete_time is NULL", username, username).First(&user).Error; err != nil {
@@ -137,7 +137,7 @@ func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, 
 		level.Debug(logger).Log("msg", "incorrect password", "username", username)
 		return nil
 	}
-	return []*models.User{&user}
+	return &user
 }
 
 // GetUserInfoByUsernameAndEmail
@@ -147,7 +147,7 @@ func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, 
 //	@param ctx           context.Context
 //	@param username      string
 //	@param email         string
-//	@return userail   *models.User
+//	@return user   *models.User
 //	@return err          error
 func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (user *models.User, err error) {
 	user = new(models.User)
@@ -194,12 +194,8 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 		return 0, nil, err
 	} else if err = query.Order("username,id").Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).Find(&users).Error; err != nil {
 		return 0, nil, err
-	} else {
-		for _, user := range users {
-			user.Storage = s.name
-		}
-		return total, users, nil
 	}
+	return total, users, nil
 }
 
 // PatchUsers

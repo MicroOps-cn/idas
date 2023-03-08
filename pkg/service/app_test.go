@@ -32,7 +32,7 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/service/opts"
 )
 
-func testAppService(ctx context.Context, t *testing.T, storage string, svc Service) {
+func testAppService(ctx context.Context, t *testing.T, svc Service) {
 	var userIds []string
 	getRandomUsers := func(roles models.AppRoles) []*models.User {
 		aUserIds := sets.New[string](userIds...)
@@ -84,7 +84,7 @@ func testAppService(ctx context.Context, t *testing.T, storage string, svc Servi
 
 	if !t.Run("Test Init User Data", func(t *testing.T) {
 		for i := 0; i < 100; i++ {
-			err := svc.CreateUser(ctx, storage, &models.User{
+			err := svc.CreateUser(ctx, &models.User{
 				Username:    rand.String(5),
 				Email:       rand.String(7),
 				PhoneNumber: rand.String(9),
@@ -94,7 +94,7 @@ func testAppService(ctx context.Context, t *testing.T, storage string, svc Servi
 			})
 			require.NoError(t, err)
 		}
-		_, users, err := svc.GetUsers(ctx, storage, "", models.UserMetaStatusAll, "", 1, 200)
+		_, users, err := svc.GetUsers(ctx, "", models.UserMetaStatusAll, "", 1, 200)
 		require.NoError(t, err)
 		require.Truef(t, len(users) >= 100, "Failed to obtain the information of all current users: the number of users (%s) is less than 100.", len(users))
 		for _, user := range users {
@@ -106,32 +106,32 @@ func testAppService(ctx context.Context, t *testing.T, storage string, svc Servi
 
 	if !t.Run("Test Create App", func(t *testing.T) {
 		{
-			count, users, err := svc.GetApps(ctx, storage, "", nil, 1, 1024)
+			count, users, err := svc.GetApps(ctx, "", nil, 1, 1024)
 			require.NoError(t, err)
 			require.Len(t, users, 0)
 			require.Equal(t, count, int64(0))
 		}
 
 		t.Run("Test Create Null App", func(t *testing.T) {
-			err := svc.CreateApp(ctx, storage, &models.App{})
+			err := svc.CreateApp(ctx, &models.App{})
 			require.Error(t, err)
 		})
 		t.Run("Test Create duplicate Name", func(t *testing.T) {
 			users := models.Users{{Model: models.Model{Id: userIds[rand.Intn(len(userIds))]}}}
-			err := svc.CreateApp(ctx, storage, &models.App{Name: "Test App - AAA - 01", Users: users})
+			err := svc.CreateApp(ctx, &models.App{Name: "Test App - AAA - 01", Users: users})
 			require.NoError(t, err)
-			err = svc.CreateApp(ctx, storage, &models.App{Name: "Test App - AAA - 01", Users: users})
+			err = svc.CreateApp(ctx, &models.App{Name: "Test App - AAA - 01", Users: users})
 			require.Error(t, err)
 		})
 		t.Run("Test Create App with empty role name ", func(t *testing.T) {
-			err := svc.CreateApp(ctx, storage, &models.App{
+			err := svc.CreateApp(ctx, &models.App{
 				Name:  rand.String(rand.IntnRange(1, 20)),
 				Roles: models.AppRoles{{Name: ""}},
 			})
 			require.EqualError(t, err, "Parameter Error: role name and id is nil")
 		})
 		t.Run("Test Create App with duplicate role", func(t *testing.T) {
-			err := svc.CreateApp(ctx, storage, &models.App{
+			err := svc.CreateApp(ctx, &models.App{
 				Name:  rand.String(rand.IntnRange(1, 20)),
 				Roles: models.AppRoles{{Name: "AAA"}, {Name: "AAA"}},
 			})
@@ -206,10 +206,10 @@ func testAppService(ctx context.Context, t *testing.T, storage string, svc Servi
 						sort.Strings(roleURL[role.Id])
 					}
 				}
-				err := svc.CreateApp(ctx, storage, app)
+				err := svc.CreateApp(ctx, app)
 				require.NoError(t, err)
 				require.NotEmpty(t, app.Id)
-				info, err := svc.GetAppInfo(ctx, storage, opts.WithAppId(app.Id))
+				info, err := svc.GetAppInfo(ctx, opts.WithAppId(app.Id))
 				require.NoError(t, err)
 				roleNames1 := make([]string, len(info.Roles))
 				userRoles1 := make(map[string]string, len(info.Users))
@@ -249,7 +249,7 @@ func testAppService(ctx context.Context, t *testing.T, storage string, svc Servi
 	var appIds []string
 
 	if !t.Run("Test List App", func(t *testing.T) {
-		count, apps, err := svc.GetApps(ctx, storage, "", nil, 1, 1024)
+		count, apps, err := svc.GetApps(ctx, "", nil, 1, 1024)
 		require.NoError(t, err)
 		require.Truef(t, len(apps) == 101, "Failed to obtain the information of all current apps: the number of users (%s) is not equal 101.", len(apps))
 		require.Truef(t, count == 101, "Failed to obtain the information of all current apps: the number of users (%s) is not equal 101.", len(apps))
@@ -257,7 +257,7 @@ func testAppService(ctx context.Context, t *testing.T, storage string, svc Servi
 			appIds = append(appIds, app.Id)
 		}
 		t.Run("Filter by keywords", func(t *testing.T) {
-			_, apps, err = svc.GetApps(ctx, storage, "AAA", nil, 1, 1024)
+			_, apps, err = svc.GetApps(ctx, "AAA", nil, 1, 1024)
 			require.NoError(t, err)
 			require.True(t, len(apps) >= 1)
 			for _, app := range apps {
@@ -272,7 +272,7 @@ func testAppService(ctx context.Context, t *testing.T, storage string, svc Servi
 
 	t.Run("Test Update App", func(t *testing.T) {
 		appId := appIds[rand.Intn(len(appIds))]
-		appInfo, err := svc.GetAppInfo(ctx, storage, opts.WithAppId(appId))
+		appInfo, err := svc.GetAppInfo(ctx, opts.WithAppId(appId))
 		require.NoError(t, err)
 
 		roleNames := make([]string, len(appInfo.Roles))
@@ -309,10 +309,10 @@ func testAppService(ctx context.Context, t *testing.T, storage string, svc Servi
 		}
 		newAppInfo.Roles = append(newAppInfo.Roles, &appRole)
 		tmpAppInfo := newAppInfo
-		err = svc.UpdateApp(ctx, storage, &tmpAppInfo)
+		err = svc.UpdateApp(ctx, &tmpAppInfo)
 		require.NoError(t, err)
 
-		newAppInfo1, err := svc.GetAppInfo(ctx, storage, opts.WithAppId(appId))
+		newAppInfo1, err := svc.GetAppInfo(ctx, opts.WithAppId(appId))
 		require.NoError(t, err)
 		require.Equal(t, newAppInfo.Name, newAppInfo1.Name)
 		require.Equal(t, newAppInfo.Description, newAppInfo1.Description)
@@ -336,11 +336,11 @@ func testAppService(ctx context.Context, t *testing.T, storage string, svc Servi
 	})
 
 	t.Run("Test Delete App", func(t *testing.T) {
-		err := svc.DeleteApp(ctx, storage, appIds[rand.Intn(len(appIds))])
+		err := svc.DeleteApp(ctx, appIds[rand.Intn(len(appIds))])
 		require.NoError(t, err)
 
 		t.Run("Test List App", func(t *testing.T) {
-			count, apps, err := svc.GetApps(ctx, storage, "", nil, 1, 1024)
+			count, apps, err := svc.GetApps(ctx, "", nil, 1, 1024)
 			require.NoError(t, err)
 			require.Truef(t, len(apps) == len(appIds)-1, "Failed to obtain the information of all current apps: the number of users (%d) is not equal %d.", len(apps), len(appIds)-1)
 			require.Truef(t, int(count) == len(appIds)-1, "Failed to obtain the information of all current apps: the number of users (%d) is not equal %d.", len(apps), len(appIds)-1)

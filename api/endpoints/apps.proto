@@ -29,7 +29,6 @@ message AppInfo {
   string id = 1 [(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
   string name = 2 [(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
   string description = 3;
-  string storage = 4 [(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string avatar = 5;
   repeated idas.service.models.AppMeta.GrantType grant_type = 6 [(gogoproto.jsontag) = "grantType"];
   idas.service.models.AppMeta.GrantMode grant_mode = 7 [(gogoproto.jsontag) = "grantMode"];
@@ -44,17 +43,14 @@ message AppInfo {
 
 message GetAppRequest {
   string id = 1 [(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
-  string storage = 2 [(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
 }
 
 message DeleteAppRequest {
   string id = 1 [(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
-  string storage = 2 [(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
 }
 
 message GetAppsRequest {
   idas.endpoint.BaseListRequest base_list_request = 1 [(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
-  string storage = 2;
 }
 message GetAppsResponse {
   idas.endpoint.BaseListResponse base_list_response = 1 [(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
@@ -73,7 +69,6 @@ message PatchAppRequest {
   option (gogoproto.goproto_getters) = false;
 
   string id = 1 [(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
-  string storage = 2 [(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string description = 3 [(gogoproto.customtype) = "string"];
   string name = 4 [(gogoproto.customtype) = "string"];
   string avatar = 5 [(gogoproto.customtype) = "string"];
@@ -84,13 +79,6 @@ message PatchAppRequest {
   AppProxy proxy = 15 [(gogoproto.jsontag) = "proxy,omitempty"];
 }
 
-message AppSourceType {
-}
-
-message GetAppSourceResponse {
-  idas.endpoint.BaseTotalResponse base_total_response = 1 [(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
-  AppSourceType data = 8 [(gogoproto.customtype) = "map[string]string", (gogoproto.nullable) = false];
-}
 
 message AppUser {
   string id = 1 [(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
@@ -111,7 +99,6 @@ message CreateAppRequest {
   option (gogoproto.goproto_unkeyed) = false;
   option (gogoproto.goproto_getters) = false;
 
-  string storage = 2 [(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string description = 3;
   string name = 4 [(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
   string avatar = 5;
@@ -129,7 +116,6 @@ message UpdateAppRequest {
   option (gogoproto.goproto_getters) = false;
 
   string id = 1 [(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
-  string storage = 2 [(gogoproto.jsontag) = "storage", (gogoproto.moretags) = 'valid:"required"'];
   string description = 3;
   string name = 4 [(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
   string avatar = 5;
