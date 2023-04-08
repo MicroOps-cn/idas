@@ -18,11 +18,13 @@ package endpoint
 
 import (
 	"context"
-	"github.com/MicroOps-cn/idas/pkg/service"
-	"github.com/MicroOps-cn/idas/pkg/service/models"
+	"time"
+
 	"github.com/go-kit/kit/endpoint"
 	"github.com/gogo/protobuf/proto"
-	"time"
+
+	"github.com/MicroOps-cn/idas/pkg/service"
+	"github.com/MicroOps-cn/idas/pkg/service/models"
 )
 
 func MakeDeletePageEndpoint(svc service.Service) endpoint.Endpoint {
@@ -37,7 +39,7 @@ func MakeDeletePageEndpoint(svc service.Service) endpoint.Endpoint {
 func MakeUpdatePageEndpoint(svc service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*UpdatePageRequest)
-		resp := BaseResponse{}
+		resp := SimpleResponseWrapper[struct{}]{}
 		page := &models.PageConfig{
 			Model:       models.Model{Id: req.Id},
 			Name:        req.Name,
@@ -53,7 +55,7 @@ func MakeUpdatePageEndpoint(svc service.Service) endpoint.Endpoint {
 func MakeCreatePageEndpoint(svc service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*CreatePageRequest)
-		resp := BaseResponse{}
+		resp := SimpleResponseWrapper[struct{}]{}
 		page := &models.PageConfig{
 			Name:        req.Name,
 			Description: req.Description,
@@ -100,7 +102,7 @@ func (m PatchPagesRequest) ProtoMessage() {}
 func MakePatchPagesEndpoint(svc service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*PatchPagesRequest)
-		resp := BaseResponse{}
+		resp := SimpleResponseWrapper[struct{}]{}
 		var pages []map[string]interface{}
 		for _, pageRequest := range *req {
 			pagePatch := map[string]interface{}{
@@ -148,7 +150,7 @@ func MakeDeletePageDataEndpoint(svc service.Service) endpoint.Endpoint {
 func MakeUpdatePageDataEndpoint(svc service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*UpdatePageDataRequest)
-		resp := BaseResponse{}
+		resp := SimpleResponseWrapper[struct{}]{}
 		resp.Error = svc.UpdatePageData(ctx, req.PageId, req.Id, req.Data)
 		return resp, nil
 	}
@@ -157,7 +159,7 @@ func MakeUpdatePageDataEndpoint(svc service.Service) endpoint.Endpoint {
 func MakeCreatePageDataEndpoint(svc service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*CreatePageDataRequest)
-		resp := BaseResponse{}
+		resp := SimpleResponseWrapper[struct{}]{}
 		resp.Error = svc.CreatePageData(ctx, req.PageId, req.Data)
 		return resp, nil
 	}
@@ -196,7 +198,7 @@ func MakePatchPageDatasEndpoint(svc service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*PatchPageDatasRequest)
 		pageId := request.(RestfulRequester).GetRestfulRequest().PathParameter("pageId")
-		resp := BaseResponse{}
+		resp := SimpleResponseWrapper[struct{}]{}
 		var pageDatasPatch []models.PageData
 		for _, patch := range *req {
 			pageDatasPatch = append(pageDatasPatch, models.PageData{

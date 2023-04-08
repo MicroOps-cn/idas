@@ -41,6 +41,10 @@ type SessionService struct {
 	name string
 }
 
+func (s SessionService) UpdateToken(ctx context.Context, token *models.Token) error {
+	return s.Redis(ctx).Set(getTokenKey(token.Id), NewToken(token), -time.Since(token.Expiry)).Err()
+}
+
 type Token struct {
 	Id          string           `json:"id"`
 	CreateTime  time.Time        `json:"createTime"`
@@ -56,20 +60,14 @@ type Token struct {
 
 func NewToken(token *models.Token) *Token {
 	tk := &Token{
-		Id:          token.Id,
-		CreateTime:  token.CreateTime,
-		Data:        string(token.Data),
-		ParentId:    token.ParentId,
-		LastSeen:    token.LastSeen,
-		Expiry:      token.Expiry,
-		Type:        token.Type,
-		Childrens:   make([]*Token, len(token.Childrens)),
-		ChildrensId: make([]string, len(token.Childrens)),
-		RelationId:  token.RelationId,
-	}
-	for i, children := range token.Childrens {
-		tk.Childrens[i] = NewToken(children)
-		tk.ChildrensId[i] = children.Id
+		Id:         token.Id,
+		CreateTime: token.CreateTime,
+		Data:       string(token.Data),
+		ParentId:   token.ParentId,
+		LastSeen:   token.LastSeen,
+		Expiry:     token.Expiry,
+		Type:       token.Type,
+		RelationId: token.RelationId,
 	}
 	return tk
 }
@@ -83,11 +81,7 @@ func (s *Token) ToToken() *models.Token {
 		LastSeen:   s.LastSeen,
 		Expiry:     s.Expiry,
 		Type:       s.Type,
-		Childrens:  make([]*models.Token, len(s.Childrens)),
 		RelationId: s.RelationId,
-	}
-	for i, children := range s.Childrens {
-		tk.Childrens[i] = children.ToToken()
 	}
 	return tk
 }
@@ -117,33 +111,21 @@ func (s SessionService) CreateToken(ctx context.Context, token *models.Token) er
 		token.CreateTime = time.Now()
 	}
 	tk := NewToken(token)
-	// 创建(主)Token
+	// 创建Token
 	if err := redisClt.Set(getTokenKey(token.Id), tk, -time.Since(token.Expiry)).Err(); err != nil {
 		return err
 	}
 
-	if token.Type == models.TokenTypeParent {
-		for idx, children := range token.Childrens {
-			children.ParentId = token.Id
-			// 创建子Token
-			err := s.CreateToken(ctx, children)
-			if err != nil {
-				return err
-			}
-			tk.ChildrensId[idx] = children.Id
+	if len(token.RelationId) > 0 {
+		objTokenListKey := getTokensKey(token.RelationId)
+		err := redisClt.SAdd(objTokenListKey, token.Id).Err()
+		if err != nil {
+			return err
 		}
-	} else {
-		if len(token.RelationId) > 0 {
-			objTokenListKey := getTokensKey(token.RelationId)
-			err := redisClt.SAdd(objTokenListKey, token.Id).Err()
-			if err != nil {
+		ttl, err := redisClt.TTL(objTokenListKey).Result()
+		if err != nil || ttl < 0 || time.Since(token.Expiry) > ttl {
+			if err = redisClt.ExpireAt(objTokenListKey, token.Expiry).Err(); err != nil {
 				return err
-			}
-			ttl, err := redisClt.TTL(objTokenListKey).Result()
-			if err != nil || ttl < 0 || time.Since(token.Expiry) > ttl {
-				if err = redisClt.ExpireAt(objTokenListKey, token.Expiry).Err(); err != nil {
-					return err
-				}
 			}
 		}
 	}
@@ -166,36 +148,7 @@ func (s SessionService) GetToken(ctx context.Context, tokenId string, tokenType 
 		Type:       token.Type,
 		RelationId: token.RelationId,
 	}
-
-	if token.Type == models.TokenTypeParent {
-		for _, childId := range token.ChildrensId {
-			var childToken Token
-			err := redisClt.Get(getTokenKey(childId)).Scan(&childToken)
-			if err != nil {
-				if err == goredis.Nil {
-					continue
-				}
-				return nil, err
-			} else if childToken.Type != tokenType {
-				continue
-			} else if len(relationId) > 0 && !w.Include[string](relationId, childToken.RelationId) {
-				continue
-			}
-			retToken.Childrens = append(retToken.Childrens, &models.Token{
-				Id:         childToken.Id,
-				CreateTime: childToken.CreateTime,
-				Data:       []byte(childToken.Data),
-				ParentId:   childToken.ParentId,
-				LastSeen:   childToken.LastSeen,
-				Expiry:     childToken.Expiry,
-				Type:       childToken.Type,
-				RelationId: childToken.RelationId,
-			})
-		}
-		if len(retToken.Childrens) == 0 {
-			return nil, errors.StatusNotFound("token")
-		}
-	} else if token.Type != tokenType || (len(relationId) > 0 && !w.Include[string](relationId, token.RelationId)) {
+	if token.Type != tokenType || (len(relationId) > 0 && !w.Include[string](relationId, token.RelationId)) {
 		return nil, errors.StatusNotFound("token")
 	}
 	return &retToken, nil
@@ -209,16 +162,8 @@ func (s SessionService) DeleteToken(ctx context.Context, tokenType models.TokenT
 		level.Warn(logs.GetContextLogger(ctx)).Log("msg", "failed to get token", "err", err)
 		return conn.Del(getTokenKey(id)).Err()
 	}
-	if token.Type == models.TokenTypeParent {
-		for _, children := range token.Childrens {
-			if children.Type == tokenType {
-				keys = append(keys, getTokenKey(children.Id))
-				conn.SRem(getTokensKey(children.RelationId), children.Id)
-			}
-		}
-	} else {
-		conn.SRem(getTokensKey(token.RelationId), token.Id)
-	}
+	conn.SRem(getTokensKey(token.RelationId), token.Id)
+
 	return conn.Del(keys...).Err()
 }
 
@@ -230,13 +175,14 @@ func (s SessionService) GetSessions(ctx context.Context, userId string, current 
 	err := redis.ForeachSet(ctx, redisClt, pChildKey, uint64((current-1)*pageSize), pageSize, func(key, tokenId string) error {
 		var token Token
 		tokenKey := getTokenKey(tokenId)
-		err := redisClt.Get(tokenKey).Scan(&token)
-		if err == goredis.Nil {
+		if err := redisClt.Get(tokenKey).Scan(&token); err == goredis.Nil {
 			expireKeys.Insert(tokenKey)
 		} else if err != nil {
 			return err
 		} else {
-			ret = append(ret, token.ToToken())
+			if token.Type == models.TokenTypeLoginSession {
+				ret = append(ret, token.ToToken())
+			}
 			if int64(len(ret)) >= pageSize {
 				return redis.ErrStopLoop
 			}

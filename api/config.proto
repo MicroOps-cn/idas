@@ -40,8 +40,36 @@ message GlobalOptions{
   string secret = 5;
 }
 
+message security{
+  bool force_mfa = 1;
+}
+
 message Config {
   Storages storage = 1;
   GlobalOptions global = 2;
   idas.client.email.SmtpOptions smtp = 3[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/client/email.SmtpOptions"];
+  security security = 4;
+}
+
+// @sync-to-public:public/src/services/idas/enums.ts:PasswordComplexity
+enum PasswordComplexity{
+  unsafe = 0;
+  general = 1;
+  safe = 2;
+  very_safe = 3;
+}
+
+message RuntimeSecurityConfig{
+  bool force_enable_mfa = 1[(gogoproto.jsontag) = "forceEnableMfa"];
+  PasswordComplexity  password_complexity = 2[(gogoproto.jsontag) = "passwordComplexity"];
+  uint32 password_min_length = 3[(gogoproto.jsontag) = "passwordMinLength"];
+  uint32 password_expire_time = 4[(gogoproto.jsontag) = "passwordExpireTime"];
+  uint32 password_failed_lock_threshold = 5[(gogoproto.jsontag) = "passwordFailedLockThreshold"];
+  uint32 password_failed_lock_duration = 6[(gogoproto.jsontag) = "passwordFailedLockDuration"];
+  uint32 password_history = 7[(gogoproto.jsontag) = "passwordHistory"];
+  uint32 account_inactive_lock = 8[(gogoproto.jsontag) = "accountInactiveLock"];
+}
+
+message RuntimeConfig {
+  RuntimeSecurityConfig security = 1;
 }

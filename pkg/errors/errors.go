@@ -207,6 +207,10 @@ var (
 	NotFoundError     = func() error { return NewServerError(http.StatusNotFound, "record not found") }
 )
 
+func LackParameterError(name string) error {
+	return NewServerError(http.StatusBadRequest, "lack parameter: "+name)
+}
+
 func IsNotFount(err error) bool {
 	if err == gorm.ErrRecordNotFound {
 		return true

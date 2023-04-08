@@ -31,6 +31,7 @@ import (
 
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
+	"github.com/MicroOps-cn/idas/pkg/service/opts"
 )
 
 // ResetPassword
@@ -297,6 +298,36 @@ func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, up
 	return tx.Commit().Error
 }
 
+// GetUser
+//
+//	@Description[en-US]: Get user info.
+//	@Description[zh-CN]: 获取用户信息
+//	@param ctx 	context.Context
+//	@param options 	opts.GetUserOptions
+//	@return userDetail	*models.User
+//	@return err	error
+func (s UserAndAppService) GetUser(ctx context.Context, o *opts.GetUserOptions) (*models.User, error) {
+	conn := s.Session(ctx)
+	var user models.User
+	query := conn.Model(&models.User{})
+	if len(o.Id) != 0 {
+		query.Where("id = ?", o.Id)
+	} else if len(o.Username) != 0 {
+		query.Where("username = ?", o.Username)
+	} else if len(o.Email) != 0 {
+		query.Where("email = ?", o.Email)
+	} else if len(o.PhoneNumber) > 0 {
+		query.Where("phone_number = ?", o.PhoneNumber)
+	}
+	if err := query.First(&user).Error; err != nil {
+		if err == gogorm.ErrRecordNotFound {
+			return nil, errors.StatusNotFound("user")
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
 // GetUserInfo
 //
 //	@Description[en-US]: Obtain user information through ID or username.
@@ -400,4 +431,13 @@ func (c *CommonService) GetUserExtendedData(ctx context.Context, id string) (*mo
 		ext.ForceMFA = true
 	}
 	return &ext, err
+}
+
+func (c *CommonService) PatchUserExtData(ctx context.Context, id string, patch map[string]interface{}) error {
+	conn := c.Session(ctx)
+	ext := models.UserExt{UserId: id}
+	if created := c.Session(ctx).Where("user_id = ?", id).FirstOrCreate(&ext); created.Error != nil {
+		return created.Error
+	}
+	return conn.Model(&models.UserExt{}).Where("user_id = ?", id).Updates(patch).Error
 }

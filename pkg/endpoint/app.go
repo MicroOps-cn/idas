@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/go-kit/kit/endpoint"
+	"github.com/modern-go/reflect2"
 
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/service"
@@ -108,7 +109,7 @@ func (m UpdateAppRequest) GetRoles() (roles []*models.AppRole) {
 func MakeUpdateAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*UpdateAppRequest)
-		resp := BaseResponse{}
+		resp := SimpleResponseWrapper[struct{}]{}
 		if resp.Error = s.UpdateApp(ctx, &models.App{
 			Model:       models.Model{Id: req.Id},
 			Name:        req.Name,
@@ -185,7 +186,7 @@ func (r CreateAppRequest) GetProxyConfig() *models.AppProxy {
 func MakeCreateAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*CreateAppRequest)
-		resp := BaseResponse{}
+		resp := SimpleResponseWrapper[struct{}]{}
 		resp.Error = s.CreateApp(ctx, &models.App{
 			Name:        req.Name,
 			Description: req.Description,
@@ -203,7 +204,7 @@ func MakeCreateAppEndpoint(s service.Service) endpoint.Endpoint {
 func MakePatchAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*PatchAppRequest)
-		resp := BaseResponse{}
+		resp := SimpleResponseWrapper[struct{}]{}
 
 		if len(req.Id) == 0 {
 			return nil, errors.ParameterError("There is an empty id in the patch.")
@@ -220,7 +221,7 @@ func MakePatchAppEndpoint(s service.Service) endpoint.Endpoint {
 		}
 		patch := map[string]interface{}{}
 		for name, val := range tmpPatch {
-			if val != nil {
+			if !reflect2.IsNil(val) {
 				patch[name] = val
 			}
 		}

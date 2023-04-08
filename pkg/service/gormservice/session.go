@@ -18,6 +18,7 @@ package gormservice
 
 import (
 	"context"
+
 	w "github.com/MicroOps-cn/fuck/wrapper"
 
 	"github.com/MicroOps-cn/idas/pkg/client/gorm"
@@ -34,21 +35,13 @@ type SessionService struct {
 	name string
 }
 
+func (s SessionService) UpdateToken(ctx context.Context, token *models.Token) error {
+	return s.Session(ctx).Updates(token).Error
+}
+
 func (s SessionService) CreateToken(ctx context.Context, token *models.Token) error {
 	conn := s.Session(ctx)
-	if err := conn.Create(token).Error; err != nil {
-		return err
-	}
-	if token.Type == models.TokenTypeParent {
-		for _, children := range token.Childrens {
-			children.ParentId = token.Id
-			err := s.CreateToken(ctx, children)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return conn.Create(token).Error
 }
 
 func (s SessionService) GetToken(ctx context.Context, tokenId string, tokenType models.TokenType, relationId ...string) (*models.Token, error) {
@@ -57,17 +50,7 @@ func (s SessionService) GetToken(ctx context.Context, tokenId string, tokenType 
 	if err := conn.Where("id = ?", tokenId).First(tk).Error; err != nil {
 		return nil, err
 	}
-	if tk.Type == models.TokenTypeParent {
-		query := conn.Where("parent_id = ? and token_type = ?", tk.Id, relationId, tokenType)
-		if len(relationId) != 0 {
-			query = query.Where("relation_id in ?", relationId)
-		}
-		if err := query.Find(&tk.Childrens).Error; err != nil {
-			return nil, err
-		} else if len(tk.Childrens) == 0 {
-			return nil, errors.StatusNotFound("token")
-		}
-	} else if tokenType != tk.Type || (len(relationId) > 0 && !w.Include[string](relationId, tk.RelationId)) {
+	if tokenType != tk.Type || (len(relationId) > 0 && !w.Include[string](relationId, tk.RelationId)) {
 		return nil, errors.StatusNotFound("token")
 	}
 	return tk, nil

@@ -96,6 +96,29 @@ func (s Set) GetUserInfo(ctx context.Context, id string, username string) (user 
 	return s.GetUserAndAppService().GetUserInfo(ctx, id, username)
 }
 
+// GetUser
+//
+//	@Description[en-US]: Get user info.
+//	@Description[zh-CN]: 获取用户信息
+//	@param ctx 	context.Context
+//	@param options 	opts.WithGetUserOptions
+//	@return userDetail	*models.User
+//	@return err	error
+func (s Set) GetUser(ctx context.Context, options ...opts.WithGetUserOptions) (user *models.User, err error) {
+	o := opts.NewGetUserOptions(options...)
+	if o.Err != nil {
+		return nil, err
+	}
+	user, err = s.userAndAppService.GetUser(ctx, o)
+	if err != nil {
+		return nil, err
+	}
+	if o.Ext {
+		user.ExtendedData, err = s.commonService.GetUserExtendedData(ctx, user.Id)
+	}
+	return user, err
+}
+
 // CreateUser
 //
 //	@Description[en-US]: Create a user.
@@ -149,6 +172,18 @@ func (s Set) GetUserKeys(ctx context.Context, userId string, current, pageSize i
 //	@return err	error
 func (s Set) PatchUser(ctx context.Context, user map[string]interface{}) (err error) {
 	return s.GetUserAndAppService().PatchUser(ctx, user)
+}
+
+// PatchUserExtData
+//
+//	@Description[en-US]: Incremental update user.
+//	@Description[zh-CN]: 增量更新用户扩展信息。
+//	@param ctx 	context.Context
+//	@param id 	string
+//	@param patch 	map[string]interface{}
+//	@return err	error
+func (s Set) PatchUserExtData(ctx context.Context, userId string, patch map[string]interface{}) error {
+	return s.commonService.PatchUserExtData(ctx, userId, patch)
 }
 
 // DeleteUser
@@ -276,6 +311,12 @@ func (s Set) GetAuthCodeByAppId(ctx context.Context, clientId string, user *mode
 }
 
 func (s Set) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (users *models.User, err error) {
+	if len(username) == 0 {
+		return nil, errors.LackParameterError("username")
+	}
+	if len(email) == 0 {
+		return nil, errors.LackParameterError("email")
+	}
 	return s.GetUserAndAppService().GetUserInfoByUsernameAndEmail(ctx, username, email)
 }
 

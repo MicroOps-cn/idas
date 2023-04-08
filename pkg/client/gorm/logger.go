@@ -19,9 +19,9 @@ package gorm
 import (
 	"context"
 	"fmt"
-	log2 "github.com/MicroOps-cn/fuck/log"
 	"time"
 
+	log2 "github.com/MicroOps-cn/fuck/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"gorm.io/gorm"

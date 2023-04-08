@@ -18,7 +18,9 @@ package gormservice
 
 import (
 	"context"
+	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	gogorm "gorm.io/gorm"
@@ -57,6 +59,7 @@ func (c CommonService) AutoMigrate(ctx context.Context) error {
 		&models.PageConfig{},
 		&models.PageData{},
 		&models.UserExt{},
+		&models.SystemConfig{},
 	)
 	if err != nil {
 		return err
@@ -459,4 +462,118 @@ func (c *CommonService) GetTOTPSecrets(ctx context.Context, ids []string) (secre
 		secrets = append(secrets, secret)
 	}
 	return secrets, nil
+}
+
+func (c CommonService) PatchSystemConfig(ctx context.Context, prefix string, patch map[string]interface{}) error {
+	tx := c.Session(ctx).Begin()
+	defer tx.Rollback()
+	for name, value := range patch {
+		fullName := name
+		if len(prefix) != 0 {
+			fullName = fmt.Sprintf("%s.%s", prefix, name)
+		}
+		switch value.(type) {
+		case string, uint, uint64, uint32, uint16, uint8, int, int64, int32, int16, int8, bool, float64, float32:
+		default:
+			return fmt.Errorf("unknown value type: %T", value)
+		}
+		valType := fmt.Sprintf("%T", value)
+		var option models.SystemConfig
+		if err := tx.Where("name = ?", fullName).First(&option).Error; err != nil {
+			if err != gogorm.ErrRecordNotFound {
+				return err
+			} else if err = tx.Create(&models.SystemConfig{Name: fullName, Type: valType, Value: fmt.Sprintf("%v", value)}).Error; err != nil {
+				return err
+			}
+			continue
+		}
+		if err := tx.Model(&models.SystemConfig{}).Where("name = ?", fullName).Updates(map[string]interface{}{
+			"value": fmt.Sprintf("%v", value),
+			"type":  valType,
+		}).Error; err != nil {
+			return err
+		}
+	}
+	return tx.Commit().Error
+}
+
+func (c CommonService) GetSystemConfig(ctx context.Context, prefix string) (map[string]interface{}, error) {
+	conn := c.Session(ctx)
+	var options []models.SystemConfig
+	var count int64
+	query := conn.Model(&models.SystemConfig{})
+	if len(prefix) != 0 {
+		query = conn.Where("name like ?", prefix+".%")
+	}
+	if err := query.Model(&models.SystemConfig{}).Count(&count).Error; err != nil {
+		return nil, err
+	}
+	if count > 2000 {
+		return nil, fmt.Errorf("There are too many configurations, please check. ")
+	}
+	if err := query.Limit(2000).Find(&options).Error; err != nil {
+		return nil, err
+	}
+
+	cfgMap := map[string]interface{}{}
+	for _, option := range options {
+		name := option.Name[len(prefix)+1:]
+		switch option.Type {
+		case "string":
+			cfgMap[name] = option.Value
+		case "float64":
+			if val, err := strconv.ParseFloat(option.Value, 64); err == nil {
+				cfgMap[name] = val
+			}
+		case "float32":
+			if val, err := strconv.ParseFloat(option.Value, 32); err == nil {
+				cfgMap[name] = val
+			}
+		case "uint":
+			if val, err := strconv.ParseUint(option.Value, 10, 32); err == nil {
+				cfgMap[name] = uint(val)
+			}
+		case "uint64":
+			if val, err := strconv.ParseUint(option.Value, 10, 64); err == nil {
+				cfgMap[name] = val
+			}
+		case "uint32":
+			if val, err := strconv.ParseUint(option.Value, 10, 32); err == nil {
+				cfgMap[name] = uint32(val)
+			}
+		case "uint16":
+			if val, err := strconv.ParseUint(option.Value, 10, 16); err == nil {
+				cfgMap[name] = uint16(val)
+			}
+		case "uint8":
+			if val, err := strconv.ParseUint(option.Value, 10, 8); err == nil {
+				cfgMap[name] = uint8(val)
+			}
+		case "int":
+			if val, err := strconv.ParseInt(option.Value, 10, 32); err == nil {
+				cfgMap[name] = int(val)
+			}
+		case "int64":
+			if val, err := strconv.ParseInt(option.Value, 10, 64); err == nil {
+				cfgMap[name] = int64(val)
+			}
+		case "int32":
+			if val, err := strconv.ParseInt(option.Value, 10, 32); err == nil {
+				cfgMap[name] = int32(val)
+			}
+		case "int16":
+			if val, err := strconv.ParseInt(option.Value, 10, 16); err == nil {
+				cfgMap[name] = int16(val)
+			}
+		case "int8":
+			if val, err := strconv.ParseInt(option.Value, 10, 8); err == nil {
+				cfgMap[name] = int8(val)
+			}
+		case "bool":
+			if val, err := strconv.ParseBool(option.Value); err == nil {
+				cfgMap[name] = val
+			}
+		}
+	}
+	return cfgMap, nil
 }

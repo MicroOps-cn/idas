@@ -45,18 +45,28 @@ enum LoginType {
   mfa_sms = 3;
   email = 4;
   sms = 5;
+  enable_mfa_totp = 10;
+  enable_mfa_email = 11;
+  enable_mfa_sms = 12;
 }
 
 message UserLoginRequest{
-  string username = 1[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required"'];
-  string password = 2[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.Secret", (gogoproto.jsontag) = "password", (gogoproto.nullable) = false, (gogoproto.moretags) = 'valid:"required"'];
-  bool auto_login = 3[(gogoproto.jsontag) = "autoLogin,omitempty"];
-  LoginType type = 4;
-  string code = 5;
-  string token = 6;
+  string username = 1;
+  string email = 2[(gogoproto.moretags) = 'valid:"email"'];
+  string phone = 3;
+  string password = 4[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.Secret", (gogoproto.jsontag) = "password,omitempty", (gogoproto.nullable) = false];
+  bool auto_login = 5[(gogoproto.jsontag) = "autoLogin,omitempty"];
+  LoginType type = 6;
+  string code = 7;
+  string token = 8;
+  string first_code = 9[(gogoproto.jsontag) = "firstCode,omitempty"];
+  string second_code = 10[(gogoproto.jsontag) = "secondCode,omitempty"];
 }
 message UserLoginResponseData{
+  string  token =1;
   repeated LoginType next_method = 2 [(gogoproto.jsontag) = "nextMethod"];
+  string email = 3;
+  string phone_number = 4;
 }
 message UserLoginResponse{
   idas.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
@@ -66,7 +76,8 @@ message UserLoginResponse{
 message SendLoginCaptchaRequest{
   string username = 1;
   LoginType type = 2[(gogoproto.jsontag) = "type", (gogoproto.moretags) = 'valid:"required"'];
-  string target = 3[(gogoproto.jsontag) = "target", (gogoproto.moretags) = 'valid:"required"'];
+  string email = 3[(gogoproto.moretags) = 'valid:"email"'];
+  string phone = 4;
 }
 
 message SendLoginCaptchaResponseData{

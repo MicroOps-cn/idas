@@ -20,7 +20,7 @@ message UserInfo{
   string update_time = 12[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
   string create_time = 13[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
   bool is_delete = 14[(gogoproto.jsontag) = "isDelete", (gogoproto.moretags) = 'valid:"required"'];
-  string extended_data = 15 [(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.UserExt",(gogoproto.jsontag) = "extendedData,omitempty"];
+  string extended_data = 15 [(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.UserExt", (gogoproto.jsontag) = "extendedData,omitempty"];
 }
 
 message GetUsersRequest{
@@ -49,10 +49,10 @@ message PatchUserRequest{
 
 message ResetUserPasswordRequest{
   string token = 1;
-  string old_password = 2[(gogoproto.jsontag) = "oldPassword,omitempty"];
+  string old_password = 2[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.Secret",(gogoproto.jsontag) = "oldPassword,omitempty"];
   string user_id = 3[(gogoproto.jsontag) = "userId"];
   string storage = 4;
-  string new_password = 5[(gogoproto.jsontag) = "newPassword", (gogoproto.moretags) = 'valid:"required"'];
+  string new_password = 5[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.Secret",(gogoproto.jsontag) = "newPassword", (gogoproto.moretags) = 'valid:"required"'];
   string username = 6;
 }
 
@@ -68,12 +68,12 @@ message DeleteUserRequest{
 message UpdateUserRequest{
   string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
   string username = 2[(gogoproto.jsontag) = "username", (gogoproto.moretags) = 'valid:"required"'];
-  idas.service.models.UserMeta.UserStatus status = 3[(gogoproto.jsontag) = "status", (gogoproto.nullable) = false, (gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.UserMeta_UserStatus"];
+  idas.service.models.UserMeta.UserStatus status = 3[(gogoproto.jsontag) = "status,omitempty", (gogoproto.nullable) = false, (gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.UserMeta_UserStatus"];
   string email = 5;
   string full_name = 6[(gogoproto.jsontag) = "fullName,omitempty"];
   string avatar = 7;
   string phone_number = 8[(gogoproto.jsontag) = "phoneNumber,omitempty"];
-  bool is_delete = 9[(gogoproto.jsontag) = "isDelete"];
+  bool is_delete = 9[(gogoproto.jsontag) = "isDelete,omitempty"];
 }
 
 message CreateUserRequest{
@@ -158,6 +158,10 @@ message ActivateAccountRequest{
   string new_password = 4[(gogoproto.jsontag) = "newPassword", (gogoproto.moretags) = 'valid:"required"'];
 }
 
+message CreateTOTPSecretRequest{
+  string token = 1;
+}
+
 message CreateTOTPSecretResponseData{
   string secret = 2[(gogoproto.jsontag) = "secret"];
   string token = 3[(gogoproto.jsontag) = "token"];
@@ -172,4 +176,13 @@ message CreateTOTPRequest{
   string token = 1[(gogoproto.jsontag) = "token", (gogoproto.moretags) = 'valid:"required"'];
   string first_code = 2[(gogoproto.jsontag) = "firstCode", (gogoproto.moretags) = 'valid:"required"'];
   string second_code = 3[(gogoproto.jsontag) = "secondCode", (gogoproto.moretags) = 'valid:"required"'];
+}
+
+message PatchCurrentUserRequest{
+  bool email_as_mfa = 1[(gogoproto.customtype) = "bool"];
+  bool sms_as_mfa = 2[(gogoproto.customtype) = "bool"];
+}
+
+message PatchCurrentUserResponse{
+  idas.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
 }

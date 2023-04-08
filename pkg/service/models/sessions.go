@@ -17,12 +17,9 @@
 package models
 
 import (
-	"bytes"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -34,7 +31,6 @@ import (
 type TokenType string
 
 const (
-	TokenTypeParent        TokenType = "parent"
 	TokenTypeToken         TokenType = "token"
 	TokenTypeRefreshToken  TokenType = "refresh_token"
 	TokenTypeCode          TokenType = "code"
@@ -44,6 +40,7 @@ const (
 	TokenTypeAppProxyLogin TokenType = "app_proxy_login"
 	TokenTypeTotpSecret    TokenType = "totp_secret"
 	TokenTypeLoginCode     TokenType = "login_code"
+	TokenTypeEnableMFA     TokenType = "enable_mfa"
 )
 
 func (t TokenType) GetExpiry() time.Time {
@@ -80,50 +77,22 @@ type Token struct {
 	Type       TokenType    `json:"type" gorm:"type:varchar(20)"`
 	LastSeen   time.Time    `json:"lastSeen"`
 	ParentId   string       `json:"parentId" gorm:"type:char(36)"`
-	Childrens  []*Token     `json:"-" gorm:"-"`
 }
 
 func (s *Token) GetRelationId() string {
-	var ids []string
-	if len(s.RelationId) != 0 {
-		ids = append(ids, s.RelationId)
-	}
-	if len(s.Childrens) > 0 {
-		for _, children := range s.Childrens {
-			childRelId := children.GetRelationId()
-			if len(childRelId) > 0 {
-				ids = append(ids, childRelId)
-			}
-		}
-	}
-	return strings.Join(ids, ",")
+	return s.RelationId
 }
 
-func NewToken(tokenType TokenType, data ...interface{}) (*Token, error) {
+func NewToken(tokenType TokenType, data interface{}) (*Token, error) {
 	token := &Token{Id: NewId(), CreateTime: time.Now(), Type: tokenType, LastSeen: time.Now(), Expiry: tokenType.GetExpiry()}
-	if len(data) > 1 {
-		token.Type = TokenTypeParent
-		for _, d := range data {
-			rawData, err := json.Marshal(d)
-			if err != nil {
-				return nil, err
-			}
-			childToken := &Token{Id: NewId(), ParentId: token.Id, CreateTime: time.Now(), LastSeen: time.Now(), Data: rawData, Type: tokenType, Expiry: tokenType.GetExpiry()}
-			if obj, ok := d.(HasId); ok {
-				childToken.RelationId = obj.GetId()
-			}
-			token.Childrens = append(token.Childrens, childToken)
-		}
-	} else if len(data) == 1 {
-		rawData, err := json.Marshal(data[0])
-		if err != nil {
-			return nil, err
-		}
-		if obj, ok := data[0].(HasId); ok {
-			token.RelationId = obj.GetId()
-		}
-		token.Data = rawData
+	rawData, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
 	}
+	if obj, ok := data.(HasId); ok {
+		token.RelationId = obj.GetId()
+	}
+	token.Data = rawData
 	return token, nil
 }
 
@@ -135,29 +104,7 @@ func getValElem(valOf reflect.Value) reflect.Value {
 }
 
 func (s *Token) To(r interface{}) error {
-	elem := getValElem(reflect.ValueOf(r))
-	switch elem.Kind() {
-	case reflect.Array, reflect.Slice:
-		buf := bytes.NewBuffer([]byte("["))
-		if s.Type != TokenTypeParent {
-			buf.Write(s.Data)
-		} else {
-			for idx, children := range s.Childrens {
-				if idx != 0 {
-					buf.WriteRune(',')
-				}
-				buf.Write(children.Data)
-			}
-		}
-		buf.WriteRune(']')
-		return json.Unmarshal(buf.Bytes(), r)
-	default:
-		if s.Type == TokenTypeParent {
-			return fmt.Errorf("the receiver type does not match, it should be array instead of struct")
-		}
-		return json.Unmarshal(s.Data, r)
-
-	}
+	return json.Unmarshal(s.Data, r)
 }
 
 func (s *Token) BeforeCreate(db *gorm.DB) error {

@@ -18,21 +18,27 @@ package endpoint
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/crypto"
 	logs "github.com/MicroOps-cn/fuck/log"
 	w "github.com/MicroOps-cn/fuck/wrapper"
+	"github.com/go-kit/kit/endpoint"
+	"github.com/go-kit/log/level"
+	"github.com/gogo/protobuf/proto"
+	uuid "github.com/satori/go.uuid"
+	"github.com/xlzd/gotp"
+
+	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
-	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/log/level"
-	"github.com/gogo/protobuf/proto"
-	"github.com/xlzd/gotp"
 )
 
 func MakeCurrentUserEndpoint(s service.Service) endpoint.Endpoint {
@@ -61,40 +67,92 @@ func MakeCurrentUserEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
+func MakeUpdateCurrentUserEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(Requester).GetRequestData().(*UpdateUserRequest)
+		resp := SimpleResponseWrapper[struct{}]{}
+		user, ok := ctx.Value(global.MetaUser).(*models.User)
+		if !ok || user == nil {
+			resp.Error = errors.NotLoginError()
+			return resp, nil
+		}
+		if resp.Error = s.UpdateUser(ctx, &models.User{
+			Model: models.Model{
+				Id:       req.Id,
+				IsDelete: req.IsDelete,
+			},
+			Username:    req.Username,
+			Email:       req.Email,
+			PhoneNumber: req.PhoneNumber,
+			FullName:    req.FullName,
+			Avatar:      req.Avatar,
+			Status:      req.Status,
+		}, "email", "phone_number", "full_name", "avatar"); resp.Error != nil {
+			resp.Error = err
+		}
+		resp.Error = s.UpdateUserSession(ctx, user.Id)
+		return resp, nil
+	}
+}
+
+func (r PatchCurrentUserRequest) Map() map[string]interface{} {
+	m := map[string]interface{}{}
+	if r.EmailAsMfa != nil {
+		m["email_as_mfa"] = r.EmailAsMfa
+	}
+	if r.SmsAsMfa != nil {
+		m["sms_as_mfa"] = r.SmsAsMfa
+	}
+	return m
+}
+
+func MakePatchCurrentUserEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(Requester).GetRequestData().(*PatchCurrentUserRequest)
+		resp := SimpleResponseWrapper[struct{}]{}
+		user, ok := ctx.Value(global.MetaUser).(*models.User)
+		if !ok || user == nil {
+			resp.Error = errors.NotLoginError()
+			return resp, nil
+		}
+		if patch := req.Map(); len(patch) > 0 {
+			resp.Error = s.PatchUserExtData(ctx, user.Id, patch)
+			if resp.Error == nil {
+				resp.Error = s.UpdateUserSession(ctx, user.Id)
+			}
+		}
+		return resp, nil
+	}
+}
+
 func MakeResetUserPasswordEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*ResetUserPasswordRequest)
 		resp := TotalResponseWrapper[interface{}]{}
 		if len(req.Token) > 0 && len(req.UserId) > 0 {
-			var users models.Users
-			if s.VerifyToken(ctx, req.Token, models.TokenTypeResetPassword, &users, strings.Split(req.UserId, ",")...) {
-				errs := errors.NewMultipleServerError(500, "")
-				for _, user := range users {
-					if e := s.ResetPassword(ctx, user.Id, req.NewPassword); e != nil {
-						errs.Append(e)
-					}
-				}
-				if errs.HasError() {
-					return nil, errs
+			var user *models.User
+			if s.VerifyToken(ctx, req.Token, models.TokenTypeResetPassword, user, req.UserId) {
+				if err = s.ResetPassword(ctx, user.Id, string(*req.NewPassword)); err != nil {
+					return nil, err
 				}
 			} else {
 				return nil, errors.ParameterError("invalid token")
 			}
-		} else if len(req.OldPassword) != 0 {
+		} else if req.OldPassword != nil && len(*req.OldPassword) != 0 {
 			if len(req.Username) > 0 {
-				user, err := s.VerifyPassword(ctx, req.Username, req.OldPassword)
+				user, err := s.VerifyPassword(ctx, req.Username, string(*req.OldPassword))
 				if err != nil {
 					return nil, err
 				}
 				if user == nil {
 					return nil, errors.NewServerError(http.StatusBadRequest, "Invalid old password")
 				}
-				if resp.Error = s.ResetPassword(ctx, user.Id, req.NewPassword); resp.Error != nil {
+				if resp.Error = s.ResetPassword(ctx, user.Id, string(*req.NewPassword)); resp.Error != nil {
 					return nil, err
 				}
 			} else if len(req.UserId) > 0 {
-				if user := s.VerifyPasswordById(ctx, req.UserId, req.OldPassword); user != nil {
-					resp.Error = s.ResetPassword(ctx, req.UserId, req.NewPassword)
+				if user := s.VerifyPasswordById(ctx, req.UserId, string(*req.OldPassword)); user != nil {
+					resp.Error = s.ResetPassword(ctx, req.UserId, string(*req.NewPassword))
 				} else {
 					return nil, errors.UnauthorizedError()
 				}
@@ -201,7 +259,7 @@ func MakeDeleteUsersEndpoint(s service.Service) endpoint.Endpoint {
 func MakeUpdateUserEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*UpdateUserRequest)
-		resp := BaseResponse{}
+		resp := SimpleResponseWrapper[struct{}]{}
 		if resp.Error = s.UpdateUser(ctx, &models.User{
 			Model: models.Model{
 				Id:       req.Id,
@@ -232,7 +290,7 @@ func MakeGetUserInfoEndpoint(s service.Service) endpoint.Endpoint {
 func MakeCreateUserEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*CreateUserRequest)
-		resp := BaseResponse{}
+		resp := SimpleResponseWrapper[struct{}]{}
 		resp.Error = s.CreateUser(ctx, &models.User{
 			Username:    req.Username,
 			Email:       req.Email,
@@ -252,7 +310,7 @@ type PatchUserResponse struct {
 func MakePatchUserEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*PatchUserRequest)
-		resp := BaseResponse{}
+		resp := SimpleResponseWrapper[struct{}]{}
 		if len(req.Id) == 0 {
 			return nil, errors.ParameterError("There is an empty id in the patch.")
 		}
@@ -368,21 +426,69 @@ func MakeActivateAccountEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
+type TOTPSecret struct {
+	User   *models.User `json:"user"`
+	Secret string       `json:"secret"`
+	Salt   string       `json:"salt"`
+}
+
+func (s *TOTPSecret) SetSecret(secret string) (err error) {
+	globalSecret := config.Get().GetGlobal().GetSecret()
+	if globalSecret == "" {
+		return errors.NewServerError(500, "global secret is not set")
+	}
+	s.Salt = uuid.NewV4().String()
+	key := sha256.Sum256([]byte(s.Salt + (globalSecret)))
+	sec, err := crypto.NewAESCipher(key[:]).CBCEncrypt([]byte(secret))
+	s.Secret = base64.StdEncoding.EncodeToString(sec)
+	return err
+}
+
+func (s TOTPSecret) GetSecret() (secret string, err error) {
+	if len(s.Secret) == 0 || len(s.Salt) == 0 {
+		return "", nil
+	}
+	globalSecret := config.Get().GetGlobal().GetSecret()
+	if globalSecret == "" {
+		return "", errors.NewServerError(500, "global secret is not set")
+	}
+	key := sha256.Sum256([]byte(s.Salt + (globalSecret)))
+	decoded, err := base64.StdEncoding.DecodeString(s.Secret)
+	if err != nil {
+		return "", err
+	}
+	sec, err := crypto.NewAESCipher(key[:]).CBCDecrypt(decoded)
+	return string(sec), err
+}
+
 func MakeCreateTOTPSecretEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		secret := gotp.RandomSecret(128)
+		req := request.(Requester).GetRequestData().(*CreateTOTPSecretRequest)
 		resp := &SimpleResponseWrapper[CreateTOTPSecretResponseData]{}
-
-		user := ctx.Value(global.MetaUser).(*models.User)
-		if user == nil {
+		var user *models.User
+		if len(req.Token) != 0 {
+			user = new(models.User)
+			if !s.VerifyToken(ctx, req.Token, models.TokenTypeEnableMFA, user) {
+				return nil, errors.NewServerError(400, "Invalid token.")
+			}
+		} else if user, _ = ctx.Value(global.MetaUser).(*models.User); user == nil {
 			return nil, errors.NotLoginError()
 		}
-		token, err := s.CreateToken(ctx, models.TokenTypeTotpSecret, secret)
-		if err != nil {
-			resp.Error = err
-			return nil, err
+		randomSecret := gotp.RandomSecret(128)
+		secret := TOTPSecret{
+			User: user,
 		}
-		resp.Data.Secret = gotp.NewDefaultTOTP(secret).ProvisioningUri(user.Username, "IDAS")
+
+		if err = secret.SetSecret(randomSecret); err != nil {
+			resp.Error = errors.WithServerError(http.StatusInternalServerError, err, "Failed to general secret")
+			return resp, nil
+		}
+		token, err := s.CreateToken(ctx, models.TokenTypeTotpSecret, &secret)
+		if err != nil {
+			resp.Error = errors.WithServerError(http.StatusInternalServerError, err, "Failed to general secret")
+			return resp, nil
+		}
+		resp.Data.Secret = gotp.NewDefaultTOTP(randomSecret).ProvisioningUri(user.Username, "IDAS")
 		resp.Data.Token = token.Id
 		return resp, nil
 	}
@@ -396,23 +502,31 @@ func MakeCreateTOTPEndpoint(s service.Service) endpoint.Endpoint {
 		if user == nil {
 			return nil, errors.NotLoginError()
 		}
-		var secret string
+		var secret TOTPSecret
 		if !s.VerifyToken(ctx, req.Token, models.TokenTypeTotpSecret, &secret) {
 			resp.Error = errors.ParameterError("token")
 			return resp, nil
 		}
-
+		if user.Id != secret.User.Id {
+			resp.Error = errors.ParameterError("token")
+			return resp, nil
+		}
+		sec, err := secret.GetSecret()
+		if err != nil {
+			resp.Error = errors.WithServerError(http.StatusInternalServerError, err, "Failed to get secret")
+			return resp, nil
+		}
 		nowTime := time.Now()
 		ts := nowTime.Add(time.Second * time.Duration(-(nowTime.Second() % 30))).Unix()
-		totp := gotp.NewDefaultTOTP(secret)
+		totp := gotp.NewDefaultTOTP(sec)
 		if !totp.Verify(req.FirstCode, ts-30) {
 			resp.Error = errors.NewServerError(http.StatusBadRequest, "The first code is invalid or expired")
 		} else if !totp.Verify(req.SecondCode, ts) {
 			resp.Error = errors.NewServerError(http.StatusBadRequest, "The second code is invalid or expired")
 		} else {
-			resp.Error = s.CreateTOTP(ctx, user.Id, secret)
+			resp.Error = s.CreateTOTP(ctx, user.Id, sec)
 			if resp.Error == nil {
-				s.DeleteToken(ctx, models.TokenTypeTotpSecret, req.Token)
+				_ = s.DeleteToken(ctx, models.TokenTypeTotpSecret, req.Token)
 			}
 		}
 

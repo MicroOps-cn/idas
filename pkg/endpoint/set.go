@@ -38,26 +38,28 @@ import (
 )
 
 type UserEndpoints struct {
-	GetUsers         endpoint.Endpoint `description:"Get user list" role:"admin|viewer"`
-	DeleteUsers      endpoint.Endpoint `description:"Batch delete users" role:"admin"`
-	PatchUsers       endpoint.Endpoint `description:"Batch modify user information (incremental)" role:"admin"`
-	UpdateUser       endpoint.Endpoint `description:"Modify user information" role:"admin"`
-	GetUserInfo      endpoint.Endpoint `description:"Get user details" role:"admin|viewer"`
-	CreateUser       endpoint.Endpoint `description:"Create a user" role:"admin"`
-	PatchUser        endpoint.Endpoint `description:"Modify user information (incremental)" role:"admin"`
-	DeleteUser       endpoint.Endpoint `description:"Delete a user" role:"admin"`
-	ForgotPassword   endpoint.Endpoint `auth:"false"`
-	ResetPassword    endpoint.Endpoint `auth:"false"`
-	CurrentUser      endpoint.Endpoint `auth:"false"`
-	CreateUserKey    endpoint.Endpoint `description:"Create a user key-pair" role:"admin"`
-	DeleteUserKey    endpoint.Endpoint `description:"Delete a user key-pair" role:"admin"`
-	GetUserKeys      endpoint.Endpoint `description:"Get a user key-pairs" role:"admin|viewer"`
-	CreateKey        endpoint.Endpoint `auth:"false"`
-	SendActivateMail endpoint.Endpoint `description:"Send activation link to user mail" role:"admin"`
-	ActivateAccount  endpoint.Endpoint `auth:"false"`
-	CreateTOTPSecret endpoint.Endpoint `auth:"false"`
-	CreateTOTP       endpoint.Endpoint `auth:"false"`
-	SendLoginCaptcha endpoint.Endpoint `auth:"false"`
+	GetUsers          endpoint.Endpoint `description:"Get user list" role:"admin|viewer"`
+	DeleteUsers       endpoint.Endpoint `description:"Batch delete users" role:"admin"`
+	PatchUsers        endpoint.Endpoint `description:"Batch modify user information (incremental)" role:"admin"`
+	UpdateUser        endpoint.Endpoint `description:"Modify user information" role:"admin"`
+	GetUserInfo       endpoint.Endpoint `description:"Get user details" role:"admin|viewer"`
+	CreateUser        endpoint.Endpoint `description:"Create a user" role:"admin"`
+	PatchUser         endpoint.Endpoint `description:"Modify user information (incremental)" role:"admin"`
+	DeleteUser        endpoint.Endpoint `description:"Delete a user" role:"admin"`
+	ForgotPassword    endpoint.Endpoint `auth:"false"`
+	ResetPassword     endpoint.Endpoint `auth:"false"`
+	CurrentUser       endpoint.Endpoint `auth:"false"`
+	CreateUserKey     endpoint.Endpoint `description:"Create a user key-pair" role:"admin"`
+	DeleteUserKey     endpoint.Endpoint `description:"Delete a user key-pair" role:"admin"`
+	GetUserKeys       endpoint.Endpoint `description:"Get a user key-pairs" role:"admin|viewer"`
+	CreateKey         endpoint.Endpoint `auth:"false"`
+	SendActivateMail  endpoint.Endpoint `description:"Send activation link to user mail" role:"admin"`
+	ActivateAccount   endpoint.Endpoint `auth:"false"`
+	CreateTOTPSecret  endpoint.Endpoint `auth:"false"`
+	CreateTOTP        endpoint.Endpoint `auth:"false"`
+	SendLoginCaptcha  endpoint.Endpoint `auth:"false"`
+	UpdateCurrentUser endpoint.Endpoint `auth:"false"`
+	PatchCurrentUser  endpoint.Endpoint `auth:"false"`
 }
 
 type AppEndpoints struct {
@@ -122,6 +124,11 @@ type ProxyEndpoints struct {
 	GetProxyConfig endpoint.Endpoint `auth:"false"`
 }
 
+type ConfigEndpoints struct {
+	GetSecurityConfig   endpoint.Endpoint `description:"Get security config." role:"admin"`
+	PatchSecurityConfig endpoint.Endpoint `description:"Patch security config." role:"admin"`
+}
+
 // Set collects all of the endpoints that compose an add service. It's meant to
 // be used as a helper struct, to collect all of the endpoints into a single
 // parameter.
@@ -133,6 +140,7 @@ type Set struct {
 	FileEndpoints    `name:"File" description:"File"`
 	ProxyEndpoints   `name:"Proxy" description:"Proxy"`
 	PageEndpoints    `name:"Page" description:"Page"`
+	ConfigEndpoints  `name:"Config" description:"System Config Manage"`
 }
 
 func GetPermissionsDefine(typeOf reflect.Type) models.Permissions {
@@ -174,7 +182,7 @@ func GetPermissionsDefine(typeOf reflect.Type) models.Permissions {
 
 // New returns a Set that wraps the provided server, and wires in all of the
 // expected endpoint middlewares via the various parameters.
-func New(ctx context.Context, svc service.Service, duration metrics.Histogram, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer) Set {
+func New(_ context.Context, svc service.Service, duration metrics.Histogram, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer) Set {
 	ps := Set{}.GetPermissionsDefine()
 	eps := sets.New[string]()
 	injectEndpoint := func(name string, ep endpoint.Endpoint) endpoint.Endpoint {
@@ -208,26 +216,28 @@ func New(ctx context.Context, svc service.Service, duration metrics.Histogram, o
 			DownloadFile: injectEndpoint("DownloadFile", MakeDownloadFileEndpoint(svc)),
 		},
 		UserEndpoints: UserEndpoints{
-			CurrentUser:      injectEndpoint("CurrentUser", MakeCurrentUserEndpoint(svc)),
-			ResetPassword:    injectEndpoint("ResetPassword", MakeResetUserPasswordEndpoint(svc)),
-			ForgotPassword:   injectEndpoint("ForgotPassword", MakeForgotPasswordEndpoint(svc)),
-			GetUsers:         injectEndpoint("GetUsers", MakeGetUsersEndpoint(svc)),
-			DeleteUsers:      injectEndpoint("DeleteUsers", MakeDeleteUsersEndpoint(svc)),
-			PatchUsers:       injectEndpoint("PatchUsers", MakePatchUsersEndpoint(svc)),
-			UpdateUser:       injectEndpoint("UpdateUser", MakeUpdateUserEndpoint(svc)),
-			GetUserInfo:      injectEndpoint("GetUserInfo", MakeGetUserInfoEndpoint(svc)),
-			CreateUser:       injectEndpoint("CreateUser", MakeCreateUserEndpoint(svc)),
-			PatchUser:        injectEndpoint("PatchUser", MakePatchUserEndpoint(svc)),
-			DeleteUser:       injectEndpoint("DeleteUser", MakeDeleteUserEndpoint(svc)),
-			CreateUserKey:    injectEndpoint("CreateUserKey", MakeCreateUserKeyEndpoint(svc)),
-			DeleteUserKey:    injectEndpoint("DeleteUserKey", MakeDeleteUserKeyEndpoint(svc)),
-			GetUserKeys:      injectEndpoint("GetUserKeys", MakeGetUserKeysEndpoint(svc)),
-			CreateKey:        injectEndpoint("CreateKey", MakeCreateKeyEndpoint(svc)),
-			SendActivateMail: injectEndpoint("SendActivateMail", MakeSendActivationMailEndpoint(svc)),
-			ActivateAccount:  injectEndpoint("ActivateAccount", MakeActivateAccountEndpoint(svc)),
-			CreateTOTPSecret: injectEndpoint("CreateTOTPSecret", MakeCreateTOTPSecretEndpoint(svc)),
-			CreateTOTP:       injectEndpoint("CreateTOTP", MakeCreateTOTPEndpoint(svc)),
-			SendLoginCaptcha: injectEndpoint("SendLoginCaptcha", MakeSendLoginCaptchaEndpoint(svc)),
+			CurrentUser:       injectEndpoint("CurrentUser", MakeCurrentUserEndpoint(svc)),
+			ResetPassword:     injectEndpoint("ResetPassword", MakeResetUserPasswordEndpoint(svc)),
+			ForgotPassword:    injectEndpoint("ForgotPassword", MakeForgotPasswordEndpoint(svc)),
+			GetUsers:          injectEndpoint("GetUsers", MakeGetUsersEndpoint(svc)),
+			DeleteUsers:       injectEndpoint("DeleteUsers", MakeDeleteUsersEndpoint(svc)),
+			PatchUsers:        injectEndpoint("PatchUsers", MakePatchUsersEndpoint(svc)),
+			UpdateUser:        injectEndpoint("UpdateUser", MakeUpdateUserEndpoint(svc)),
+			GetUserInfo:       injectEndpoint("GetUserInfo", MakeGetUserInfoEndpoint(svc)),
+			CreateUser:        injectEndpoint("CreateUser", MakeCreateUserEndpoint(svc)),
+			PatchUser:         injectEndpoint("PatchUser", MakePatchUserEndpoint(svc)),
+			DeleteUser:        injectEndpoint("DeleteUser", MakeDeleteUserEndpoint(svc)),
+			CreateUserKey:     injectEndpoint("CreateUserKey", MakeCreateUserKeyEndpoint(svc)),
+			DeleteUserKey:     injectEndpoint("DeleteUserKey", MakeDeleteUserKeyEndpoint(svc)),
+			GetUserKeys:       injectEndpoint("GetUserKeys", MakeGetUserKeysEndpoint(svc)),
+			CreateKey:         injectEndpoint("CreateKey", MakeCreateKeyEndpoint(svc)),
+			SendActivateMail:  injectEndpoint("SendActivateMail", MakeSendActivationMailEndpoint(svc)),
+			ActivateAccount:   injectEndpoint("ActivateAccount", MakeActivateAccountEndpoint(svc)),
+			CreateTOTPSecret:  injectEndpoint("CreateTOTPSecret", MakeCreateTOTPSecretEndpoint(svc)),
+			CreateTOTP:        injectEndpoint("CreateTOTP", MakeCreateTOTPEndpoint(svc)),
+			SendLoginCaptcha:  injectEndpoint("SendLoginCaptcha", MakeSendLoginCaptchaEndpoint(svc)),
+			UpdateCurrentUser: injectEndpoint("UpdateCurrentUser", MakeUpdateCurrentUserEndpoint(svc)),
+			PatchCurrentUser:  injectEndpoint("PatchCurrentUser", MakePatchCurrentUserEndpoint(svc)),
 		},
 		SessionEndpoints: SessionEndpoints{
 			GetSessions:            injectEndpoint("GetSessions", MakeGetSessionsEndpoint(svc)),
@@ -280,6 +290,10 @@ func New(ctx context.Context, svc service.Service, duration metrics.Histogram, o
 			UpdatePageData: injectEndpoint("UpdatePageData", MakeUpdatePageDataEndpoint(svc)),
 			DeletePageData: injectEndpoint("DeletePageData", MakeDeletePageDataEndpoint(svc)),
 			PatchPageDatas: injectEndpoint("PatchPageDatas", MakePatchPageDatasEndpoint(svc)),
+		},
+		ConfigEndpoints: ConfigEndpoints{
+			GetSecurityConfig:   injectEndpoint("GetSecurityConfig", MakeGetSecurityConfigEndpoint(svc)),
+			PatchSecurityConfig: injectEndpoint("PatchSecurityConfig", MakePatchSecurityConfigEndpoint(svc)),
 		},
 	}
 }

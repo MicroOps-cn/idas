@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"time"
 
-	w "github.com/MicroOps-cn/fuck/wrapper"
+	logs "github.com/MicroOps-cn/fuck/log"
+	"github.com/go-kit/log/level"
+
 	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
@@ -39,6 +41,7 @@ type SessionService interface {
 	DeleteToken(ctx context.Context, tokenType models.TokenType, id string) (err error)
 	GetToken(ctx context.Context, token string, tokenType models.TokenType, relationId ...string) (*models.Token, error)
 	CreateToken(ctx context.Context, token *models.Token) error
+	UpdateToken(ctx context.Context, token *models.Token) error
 }
 
 func NewSessionService(_ context.Context) SessionService {
@@ -64,22 +67,30 @@ func (s Set) DeleteLoginSession(ctx context.Context, sessionId string) error {
 }
 
 func (s Set) GetSessionByToken(ctx context.Context, id string, tokenType models.TokenType, receiver interface{}) (err error) {
+	logger := logs.GetContextLogger(ctx)
 	token, err := s.sessionService.GetToken(ctx, id, tokenType)
 	if err != nil {
 		return err
+	}
+
+	if time.Since(token.LastSeen) > time.Minute {
+		token.LastSeen = time.Now()
+		if err = s.sessionService.UpdateToken(ctx, token); err != nil {
+			level.Warn(logger).Log("msg", "failed to update token last seen.", "err", err)
+		}
 	}
 	return token.To(receiver)
 }
 
 func (s Set) GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId string) (accessToken, refreshToken string, expiresIn int, err error) {
-	var users models.Users
-	if err = s.GetSessionByToken(ctx, code, models.TokenTypeCode, &users); err == nil && len(users) > 0 {
+	var user models.User
+	if err = s.GetSessionByToken(ctx, code, models.TokenTypeCode, &user); err == nil && len(user.Id) > 0 {
 		_ = s.DeleteToken(ctx, models.TokenTypeCode, code)
-		at, err := s.CreateToken(ctx, models.TokenTypeToken, w.Interfaces[*models.User](users)...)
+		at, err := s.CreateToken(ctx, models.TokenTypeToken, &user)
 		if err != nil {
 			return "", "", 0, err
 		}
-		rt, err := s.CreateToken(ctx, models.TokenTypeRefreshToken, w.Interfaces[*models.User](users)...)
+		rt, err := s.CreateToken(ctx, models.TokenTypeRefreshToken, &user)
 		if err != nil {
 			return "", "", 0, err
 		}

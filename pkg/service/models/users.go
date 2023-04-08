@@ -22,12 +22,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/MicroOps-cn/fuck/crypto"
-	"github.com/MicroOps-cn/idas/config"
-	"github.com/MicroOps-cn/idas/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 	"reflect"
 	"strings"
+
+	"github.com/MicroOps-cn/fuck/crypto"
+	uuid "github.com/satori/go.uuid"
+
+	"github.com/MicroOps-cn/idas/config"
+	"github.com/MicroOps-cn/idas/pkg/errors"
 )
 
 func (u User) MarshalJSON() ([]byte, error) {
@@ -69,6 +71,10 @@ func (u User) GetAttr(name string) string {
 		}
 	}
 	return ""
+}
+
+func (u User) IsForceMfa() bool {
+	return config.Get().GetSecurity().GetForceMfa() || (u.ExtendedData != nil && u.ExtendedData.ForceMFA)
 }
 
 type Users []*User

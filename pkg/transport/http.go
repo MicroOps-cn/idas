@@ -303,6 +303,10 @@ func encodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response int
 			resp.Data = response
 		}
 	}
+
+	if ctx.Value(global.MetaSensitiveData) == true {
+		return json.NewEncoder(w).Encode(resp)
+	}
 	logWriter := logs.NewWriterAdapter(level.Debug(log.With(logs.WithCaller(7)(logger), "resp", fmt.Sprintf("%#v", resp))), logs.Prefix("encoded http response: ", true))
 	return json.NewEncoder(io.MultiWriter(w, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Encode(resp)
 }

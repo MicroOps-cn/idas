@@ -25,6 +25,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/conv"
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/go-kit/log/level"
@@ -49,6 +50,8 @@ type CommonService interface {
 	CreateOrUpdateRoleByName(ctx context.Context, role *models.Role) error
 	Authorization(ctx context.Context, roles []string, method string) bool
 
+	GetUserExtendedData(ctx context.Context, id string) (*models.UserExt, error)
+	PatchUserExtData(ctx context.Context, id string, patch map[string]interface{}) error
 	GetUserKey(ctx context.Context, key string) (*models.UserKey, error)
 	GetUserKeys(ctx context.Context, userId string, current, pageSize int64) (count int64, keyPairs []*models.UserKey, err error)
 	CreateUserKeyWithId(ctx context.Context, userId string, name string) (userKey *models.UserKey, err error)
@@ -80,7 +83,8 @@ type CommonService interface {
 	PatchPageDatas(ctx context.Context, patch []models.PageData) error
 	CreateTOTP(ctx context.Context, ids string, secret string) error
 	GetTOTPSecrets(ctx context.Context, ids []string) ([]string, error)
-	GetUserExtendedData(ctx context.Context, id string) (*models.UserExt, error)
+	PatchSystemConfig(ctx context.Context, prefix string, patch map[string]interface{}) error
+	GetSystemConfig(ctx context.Context, prefix string) (map[string]interface{}, error)
 }
 
 func NewCommonService(ctx context.Context) CommonService {
@@ -97,6 +101,19 @@ func NewCommonService(ctx context.Context) CommonService {
 		panic(fmt.Sprintf("failed to initialize CommonService: unknown data source: %T", commonSource))
 	}
 	return commonService
+}
+
+func (s Set) LoadSystemConfig(ctx context.Context) error {
+	cfgs, err := s.commonService.GetSystemConfig(ctx, "security")
+	if err != nil {
+		return fmt.Errorf("failed to load runtime config: %s", err)
+	}
+	config.SetRuntimeConfig(func(c *config.RuntimeConfig) {
+		if err = conv.JSON(cfgs, c.Security); err != nil {
+			err = fmt.Errorf("failed to parse runtime config: %s", err)
+		}
+	})
+	return err
 }
 
 func (s Set) UploadFile(ctx context.Context, name, contentType string, f io.Reader) (fileKey string, err error) {

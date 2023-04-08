@@ -76,10 +76,12 @@ type Service interface {
 	DeleteUsers(ctx context.Context, id []string) (count int64, err error)
 	UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (err error)
 	GetUserInfo(ctx context.Context, id, username string) (user *models.User, err error)
+	GetUser(ctx context.Context, options ...opts.WithGetUserOptions) (user *models.User, err error)
 	GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (user *models.User, err error)
 	CreateUser(ctx context.Context, user *models.User) (err error)
 	PatchUser(ctx context.Context, user map[string]interface{}) (err error)
 	DeleteUser(ctx context.Context, id string) error
+	PatchUserExtData(ctx context.Context, id string, m map[string]interface{}) error
 	Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm sign.AuthAlgorithm, key, secret, payload, signStr string) (*models.User, error)
 	CreateUserKey(ctx context.Context, userId, name string) (keyPair *models.UserKey, err error)
 	GetUserKeys(ctx context.Context, userId string, current, pageSize int64) (count int64, keyPairs []*models.UserKey, err error)
@@ -98,7 +100,9 @@ type Service interface {
 	ResetPassword(ctx context.Context, id, password string) error
 	VerifyPasswordById(ctx context.Context, userId, password string) (user *models.User)
 
-	CreateToken(ctx context.Context, tokenType models.TokenType, data ...interface{}) (token *models.Token, err error)
+	UpdateToken(ctx context.Context, id string, tokenType models.TokenType, data interface{}) (err error)
+	UpdateUserSession(ctx context.Context, userId string) (err error)
+	CreateToken(ctx context.Context, tokenType models.TokenType, data interface{}) (token *models.Token, err error)
 	VerifyToken(ctx context.Context, token string, tokenType models.TokenType, receiver interface{}, relationId ...string) bool
 	SendEmail(ctx context.Context, data map[string]interface{}, topic string, to ...string) error
 	Authorization(ctx context.Context, user *models.User, method string) bool
@@ -125,6 +129,8 @@ type Service interface {
 	GetPageDatas(ctx context.Context, filters map[string]string, keywords string, current int64, size int64) (int64, []*models.PageData, error)
 	CreateTOTP(ctx context.Context, ids string, secret string) error
 	GetTOTPSecrets(ctx context.Context, ids []string) ([]string, error)
+	PatchSystemConfig(ctx context.Context, prefix string, patch map[string]interface{}) error
+	LoadSystemConfig(ctx context.Context) error
 }
 
 type Set struct {
@@ -189,8 +195,8 @@ func (s Set) SendEmail(ctx context.Context, data map[string]interface{}, topic s
 	return client.Send()
 }
 
-func (s Set) CreateToken(ctx context.Context, tokenType models.TokenType, data ...interface{}) (token *models.Token, err error) {
-	tk, err := models.NewToken(tokenType, data...)
+func (s Set) CreateToken(ctx context.Context, tokenType models.TokenType, data interface{}) (token *models.Token, err error) {
+	tk, err := models.NewToken(tokenType, data)
 	if err != nil {
 		return nil, err
 	}
@@ -201,13 +207,77 @@ func (s Set) CreateToken(ctx context.Context, tokenType models.TokenType, data .
 	return tk, nil
 }
 
+func (s Set) UpdateToken(ctx context.Context, id string, tokenType models.TokenType, data interface{}) (err error) {
+	tk, err := models.NewToken(tokenType, data)
+	if err != nil {
+		return err
+	}
+	tk.Id = id
+	err = s.sessionService.UpdateToken(ctx, tk)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s Set) UpdateUserSession(ctx context.Context, userId string) (err error) {
+	newUser, err := s.GetUser(ctx, opts.WithUserId(userId), opts.WithUserExt)
+	if err != nil {
+		return err
+	}
+	logger := logs.GetContextLogger(ctx)
+	if err != nil {
+		level.Warn(logger).Log("msg", "Failed to update current user cache info: can't get user info.", "err", err)
+	} else {
+		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithUsers(userId), opts.WithAppName("IDAS"))
+		if err != nil && !errors.IsNotFount(err) {
+			level.Error(logger).Log("msg", "failed to get app info", "err", err)
+		} else if app != nil {
+			role, err := s.GetAppRoleByUserId(ctx, app.Id, userId)
+			if err == nil {
+				newUser.RoleId = role.Id
+				newUser.Role = role.Name
+			} else if !errors.IsNotFount(err) {
+				level.Error(logger).Log("msg", "failed to get app role", "err", err)
+			}
+		}
+		var sessions []*models.Token
+		var maxCount, count, current int64
+		for count <= maxCount {
+			current++
+			maxCount, sessions, err = s.sessionService.GetSessions(ctx, userId, current, 100)
+			if err != nil {
+				return err
+			} else if len(sessions) == 0 {
+				return nil
+			}
+			count += int64(len(sessions))
+			for _, tk := range sessions {
+				rawData, err := json.Marshal(newUser)
+				if err != nil {
+					return err
+				}
+				tk.Data = rawData
+				if err = s.sessionService.UpdateToken(ctx, tk); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (s Set) ResetPassword(ctx context.Context, id string, password string) error {
 	return s.userAndAppService.ResetPassword(ctx, id, password)
 }
 
 func (s Set) VerifyToken(ctx context.Context, token string, tokenType models.TokenType, receiver interface{}, relationId ...string) bool {
 	logger := logs.GetContextLogger(ctx)
+	if len(token) == 0 {
+		return false
+	}
 	tk, err := s.sessionService.GetToken(ctx, token, tokenType, relationId...)
+
 	if err != nil {
 		return false
 	} else if tk == nil {
@@ -218,11 +288,10 @@ func (s Set) VerifyToken(ctx context.Context, token string, tokenType models.Tok
 		models.TokenTypeCode,
 		models.TokenTypeAppProxyLogin,
 		models.TokenTypeActive:
-		if err := s.DeleteToken(ctx, tokenType, tk.Id); err != nil {
+		if err = s.DeleteToken(ctx, tokenType, tk.Id); err != nil {
 			level.Warn(logger).Log("msg", "failed to delete token.", "err", err)
 		}
 	}
-
 	if !tk.Expiry.After(time.Now().UTC()) {
 		return false
 	}
@@ -329,6 +398,7 @@ type UserAndAppService interface {
 	UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (err error)
 	UpdateLoginTime(ctx context.Context, id string) error
 	GetUserInfo(ctx context.Context, id string, username string) (*models.User, error)
+	GetUser(ctx context.Context, options *opts.GetUserOptions) (*models.User, error)
 	CreateUser(ctx context.Context, user *models.User) (err error)
 	PatchUser(ctx context.Context, user map[string]interface{}) (err error)
 	DeleteUser(ctx context.Context, id string) error
@@ -352,7 +422,6 @@ type UserAndAppService interface {
 type UserAndAppServices []UserAndAppService
 
 func NewUserAndAppService(ctx context.Context) UserAndAppService {
-	var userService UserAndAppService
 	ctx, _ = logs.NewContextLogger(ctx, logs.WithKeyValues("service", "userAndApp"))
 	if config.Get().GetStorage().GetUser() != nil {
 		userStorage := config.Get().GetStorage().GetUser()
@@ -368,7 +437,6 @@ func NewUserAndAppService(ctx context.Context) UserAndAppService {
 		}
 
 	} else {
-		panic(fmt.Sprintf("Failed to init UserAndAppService: user source is not set"))
+		panic("Failed to init UserAndAppService: user source is not set")
 	}
-	return userService
 }

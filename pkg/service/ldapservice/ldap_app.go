@@ -439,12 +439,20 @@ func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]inter
 	if !ok {
 		return errors.ParameterError("unknown id")
 	}
-	if !strings.HasSuffix(id, s.Options().AppSearchBase) {
-		return errors.ParameterError("Illegal parameter id")
-	}
-	req := goldap.NewModifyRequest(id, nil)
+	delete(fields, "id")
 
+	dn, err := s.getAppDnByEntryUUID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	req := goldap.NewModifyRequest(dn, nil)
+
+	fmt.Println(fields)
 	for name, value := range fields {
+		if value == nil {
+			continue
+		}
 		ldapColumnName, ok := ldapColumnMap[name]
 		if !ok {
 			return errors.ParameterError("unsupported field name: " + name)
@@ -454,6 +462,9 @@ func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]inter
 			req.Replace(ldapColumnName, []string{strconv.Itoa(int(val))})
 		case string:
 			req.Replace(ldapColumnName, []string{val})
+		case *models.AppMeta_Status:
+			req.Replace(ldapColumnName, []string{strconv.Itoa(int(*val))})
+
 		default:
 			return errors.ParameterError(fmt.Sprintf("unsupported field value type: name=%s,type=%T", name, value))
 		}

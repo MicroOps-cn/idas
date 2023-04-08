@@ -22,13 +22,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/MicroOps-cn/fuck/buffer"
-	"github.com/MicroOps-cn/fuck/log"
-	w "github.com/MicroOps-cn/fuck/wrapper"
-	"github.com/MicroOps-cn/idas/pkg/logs"
-	"github.com/emicklei/go-restful/v3"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -37,9 +30,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/buffer"
+	"github.com/MicroOps-cn/fuck/log"
+	w "github.com/MicroOps-cn/fuck/wrapper"
+	"github.com/emicklei/go-restful/v3"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
+
 	"github.com/MicroOps-cn/idas/pkg/endpoint"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
+	"github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/utils/httputil"
 	"github.com/MicroOps-cn/idas/pkg/utils/sign"
@@ -275,12 +276,6 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 			errorEncoder(ctx, errors.NewServerError(http.StatusNotFound, "Not Found: "+req.Request.RequestURI), resp)
 			return
 		}
-		if needLogin, ok := ctx.Value(global.MetaNeedLogin).(bool); ok {
-			if !needLogin {
-				filterChan.ProcessFilter(req, resp)
-				return
-			}
-		}
 
 		if token := getTokenByRequest(req.Request); token != nil {
 			ctx = context.WithValue(ctx, global.LoginSession, token.Token)
@@ -292,7 +287,7 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 					filterChan.ProcessFilter(req, resp)
 					return
 				}
-				authError = errors.NewMultipleServerError(http.StatusUnauthorized, "can't get user by token")
+				authError = errors.NewServerError(http.StatusUnauthorized, "can't get user by token")
 			} else {
 				authError = errors.WithServerError(http.StatusUnauthorized, err, "failed to get session by token")
 			}
@@ -312,6 +307,12 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 			}
 		}
 
+		if needLogin, ok := ctx.Value(global.MetaNeedLogin).(bool); ok {
+			if !needLogin {
+				filterChan.ProcessFilter(req, resp)
+				return
+			}
+		}
 		if autoRedirectToLoginPage, ok := ctx.Value(global.MetaAutoRedirectToLoginPage).(bool); ok && autoRedirectToLoginPage {
 			if loginURL, ok := ctx.Value(global.HTTPLoginURLKey).(string); ok && len(loginURL) > 0 {
 				resp.Header().Set("Location", fmt.Sprintf("%s?redirect_uri=%s", loginURL, url.QueryEscape(req.Request.RequestURI)))
@@ -382,7 +383,7 @@ func HTTPLoggingFilter(pctx context.Context) func(req *restful.Request, resp *re
 
 		defer func() {
 			if r := recover(); r != nil {
-				errorEncoder(ctx, errors.NewServerError(http.StatusForbidden, "Server exception"), resp)
+				errorEncoder(ctx, errors.NewServerError(http.StatusInternalServerError, "Server exception"), resp)
 				buf := bytes.NewBufferString(fmt.Sprintf("recover from panic situation: - %v\n", r))
 				for i := 2; ; i++ {
 					_, file, line, ok := runtime.Caller(i)

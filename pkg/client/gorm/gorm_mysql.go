@@ -56,6 +56,7 @@ func openMysqlConn(ctx context.Context, slowThreshold time.Duration, options *My
 			Logger: NewLogAdapter(logger, slowThreshold),
 		},
 	)
+
 	if err != nil && autoCreateSchema {
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			if mysqlErr.Number == 1049 && autoCreateSchema {

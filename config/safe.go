@@ -52,17 +52,50 @@ var (
 
 type safeConfig struct {
 	sync.RWMutex
-	C *Config
+	C  *Config
+	RC *RuntimeConfig
 }
 
 func newSafeConfig() *safeConfig {
 	return &safeConfig{
 		C: &Config{},
+		RC: &RuntimeConfig{
+			Security: &RuntimeSecurityConfig{
+				ForceEnableMfa:              false,
+				PasswordComplexity:          0,
+				PasswordMinLength:           0,
+				PasswordExpireTime:          0,
+				PasswordFailedLockThreshold: 0,
+				PasswordFailedLockDuration:  0,
+				PasswordHistory:             0,
+				AccountInactiveLock:         0,
+			},
+		},
 	}
 }
 
 func Get() *Config {
 	return safeCfg.GetConfig()
+}
+
+func GetRuntimeConfig() *RuntimeConfig {
+	return safeCfg.GetRuntimeConfig()
+}
+
+func SetRuntimeConfig(f func(c *RuntimeConfig)) {
+	safeCfg.SetRuntimeConfig(f)
+}
+
+func (sc *safeConfig) SetRuntimeConfig(f func(c *RuntimeConfig)) {
+	sc.Lock()
+	defer sc.Unlock()
+	f(sc.RC)
+}
+
+func (sc *safeConfig) GetRuntimeConfig() *RuntimeConfig {
+	sc.RLock()
+	defer sc.RUnlock()
+	return sc.RC
 }
 
 func (sc *safeConfig) SetConfig(conf *Config) {

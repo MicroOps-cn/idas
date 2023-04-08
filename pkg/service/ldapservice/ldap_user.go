@@ -19,7 +19,6 @@ package ldapservice
 import (
 	"context"
 	"fmt"
-	"github.com/MicroOps-cn/idas/pkg/service/opts"
 	"strconv"
 	"strings"
 	"time"
@@ -35,6 +34,7 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/client/ldap"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
+	"github.com/MicroOps-cn/idas/pkg/service/opts"
 	"github.com/MicroOps-cn/idas/pkg/utils/httputil"
 )
 
@@ -330,34 +330,31 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 		} else {
 			users = info.Users[(current-1)*pageSize:]
 		}
-		return
-	} else {
-		total = int64(len(ret.Entries))
-		entrys := ret.Entries
-		if int((current-1)*pageSize) > len(entrys) {
-
-		} else if int(current*pageSize) < len(entrys) {
-			entrys = ret.Entries[(current-1)*pageSize : current*pageSize]
-		} else {
-			entrys = ret.Entries[(current-1)*pageSize:]
-		}
-		for _, entry := range entrys {
-			users = append(users, &models.User{
-				Model: models.Model{
-					Id:         entry.GetAttributeValue("entryUUID"),
-					CreateTime: w.M[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("createTimestamp"))),
-					UpdateTime: w.M[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("modifyTimestamp"))),
-				},
-				Username:    entry.GetAttributeValue(s.Options().GetAttrUsername()),
-				Email:       entry.GetAttributeValue(s.Options().GetAttrEmail()),
-				PhoneNumber: entry.GetAttributeValue(s.Options().GetAttrUserPhoneNo()),
-				FullName:    entry.GetAttributeValue(s.Options().GetAttrUserDisplayName()),
-				Avatar:      entry.GetAttributeValue("avatar"),
-				Status:      models.UserMeta_UserStatus(w.M[int](httputil.NewValue(entry.GetAttributeValue(UserStatusName)).Default("0").Int())),
-			})
-		}
-		return
+		return total, users, nil
 	}
+	total = int64(len(ret.Entries))
+	entrys := ret.Entries
+	if int(current*pageSize) >= len(entrys) {
+		entrys = ret.Entries[(current-1)*pageSize:]
+	} else if int((current-1)*pageSize) > len(entrys) && int(current*pageSize) < len(entrys) {
+		entrys = ret.Entries[(current-1)*pageSize : current*pageSize]
+	}
+	for _, entry := range entrys {
+		users = append(users, &models.User{
+			Model: models.Model{
+				Id:         entry.GetAttributeValue("entryUUID"),
+				CreateTime: w.M[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("createTimestamp"))),
+				UpdateTime: w.M[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("modifyTimestamp"))),
+			},
+			Username:    entry.GetAttributeValue(s.Options().GetAttrUsername()),
+			Email:       entry.GetAttributeValue(s.Options().GetAttrEmail()),
+			PhoneNumber: entry.GetAttributeValue(s.Options().GetAttrUserPhoneNo()),
+			FullName:    entry.GetAttributeValue(s.Options().GetAttrUserDisplayName()),
+			Avatar:      entry.GetAttributeValue("avatar"),
+			Status:      models.UserMeta_UserStatus(w.M[int](httputil.NewValue(entry.GetAttributeValue(UserStatusName)).Default("0").Int())),
+		})
+	}
+	return total, users, nil
 }
 
 // PatchUsers
@@ -496,6 +493,50 @@ func (s UserAndAppService) GetUserInfoById(ctx context.Context, id string) (*mod
 		fmt.Sprintf("(entryUUID=%s)", id), nil, nil,
 	)
 	return s.getUserByReq(ldap.WithConnContext(ctx, conn), searchReq)
+}
+
+// GetUser
+//
+//	@Description[en-US]: Get user info.
+//	@Description[zh-CN]: 获取用户信息
+//	@param ctx 	context.Context
+//	@param options 	opts.GetUserOptions
+//	@return userDetail	*models.User
+//	@return err	error
+func (s UserAndAppService) GetUser(ctx context.Context, o *opts.GetUserOptions) (*models.User, error) {
+	conn := s.Session(ctx)
+	defer conn.Close()
+	if len(o.Id) != 0 {
+		return s.GetUserInfoById(ldap.WithConnContext(ctx, conn), o.Id)
+	}
+	if len(o.Username) != 0 {
+		return s.getUserByUsername(ldap.WithConnContext(ctx, conn), o.Username)
+	}
+	if len(o.Email) != 0 {
+		filters := []string{
+			s.Options().ParseUserSearchFilter("*"),
+			fmt.Sprintf("(%s=%s)", s.Options().AttrEmail, o.Email),
+		}
+		searchReq := goldap.NewSearchRequest(
+			s.Options().UserSearchBase,
+			goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 2, 0, false,
+			fmt.Sprintf("(&%s)", strings.Join(filters, "")), nil, nil,
+		)
+		return s.getUserByReq(ctx, searchReq)
+	}
+	if len(o.PhoneNumber) > 0 {
+		filters := []string{
+			s.Options().ParseUserSearchFilter("*"),
+			fmt.Sprintf("(%s=%s)", s.Options().AttrUserPhoneNo, o.PhoneNumber),
+		}
+		searchReq := goldap.NewSearchRequest(
+			s.Options().UserSearchBase,
+			goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 2, 0, false,
+			fmt.Sprintf("(&%s)", strings.Join(filters, "")), nil, nil,
+		)
+		return s.getUserByReq(ctx, searchReq)
+	}
+	return nil, errors.NewServerError(500, "Unknown user filter condition")
 }
 
 // GetUserInfo

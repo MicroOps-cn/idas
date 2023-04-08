@@ -30,6 +30,7 @@ const (
 	MetaUser                    = "__user__"
 	MetaProxyConfig             = "__proxy_config__"
 	MetaNeedLogin               = "__need_login__"
+	MetaUpdateLastSeen          = "__need_login__"
 	MetaForceOk                 = "__force_ok__"
 	MetaSensitiveData           = "__sensitive_data__"
 	MetaAutoRedirectToLoginPage = "__auto_redirect_to_login_page__"

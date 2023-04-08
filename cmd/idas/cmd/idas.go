@@ -41,6 +41,7 @@ import (
 	"github.com/openzipkin/zipkin-go"
 	zipkinhttp "github.com/openzipkin/zipkin-go/reporter/http"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 	"sourcegraph.com/sourcegraph/appdash"
@@ -158,7 +159,9 @@ func Run(ctx context.Context, logger kitlog.Logger, _ *signals.StopChan) (err er
 		proxyHandler = transport.NewProxyHandler(ctx, logger, endpoints, tracer, zipkinTracer)
 		httpServer   = http.NewServeMux()
 	)
-
+	if err = svc.LoadSystemConfig(ctx); err != nil {
+		panic(fmt.Errorf("failed to load system config: %s", err))
+	}
 	if len(swaggerPath) > 0 && len(openapiPath) > 0 && len(swaggerFilePath) > 0 {
 		stat, err := os.Stat(swaggerFilePath)
 		if err != nil {
@@ -181,6 +184,7 @@ func Run(ctx context.Context, logger kitlog.Logger, _ *signals.StopChan) (err er
 			level.Error(logger).Log("transport", "debug/HTTP", "during", "Listen", "err", err)
 			os.Exit(1)
 		}
+		http.DefaultServeMux.Handle("/metrics", promhttp.Handler())
 		g.Add(func() error {
 			level.Info(logger).Log("msg", "Listening port", "transport", "debug/HTTP", "addr", debugAddr)
 			return http.Serve(debugListener, http.DefaultServeMux)

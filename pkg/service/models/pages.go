@@ -60,7 +60,9 @@ func (c *FieldsConfig) Scan(value any) error {
 // Value implements the driver Valuer interface.
 func (c FieldsConfig) Value() (driver.Value, error) {
 	marshal, err := json.Marshal(c)
-
+	if err != nil {
+		return nil, err
+	}
 	buf := bytes.NewBuffer(nil)
 	w := zlib.NewWriter(buf)
 	_, err = w.Write(marshal)
@@ -70,7 +72,7 @@ func (c FieldsConfig) Value() (driver.Value, error) {
 	if err = w.Flush(); err != nil {
 		return nil, err
 	}
-	return string(buf.Bytes()), err
+	return buf.String(), err
 }
 
 type PageConfig struct {

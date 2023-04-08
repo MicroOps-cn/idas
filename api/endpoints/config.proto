@@ -1,0 +1,22 @@
+syntax = "proto3";
+package idas.endpoint;
+import public "gogoproto/gogo.proto";
+import "config.proto";
+import "endpoints/base.proto";
+option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
+
+message PatchSecurityConfigRequest{
+  bool force_enable_mfa = 1[(gogoproto.customtype) = "bool",(gogoproto.jsontag) = "forceEnableMfa,omitempty"];
+  config.PasswordComplexity  password_complexity = 2[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/config.PasswordComplexity",(gogoproto.jsontag) = "passwordComplexity,omitempty"];
+  uint32 password_min_length = 3[(gogoproto.customtype) = "uint32",(gogoproto.jsontag) = "passwordMinLength,omitempty,omitempty"];
+  uint32 password_expire_time = 4[(gogoproto.customtype) = "uint32",(gogoproto.jsontag) = "passwordExpireTime,omitempty"];
+  uint32 password_failed_lock_threshold = 5[(gogoproto.customtype) = "uint32",(gogoproto.jsontag) = "passwordFailedLockThreshold,omitempty"];
+  uint32 password_failed_lock_duration = 6[(gogoproto.customtype) = "uint32",(gogoproto.jsontag) = "passwordFailedLockDuration,omitempty"];
+  uint32 password_history = 7[(gogoproto.customtype) = "uint32",(gogoproto.jsontag) = "passwordHistory,omitempty"];
+  uint32 account_inactive_lock = 8[(gogoproto.customtype) = "uint32",(gogoproto.jsontag) = "accountInactiveLock,omitempty"];
+}
+
+message GetSecurityConfigResponse{
+  idas.endpoint.BaseResponse base_list_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  config.RuntimeSecurityConfig data = 2;
+}

@@ -48,7 +48,7 @@ func MakeGetRolesEndpoint(s service.Service) endpoint.Endpoint {
 func MakeCreateRoleEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*CreateRoleRequest)
-		resp := BaseResponse{}
+		resp := SimpleResponseWrapper[struct{}]{}
 		role := &models.Role{
 			Name:        req.Name,
 			Description: req.Description,
@@ -64,7 +64,7 @@ func MakeCreateRoleEndpoint(s service.Service) endpoint.Endpoint {
 func MakeUpdateRoleEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*UpdateRoleRequest)
-		resp := BaseResponse{}
+		resp := SimpleResponseWrapper[struct{}]{}
 		role := &models.Role{
 			Model:       models.Model{Id: req.Id},
 			Name:        req.Name,
