@@ -22,8 +22,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/MicroOps-cn/idas/pkg/utils/sign"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/MicroOps-cn/fuck/crypto"
 	uuid "github.com/satori/go.uuid"
@@ -74,7 +76,7 @@ func (u User) GetAttr(name string) string {
 }
 
 func (u User) IsForceMfa() bool {
-	return config.Get().GetSecurity().GetForceMfa() || (u.ExtendedData != nil && u.ExtendedData.ForceMFA)
+	return config.GetRuntimeConfig().Security.ForceEnableMfa || (u.ExtendedData != nil && u.ExtendedData.ForceMFA)
 }
 
 type Users []*User
@@ -113,13 +115,16 @@ type AppKey struct {
 }
 
 type UserExt struct {
-	UserId     string `json:"userId" gorm:"unique"`
-	ForceMFA   bool
-	TOTPSecret sql.RawBytes `json:"-" gorm:"column:totp_secret;type:tinyblob"`
-	TOTPSalt   sql.RawBytes `json:"-" gorm:"column:totp_salt;type:tinyblob"`
-	EmailAsMFA bool         `json:"emailAsMFA" gorm:"column:email_as_mfa"`
-	SmsAsMFA   bool         `json:"smsAsMFA" gorm:"column:sms_as_mfa"`
-	TOTPAsMFA  bool         `json:"totpAsMFA" gorm:"column:totp_as_mfa"`
+	UserId             string `json:"userId" gorm:"primary_key;type:char(36)"`
+	ForceMFA           bool
+	TOTPSecret         sql.RawBytes `json:"-" gorm:"column:totp_secret;type:tinyblob"`
+	TOTPSalt           sql.RawBytes `json:"-" gorm:"column:totp_salt;type:tinyblob"`
+	EmailAsMFA         bool         `json:"emailAsMFA" gorm:"column:email_as_mfa"`
+	SmsAsMFA           bool         `json:"smsAsMFA" gorm:"column:sms_as_mfa"`
+	TOTPAsMFA          bool         `json:"totpAsMFA" gorm:"column:totp_as_mfa"`
+	PasswordModifyTime time.Time    `json:"passwordModifyTime" gorm:"column:password_modify_time"`
+	LoginTime          time.Time    ` json:"loginTime" gorm:"column:login_time"`
+	ActivationTime     time.Time    ` json:"activationTime" gorm:"column:activation_time"`
 }
 
 func (u *UserExt) SetSecret(secret string) (err error) {
@@ -144,4 +149,23 @@ func (u UserExt) GetSecret() (secret string, err error) {
 	key := sha256.Sum256([]byte(string(u.TOTPSalt) + (globalSecret)))
 	sec, err := crypto.NewAESCipher(key[:]).CBCDecrypt(u.TOTPSecret)
 	return string(sec), err
+}
+
+type UserPasswordHistory struct {
+	Model
+	UserId string `gorm:"type:char(36);" json:"userId"`
+	Hash   string `gorm:"type:char(88);" json:"hash"`
+}
+
+func (h *UserPasswordHistory) SetPassword(p string) error {
+	if len(h.UserId) == 0 {
+		return fmt.Errorf("User ID is empty. ")
+	}
+	h.Hash = sign.SumSha512Hmac(h.UserId, p)
+	return nil
+}
+
+type WeakPassword struct {
+	Id   int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	Hash string `gorm:"type:char(88);uniqueIndex:idx_hash" json:"hash"`
 }

@@ -334,10 +334,12 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 	}
 	total = int64(len(ret.Entries))
 	entrys := ret.Entries
-	if int(current*pageSize) >= len(entrys) {
-		entrys = ret.Entries[(current-1)*pageSize:]
-	} else if int((current-1)*pageSize) > len(entrys) && int(current*pageSize) < len(entrys) {
-		entrys = ret.Entries[(current-1)*pageSize : current*pageSize]
+	if int((current-1)*pageSize) < len(entrys) {
+		if int(current*pageSize) >= len(entrys) {
+			entrys = ret.Entries[(current-1)*pageSize:]
+		} else if int(current*pageSize) < len(entrys) {
+			entrys = ret.Entries[(current-1)*pageSize : current*pageSize]
+		}
 	}
 	for _, entry := range entrys {
 		users = append(users, &models.User{
@@ -448,20 +450,22 @@ func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, up
 	if err != nil {
 		return err
 	}
-	objectClass.Insert(s.GetUserClass().List()...)
 
 	if len(updateColumns) == 0 {
-		updateColumns = []string{"object_class", "username", "email", "phone_number", "full_name", "avatar", "status"}
+		updateColumns = []string{"username", "email", "phone_number", "full_name", "avatar", "status"}
 	}
 	columns := sets.New[string](updateColumns...)
 	req := goldap.NewModifyRequest(dn, nil)
 	replace := []ldapUpdateColumn{
-		{columnName: "object_class", ldapColumnName: "objectClass", val: objectClass.List()},
 		{columnName: "email", ldapColumnName: s.Options().GetAttrEmail(), val: []string{user.Email}},
 		{columnName: "phone_number", ldapColumnName: s.Options().GetAttrUserPhoneNo(), val: []string{user.PhoneNumber}},
 		{columnName: "full_name", ldapColumnName: s.Options().GetAttrUserDisplayName(), val: []string{user.FullName}},
 		{columnName: "avatar", ldapColumnName: "avatar", val: []string{user.Avatar}},
 		{columnName: "status", ldapColumnName: "status", val: []string{strconv.Itoa(int(user.Status))}},
+	}
+	if !objectClass.HasAll(s.GetUserClass().List()...) {
+		objectClass.Insert(s.GetUserClass().List()...)
+		req.Replace("objectClass", objectClass.List())
 	}
 
 	for _, value := range replace {
@@ -581,7 +585,7 @@ func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (e
 	req := goldap.NewAddRequest(dn, nil)
 
 	attrs := map[string][]string{
-		"mail":                               {user.Email},
+		s.Options().GetAttrEmail():           {user.Email},
 		s.Options().GetAttrUserPhoneNo():     {user.PhoneNumber},
 		s.Options().GetAttrUsername():        {user.Username},
 		s.Options().GetAttrUserDisplayName(): {user.FullName},

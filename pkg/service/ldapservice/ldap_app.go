@@ -95,7 +95,7 @@ func (s UserAndAppService) getAppDetailByDn(ctx context.Context, dn string, opti
 func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *goldap.SearchRequest, opt *opts.GetAppOptions) (*models.App, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
-	searchReq.Attributes = []string{"entryUUID", "description", "cn", "avatar", "uniqueMember", "member", "createTimestamp", "modifyTimestamp", "grantMode", "grantType", GroupStatusName}
+	searchReq.Attributes = []string{"entryUUID", "description", "cn", "avatar", "uniqueMember", "member", "createTimestamp", "modifyTimestamp", "grantMode", "grantType", "displayName", GroupStatusName, "url"}
 
 	ret, err := conn.Search(searchReq)
 	if err != nil {
@@ -118,7 +118,7 @@ func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *gol
 					}
 					continue
 				}
-				if len(opt.UserId) > 0 && !w.Include(opt.UserId, userInfo.Id) {
+				if len(opt.UserId) == 0 || w.Include(opt.UserId, userInfo.Id) {
 					users = append(users, userInfo)
 				}
 			}
@@ -134,10 +134,12 @@ func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *gol
 		Name:        appEntry.GetAttributeValue("cn"),
 		Description: appEntry.GetAttributeValue("description"),
 		Avatar:      appEntry.GetAttributeValue("avatar"),
+		DisplayName: appEntry.GetAttributeValue("displayName"),
 		Status:      models.AppMeta_Status(w.M[int](httputil.NewValue(appEntry.GetAttributeValue(GroupStatusName)).Default("0").Int())),
 		GrantMode:   models.AppMeta_GrantMode(w.M[int](httputil.NewValue(appEntry.GetAttributeValue("grantMode")).Default("0").Int())),
 		GrantType:   models.AppMeta_GrantType(w.M[int](httputil.NewValue(appEntry.GetAttributeValue("grantType")).Default("0").Int())),
 		Users:       users,
+		Url:         appEntry.GetAttributeValue("url"),
 	}, nil
 }
 
@@ -163,6 +165,19 @@ func (s UserAndAppService) GetApps(ctx context.Context, keywords string, filters
 		switch name {
 		case "id":
 			name = "entryUUID"
+		case "user_id":
+			searchReq := goldap.NewSearchRequest(
+				s.Options().UserSearchBase,
+				goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 10, 0, false,
+				fmt.Sprintf("(entryUUID=%s)", val), nil, nil,
+			)
+			dns, err := s.getDNSByReq(ldap.WithConnContext(ctx, conn), searchReq)
+			if err != nil {
+				return 0, nil, err
+			}
+			val = dns[0]
+			fts = append(fts, fmt.Sprintf("(|(uniqueMember=%v)(member=%v))", val, val))
+			continue
 		}
 		fts = append(fts, fmt.Sprintf("(%s=%v)", name, val))
 	}
@@ -174,7 +189,7 @@ func (s UserAndAppService) GetApps(ctx context.Context, keywords string, filters
 		s.Options().AppSearchBase,
 		goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 0, 0, false,
 		filter,
-		[]string{"entryUUID", "description", "cn", "avatar", "createTimestamp", "modifyTimestamp", "grantMode", "grantType", GroupStatusName},
+		[]string{"entryUUID", "description", "cn", "avatar", "createTimestamp", "modifyTimestamp", "displayName", "grantMode", "grantType", GroupStatusName, "url"},
 		nil,
 	)
 	ret, err := conn.Search(req)
@@ -200,9 +215,11 @@ func (s UserAndAppService) GetApps(ctx context.Context, keywords string, filters
 			Name:        entry.GetAttributeValue("cn"),
 			Description: entry.GetAttributeValue("description"),
 			Avatar:      entry.GetAttributeValue("avatar"),
+			DisplayName: entry.GetAttributeValue("displayName"),
 			Status:      models.AppMeta_Status(w.M[int](httputil.NewValue(entry.GetAttributeValue(GroupStatusName)).Default("0").Int())),
 			GrantMode:   models.AppMeta_GrantMode(w.M[int](httputil.NewValue(entry.GetAttributeValue("grantMode")).Default("0").Int())),
 			GrantType:   models.AppMeta_GrantType(w.M[int](httputil.NewValue(entry.GetAttributeValue("grantType")).Default("0").Int())),
+			Url:         entry.GetAttributeValue("url"),
 		})
 	}
 	return total, apps, nil
@@ -280,16 +297,35 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 	conn := s.Session(ctx)
 	defer conn.Close()
 
-	dn, err := s.getAppDnByEntryUUID(ldap.WithConnContext(ctx, conn), app.Id)
+	ret, err := conn.Search(goldap.NewSearchRequest(
+		s.Options().AppSearchBase,
+		goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 1, 0, false,
+		fmt.Sprintf("(entryUUID=%s)", app.Id), []string{"objectClass"}, nil))
 	if err != nil {
 		return err
+	} else if len(ret.Entries) == 0 {
+		return errors.StatusNotFound("App")
+	}
+	var memberAttr string
+	entry := ret.Entries[0]
+	objectClass := sets.New[string](entry.GetAttributeValues("objectClass")...)
+	if objectClass.Has("groupOfNames") {
+		memberAttr = "member"
+	} else if objectClass.Has("groupOfUniqueNames") {
+		memberAttr = "uniqueMember"
+	} else {
+		return errors.NewServerError(500, "This application does not support modification.")
 	}
 	if len(updateColumns) == 0 {
-		updateColumns = []string{"name", "description", "avatar", "grant_type", "grant_mode", "status", "user"}
+		updateColumns = []string{"name", "description", "avatar", "display_name", "grant_type", "grant_mode", "status", "user", "url"}
 	}
-	columns := sets.New[string](updateColumns...)
-	req := goldap.NewModifyRequest(dn, nil)
 
+	columns := sets.New[string](updateColumns...)
+	req := goldap.NewModifyRequest(entry.DN, nil)
+	if !objectClass.HasAll("idasApp", "idasCore") {
+		objectClass.Insert("idasApp", "idasCore")
+		req.Replace("objectClass", objectClass.List())
+	}
 	member := make([]string, len(app.Users))
 	for idx, user := range app.Users {
 		if member[idx], err = s.getUserDnByEntryUUID(ldap.WithConnContext(ctx, conn), user.Id); err != nil {
@@ -302,9 +338,11 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 		{columnName: "description", ldapColumnName: "description", val: []string{app.Description}},
 		{columnName: "avatar", ldapColumnName: "avatar", val: []string{app.Avatar}},
 		{columnName: "grant_type", ldapColumnName: "grantType", val: []string{strconv.Itoa(int(app.GrantType))}},
+		{columnName: "display_name", ldapColumnName: "displayName", val: []string{app.DisplayName}},
 		{columnName: "grant_mode", ldapColumnName: "grantMode", val: []string{strconv.Itoa(int(app.GrantMode))}},
 		{columnName: "status", ldapColumnName: "status", val: []string{strconv.Itoa(int(app.Status))}},
-		{columnName: "user", ldapColumnName: "uniqueMember", val: member},
+		{columnName: "user", ldapColumnName: memberAttr, val: member},
+		{columnName: "url", ldapColumnName: "url", val: []string{app.Url}},
 	}
 	for _, value := range replace {
 		if columns.Has(value.columnName) && len(value.val) > 0 && len(value.val[0]) > 0 {
@@ -386,13 +424,15 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (err 
 	}
 
 	attrs := map[string][]string{
-		"description":  {app.Description},
-		"avatar":       {app.Avatar},
-		"grantType":    {strconv.Itoa(int(app.GrantType))},
-		"grantMode":    {strconv.Itoa(int(app.GrantMode))},
-		"status":       {strconv.Itoa(int(app.Status))},
-		"objectClass":  append(s.GetAppClass().List(), "groupOfUniqueNames", "top"),
-		"uniqueMember": member,
+		"description":     {app.Description},
+		"avatar":          {app.Avatar},
+		"grantType":       {strconv.Itoa(int(app.GrantType))},
+		"displayName":     {app.DisplayName},
+		"grantMode":       {strconv.Itoa(int(app.GrantMode))},
+		"status":          {strconv.Itoa(int(app.Status))},
+		"objectClass":     s.GetAppClass(),
+		s.GetMemberAttr(): member,
+		"url":             {app.Url},
 	}
 
 	if len(app.Id) > 0 {
@@ -417,16 +457,6 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (err 
 	return nil
 }
 
-var ldapColumnMap = map[string]string{
-	"appname":     "name",
-	"description": "description",
-	"avatar":      "avatar",
-	"grant_type":  "grantType",
-	"grant_mode":  "grantMode",
-	"user":        "uniqueMember",
-	"status":      "status",
-}
-
 // PatchApp
 //
 //	@Description[en-US]: Incremental update application.
@@ -441,14 +471,47 @@ func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]inter
 	}
 	delete(fields, "id")
 
-	dn, err := s.getAppDnByEntryUUID(ctx, id)
+	conn := s.Session(ctx)
+	defer conn.Close()
+
+	ret, err := conn.Search(goldap.NewSearchRequest(
+		s.Options().AppSearchBase,
+		goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 1, 0, false,
+		fmt.Sprintf("(entryUUID=%s)", id), []string{"objectClass"}, nil))
 	if err != nil {
 		return err
+	} else if len(ret.Entries) == 0 {
+		return errors.StatusNotFound("App")
+	}
+	var memberAttr string
+	entry := ret.Entries[0]
+	objectClass := sets.New[string](entry.GetAttributeValues("objectClass")...)
+	if objectClass.Has("groupOfNames") {
+		memberAttr = "member"
+	} else if objectClass.Has("groupOfUniqueNames") {
+		memberAttr = "uniqueMember"
+	} else {
+		return errors.NewServerError(500, "This application does not support modification.")
 	}
 
-	req := goldap.NewModifyRequest(dn, nil)
+	req := goldap.NewModifyRequest(entry.DN, []goldap.Control{goldap.NewControlManageDsaIT(false)})
 
-	fmt.Println(fields)
+	if !objectClass.HasAll("idasApp", "idasCore") {
+		objectClass.Insert("idasApp", "idasCore")
+		req.Replace("objectClass", objectClass.List())
+	}
+
+	ldapColumnMap := map[string]string{
+		"appname":      "name",
+		"description":  "description",
+		"avatar":       "avatar",
+		"grant_type":   "grantType",
+		"display_name": "displayName",
+		"grant_mode":   "grantMode",
+		"user":         memberAttr,
+		"status":       "status",
+		"url":          "url",
+	}
 	for name, value := range fields {
 		if value == nil {
 			continue
@@ -464,14 +527,14 @@ func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]inter
 			req.Replace(ldapColumnName, []string{val})
 		case *models.AppMeta_Status:
 			req.Replace(ldapColumnName, []string{strconv.Itoa(int(*val))})
-
 		default:
 			return errors.ParameterError(fmt.Sprintf("unsupported field value type: name=%s,type=%T", name, value))
 		}
 	}
-
-	conn := s.Session(ctx)
-	defer conn.Close()
+	if len(req.Changes) == 0 {
+		return nil
+	}
+	req.Replace("objectClass", s.GetAppClass())
 	return conn.Modify(req)
 }
 

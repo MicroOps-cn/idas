@@ -19,6 +19,7 @@ package httputil
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -203,4 +204,13 @@ loop:
 		}
 	}
 	return nil
+}
+
+func GetContentType(header http.Header) string {
+	contentType := header.Get("Content-Type")
+	before, _, _ := strings.Cut(contentType, ";")
+	if len(before) > 0 {
+		return before
+	}
+	return contentType
 }

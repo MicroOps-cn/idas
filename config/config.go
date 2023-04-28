@@ -125,6 +125,9 @@ func (x *Config) Init(logger log.Logger) error {
 	if x.Storage.Session == nil {
 		x.Storage.Session = x.Storage.Default
 	}
+	if x.Storage.Logging == nil {
+		x.Storage.Logging = x.Storage.Default
+	}
 	storages := []*Storage{x.Storage.User, x.Storage.Session, x.Storage.Default}
 	for _, storage := range storages {
 		switch s := storage.Source.(type) {
@@ -176,7 +179,14 @@ func (x *GlobalOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []by
 	x.MaxBodySize = options.MaxBodySize
 	x.MaxUploadSize = options.MaxUploadSize
 	x.UploadPath = "uploads"
-	return unmarshaller.Unmarshal(bytes.NewReader(b), (*pbGlobalOptions)(x))
+	err := unmarshaller.Unmarshal(bytes.NewReader(b), (*pbGlobalOptions)(x))
+	if err != nil {
+		return err
+	}
+	if len(x.JwtSecret) == 0 {
+		return fmt.Errorf("`global.jwt_secret` cannot be empty")
+	}
+	return nil
 }
 
 const (
@@ -242,3 +252,34 @@ func (x *Config) SetWorkspace(path string) {
 //	}
 //	x.Global.Workspace = path
 //}
+
+func (c *RuntimeConfig) GetPasswordFailedLockConfig() (failedSec, failedThreshold int64) {
+	sec := c.GetSecurity()
+	if sec != nil {
+		failedThreshold = int64(sec.GetPasswordFailedLockThreshold())
+		failedSec = int64(sec.GetPasswordFailedLockDuration()) * 60
+		return failedSec, failedThreshold
+	}
+	return 0, 0
+}
+
+func (c *RuntimeConfig) GetLoginSessionInactivityTime() uint32 {
+	sec := c.GetSecurity()
+	inactiveTime := sec.GetLoginSessionInactivityTime()
+	maxTime := sec.GetLoginSessionMaxTime()
+	if inactiveTime > maxTime {
+		return maxTime
+	}
+	if inactiveTime > 0 {
+		return inactiveTime
+	}
+	return 30 * 24 // 30天
+}
+
+func (c *RuntimeConfig) GetLoginSessionMaxTime() uint32 {
+	maxTime := c.GetSecurity().GetLoginSessionMaxTime()
+	if maxTime > 0 {
+		return maxTime
+	}
+	return 30 * 24 // 30天
+}

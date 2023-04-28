@@ -7,7 +7,7 @@ option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
 
 
 message PageConfig{
-  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
   string update_time = 2[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
   string create_time = 3[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
   string name = 4[(gogoproto.jsontag) = "name"];
@@ -30,7 +30,7 @@ message GetPagesResponse{
 
 
 message GetPageRequest {
-  string id = 1 [(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string id = 1 [(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
 }
 
 message GetPageResponse {
@@ -46,7 +46,7 @@ message CreatePageRequest{
 }
 
 message UpdatePageRequest{
-  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
   string name = 2[(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
   string description = 3;
   repeated service.models.FieldConfig fields = 4;
@@ -55,7 +55,7 @@ message UpdatePageRequest{
 }
 
 message PatchPageRequest{
-  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
   string name = 2[(gogoproto.customtype) = "string"];
   string description = 3[(gogoproto.customtype) = "string"];
   repeated service.models.FieldConfig fields = 4;
@@ -65,15 +65,15 @@ message PatchPageRequest{
 }
 
 message DeletePageRequest{
-  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
 }
 
 
 // page data
 
 message PageData {
-  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
-  string page_id = 2[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required"'];
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
+  string page_id = 2[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required,uuid"'];
   string update_time = 3[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
   string create_time = 4[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
   string data = 5[(gogoproto.customtype) = "encoding/json.RawMessage",(gogoproto.moretags) = 'type:"object"'];
@@ -81,7 +81,7 @@ message PageData {
 
 message GetPageDatasRequest{
   idas.endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
-  string page_id = 2[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required"'];
+  string page_id = 2[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required,uuid"'];
   map<string, string> filters = 4;
 }
 
@@ -92,8 +92,8 @@ message GetPageDatasResponse{
 
 
 message GetPageDataRequest {
-  string page_id = 2[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required"'];
-  string id = 3[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string page_id = 2[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required,uuid"'];
+  string id = 3[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
 }
 
 message GetPageDataResponse {
@@ -102,24 +102,24 @@ message GetPageDataResponse {
 }
 
 message CreatePageDataRequest{
-  string page_id = 1[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required"'];
+  string page_id = 1[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required,uuid"'];
   string data = 2[(gogoproto.customtype) = "encoding/json.RawMessage", (gogoproto.moretags) = 'type:"object"'];
 }
 
 message UpdatePageDataRequest{
-  string page_id = 1[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required"'];
-  string id = 2[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string page_id = 1[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required,uuid"'];
+  string id = 2[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
   string data = 3[(gogoproto.customtype) = "encoding/json.RawMessage",(gogoproto.moretags) = 'type:"object"'];
 }
 
 message PatchPageDataRequest{
-  string page_id = 1[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required"'];
-  string id = 2[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string page_id = 1[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required,uuid"'];
+  string id = 2[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
   bool  is_delete = 3[(gogoproto.jsontag) = "isDelete,omitempty"];
   string data = 4[(gogoproto.customtype) = "encoding/json.RawMessage",(gogoproto.moretags) = 'type:"object"'];
 }
 
 message DeletePageDataRequest{
-  string page_id = 1[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required"'];
-  string id = 2[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string page_id = 1[(gogoproto.jsontag) = "pageId", (gogoproto.moretags) = 'valid:"required,uuid"'];
+  string id = 2[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
 }

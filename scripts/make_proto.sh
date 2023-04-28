@@ -49,7 +49,7 @@ grep -HoP '(?<=option go_package = ")[^;]+' ${PROTO_DEFS} | awk -F: "${awk_group
         exit 1
     fi
 done
-find gogo_out -type f -name '*.pb.go' -print | while read tmp_path; do
+find gogo_out -type f -name '*.pb.go' -o -name '*.pb.gw.go' -print | while read tmp_path; do
     sed -i ':label;N;s/\nvar E_\S\+ = gogoproto.E_\S\+\n//;b label' ${tmp_path}
     sed -i '/gogoproto "github.com\/gogo\/protobuf\/gogoproto/d' ${tmp_path}
     filename=${tmp_path#"${TMP_DIR}/${GOMODULENAME}/"}

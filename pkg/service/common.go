@@ -85,6 +85,10 @@ type CommonService interface {
 	GetTOTPSecrets(ctx context.Context, ids []string) ([]string, error)
 	PatchSystemConfig(ctx context.Context, prefix string, patch map[string]interface{}) error
 	GetSystemConfig(ctx context.Context, prefix string) (map[string]interface{}, error)
+	VerifyAndRecordHistoryPassword(ctx context.Context, id string, password string) error
+	UpdateLoginTime(ctx context.Context, id string) error
+	VerifyWeakPassword(ctx context.Context, password string) error
+	InsertWeakPassword(ctx context.Context, passwords ...string) error
 }
 
 func NewCommonService(ctx context.Context) CommonService {
@@ -205,4 +209,20 @@ func (s Set) RegisterPermission(ctx context.Context, permissions models.Permissi
 		}
 	}
 	return nil
+}
+
+func GetEventMeta(ctx context.Context, action string, beginTime time.Time, err error) (eventId, message string, status bool, took time.Duration) {
+	eventId = logs.GetTraceId(ctx)
+	if err != nil {
+		return eventId, fmt.Sprintf("Calling the %s method failed, err: %s", action, err), false, time.Since(beginTime)
+	}
+	return eventId, fmt.Sprintf("Successfully called %s method.", action), true, time.Since(beginTime)
+}
+
+func (s Set) InsertWeakPassword(ctx context.Context, passwords ...string) error {
+	return s.commonService.InsertWeakPassword(ctx, passwords...)
+}
+
+func (s Set) VerifyWeakPassword(ctx context.Context, password string) error {
+	return s.commonService.VerifyWeakPassword(ctx, password)
 }

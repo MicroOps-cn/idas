@@ -80,7 +80,13 @@ var rootCmd = &cobra.Command{
 	Long:  `The idas gateway server.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		logger := log.GetContextLogger(cmd.Context())
-		return Run(cmd.Context(), logger, signals.SetupSignalHandler(logger))
+		ch := signals.SetupSignalHandler(logger)
+		ctx, cancelFunc := context.WithCancel(cmd.Context())
+		go func() {
+			<-ch.Channel()
+			cancelFunc()
+		}()
+		return Run(ctx, logger, ch)
 	},
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
@@ -147,7 +153,7 @@ func Run(ctx context.Context, logger kitlog.Logger, _ *signals.StopChan) (err er
 		}, []string{"method", "success"})
 	}
 	httpLoginURL := httpExternalURL
-	httpLoginURL.Path = path.Join(webPrefix, "account/login")
+	httpLoginURL.Path = path.Join(httpLoginURL.Path, webPrefix, "account/login")
 	ctx = context.WithValue(ctx, global.HTTPLoginURLKey, httpLoginURL.String())
 	ctx = context.WithValue(ctx, global.HTTPExternalURLKey, httpExternalURL.String())
 	ctx = context.WithValue(ctx, global.HTTPWebPrefixKey, webPrefix)
@@ -257,7 +263,7 @@ func init() {
 	rootCmd.Flags().StringVar(&openapiPath, "http.openapi-path", "", "path of openapi")
 	rootCmd.Flags().StringVar(&swaggerPath, "http.swagger-path", "/apidocs/", "path of swagger ui. If the value is empty, the swagger UI is disabled.")
 	rootCmd.Flags().Var(&httpExternalURL, "http.external-url", "The URL under which IDAS is externally reachable (for example, if IDAS is served via a reverse proxy). Used for generating relative and absolute links back to IDAS itself. If the URL has a path portion, it will be used to prefix all HTTP endpoints served by IDAS. If omitted, relevant URL components will be derived automatically.")
-	rootCmd.Flags().StringVar(&webPrefix, "http.web-prefix", "", "The path prefix of the static page. The default is the path of http.external-url.")
+	rootCmd.Flags().StringVar(&webPrefix, "http.web-prefix", "/admin/", "The path prefix of the static page. The default is the path of http.external-url.")
 	rootCmd.Flags().StringVar(&zipkinURL, "zipkin.url", "", "Enable Zipkin tracing via HTTP reporter URL e.g. http://localhost:9411/api/v2/spans")
 	rootCmd.Flags().BoolVar(&zipkinBridge, "zipkin.ot-bridge", false, "Use Zipkin OpenTracing bridge instead of native implementation")
 	rootCmd.Flags().StringVar(&lightstepToken, "lightstep.token", "", "Enable LightStep tracing via a LightStep access token")
@@ -310,9 +316,6 @@ func initParameter() {
 			}
 		}
 	}
-	if webPrefix == "" {
-		webPrefix = httpExternalURL.Path
-	}
 	if !strings.HasPrefix(webPrefix, "/") {
 		webPrefix = "/" + webPrefix
 	}
@@ -346,7 +349,7 @@ func initConfig() {
 		}
 		encoder := yaml.NewEncoder(os.Stdout)
 		encoder.SetIndent(2)
-		if err := encoder.Encode(tmpObj); err != nil {
+		if err = encoder.Encode(tmpObj); err != nil {
 			level.Error(logger).Log("msg", "failed to encode config", "err", err)
 			os.Exit(1)
 		}

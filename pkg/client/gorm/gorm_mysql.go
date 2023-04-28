@@ -125,6 +125,7 @@ func NewMySQLClient(ctx context.Context, options MySQLOptions) (clt *Client, err
 				level.Warn(logger).Log("msg", fmt.Errorf("failed to close mysql connect: [%s@%s]", options.Username, options.Host), "err", err)
 			}
 		}
+		level.Debug(logger).Log("msg", "MySQL connect closed")
 		stopCh.Done()
 	}()
 

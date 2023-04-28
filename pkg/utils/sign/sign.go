@@ -96,6 +96,7 @@ type AuthAlgorithm string
 const (
 	HmacSha1   AuthAlgorithm = "HMAC-SHA1"
 	HmacSha256 AuthAlgorithm = "HMAC-SHA256"
+	HmacSha512 AuthAlgorithm = "HMAC-SHA512"
 	ECDSA      AuthAlgorithm = "ECDSA"
 )
 
@@ -108,7 +109,7 @@ func GetSignFromHTTPRequest(r *http.Request, key, secret, private string, algori
 	case "", HmacSha1:
 		return SumSha1Hmac(secret, payload), nil
 	case HmacSha256:
-		return SumSha245Hmac(secret, payload), nil
+		return SumSha256Hmac(secret, payload), nil
 	case ECDSA:
 		return ECDSASign(private, payload)
 	}
@@ -123,7 +124,7 @@ func Verify(key, secret, private string, algorithm AuthAlgorithm, signStr, paylo
 	case "", HmacSha1:
 		return SumSha1Hmac(secret, payload) == signStr
 	case HmacSha256:
-		return SumSha245Hmac(secret, payload) == signStr
+		return SumSha256Hmac(secret, payload) == signStr
 	case "ECDSA":
 		return ECDSAVerify(key, secret, payload, signStr)
 	}

@@ -18,6 +18,7 @@ package ldap
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 
 	"github.com/asaskevich/govalidator"
@@ -47,12 +48,18 @@ func (x *LdapOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []byte
 	x.UserSearchFilter = options.UserSearchFilter
 	x.AppSearchBase = options.AppSearchBase
 	x.AppSearchFilter = options.AppSearchFilter
-	x.AppRoleSearchFilter = options.AppRoleSearchFilter
 	x.AttrEmail = options.AttrEmail
 	x.AttrUsername = options.AttrUsername
 	x.AttrUserDisplayName = options.AttrUserDisplayName
 	x.AttrUserPhoneNo = options.AttrUserPhoneNo
-	return unmarshaller.Unmarshal(bytes.NewReader(b), (*pbLdapOptions)(x))
+	err := unmarshaller.Unmarshal(bytes.NewReader(b), (*pbLdapOptions)(x))
+	if err != nil {
+		return err
+	}
+	if x.AppObjectClass != "groupOfUniqueNames" && x.AppObjectClass != "groupOfNames" {
+		return fmt.Errorf("the ldap.app_object_class config can only be groupOfUniqueNames or groupOfNames")
+	}
+	return nil
 }
 
 // NewLdapOptions return a default option
@@ -64,8 +71,8 @@ func NewLdapOptions() *LdapOptions {
 		UserSearchBase:      "ou=users,dc=example,dc=org",
 		AppSearchBase:       "ou=groups,dc=example,dc=org",
 		UserSearchFilter:    "(&(objectClass=inetOrgPerson)(uid={}))",
-		AppSearchFilter:     "(&(|(objectClass=idasApp)(objectClass=extensibleObject))(objectClass=groupOfUniqueNames)(cn={}))",
-		AppRoleSearchFilter: "(&(|(objectClass=idasRoleGroup)(objectClass=extensibleObject))(objectClass=groupOfNames)(cn={}))",
+		AppSearchFilter:     "(&(|(objectclass=groupOfNames)(objectclass=groupOfUniqueNames))(cn={}))",
+		AppObjectClass:      "groupOfUniqueNames",
 		AttrEmail:           "mail",
 		AttrUsername:        "uid",
 		AttrUserDisplayName: "cn",
@@ -109,12 +116,6 @@ func (x *LdapOptions) Valid() error {
 		return errors.New("ldap group_search_filter option is null")
 	}
 	if !strings.Contains(x.AppSearchFilter, "{}") {
-		return errors.New("ldap group_search_filter option is invalid: does not contain {}")
-	}
-	if govalidator.IsNull(x.AppRoleSearchFilter) {
-		return errors.New("ldap group_search_filter option is null")
-	}
-	if !strings.Contains(x.AppRoleSearchFilter, "{}") {
 		return errors.New("ldap group_search_filter option is invalid: does not contain {}")
 	}
 	if govalidator.IsNull(x.AttrEmail) {

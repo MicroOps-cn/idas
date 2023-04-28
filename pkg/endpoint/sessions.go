@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -28,9 +29,11 @@ import (
 	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log/level"
+	"github.com/golang-jwt/jwt/v4"
 	uuid "github.com/satori/go.uuid"
 	"github.com/xlzd/gotp"
 
+	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
@@ -50,11 +53,23 @@ func init() {
 
 func MakeSendLoginCaptchaEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		begin := time.Now()
 		req := request.(Requester).GetRequestData().(*SendLoginCaptchaRequest)
 		resp := SimpleResponseWrapper[*SendLoginCaptchaResponseData]{}
+		var user *models.User
+		defer func() {
+			var userId, username string
+			if user != nil {
+				userId = user.Id
+				username = user.Username
+			}
+			eventId, message, status, took := GetEventMeta(ctx, "SendLoginCaptcha", begin, err, resp)
+			if e := s.PostEventLog(ctx, eventId, userId, username, "", "SendLoginCaptcha", message, status, took); e != nil {
+				level.Error(logs.GetContextLogger(ctx)).Log("failed to post event log", "err", e)
+			}
+		}()
 		switch req.Type {
 		case LoginType_mfa_email, LoginType_email:
-			var user *models.User
 			switch req.Type {
 			case LoginType_mfa_email:
 				email, username := req.GetEmail(), req.GetUsername()
@@ -118,23 +133,30 @@ func getMFAMethod(user *models.User) sets.Set[LoginType] {
 
 func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		begin := time.Now()
 		req := request.(Requester).GetRequestData().(*UserLoginRequest)
 		resp := SimpleResponseWrapper[*UserLoginResponseData]{}
 		logger := logs.GetContextLogger(ctx)
 		var user *models.User
+		defer func() {
+			var userId, username string
+			if user != nil {
+				userId = user.Id
+				username = user.Username
+			}
+			eventId, message, status, took := GetEventMeta(ctx, "UserLogin", begin, err, response)
+			if e := s.PostEventLog(ctx, eventId, userId, username, "", "UserLogin", message, status, took); e != nil {
+				level.Error(logs.GetContextLogger(ctx)).Log("failed to post event log", "err", e)
+			}
+		}()
 		switch req.Type {
 		case LoginType_mfa_sms, LoginType_mfa_email, LoginType_normal, LoginType_mfa_totp:
 			if len(req.Username) == 0 || len(req.Password) == 0 {
 				resp.Error = errors.ParameterError("username or password")
 				return resp, err
 			}
-			// 基于用户的登陆失败计数器
-			user, err = s.VerifyPassword(ctx, req.Username, string(req.Password))
-			if user == nil || err != nil {
-				resp.ErrorMessage = "Wrong user name or password. "
-				if err != nil {
-					resp.Error = err
-				}
+			user, resp.Error = s.VerifyPassword(ctx, req.Username, string(req.Password), false)
+			if user == nil || resp.Error != nil {
 				return resp, nil
 			}
 
@@ -306,20 +328,58 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 				level.Error(logger).Log("msg", "failed to get app role", "err", err)
 			}
 		}
+		if user.ExtendedData == nil {
+			user.ExtendedData = &models.UserExt{}
+		}
+		user.ExtendedData.LoginTime = time.Now()
 
-		token, err := s.CreateToken(ctx, models.TokenTypeLoginSession, user)
+		if err = s.PatchUserExtData(ctx, user.Id, map[string]interface{}{"login_time": time.Now()}); err != nil {
+			return nil, errors.NewServerError(http.StatusInternalServerError, "failed to active user.")
+		}
+		stdResp := request.(RestfulRequester).GetRestfulResponse().ResponseWriter
+		sess, err := s.CreateToken(ctx, models.TokenTypeLoginSession, user)
 		if err != nil {
 			return "", err
 		}
+
+		jwtSecret := config.Get().Global.GetJwtSecret()
+		token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
+			Id:        sess.Id,
+			ExpiresAt: sess.Expiry.Unix(),
+			IssuedAt:  time.Now().Unix(),
+			NotBefore: time.Now().Unix(),
+		}).SignedString([]byte(jwtSecret))
+		if err != nil {
+			return "", errors.NewServerError(500, err.Error())
+		}
+
 		cookie := http.Cookie{
 			Name:  global.LoginSession,
-			Value: token.Id,
+			Value: token,
 			Path:  "/",
 		}
-		if req.AutoLogin {
-			cookie.Expires = token.Expiry
+		if httpExternalURL, ok := ctx.Value(global.HTTPExternalURLKey).(string); ok && len(httpExternalURL) > 0 {
+			if extURL, err := url.Parse(httpExternalURL); err == nil {
+				cookie.Path = extURL.Path
+			}
 		}
-		request.(RestfulRequester).GetRestfulResponse().AddHeader("Set-Cookie", cookie.String())
+
+		if req.AutoLogin {
+			cookie.Expires = sess.Expiry
+			http.SetCookie(stdResp, &http.Cookie{
+				Name:    global.CookieAutoLogin,
+				Value:   "true",
+				Path:    cookie.Path,
+				Expires: sess.Expiry,
+			})
+		} else {
+			http.SetCookie(stdResp, &http.Cookie{
+				Name:  global.CookieAutoLogin,
+				Value: "false",
+				Path:  cookie.Path,
+			})
+		}
+		http.SetCookie(stdResp, &cookie)
 
 		return &resp, nil
 	}
@@ -338,8 +398,27 @@ func MakeUserLogoutEndpoint(s service.Service) endpoint.Endpoint {
 					return resp, nil
 				}
 			}
-			loginCookie := fmt.Sprintf("%s=%s; Path=/;Expires=%s", global.LoginSession, cookie.Value, time.Now().UTC().Format(global.LoginSessionExpiresFormat))
-			request.(RestfulRequester).GetRestfulResponse().AddHeader("Set-Cookie", loginCookie)
+
+			if httpExternalURL, ok := ctx.Value(global.HTTPExternalURLKey).(string); ok && len(httpExternalURL) > 0 {
+				if extURL, err := url.Parse(httpExternalURL); err == nil {
+					cookie.Path = extURL.Path
+				}
+			}
+			respWriter := request.(RestfulRequester).GetRestfulResponse().ResponseWriter
+			http.SetCookie(respWriter, &http.Cookie{
+				Name:    global.LoginSession,
+				Value:   cookie.Value,
+				Path:    cookie.Path,
+				Expires: time.Now(),
+			})
+			if cookie.Path != "/" {
+				http.SetCookie(respWriter, &http.Cookie{
+					Name:    global.LoginSession,
+					Value:   cookie.Value,
+					Path:    "/",
+					Expires: time.Now(),
+				})
+			}
 		} else {
 			resp.Error = errors.NewServerError(http.StatusUnauthorized, "Invalid identity information")
 		}
@@ -359,21 +438,90 @@ type GetSessionParams struct {
 	TokenType models.TokenType
 }
 
+func UpdateSessionExpires(ctx context.Context, s service.Service, id string, stdResp http.ResponseWriter) {
+	expiry := models.TokenTypeLoginSession.GetExpiry()
+	if err := s.UpdateTokenExpires(ctx, id, expiry); err != nil {
+		logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))
+		level.Error(logger).Log("msg", "failed to update session expires")
+	} else {
+		jwtSecret := config.Get().Global.GetJwtSecret()
+		newToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
+			Id:        id,
+			ExpiresAt: expiry.Unix(),
+			IssuedAt:  time.Now().Unix(),
+			NotBefore: time.Now().Unix(),
+		}).SignedString([]byte(jwtSecret))
+		if err != nil {
+			logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))
+			level.Error(logger).Log("msg", "failed to create jwt token.")
+		}
+
+		cookie := http.Cookie{
+			Name:  global.LoginSession,
+			Value: newToken,
+			Path:  "/",
+		}
+		if httpExternalURL, ok := ctx.Value(global.HTTPExternalURLKey).(string); ok && len(httpExternalURL) > 0 {
+			if extURL, err := url.Parse(httpExternalURL); err == nil {
+				cookie.Path = extURL.Path
+			}
+		}
+		cookie.Expires = expiry
+
+		http.SetCookie(stdResp, &http.Cookie{
+			Name:    global.CookieAutoLogin,
+			Value:   "true",
+			Path:    cookie.Path,
+			Expires: expiry,
+		})
+
+		http.SetCookie(stdResp, &cookie)
+	}
+}
+
 func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		params := request.(*GetSessionParams)
+		stdReq := request.(RestfulRequester).GetRestfulRequest().Request
+		params := request.(Requester).GetRequestData().(*GetSessionParams)
 		var resp *models.User
 		if len(params.Token) > 0 {
-			if err = s.GetSessionByToken(ctx, params.Token, params.TokenType, &resp); err != nil {
+			var claims jwt.StandardClaims
+			token, err := jwt.ParseWithClaims(params.Token, &claims, func(token *jwt.Token) (interface{}, error) {
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, fmt.Errorf("unexpected login method %v", token.Header["alg"])
+				}
+				return []byte(config.Get().Global.GetJwtSecret()), nil
+			})
+			if err != nil {
+				logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))
+				level.Error(logger).Log("err", err, "msg", "Invalid token")
+				err = errors.NotLoginError()
+			} else if !token.Valid {
+				logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))
+				level.Error(logger).Log("msg", "Invalid token")
+				err = errors.NotLoginError()
+			} else if err = s.GetSessionByToken(ctx, claims.Id, params.TokenType, &resp); err != nil {
 				if err != errors.NotLoginError() {
 					logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))
 					level.Error(logger).Log("err", err, "msg", "failed to get session")
 					err = errors.NotLoginError()
 				}
 			}
+			if err == nil && params.TokenType == models.TokenTypeLoginSession {
+				if !resp.ExtendedData.LoginTime.IsZero() && time.Since(resp.ExtendedData.LoginTime) > time.Hour {
+					maxTime := config.GetRuntimeConfig().GetLoginSessionMaxTime()
+					if time.Since(resp.ExtendedData.LoginTime) < (time.Hour * time.Duration(maxTime)) {
+						if autoLoginCookie, _ := stdReq.Cookie(global.CookieAutoLogin); autoLoginCookie != nil && autoLoginCookie.Value == "true" {
+							stdResp := request.(RestfulRequester).GetRestfulResponse().ResponseWriter
+							UpdateSessionExpires(ctx, s, claims.Id, stdResp)
+						}
+					}
+				}
+			}
 		} else {
 			err = errors.NotLoginError()
 		}
+
 		return resp, err
 	}
 }
@@ -408,11 +556,40 @@ func MakeGetSessionsEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
+func MakeGetCurrentUserSessionsEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(Requester).GetRequestData().(*GetSessionsRequest)
+		resp := NewBaseListResponse[[]*models.Token](&req.BaseListRequest)
+		user, ok := ctx.Value(global.MetaUser).(*models.User)
+		if !ok || user == nil {
+			return nil, errors.NotLoginError()
+		}
+
+		resp.Total, resp.Data, resp.BaseResponse.Error = s.GetSessions(ctx, user.Id, req.Current, req.PageSize)
+		return &resp, nil
+	}
+}
+
 func MakeDeleteSessionEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*DeleteSessionRequest)
 		resp := SimpleResponseWrapper[interface{}]{}
 		resp.Error = s.DeleteToken(ctx, models.TokenTypeLoginSession, req.Id)
+		return &resp, nil
+	}
+}
+
+func MakeDeleteCurrentUserSessionEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(Requester).GetRequestData().(*DeleteSessionRequest)
+		user := ctx.Value(global.MetaUser).(*models.User)
+		if user == nil {
+			return nil, errors.NotLoginError()
+		}
+		resp := SimpleResponseWrapper[interface{}]{}
+		if s.VerifyToken(ctx, req.Id, models.TokenTypeLoginSession, nil, user.Id) {
+			resp.Error = s.DeleteToken(ctx, models.TokenTypeLoginSession, req.Id)
+		}
 		return &resp, nil
 	}
 }

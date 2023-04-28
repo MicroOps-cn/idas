@@ -70,6 +70,7 @@ func NewLdapPool(ctx context.Context, options *LdapOptions) (pool Pool, err erro
 		if pool != nil {
 			pool.Close()
 		}
+		level.Debug(logger).Log("msg", "LDAP connect closed")
 		stopCh.Done()
 	}()
 
@@ -80,6 +81,14 @@ func NewLdapPool(ctx context.Context, options *LdapOptions) (pool Pool, err erro
 type Client struct {
 	pool    Pool
 	options *LdapOptions
+}
+
+func NewClient(ctx context.Context, o *LdapOptions) (*Client, error) {
+	pool, err := NewLdapPool(ctx, o)
+	if err != nil {
+		return nil, err
+	}
+	return &Client{pool: pool, options: o}, nil
 }
 
 var _ api.CustomType = &Client{}
@@ -115,6 +124,9 @@ func (l *Client) Unmarshal(data []byte) (err error) {
 	if l.options == nil {
 		l.options = NewLdapOptions()
 	}
+	if l.options.AppObjectClass != "groupOfUniqueNames" && l.options.AppObjectClass != "groupOfNames" {
+		return fmt.Errorf("the ldap.app_object_class config can only be groupOfUniqueNames or groupOfNames")
+	}
 	if err = proto.Unmarshal(data, l.options); err != nil {
 		return err
 	}
@@ -131,6 +143,9 @@ func (l Client) MarshalJSON() ([]byte, error) {
 func (l *Client) UnmarshalJSON(data []byte) (err error) {
 	if l.options == nil {
 		l.options = NewLdapOptions()
+	}
+	if l.options.AppObjectClass != "groupOfUniqueNames" && l.options.AppObjectClass != "groupOfNames" {
+		return fmt.Errorf("the ldap.app_object_class config can only be groupOfUniqueNames or groupOfNames")
 	}
 	if err = json.Unmarshal(data, l.options); err != nil {
 		return err
@@ -150,13 +165,13 @@ func (l *Client) Options() *LdapOptions {
 }
 
 func (l *Client) Session(ctx context.Context) ldap.Client {
-	if conn := ctx.Value(ldapConn{}); conn != nil {
+	if conn := ctx.Value(ldapConnName{}); conn != nil {
 		switch db := conn.(type) {
 		case ldap.Client:
 			return &NopCloser{Client: db}
 		default:
 			logger := log.GetContextLogger(ctx)
-			level.Warn(logger).Log("msg", "Unknown context value type.", "name", fmt.Sprintf("%T", ldapConn{}), "value", fmt.Sprintf("%T", conn))
+			level.Warn(logger).Log("msg", "Unknown context value type.", "name", fmt.Sprintf("%T", ldapConnName{}), "value", fmt.Sprintf("%T", conn))
 		}
 	}
 	s := &Session{ctx: ctx}
@@ -179,10 +194,10 @@ func (l *Client) Session(ctx context.Context) ldap.Client {
 }
 
 func WithConnContext(ctx context.Context, client ldap.Client) context.Context {
-	return context.WithValue(ctx, ldapConn{}, client)
+	return context.WithValue(ctx, ldapConnName{}, client)
 }
 
-type ldapConn struct{}
+type ldapConnName struct{}
 
 type NopCloser struct {
 	ldap.Client

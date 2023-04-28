@@ -18,12 +18,16 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
 	"time"
 
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log/level"
 	uuid "github.com/satori/go.uuid"
 
+	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/service/opts"
@@ -182,7 +186,7 @@ func (s Set) PatchUser(ctx context.Context, user map[string]interface{}) (err er
 //	@param id 	string
 //	@param patch 	map[string]interface{}
 //	@return err	error
-func (s Set) PatchUserExtData(ctx context.Context, userId string, patch map[string]interface{}) error {
+func (s Set) PatchUserExtData(ctx context.Context, userId string, patch map[string]interface{}) (err error) {
 	return s.commonService.PatchUserExtData(ctx, userId, patch)
 }
 
@@ -205,8 +209,28 @@ func (s Set) DeleteUser(ctx context.Context, id string) (err error) {
 //	@param id 	string
 //	@param password 	string
 //	@return users	[]*models.User
-func (s Set) VerifyPasswordById(ctx context.Context, userId, password string) (users *models.User) {
-	return s.GetUserAndAppService().VerifyPasswordById(ctx, userId, password)
+func (s Set) VerifyPasswordById(ctx context.Context, userId, password string, allowPasswordExpired bool) (user *models.User) {
+	begin := time.Now()
+	var err error
+	defer func() {
+		var username string
+		if user != nil {
+			username = user.Username
+		} else if err == nil {
+			err = fmt.Errorf("Failed to verify password. ")
+		}
+		eventId, message, status, took := GetEventMeta(ctx, "VerifyPassword", begin, err)
+		if e := s.PostEventLog(ctx, eventId, userId, username, "", "VerifyPassword", message, status, took); e != nil {
+			level.Error(logs.GetContextLogger(ctx)).Log("failed to post event log", "err", e)
+		}
+	}()
+	user = s.GetUserAndAppService().VerifyPasswordById(ctx, userId, password)
+	if user == nil {
+		return nil
+	} else if err = s.verifyUserStatus(ctx, user, allowPasswordExpired); err != nil {
+		return nil
+	}
+	return user
 }
 
 // VerifyPassword
@@ -217,26 +241,97 @@ func (s Set) VerifyPasswordById(ctx context.Context, userId, password string) (u
 //	@param username 	string
 //	@param password 	string
 //	@return users	[]*models.User
-func (s Set) VerifyPassword(ctx context.Context, username string, password string) (user *models.User, err error) {
-	logger := logs.GetContextLogger(ctx)
+func (s Set) VerifyPassword(ctx context.Context, username string, password string, allowPasswordExpired bool) (user *models.User, err error) {
+	begin := time.Now()
+	defer func() {
+		var userId string
+		if user != nil && len(user.Id) > 0 {
+			userId = user.Id
+		} else if user != nil && err == nil {
+			err = fmt.Errorf("Failed to verify password. ")
+		}
+		eventId, message, status, took := GetEventMeta(ctx, "VerifyPassword", begin, err)
+		if e := s.PostEventLog(ctx, eventId, userId, username, "", "VerifyPassword", message, status, took); e != nil {
+			level.Error(logs.GetContextLogger(ctx)).Log("failed to post event log", "err", e)
+		}
+	}()
+	var ts int64
+	var counterSeed string
+	failedSec, failedThreshold := config.GetRuntimeConfig().GetPasswordFailedLockConfig()
+
+	if failedSec > 0 && failedThreshold > 0 {
+		nowTs := time.Now().Unix()
+		ts = nowTs - nowTs%failedSec
+		counterSeed = fmt.Sprintf("LOGIN:%s:%d", username, ts)
+		count, err := s.sessionService.GetCounter(ctx, counterSeed)
+		if err != nil {
+			level.Error(logs.GetContextLogger(ctx)).Log("msg", "Failed to obtain password counter.", "err", err)
+			return nil, errors.NewServerError(http.StatusInternalServerError, "System error: Please contact the administrator.", errors.CodeSystemError)
+		}
+		if count >= failedThreshold {
+			level.Error(logs.GetContextLogger(ctx)).Log("msg", "The number of password errors has reached the threshold.")
+			return nil, errors.NewServerError(http.StatusOK, "Wrong user name or password. ", errors.CodeInvalidCredentials)
+		}
+	}
 	user = s.userAndAppService.VerifyPassword(ctx, username, password)
-	if user == nil || user.Status != models.UserMeta_normal {
-		return nil, nil
+	if user == nil {
+		if ts > 0 && len(counterSeed) > 0 {
+			expir := time.Unix(ts+failedSec, 0)
+			if err = s.sessionService.Counter(ctx, counterSeed, &expir); err != nil {
+				level.Error(logs.GetContextLogger(ctx)).Log("msg", "Failed to write password failure counter.")
+			}
+		}
+		return nil, errors.NewServerError(http.StatusOK, "Wrong user name or password. ", errors.CodeInvalidCredentials)
+	} else if err = s.verifyUserStatus(ctx, user, allowPasswordExpired); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (s Set) verifyUserStatus(ctx context.Context, user *models.User, allowPasswordExpired bool) (err error) {
+	logger := logs.GetContextLogger(ctx)
+	switch user.Status {
+	case models.UserMeta_normal:
+	case models.UserMeta_user_inactive:
+		return errors.NewServerError(http.StatusOK, "The user is disabled due to inactivity. Please contact administrator.", errors.CodeUserInactive)
+	case models.UserMeta_password_expired:
+		if !allowPasswordExpired {
+			return errors.NewServerError(http.StatusOK, "Your password has expired. Please change your password and log in again.", errors.CodeUserNeedResetPassword)
+		}
+	case models.UserMeta_disabled:
+		return errors.NewServerError(http.StatusOK, "The user status is abnormal. Please contact the administrator.", errors.CodeUserDisable)
+	default:
+		return errors.NewServerError(http.StatusOK, "Unknown user status.", errors.CodeUserStatusUnknown)
 	}
 	user.ExtendedData, err = s.commonService.GetUserExtendedData(ctx, user.Id)
 	if err != nil {
-		return nil, err
+		return errors.WithServerError(http.StatusInternalServerError, err, "Failed to obtain user. ")
 	}
-	user.LoginTime = new(time.Time)
-	*user.LoginTime = time.Now().UTC()
-	if err = s.userAndAppService.UpdateLoginTime(ctx, user.Id); err != nil {
+
+	if accountInactiveLock := time.Duration(config.GetRuntimeConfig().Security.AccountInactiveLock) * time.Hour * 24; accountInactiveLock > 0 {
+		if time.Since(user.ExtendedData.LoginTime) > accountInactiveLock &&
+			time.Since(user.ExtendedData.PasswordModifyTime) > accountInactiveLock &&
+			time.Since(user.ExtendedData.ActivationTime) > accountInactiveLock {
+			user.Status = models.UserMeta_user_inactive
+			if err = s.UpdateUser(ctx, user, "status"); err != nil {
+				level.Error(logger).Log("msg", "failed to update user status", "err", err)
+			}
+			return errors.NewServerError(http.StatusOK, "The user is disabled due to inactivity. Please contact administrator.", errors.CodeUserInactive)
+		}
+	}
+	if passwordExpireTime := config.GetRuntimeConfig().Security.PasswordExpireTime; passwordExpireTime > 0 {
+		if time.Since(user.ExtendedData.PasswordModifyTime) > time.Duration(passwordExpireTime)*time.Hour*24 && !allowPasswordExpired {
+			user.Status = models.UserMeta_password_expired
+			if err := s.UpdateUser(ctx, user, "status"); err != nil {
+				level.Error(logger).Log("msg", "failed to update user status", "err", err)
+			}
+			return errors.NewServerError(http.StatusOK, "Your password has expired. Please change the password and log in again.", errors.CodeUserNeedResetPassword)
+		}
+	}
+	if err = s.commonService.UpdateLoginTime(ctx, user.Id); err != nil {
 		level.Error(logger).Log("msg", "failed to update user login time", "err", err)
 	}
-	//if global.UserInactiveTime > 0 && time.Since(*user.LoginTime) > global.UserInactiveTime {
-	//	return nil, errors.NewServerError(http.StatusForbidden, "The user is disabled due to inactivity. Please change the password and log in again.", errors.CodeUserNeedResetPassword)
-	//}
-
-	return user, nil
+	return nil
 }
 
 // Authentication
@@ -252,14 +347,42 @@ func (s Set) VerifyPassword(ctx context.Context, username string, password strin
 //	@param signStr 	string
 //	@return ${ret_name}	[]*models.User
 //	@return ${ret_name}	error
-func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm sign.AuthAlgorithm, key, secret, payload, signStr string) (*models.User, error) {
-	if method == models.AuthMeta_basic {
-		if _, err := uuid.FromString(key); err != nil {
-			return s.VerifyPassword(ctx, key, secret)
+func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm sign.AuthAlgorithm, key, secret, payload, signStr string) (user *models.User, err error) {
+	failedSec := config.GetRuntimeConfig().GetSecurity().PasswordFailedLockDuration * 60
+	failedThreshold := config.GetRuntimeConfig().GetSecurity().PasswordFailedLockThreshold
+	nowTs := time.Now().Unix()
+	ts := nowTs - nowTs%int64(failedSec)
+	counterSeed := fmt.Sprintf("LOGIN:%s:%d", key, ts)
+	if failedSec > 0 && failedThreshold > 0 {
+		var count int64
+		count, err = s.sessionService.GetCounter(ctx, counterSeed)
+		if err != nil {
+			level.Error(logs.GetContextLogger(ctx)).Log("msg", "Failed to obtain password counter.", "err", err)
+			return nil, errors.NewServerError(http.StatusInternalServerError, "System error: Please contact the administrator.", errors.CodeSystemError)
+		}
+		if count >= int64(failedThreshold) {
+			level.Error(logs.GetContextLogger(ctx)).Log("msg", "The number of password errors has reached the threshold.")
+			return nil, errors.NewServerError(http.StatusOK, "Wrong user name or password. ", errors.CodeInvalidCredentials)
 		}
 	}
-	var user *models.User
-	userKey, err := s.commonService.GetUserKey(ctx, key)
+
+	if failedSec > 0 && failedThreshold > 0 {
+		defer func() {
+			if err != nil || user == nil {
+				expir := time.Unix(ts+int64(failedSec), 0)
+				if err = s.sessionService.Counter(ctx, counterSeed, &expir); err != nil {
+					level.Error(logs.GetContextLogger(ctx)).Log("msg", "Failed to write password failure counter.")
+				}
+			}
+		}()
+	}
+	if method == models.AuthMeta_basic {
+		if _, err = uuid.FromString(key); err != nil {
+			return s.VerifyPassword(ctx, key, secret, false)
+		}
+	}
+	var userKey *models.UserKey
+	userKey, err = s.commonService.GetUserKey(ctx, key)
 	if err != nil {
 		return nil, err
 	} else if userKey == nil {
@@ -294,21 +417,21 @@ func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, 
 //	@param sessionId 	string
 //	@return code	string
 //	@return err	error
-func (s Set) GetAuthCodeByAppId(ctx context.Context, clientId string, user *models.User, sessionId string) (code string, err error) {
-	app := models.App{Model: models.Model{Id: clientId}}
-	err = s.GetAppAccessControl(ctx, &app, opts.WithoutUsers, opts.WithUsers(user.Id))
-	if err != nil {
-		return "", err
-	}
-	if len(app.Users) == 0 {
-		return "", errors.NotFoundError()
-	}
-	token, err := s.CreateToken(ctx, models.TokenTypeCode, user)
-	if err != nil {
-		return "", err
-	}
-	return token.Id, nil
-}
+//func (s Set) GetAuthCodeByAppId(ctx context.Context, clientId string, user *models.User, sessionId string) (code string, err error) {
+//	app := models.App{Model: models.Model{Id: clientId}}
+//	err = s.GetAppAccessControl(ctx, &app, opts.WithoutUsers, opts.WithUsers(user.Id))
+//	if err != nil {
+//		return "", err
+//	}
+//	if len(app.Users) == 0 {
+//		return "", errors.NotFoundError()
+//	}
+//	token, err := s.CreateToken(ctx, models.TokenTypeCode, user)
+//	if err != nil {
+//		return "", err
+//	}
+//	return token.Id, nil
+//}
 
 func (s Set) GetUserInfoByUsernameAndEmail(ctx context.Context, username, email string) (users *models.User, err error) {
 	if len(username) == 0 {
@@ -326,4 +449,90 @@ func (s Set) CreateTOTP(ctx context.Context, id string, secret string) error {
 
 func (s Set) GetTOTPSecrets(ctx context.Context, ids []string) ([]string, error) {
 	return s.commonService.GetTOTPSecrets(ctx, ids)
+}
+
+func (s Set) UpdateUserSession(ctx context.Context, userId string) (err error) {
+	newUser, err := s.GetUser(ctx, opts.WithUserId(userId), opts.WithUserExt)
+	if err != nil {
+		return err
+	}
+	logger := logs.GetContextLogger(ctx)
+	if err != nil {
+		level.Warn(logger).Log("msg", "Failed to update current user cache info: can't get user info.", "err", err)
+	} else {
+		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithUsers(userId), opts.WithAppName("IDAS"))
+		if err != nil && !errors.IsNotFount(err) {
+			level.Error(logger).Log("msg", "failed to get app info", "err", err)
+		} else if app != nil {
+			role, err := s.GetAppRoleByUserId(ctx, app.Id, userId)
+			if err == nil {
+				newUser.RoleId = role.Id
+				newUser.Role = role.Name
+			} else if !errors.IsNotFount(err) {
+				level.Error(logger).Log("msg", "failed to get app role", "err", err)
+			}
+		}
+		var sessions []*models.Token
+		var maxCount, count, current int64
+		for count <= maxCount {
+			current++
+			maxCount, sessions, err = s.sessionService.GetSessions(ctx, userId, current, 100)
+			if err != nil {
+				return err
+			} else if len(sessions) == 0 {
+				return nil
+			}
+			count += int64(len(sessions))
+			for _, tk := range sessions {
+				var oldUser models.User
+				newUser.ExtendedData.LoginTime = oldUser.ExtendedData.LoginTime
+				rawData, err := json.Marshal(newUser)
+				if err != nil {
+					return err
+				}
+				tk.Data = rawData
+				if err = s.sessionService.UpdateToken(ctx, tk); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (s Set) ResetPassword(ctx context.Context, id string, password string) (err error) {
+	logger := logs.GetContextLogger(ctx)
+	begin := time.Now()
+	defer func() {
+		eventId, message, status, took := GetEventMeta(ctx, "ResetPassword", begin, err)
+		if e := s.PostEventLog(ctx, eventId, id, "", "", "ResetPassword", message, status, took); e != nil {
+			level.Error(logs.GetContextLogger(ctx)).Log("failed to post event log", "err", e)
+		}
+	}()
+	userExtendedData, err := s.commonService.GetUserExtendedData(ctx, id)
+	if err != nil {
+		return errors.WithServerError(http.StatusInternalServerError, err, "Failed to obtain user. ")
+	}
+	if accountInactiveLock := time.Duration(config.GetRuntimeConfig().Security.AccountInactiveLock) * time.Hour * 24; accountInactiveLock > 0 {
+		if time.Since(userExtendedData.LoginTime) > accountInactiveLock &&
+			time.Since(userExtendedData.PasswordModifyTime) > accountInactiveLock &&
+			time.Since(userExtendedData.ActivationTime) > accountInactiveLock {
+			return errors.NewServerError(http.StatusForbidden, "The user is disabled due to inactivity. Please contact administrator.", errors.CodeUserInactive)
+		}
+	}
+
+	if err = s.commonService.VerifyWeakPassword(ctx, password); err != nil {
+		return err
+	} else if err = s.commonService.VerifyAndRecordHistoryPassword(ctx, id, password); err != nil {
+		return err
+	} else if err = s.userAndAppService.ResetPassword(ctx, id, password); err != nil {
+		return fmt.Errorf("failed to reset password: %s", err)
+	}
+	if err = s.commonService.PatchUserExtData(ctx, id, map[string]interface{}{
+		"password_modify_time": time.Now(),
+	}); err != nil {
+		level.Error(logger).Log("err", err, "msg", "failed to update `password_modify_time` and `login_time`")
+		return fmt.Errorf("The password was successfully modified, but a slight error was encountered. ")
+	}
+	return nil
 }

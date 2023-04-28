@@ -40,6 +40,7 @@ var apiServiceSet = []func(ctx context.Context, options []httptransport.ServerOp
 	RoleService,
 	PageService,
 	ConfigService,
+	EventService,
 }
 
 // UserService User Manager Service for restful Http container
@@ -512,6 +513,7 @@ func CurrentUserService(ctx context.Context, options []httptransport.ServerOptio
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
+
 	v1ws.Route(v1ws.GET("").
 		To(NewKitHTTPServer[struct{}](ctx, endpoints.CurrentUser, options)).
 		Operation("currentUser").
@@ -519,6 +521,33 @@ func CurrentUserService(ctx context.Context, options []httptransport.ServerOptio
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Metadata(global.MetaUpdateLastSeen, true).
 		Returns(200, "OK", endpoint.GetUserResponse{}),
+	)
+
+	v1ws.Route(v1ws.GET("apps").
+		To(NewKitHTTPServer[endpoint.BaseListRequest](ctx, endpoints.GetCurrentUserApps, options)).
+		Operation("currentUserApps").
+		Params(StructToQueryParams(endpoint.BaseListRequest{})...).
+		Doc("Get current login user's apps.").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.GetAppsResponse{}),
+	)
+
+	v1ws.Route(v1ws.GET("events").
+		To(NewKitHTTPServer[endpoint.GetCurrentUserEventsRequest](ctx, endpoints.GetCurrentUserEvents, options)).
+		Operation("currentUserEvents").
+		Params(StructToQueryParams(endpoint.GetCurrentUserEventsRequest{})...).
+		Doc("Get current login user's events.").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.GetCurrentUserEventsResponse{}),
+	)
+
+	v1ws.Route(v1ws.GET("eventLogs").
+		To(NewKitHTTPServer[endpoint.GetCurrentUserEventLogsRequest](ctx, endpoints.GetCurrentUserEventLogs, options)).
+		Operation("currentUserEventLogs").
+		Params(StructToQueryParams(endpoint.GetCurrentUserEventLogsRequest{})...).
+		Doc("Get current login user's event logs.").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.GetCurrentUserEventLogsResponse{}),
 	)
 
 	v1ws.Route(v1ws.PUT("").
@@ -565,6 +594,7 @@ func CurrentUserService(ctx context.Context, options []httptransport.ServerOptio
 		Reads(endpoint.ActivateAccountRequest{}).
 		Doc("Activate the user.").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Metadata(global.MetaSensitiveData, true).
 		Metadata(global.MetaNeedLogin, false).
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
@@ -598,6 +628,24 @@ func CurrentUserService(ctx context.Context, options []httptransport.ServerOptio
 		Metadata(global.MetaNeedLogin, false).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.SendLoginCaptchaResponse{}),
+	)
+
+	v1ws.Route(v1ws.GET("/sessions").
+		To(NewKitHTTPServer[endpoint.GetSessionsRequest](ctx, endpoints.GetCurrentUserSessions, options)).
+		Operation("getCurrentUserSessions").
+		Doc("Get current user session list.").
+		Params(StructToQueryParams(endpoint.GetSessionsRequest{})...).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.GetSessionsResponse{}),
+	)
+
+	v1ws.Route(v1ws.DELETE("/sessions/{id}").
+		To(NewKitHTTPServer[endpoint.DeleteSessionRequest](ctx, endpoints.DeleteCurrentUserSession, options)).
+		Operation("deleteCurrentUserSession").
+		Doc("Delete current user a session.").
+		Param(v1ws.PathParameter("id", "identifier of the session").DataType("string").Required(true)).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
 
 	return tag, []*restful.WebService{v1ws}
@@ -692,6 +740,33 @@ func ConfigService(ctx context.Context, options []httptransport.ServerOption, en
 		Reads(endpoint.PatchSecurityConfigRequest{}).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.BaseResponse{}),
+	)
+
+	return tag, []*restful.WebService{v1ws}
+}
+
+func EventService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
+	tag := spec.Tag{TagProps: spec.TagProps{Name: "events", Description: "event service"}}
+	tags := []string{tag.Name}
+	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
+
+	v1ws.Route(v1ws.GET("").
+		To(NewKitHTTPServer[endpoint.GetEventsRequest](ctx, endpoints.GetEvents, options)).
+		Operation("getEvents").
+		Params(StructToQueryParams(endpoint.GetEventsRequest{})...).
+		Doc("Get events.").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.GetEventsResponse{}),
+	)
+
+	v1ws.Route(v1ws.GET("logs").
+		To(NewKitHTTPServer[endpoint.GetEventLogsRequest](ctx, endpoints.GetEventLogs, options)).
+		Operation("getEventLogs").
+		Params(StructToQueryParams(endpoint.GetEventLogsRequest{})...).
+		Doc("Get event logs.").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.GetEventLogsResponse{}),
 	)
 
 	return tag, []*restful.WebService{v1ws}

@@ -34,7 +34,6 @@ var (
 	email    string
 	fullName string
 	role     string
-	storage  string
 )
 
 // migrateCmd represents the migrate command
@@ -94,7 +93,6 @@ func init() {
 	userCmd.PersistentFlags().StringVarP(&email, "email", "e", "", "user email.")
 	userCmd.PersistentFlags().StringVarP(&fullName, "fullname", "f", "", "user full name.")
 	userCmd.PersistentFlags().StringVarP(&role, "role", "r", "user", "user/admin")
-	userCmd.PersistentFlags().StringVarP(&storage, "storage", "s", "", "user storage source")
 
 	rootCmd.AddCommand(userCmd)
 	userCmd.AddCommand(userAddCmd)

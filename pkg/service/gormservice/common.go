@@ -60,6 +60,8 @@ func (c CommonService) AutoMigrate(ctx context.Context) error {
 		&models.PageData{},
 		&models.UserExt{},
 		&models.SystemConfig{},
+		&models.UserPasswordHistory{},
+		&models.WeakPassword{},
 	)
 	if err != nil {
 		return err
@@ -228,17 +230,21 @@ func (c CommonService) PatchAppRole(ctx context.Context, role *models.AppRole) e
 	}
 	var userIds []string
 	var oriUsers models.AppUsers
-	if err := conn.Select("user_id", "role_id").Where("app_id = ?", role.AppId).Find(&oriUsers).Error; err != nil {
+	if err := conn.Unscoped().Select("user_id", "role_id", "delete_time").Where("app_id = ?", role.AppId).Find(&oriUsers).Error; err != nil {
 		return err
 	}
+	fmt.Println(oriUsers)
 	for _, user := range role.Users {
 		if oriUser := oriUsers.GetByUserId(user.Id); oriUser == nil {
 			appUser := models.AppUser{AppId: role.AppId, UserId: user.Id, RoleId: role.Id}
 			if err := conn.Create(&appUser).Error; err != nil {
 				return err
 			}
-		} else if oriUser.RoleId != role.Id {
-			if err := conn.Model(&models.AppUser{}).Where("app_id = ? and user_id = ?", role.AppId, user.Id).Update("role_id", role.Id).Error; err != nil {
+		} else if oriUser.RoleId != role.Id || oriUser.DeleteTime.Valid {
+			if err := conn.Unscoped().Model(&models.AppUser{}).Where("app_id = ? and user_id = ?", role.AppId, user.Id).Updates(map[string]interface{}{
+				"role_id":     role.Id,
+				"delete_time": gogorm.Expr("null"),
+			}).Error; err != nil {
 				return err
 			}
 		}
@@ -294,6 +300,7 @@ func (c CommonService) GetAppAccessControl(ctx context.Context, appId string, o 
 			Joins("JOIN `t_app_proxy` ON `t_app_proxy`.id = `t_app_proxy_url`.app_proxy_id").
 			Where("app_role_id IN ?", roles.GetId()).
 			Where("t_app_proxy.app_id = ?", appId).
+			Where("t_app_proxy.`delete_time` IS NULL").
 			Scan(&results).Error; err != nil {
 			return nil, nil, err
 		}
@@ -365,7 +372,7 @@ func (c CommonService) CreateAppKey(ctx context.Context, appId, name string) (*m
 		Name:   name,
 		AppId:  appId,
 		Key:    pub1,
-		Secret: sign.SumSha245Hmac(pub1, privateKey),
+		Secret: sign.SumSha256Hmac(pub1, privateKey),
 	}
 	if err = conn.Create(&appKey).Error; err != nil {
 		return nil, err
@@ -410,7 +417,7 @@ func (c CommonService) AppAuthorization(ctx context.Context, key string, secret 
 	conn := c.Session(ctx)
 	var appKey models.AppKey
 	if err = conn.Select("id", "app_id").
-		Where("`key` = ? and secret = ?", key, sign.SumSha245Hmac(key, secret)).First(&appKey).Error; err != nil {
+		Where("`key` = ? and secret = ?", key, sign.SumSha256Hmac(key, secret)).First(&appKey).Error; err != nil {
 		return "", err
 	}
 	return appKey.AppId, nil

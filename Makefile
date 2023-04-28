@@ -20,12 +20,21 @@ PROTOC       ?= protoc
 # Protobuf files
 PROTO_DEFS := $(shell find . $(DONT_FIND) -type f -name '*.proto' -print)
 PROTO_GOS := $(shell find . $(DONT_FIND) -type f -name '*.pb.go' -print)
-
-PROTOC_OPTS ?= --gogo_opt=Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types,Mgoogle/protobuf/descriptor.proto=github.com/gogo/protobuf/protoc-gen-gogo/descriptor
+PROTOC_OPTS ?=
+GOGO_OPT := $(GOGO_OPT)Mgoogle/protobuf/descriptor.proto=github.com/gogo/protobuf/protoc-gen-gogo/descriptor,
+GOGO_OPT := $(GOGO_OPT)Mgoogle/protobuf/timestamp.proto=github.com/gogo/protobuf/types,
+GOGO_OPT := $(GOGO_OPT)Mgoogle/protobuf/duration.proto=github.com/gogo/protobuf/types,
+GOGO_OPT := $(GOGO_OPT)Mgoogle/protobuf/empty.proto=github.com/gogo/protobuf/types,
+GOGO_OPT := $(GOGO_OPT)Mgoogle/api/annotations.proto=github.com/gogo/googleapis/google/api,
+GOGO_OPT := $(GOGO_OPT)Mgoogle/api/http.proto=github.com/gogo/googleapis/google/api,
+GOGO_OPT := $(GOGO_OPT)Mgoogle/protobuf/field_mask.proto=github.com/gogo/protobuf/types,
+PROTOC_OPTS := $(PROTOC_OPTS) --gogo_opt=$(GOGO_OPT)
 PROTOC_OPTS := $(PROTOC_OPTS) -I$(shell $(GO) list -f "{{ .Dir }}" -m github.com/gogo/protobuf)/protobuf/
 PROTOC_OPTS := $(PROTOC_OPTS) -I$(shell $(GO) list -f "{{ .Dir }}" -m github.com/gogo/protobuf)/
+PROTOC_OPTS := $(PROTOC_OPTS) -I/home/sunlinyao/go/pkg/mod/github.com/gogo/googleapis@v1.4.0/
 PROTOC_OPTS := $(PROTOC_OPTS) -I./api
-PROTOC_OPTS := $(PROTOC_OPTS) --gogo_out=module=${GOMODULENAME}:gogo_out
+PROTOC_OPTS := $(PROTOC_OPTS) --gogo_out=plugins=grpc,module=${GOMODULENAME}:gogo_out
+PROTOC_OPTS := $(PROTOC_OPTS) --grpc-gateway_out=${GOGO_OPT}:gogo_out
 
 # golangci-lint only supports linux, darwin and windows platforms on i386/amd64.
 # windows isn't included here because of the path separator being different.
@@ -90,7 +99,7 @@ common-check_license:
 
 .PHONY: idas
 idas:
-	go build -ldflags="-s -w" -o dist/idas ./cmd/idas
+	CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/idas ./cmd/idas
 
 .PHONY: common-lint
 common-lint: $(GOLANGCI_LINT)
@@ -113,10 +122,11 @@ test:
 
 .PHONY: openapi
 openapi:
+	go run cmd/openapi/main.go -o public/config/idas.json
 	cd public && yarn openapi
 	go run scripts/sync_to_public.go
 
 .PHONY: ui
-ui:openapi
-	cd public && yarn install && yarn run build
+ui:
+	cd public && yarn install && yarn run build --basePath='/idas/admin/' --apiPath='/idas/'
 	rm -rf pkg/transport/static && cp -r public/dist pkg/transport/static

@@ -11,7 +11,7 @@ message LdapOptions{
   string user_search_filter = 5;
   string app_search_base =6;
   string app_search_filter =7;
-  string app_role_search_filter =8;
+  string app_object_class =8;
   string attr_username = 9;
   string attr_email = 10;
   string attr_user_display_name = 11;

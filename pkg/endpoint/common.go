@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"time"
 
 	"github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/kit/endpoint"
@@ -90,4 +91,17 @@ func MakeDownloadFileEndpoint(s service.Service) endpoint.Endpoint {
 		}
 		return nil, nil
 	}
+}
+
+func GetEventMeta(ctx context.Context, action string, beginTime time.Time, err error, resp interface{}) (eventId, message string, status bool, took time.Duration) {
+	eventId = log.GetTraceId(ctx)
+	if err != nil {
+		message = fmt.Sprintf("Calling the %s method failed, err: %s", action, err)
+	} else if r, ok := resp.(endpoint.Failer); ok && r.Failed() != nil {
+		message = fmt.Sprintf("Calling the %s method failed, err: %s", action, r.Failed())
+	} else {
+		message = fmt.Sprintf("Successfully called %s method.", action)
+		status = true
+	}
+	return eventId, message, true, time.Since(beginTime)
 }

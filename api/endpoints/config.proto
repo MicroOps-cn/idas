@@ -14,6 +14,8 @@ message PatchSecurityConfigRequest{
   uint32 password_failed_lock_duration = 6[(gogoproto.customtype) = "uint32",(gogoproto.jsontag) = "passwordFailedLockDuration,omitempty"];
   uint32 password_history = 7[(gogoproto.customtype) = "uint32",(gogoproto.jsontag) = "passwordHistory,omitempty"];
   uint32 account_inactive_lock = 8[(gogoproto.customtype) = "uint32",(gogoproto.jsontag) = "accountInactiveLock,omitempty"];
+  uint32 login_session_inactivity_time = 9[(gogoproto.customtype) = "uint32",(gogoproto.jsontag) = "loginSessionInactivityTime,omitempty"];
+  uint32 login_session_max_time = 10[(gogoproto.customtype) = "uint32",(gogoproto.jsontag) = "loginSessionMaxTime,omitempty"];
 }
 
 message GetSecurityConfigResponse{

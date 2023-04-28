@@ -26,6 +26,7 @@ type Permission struct {
 	EnableAuth  bool        `json:"enableAuth"`
 	Children    Permissions `gorm:"-" json:"children,omitempty"`
 	Role        []string    `gorm:"-" json:"role,omitempty"`
+	EnableAudit bool        `gorm:"-" json:"enableAudit,omitempty"`
 }
 
 type Permissions []*Permission
@@ -62,6 +63,18 @@ func (p Permissions) GetRoles() Roles {
 		}
 	}
 	return roles
+}
+
+func (p Permissions) GetMethod(method string) *Permission {
+	for _, permission := range p {
+		if permission.Name == method {
+			return permission
+		}
+		if m := permission.Children.GetMethod(method); m != nil {
+			return m
+		}
+	}
+	return nil
 }
 
 type Roles []*Role

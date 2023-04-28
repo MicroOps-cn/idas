@@ -1,0 +1,76 @@
+syntax = "proto3";
+package idas.endpoint;
+import public "gogoproto/gogo.proto";
+import public "google/protobuf/timestamp.proto";
+import "config.proto";
+import "endpoints/base.proto";
+import "models/models.proto";
+option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
+
+message Event{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
+  string update_time = 2[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
+  string create_time = 3[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
+  string user_id = 4[(gogoproto.jsontag) = "userId"];
+  string username = 5[(gogoproto.jsontag) = "username"];
+  string action = 6[(gogoproto.jsontag) = "action"];
+  string client_ip =7[(gogoproto.jsontag) = "client_ip"];
+  string status =8[(gogoproto.jsontag) = "status"];
+  int64 took =9[(gogoproto.jsontag) = "took"];
+  string message =10[(gogoproto.jsontag) = "message"];
+  string location = 11[(gogoproto.jsontag) = "location"];
+}
+
+message EventLog{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
+  string update_time = 2[(gogoproto.jsontag) = "updateTime", (gogoproto.moretags) = 'valid:"required"'];
+  string create_time = 3[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
+  string event_id = 4[(gogoproto.jsontag) = "userId"];
+  string log = 5[(gogoproto.jsontag) = "log"];
+
+}
+
+message GetEventsRequest{
+  endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  string username = 2;
+  string action  =3;
+  string start_time = 4[(gogoproto.jsontag) = "startTime",(gogoproto.moretags)='valid:"required,rfc3339"'];
+  string end_time = 5[(gogoproto.jsontag) = "endTime",(gogoproto.moretags)='valid:"required,rfc3339"'];
+}
+
+message GetEventsResponse{
+  idas.endpoint.BaseListResponse base_list_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated Event data = 2;
+}
+
+message GetCurrentUserEventsRequest{
+  endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  string action  =3;
+  string start_time = 4[(gogoproto.jsontag) = "startTime",(gogoproto.moretags)='valid:"required,rfc3339"'];
+  string end_time = 5[(gogoproto.jsontag) = "endTime",(gogoproto.moretags)='valid:"required,rfc3339"'];
+}
+
+message GetCurrentUserEventsResponse{
+  idas.endpoint.BaseListResponse base_list_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated Event data = 2;
+}
+
+message GetEventLogsRequest{
+  endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  string event_id = 2[(gogoproto.jsontag) = "eventId",(gogoproto.moretags)='valid:"required,uuid"'];
+}
+
+message GetEventLogsResponse{
+  idas.endpoint.BaseListResponse base_list_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated EventLog data = 2;
+}
+
+message GetCurrentUserEventLogsRequest{
+  endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  string event_id = 2[(gogoproto.jsontag) = "eventId",(gogoproto.moretags)='valid:"required,uuid"'];
+}
+
+message GetCurrentUserEventLogsResponse{
+  idas.endpoint.BaseListResponse base_list_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated EventLog data = 2;
+}

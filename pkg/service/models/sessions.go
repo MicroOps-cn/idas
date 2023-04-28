@@ -19,6 +19,8 @@ package models
 import (
 	"database/sql"
 	"encoding/json"
+	g "github.com/MicroOps-cn/fuck/generator"
+	"github.com/MicroOps-cn/idas/config"
 	"reflect"
 	"time"
 
@@ -54,7 +56,11 @@ func (t TokenType) GetExpiry() time.Time {
 	case TokenTypeResetPassword:
 		return time.Now().UTC().Add(global.ResetPasswordExpiration)
 	case TokenTypeLoginSession:
-		return time.Now().UTC().Add(global.LoginSessionExpiration)
+		expirationTime := config.GetRuntimeConfig().GetLoginSessionInactivityTime()
+		if expirationTime == 0 {
+			expirationTime = 30 * 24
+		}
+		return time.Now().UTC().Add(time.Duration(expirationTime) * time.Hour)
 	case TokenTypeActive:
 		return time.Now().UTC().Add(global.ActiveExpiration)
 	case TokenTypeLoginCode:
@@ -84,13 +90,14 @@ func (s *Token) GetRelationId() string {
 }
 
 func NewToken(tokenType TokenType, data interface{}) (*Token, error) {
-	token := &Token{Id: NewId(), CreateTime: time.Now(), Type: tokenType, LastSeen: time.Now(), Expiry: tokenType.GetExpiry()}
+	token := &Token{Id: g.NewId(string(tokenType)), CreateTime: time.Now(), Type: tokenType, LastSeen: time.Now(), Expiry: tokenType.GetExpiry()}
 	rawData, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
 	if obj, ok := data.(HasId); ok {
 		token.RelationId = obj.GetId()
+		token.Id = g.NewId(token.RelationId)
 	}
 	token.Data = rawData
 	return token, nil
@@ -109,7 +116,7 @@ func (s *Token) To(r interface{}) error {
 
 func (s *Token) BeforeCreate(db *gorm.DB) error {
 	if s.Id == "" {
-		id := NewId()
+		id := g.NewId(db.Statement.Table)
 		if len(id) != 36 {
 			return errors.New("生成ID失败: " + id)
 		}
@@ -122,4 +129,11 @@ func (s *Token) BeforeCreate(db *gorm.DB) error {
 		db.Statement.SetColumn("LastSeen", time.Now().UTC())
 	}
 	return nil
+}
+
+type Counter struct {
+	Id         string     `json:"id" gorm:"primary_key;type:char(36)" valid:"required"`
+	Seed       string     `json:"seek" gorm:"type:varchar(128)"`
+	Count      int64      `json:"count"`
+	ExpireTime *time.Time `json:"expireTime"`
 }

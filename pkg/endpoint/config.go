@@ -18,7 +18,6 @@ package endpoint
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/MicroOps-cn/fuck/conv"
 	"github.com/go-kit/kit/endpoint"
@@ -50,32 +49,8 @@ func MakePatchSecurityConfigEndpoint(svc service.Service) endpoint.Endpoint {
 			if c.Security == nil {
 				c.Security = &config.RuntimeSecurityConfig{}
 			}
-			if req.AccountInactiveLock != nil {
-				c.Security.AccountInactiveLock = *req.AccountInactiveLock
-			}
-			if req.ForceEnableMfa != nil {
-				c.Security.ForceEnableMfa = *req.ForceEnableMfa
-			}
-			if req.PasswordComplexity != nil {
-				c.Security.PasswordComplexity = *req.PasswordComplexity
-			}
-			if req.PasswordMinLength != nil {
-				c.Security.PasswordMinLength = *req.PasswordMinLength
-			}
-			if req.PasswordExpireTime != nil {
-				c.Security.PasswordExpireTime = *req.PasswordExpireTime
-			}
-			if req.PasswordFailedLockThreshold != nil {
-				c.Security.PasswordFailedLockThreshold = *req.PasswordFailedLockThreshold
-			}
-			if req.PasswordFailedLockDuration != nil {
-				c.Security.PasswordFailedLockDuration = *req.PasswordFailedLockDuration
-			}
-			if req.PasswordHistory != nil {
-				c.Security.PasswordHistory = *req.PasswordHistory
-			}
+			resp.Error = conv.JSON(req, c.Security)
 		})
-		fmt.Println(resp)
 		return resp, nil
 	}
 }

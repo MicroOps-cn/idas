@@ -18,15 +18,18 @@ package gorm
 
 import (
 	"context"
+	"database/sql/driver"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 
 	"github.com/MicroOps-cn/fuck/log"
+	gosqlite "github.com/glebarez/go-sqlite"
+	"github.com/glebarez/sqlite"
 	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/types"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
@@ -34,6 +37,17 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
+
+func init() {
+	gosqlite.MustRegisterDeterministicScalarFunction("from_base64", 1, func(ctx *gosqlite.FunctionContext, args []driver.Value) (driver.Value, error) {
+		switch argTyped := args[0].(type) {
+		case string:
+			return base64.StdEncoding.DecodeString(argTyped)
+		default:
+			return nil, fmt.Errorf("unsupported type: %T", args[0])
+		}
+	})
+}
 
 func NewSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *Client, err error) {
 	clt = new(Client)
@@ -69,6 +83,7 @@ func NewSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *Client, 
 				level.Warn(logger).Log("msg", "Failed to close SQLite database", "err", err)
 			}
 		}
+		level.Debug(logger).Log("msg", "Sqlite connect closed")
 		stopCh.Done()
 	}()
 

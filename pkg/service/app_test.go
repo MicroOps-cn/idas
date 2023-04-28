@@ -18,6 +18,7 @@ package service
 
 import (
 	"context"
+	g "github.com/MicroOps-cn/fuck/generator"
 	"sort"
 	"strconv"
 	"strings"
@@ -63,7 +64,7 @@ func testAppService(ctx context.Context, t *testing.T, svc Service) {
 		for i := 0; i < rCount; i++ {
 			var id string
 			if i%3 == 0 {
-				id = models.NewId()
+				id = g.NewId()
 			}
 			urls[i] = &models.AppProxyUrl{Model: models.Model{Id: id}, Name: rand.String(10)}
 		}
@@ -75,7 +76,7 @@ func testAppService(ctx context.Context, t *testing.T, svc Service) {
 		for i := 0; i < rCount; i++ {
 			var id string
 			if i%3 == 0 {
-				id = models.NewId()
+				id = g.NewId()
 			}
 			roles[i] = &models.AppRole{Model: models.Model{Id: id}, Name: rand.String(10)}
 		}

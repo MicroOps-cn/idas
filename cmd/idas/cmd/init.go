@@ -27,6 +27,8 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
+var adminUsername string
+
 // migrateCmd represents the migrate command
 var initDataCmd = &cobra.Command{
 	Use:   "init",
@@ -46,11 +48,12 @@ func InitData(ctx context.Context, _ *signals.StopChan) {
 	if err := svc.RegisterPermission(ctx, endpoint.Set{}.GetPermissionsDefine()); err != nil {
 		panic(err)
 	}
-	if err := svc.InitData(ctx); err != nil {
+	if err := svc.InitData(ctx, adminUsername); err != nil {
 		panic(err)
 	}
 }
 
 func init() {
+	initDataCmd.PersistentFlags().StringVar(&adminUsername, "admin", "admin", "admin username.")
 	rootCmd.AddCommand(initDataCmd)
 }

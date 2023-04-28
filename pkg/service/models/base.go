@@ -17,47 +17,24 @@
 package models
 
 import (
-	"encoding/binary"
+	"bytes"
+	"compress/zlib"
+	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	g "github.com/MicroOps-cn/fuck/generator"
+	"gorm.io/gorm/clause"
+	"io"
 	"time"
 
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 	"gorm.io/gorm"
 )
 
-const midUint64 = uint64(1) << 63
-
-func NewId(seed ...string) string {
-	ts := uint64(time.Now().UnixMicro())
-	if ts < midUint64 {
-		var hash uint64
-		for _, s := range seed {
-			seedBytes := []byte(s)
-			for i := 0; i < len(seedBytes); i += 8 {
-				if len(seedBytes[i:]) <= 8 {
-					tmp := make([]byte, 8)
-					copy(tmp, seedBytes[i:])
-					hash += binary.BigEndian.Uint64(tmp)
-					break
-				}
-				hash += binary.BigEndian.Uint64(seedBytes[i : i+8])
-			}
-		}
-		if hash > midUint64 {
-			hash = hash - midUint64
-		}
-		ts += hash
-	}
-
-	id := uuid.NewV4()
-	binary.BigEndian.PutUint64(id[:8], ts)
-	return id.String()
-}
-
 func (m *Model) BeforeCreate(db *gorm.DB) error {
 	if m.Id == "" {
-		id := NewId()
+		id := g.NewId(db.Statement.Table)
 		if len(id) != 36 {
 			return errors.New("Failed to generate ID: " + id)
 		}
@@ -79,7 +56,6 @@ func (m *Model) BeforeCreate(db *gorm.DB) error {
 func (m *Model) BeforeSave(db *gorm.DB) error {
 	db.Statement.SetColumn("UpdateTime", time.Now().UTC())
 	if m.IsDelete && !m.DeleteTime.Valid {
-		fmt.Println("-----", *m)
 		m.DeleteTime = gorm.DeletedAt{Time: time.Now(), Valid: true}
 		db.Statement.SetColumn("DeleteTime", m.DeleteTime)
 	}
@@ -92,3 +68,72 @@ func (m *Model) AfterFind(_ *gorm.DB) error {
 	}
 	return nil
 }
+
+type CompressField []byte
+
+func (c *CompressField) MarshalJSON() ([]byte, error) {
+	return json.Marshal(string(*c))
+}
+
+func (c *CompressField) GormDataType() string {
+	return "blob"
+}
+
+// Scan implements the Scanner interface.
+func (c *CompressField) Scan(value any) error {
+	var val []byte
+	switch vt := value.(type) {
+	case []uint8:
+		val = vt
+	case string:
+		val = []byte(vt)
+	default:
+		return fmt.Errorf("failed to resolve field, type exception: %T", value)
+	}
+	if len(val) > 0 {
+		if val[0] == 0x78 {
+			r, err := zlib.NewReader(bytes.NewBuffer(val))
+			if err != nil {
+				return err
+			}
+			*c, err = io.ReadAll(r)
+			if err != nil && err != io.ErrUnexpectedEOF {
+				return err
+			}
+		} else {
+			*c = val
+		}
+	}
+	return nil
+}
+
+func (c CompressField) GormValue(ctx context.Context, db *gorm.DB) clause.Expr {
+	buf := bytes.NewBuffer(nil)
+	w := zlib.NewWriter(buf)
+	_, err := w.Write(c)
+	if err != nil {
+		db.AddError(err)
+	} else if err = w.Flush(); err != nil {
+		db.AddError(err)
+	} else {
+		return clause.Expr{
+			SQL:  "from_base64(?)",
+			Vars: []interface{}{base64.StdEncoding.EncodeToString(buf.Bytes())},
+		}
+	}
+	return clause.Expr{}
+}
+
+// Value implements the driver Valuer interface.
+//func (c CompressField) Value() (driver.Value, error) {
+//	buf := bytes.NewBuffer(nil)
+//	w := zlib.NewWriter(buf)
+//	_, err := w.Write(c)
+//	if err != nil {
+//		return nil, err
+//	}
+//	if err = w.Flush(); err != nil {
+//		return nil, err
+//	}
+//	return buf.String(), err
+//}

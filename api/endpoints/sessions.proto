@@ -7,11 +7,11 @@ option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
 
 message GetSessionsRequest{
   idas.endpoint.BaseListRequest base_list_request = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false];
-  string user_id = 2[(gogoproto.jsontag) = "userId,omitempty", (gogoproto.moretags) = 'valid:"required"'];
+  string user_id = 2[(gogoproto.jsontag) = "userId,omitempty", (gogoproto.moretags) = 'valid:"required,uuid"'];
 }
 
 message SessionInfo{
-  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
   string create_time = 2[(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
   string expiry = 3[(gogoproto.jsontag) = "expiry", (gogoproto.moretags) = 'valid:"required"'];
   string last_seen = 4[(gogoproto.jsontag) = "lastSeen,omitempty"];
@@ -23,7 +23,7 @@ message GetSessionsResponse{
 }
 
 message DeleteSessionRequest{
-  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
 }
 
 message AuthenticationRequest{

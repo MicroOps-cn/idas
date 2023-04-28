@@ -1,0 +1,9 @@
+syntax = "proto3";
+package idas.client.geoip;
+import public "gogoproto/gogo.proto";
+import public "google/protobuf/duration.proto";
+option go_package = "github.com/MicroOps-cn/idas/pkg/client/geoip;geoip";
+
+message GeoIPOptions{
+  string path = 1;
+}

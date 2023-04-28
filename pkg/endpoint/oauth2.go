@@ -23,10 +23,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/http"
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log/level"
+	"github.com/golang-jwt/jwt/v4"
+	uuid "github.com/satori/go.uuid"
 
+	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
@@ -37,6 +41,13 @@ import (
 //nolint:revive
 const OAuthGrantType_proxy OAuthGrantType = 9
 
+func (r *OAuthTokenRequest) GetRefreshToken() string {
+	if r != nil && r.RefreshToken != nil {
+		return string(*r.RefreshToken)
+	}
+	return ""
+}
+
 func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*OAuthTokenRequest)
@@ -46,11 +57,11 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 		} else {
 			if req.GrantType == OAuthGrantType_refresh_token {
 				if username, password, ok := restfulReq.Request.BasicAuth(); ok {
-					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByPassword(ctx, req.RefreshToken, username, password)
+					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByPassword(ctx, req.GetRefreshToken(), username, password)
 				} else if len(req.Username) != 0 && len(req.Password) != 0 {
-					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByPassword(ctx, req.RefreshToken, req.Username, req.Password)
+					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByPassword(ctx, req.GetRefreshToken(), req.Username, req.Password)
 				} else {
-					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByAuthorizationCode(ctx, req.RefreshToken, req.ClientId, req.ClientSecret)
+					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByAuthorizationCode(ctx, req.GetRefreshToken(), req.ClientId, req.ClientSecret)
 				}
 			} else {
 				tokenType := models.TokenTypeToken
@@ -95,27 +106,70 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					return &resp, nil
 				case OAuthGrantType_authorization_code:
 					err = s.GetSessionByToken(ctx, req.Code, models.TokenTypeCode, user)
+					if err == nil {
+						_ = s.DeleteToken(ctx, models.TokenTypeCode, req.Code)
+					}
 				case OAuthGrantType_password:
-					user, err = s.VerifyPassword(ctx, req.Username, req.Password)
+					user, err = s.VerifyPassword(ctx, req.Username, req.Password, false)
 				case OAuthGrantType_client_credentials:
 					if username, password, ok := restfulReq.Request.BasicAuth(); ok {
-						user, err = s.VerifyPassword(ctx, username, password)
+						user, err = s.VerifyPassword(ctx, username, password, false)
 					}
 				}
 				if err == nil && user != nil && len(user.Id) > 0 {
+					app, ok := ctx.Value(global.MetaApp).(*models.App)
+					if !ok {
+						return "", errors.UnauthorizedError()
+					}
+
+					jwtSecret := config.Get().Global.GetJwtSecret()
+
 					at, err := s.CreateToken(ctx, tokenType, user)
 					if err != nil {
 						return "", errors.NewServerError(500, err.Error())
 					}
-					resp.AccessToken = at.Id
+					resp.ExpiresIn = int(time.Until(at.Expiry) / time.Minute)
+					resp.AccessToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
+						Id:        at.Id,
+						ExpiresAt: at.Expiry.Unix(),
+						IssuedAt:  time.Now().Unix(),
+						NotBefore: time.Now().Unix(),
+					}).SignedString([]byte(jwtSecret))
+					if err != nil {
+						return "", errors.NewServerError(500, err.Error())
+					}
+
 					if !req.DisableRefreshToken {
 						rt, err := s.CreateToken(ctx, models.TokenTypeRefreshToken, user)
 						if err != nil {
 							return "", errors.NewServerError(500, err.Error())
 						}
-						resp.RefreshToken = rt.Id
+						resp.RefreshToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
+							Id:        rt.Id,
+							ExpiresAt: rt.Expiry.Unix(),
+							IssuedAt:  time.Now().Unix(),
+							NotBefore: time.Now().Unix(),
+						}).SignedString([]byte(jwtSecret))
+						if err != nil {
+							return "", errors.NewServerError(500, err.Error())
+						}
 					}
-					resp.ExpiresIn = int(global.TokenExpiration / time.Minute)
+
+					if app.GrantType&models.AppMeta_oidc == models.AppMeta_oidc {
+						resp.IdToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
+							Id:        uuid.NewV4().String(),
+							Audience:  app.Name,
+							ExpiresAt: time.Now().Add(time.Minute * 10).Unix(),
+							Issuer:    global.IdasAppName,
+							IssuedAt:  time.Now().Unix(),
+							NotBefore: time.Now().Unix(),
+							Subject:   user.Username,
+						}).SignedString([]byte(jwtSecret))
+						if err != nil {
+							return "", errors.NewServerError(500, err.Error())
+						}
+					}
+
 					return &resp, nil
 				}
 				return nil, errors.UnauthorizedError()
@@ -137,7 +191,6 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 		logger := logs.GetContextLogger(ctx)
 		req := request.(Requester).GetRequestData().(*OAuthAuthorizeRequest)
 		resp := SimpleResponseWrapper[interface{}]{}
-		var code string
 
 		stdResp := request.(RestfulRequester).GetRestfulResponse()
 
@@ -167,32 +220,51 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 		}
 
 		query := uri.Query()
-		app, err := s.GetAppInfo(ctx, opts.WithAppId(appKey.AppId), opts.WithBasic)
+		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithAppId(appKey.AppId), opts.WithUsers(user.Id))
 		if err != nil {
 			return err, nil
 		} else if app == nil {
 			return nil, errors.StatusNotFound("Authorize")
 		}
-		if code, err = s.GetAuthCodeByAppId(ctx, appKey.AppId, user, sessionId); err != nil {
-			return nil, err
-		}
-		if code == "" {
+
+		//if code, err = s.GetAuthCodeByAppId(ctx, appKey.AppId, user, sessionId); err != nil && !errors.IsNotFount(err) {
+		//	return nil, err
+		//}
+		if len(app.Users) == 0 {
 			httpExternalURL, ok := ctx.Value(global.HTTPExternalURLKey).(string)
 			if !ok {
 				return nil, errors.StatusNotFound("Authorize")
 			}
-			stdResp.AddHeader("Location", httpExternalURL+"403")
+			webPrefix, ok := ctx.Value(global.HTTPWebPrefixKey).(string)
+			if !ok {
+				return nil, errors.StatusNotFound("Authorize")
+			}
+			u, err := url.Parse(httpExternalURL)
+			if err != nil {
+				return nil, errors.StatusNotFound("Authorize")
+			}
+			u.Path = http.JoinPath(u.Path, webPrefix, "403")
+			stdResp.AddHeader("Location", u.String())
 			stdResp.WriteHeader(302)
 		} else {
+
+			token, err := s.CreateToken(ctx, models.TokenTypeCode, user)
+			if err != nil {
+				return "", err
+			}
+			appURL, err := url.Parse(app.Url)
+			if err == nil && appURL.User != nil {
+				uri.User = appURL.User
+			}
 			switch req.ResponseType {
 			case OAuthAuthorizeRequest_code, OAuthAuthorizeRequest_default:
-				query.Add("code", code)
+				query.Add("code", token.Id)
 				query.Add("state", req.State)
 				uri.RawQuery = query.Encode()
 				stdResp.AddHeader("Location", uri.String())
 				stdResp.WriteHeader(302)
 			case OAuthAuthorizeRequest_token:
-				accessToken, refreshToken, expiresIn, err := s.GetOAuthTokenByAuthorizationCode(ctx, code, req.ClientId)
+				accessToken, refreshToken, expiresIn, err := s.GetOAuthTokenByAuthorizationCode(ctx, token.Id, req.ClientId)
 				if err != nil {
 					return nil, err
 				}

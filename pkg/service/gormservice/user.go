@@ -29,9 +29,11 @@ import (
 	uuid "github.com/satori/go.uuid"
 	gogorm "gorm.io/gorm"
 
+	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/service/opts"
+	"github.com/MicroOps-cn/idas/pkg/utils/sign"
 )
 
 // ResetPassword
@@ -56,17 +58,6 @@ func (s UserAndAppService) ResetPassword(ctx context.Context, ids string, passwo
 	}
 
 	return conn.Commit().Error
-}
-
-// UpdateLoginTime
-//
-//	@Description[en-US]: Update the user's last login time.
-//	@Description[zh-CN]: 更新用户最后一次登陆时间。
-//	@param ctx 	context.Context
-//	@param id 	string
-//	@return error
-func (s UserAndAppService) UpdateLoginTime(ctx context.Context, id string) error {
-	return s.Session(ctx).Model(&models.User{Model: models.Model{Id: id}}).UpdateColumn("login_time", time.Now().UTC()).Error
 }
 
 func (s UserAndAppService) Name() string {
@@ -173,11 +164,12 @@ func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, us
 //	@return users    []*models.User
 //	@return err      error
 func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status models.UserMeta_UserStatus, appId string, current, pageSize int64) (total int64, users []*models.User, err error) {
-	query := s.Session(ctx).Where("t_user.delete_time is NULL").Model(&models.User{})
+	conn := s.Session(ctx)
+	query := conn.Where("t_user.delete_time is NULL").Model(&models.User{})
 	if len(keywords) > 0 {
 		keywords = fmt.Sprintf("%%%s%%", keywords)
 		query = query.Where(
-			query.Where("username like ?", keywords).
+			conn.Where("username like ?", keywords).
 				Or("email like ?", keywords).
 				Or("phone_number like ?", keywords).
 				Or("full_name like ?", keywords),
@@ -402,8 +394,7 @@ func (s UserAndAppService) PatchUser(ctx context.Context, patch map[string]inter
 		if err = tx.Model(&models.User{}).Where("id = ?", id).Updates(patch).Error; err != nil {
 			return err
 		}
-		tx.Commit()
-		return nil
+		return tx.Commit().Error
 	}
 	return errors.ParameterError("id is null")
 }
@@ -440,4 +431,70 @@ func (c *CommonService) PatchUserExtData(ctx context.Context, id string, patch m
 		return created.Error
 	}
 	return conn.Model(&models.UserExt{}).Where("user_id = ?", id).Updates(patch).Error
+}
+
+func (c *CommonService) VerifyAndRecordHistoryPassword(ctx context.Context, id string, password string) error {
+	passHisCount := int(config.GetRuntimeConfig().Security.PasswordHistory)
+	if passHisCount == 0 {
+		return nil
+	}
+	logger := logs.GetContextLogger(ctx)
+	his := &models.UserPasswordHistory{UserId: id}
+	if err := his.SetPassword(password); err != nil {
+		return err
+	}
+	tx := c.Session(ctx).Begin()
+	defer tx.Rollback()
+	var lastHis []models.UserPasswordHistory
+	if err := tx.Model(&models.UserPasswordHistory{}).Order("create_time DESC").Limit(passHisCount).Find(&lastHis).Error; err != nil {
+		return fmt.Errorf("failed to obtain the last %d passwords. ", passHisCount)
+	}
+	for _, lh := range lastHis {
+		if lh.Hash == his.Hash {
+			return errors.NewServerError(400, fmt.Sprintf("Coincident with the last %d passwords used", passHisCount), errors.CodePasswordRepetition)
+		}
+	}
+	if err := tx.Create(his).Error; err != nil {
+		level.Error(logger).Log("msg", "Failed to create password history", "err", err)
+	} else if len(lastHis) > 0 {
+		if err = tx.Delete(&lastHis).Error; err != nil {
+			level.Error(logger).Log("msg", "Failed to delete password that is too old", "err", err)
+		}
+	}
+	return tx.Commit().Error
+}
+
+// UpdateLoginTime
+//
+//	@Description[en-US]: Update the user's last login time.
+//	@Description[zh-CN]: 更新用户最后一次登陆时间。
+//	@param ctx 	context.Context
+//	@param id 	string
+//	@return error
+func (c *CommonService) UpdateLoginTime(ctx context.Context, id string) error {
+	return c.Session(ctx).Model(&models.User{Model: models.Model{Id: id}}).UpdateColumn("login_time", time.Now().UTC()).Error
+}
+
+func (c CommonService) InsertWeakPassword(ctx context.Context, passwords ...string) error {
+	wps := make([]models.WeakPassword, len(passwords))
+	for i, password := range passwords {
+		wps[i] = models.WeakPassword{Hash: sign.SumSha512Hmac(password)}
+	}
+	conn := c.Session(ctx)
+	return conn.Create(&wps).Error
+}
+
+func (c CommonService) VerifyWeakPassword(ctx context.Context, password string) error {
+	logger := logs.GetContextLogger(ctx)
+	hash := sign.SumSha512Hmac(password)
+
+	conn := c.Session(ctx)
+	var count int64
+	if err := conn.Model(&models.WeakPassword{}).Where("hash = ?", hash).Count(&count).Error; err != nil {
+		level.Error(logger).Log("msg", "Failed to check weak password", "err", err)
+	}
+	if count >= 1 {
+		return errors.NewServerError(400, "Password too simple", errors.CodePasswordTooSimple)
+	}
+	return nil
 }

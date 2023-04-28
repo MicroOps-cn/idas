@@ -4,6 +4,7 @@ import "types/redis.proto";
 import "types/ldap.proto";
 import "types/capacity.proto";
 import "types/email.proto";
+import "types/geoip.proto";
 import public "gogoproto/gogo.proto";
 package idas.config;
 option go_package = "github.com/MicroOps-cn/idas/config;config";
@@ -30,6 +31,8 @@ message Storages{
   Storage default = 1;
   Storage session = 2;
   Storage user = 3;
+  Storage logging = 4;
+  idas.client.geoip.GeoIPOptions geoip = 15[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/client/geoip.Client"]; // MySQL Database Config
 }
 
 message GlobalOptions{
@@ -38,10 +41,12 @@ message GlobalOptions{
   string upload_path = 3;
   string workspace = 4;
   string secret = 5;
+  string jwt_secret = 6;
+  string geoip2_file = 7;
 }
 
 message security{
-  bool force_mfa = 1;
+  repeated string trust_ip = 1[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/sets.IPNet"];
 }
 
 message Config {
@@ -68,6 +73,8 @@ message RuntimeSecurityConfig{
   uint32 password_failed_lock_duration = 6[(gogoproto.jsontag) = "passwordFailedLockDuration"];
   uint32 password_history = 7[(gogoproto.jsontag) = "passwordHistory"];
   uint32 account_inactive_lock = 8[(gogoproto.jsontag) = "accountInactiveLock"];
+  uint32 login_session_inactivity_time = 9[(gogoproto.jsontag) = "loginSessionInactivityTime"];
+  uint32 login_session_max_time = 10[(gogoproto.jsontag) = "loginSessionMaxTime"];
 }
 
 message RuntimeConfig {

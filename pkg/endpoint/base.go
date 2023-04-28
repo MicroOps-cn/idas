@@ -49,7 +49,7 @@ type RestfulRequester interface {
 
 func (l BaseResponse) Failed() error {
 	if len(l.ErrorMessage) != 0 {
-		return errors.NewServerError(http.StatusOK, l.ErrorMessage)
+		return errors.WithServerError(http.StatusOK, l.Error, l.ErrorMessage, l.ErrorCode)
 	}
 	return l.Error
 }

@@ -20,6 +20,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	errors2 "errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -65,6 +66,7 @@ var staticFs embed.FS
 
 // NewHTTPHandler returns an HTTP handler that makes a set of endpoints
 // available on predefined paths.
+
 func NewHTTPHandler(ctx context.Context, logger log.Logger, endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer, openapiPath string) http.Handler {
 	options := []httptransport.ServerOption{
 		httptransport.ServerErrorEncoder(errorEncoder),
@@ -82,7 +84,9 @@ func NewHTTPHandler(ctx context.Context, logger log.Logger, endpoints endpoint.S
 	m := restful.NewContainer()
 	m.Filter(HTTPContextFilter(ctx))
 	m.Filter(HTTPLoggingFilter(ctx))
-	options = append(options, httptransport.ServerBefore(opentracing.HTTPToContext(otTracer, "Concat", logger)))
+	if otTracer != nil {
+		options = append(options, httptransport.ServerBefore(opentracing.HTTPToContext(otTracer, "Concat", logger)))
+	}
 	restful.TraceLogger(stdlog.New(log.NewStdlibAdapter(level.Info(logger)), "[restful]", stdlog.LstdFlags|stdlog.Lshortfile))
 	var specTags []spec.Tag
 	for _, serviceGenerator := range apiServiceSet {
@@ -111,8 +115,24 @@ func NewHTTPHandler(ctx context.Context, logger log.Logger, endpoints endpoint.S
 		m.Add(restfulspec.NewOpenAPIService(specConf))
 	}
 	webPrefix := ctx.Value(global.HTTPWebPrefixKey).(string)
-	m.Handle(webPrefix, http.StripPrefix(webPrefix, http.FileServer(http.FS(w.M[fs.FS](fs.Sub(staticFs, "static"))))))
+	m.Handle(webPrefix, http.StripPrefix(webPrefix, http.FileServer(http.FS(NewTryFileFS(w.M[fs.FS](fs.Sub(staticFs, "static")))))))
 	return m
+}
+
+type TryFileFS struct {
+	fs fs.FS
+}
+
+func (t *TryFileFS) Open(name string) (fs.File, error) {
+	open, err := t.fs.Open(name)
+	if errors2.Is(err, fs.ErrNotExist) {
+		return t.fs.Open("index.html")
+	}
+	return open, err
+}
+
+func NewTryFileFS(fileSystem fs.FS) fs.FS {
+	return &TryFileFS{fs: fileSystem}
 }
 
 const DisableStackTrace = "__disable_stack_trace__"
@@ -213,8 +233,8 @@ func decodeHTTPRequest[RequestType any](_ context.Context, stdReq *http.Request)
 	logger := logs.GetContextLogger(stdReq.Context())
 	r := restfulReq.Request
 	if r.Method == "POST" || r.Method == "PUT" || r.Method == "PATCH" || r.Method == "DELETE" {
-		contentType := r.Header.Get("Content-Type")
-		if strings.HasPrefix(contentType, "multipart/form-data") {
+		contentType := httputil.GetContentType(r.Header)
+		if contentType == "multipart/form-data" {
 			restfulReq.Request.Body = http.MaxBytesReader(restfulResp.ResponseWriter, r.Body, config.Get().Global.MaxUploadSize.Capacity)
 			if err = restfulReq.Request.ParseMultipartForm(config.Get().Global.MaxBodySize.Capacity); err != nil {
 				return nil, errors.NewServerError(http.StatusBadRequest, "request too large")

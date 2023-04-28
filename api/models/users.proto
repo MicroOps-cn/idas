@@ -36,7 +36,7 @@ message User {
   string full_name = 7[(gogoproto.jsontag) = "fullName", (gogoproto.moretags) = 'gorm:"type:varchar(50)"'];
   string avatar = 8[(gogoproto.jsontag) = "avatar", (gogoproto.moretags) = 'gorm:"type:varchar(128)"'];
   idas.service.models.UserMeta.UserStatus status = 9[(gogoproto.jsontag) = "status", (gogoproto.moretags) = 'gorm:"not null;default:0"'];
-  string login_time = 10[(gogoproto.customtype) = "time.Time", (gogoproto.jsontag) = "loginTime"];
+  string login_time = 10[(gogoproto.customtype) = "time.Time", (gogoproto.jsontag) = "loginTime",(gogoproto.moretags) = 'gorm:"-"'];
   string role_id = 11[(gogoproto.jsontag) = "roleId,omitempty", (gogoproto.moretags) = 'gorm:"->;-:migration"'];
   string role = 12[(gogoproto.jsontag) = "role,omitempty", (gogoproto.moretags) = 'gorm:"->;-:migration"'];
   string apps = 13[(gogoproto.customtype) = "Apps", (gogoproto.nullable) = false, (gogoproto.jsontag) = "apps,omitempty", (gogoproto.moretags) = 'gorm:"-"'];

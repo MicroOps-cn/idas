@@ -125,7 +125,7 @@ func NewRedisClient(ctx context.Context, option *RedisOptions) (*redis.Client, e
 				level.Error(logger).Log("msg", "Redis客户端关闭出错", "err", err)
 				time.Sleep(1 * time.Second)
 			}
-			level.Error(logger).Log("msg", "关闭Redis连接", "err", err)
+			level.Debug(logger).Log("msg", "关闭Redis连接", "err", err)
 			stopCh.Done()
 		}()
 	}

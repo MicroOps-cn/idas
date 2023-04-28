@@ -30,6 +30,7 @@ message AppMeta {
     password = 4;
     client_credentials = 8;
     proxy = 16;
+    oidc = 32;
   }
   // @sync-to-public:public/src/services/idas/enums.ts:GrantMode
   enum GrantMode {

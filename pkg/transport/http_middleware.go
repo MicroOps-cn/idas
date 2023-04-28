@@ -21,8 +21,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -31,6 +33,7 @@ import (
 	"time"
 
 	"github.com/MicroOps-cn/fuck/buffer"
+	http2 "github.com/MicroOps-cn/fuck/http"
 	"github.com/MicroOps-cn/fuck/log"
 	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/emicklei/go-restful/v3"
@@ -179,7 +182,6 @@ func HTTPProxyAuthenticationFilter(ptx context.Context, endpoints endpoint.Set) 
 			ctx = context.WithValue(ctx, global.LoginSession, token.Token)
 			req.Request = req.Request.WithContext(ctx)
 			if session, err := endpoints.GetProxySessionByToken(ctx, token); err == nil {
-				fmt.Printf("%#v", session)
 				if s := session.(*models.ProxySession); s != nil {
 					ctx = context.WithValue(ctx, global.MetaUser, s.User)
 					ctx = context.WithValue(ctx, global.MetaProxyConfig, s.Proxy)
@@ -249,6 +251,25 @@ func HTTPApplicationAuthenticationFilter(endpoints endpoint.Set) restful.FilterF
 					AuthKey:    clientId,
 					AuthSecret: clientSecret,
 				}
+			} else if req.Request.Method == "POST" {
+				var buf bytes.Buffer
+				var oauthReq endpoint.OAuthTokenRequest
+				var err error
+				contentType := httputil.GetContentType(req.Request.Header)
+				if contentType == restful.MIME_JSON {
+					req.Request.Body = io.NopCloser(io.TeeReader(req.Request.Body, &buf))
+					err = json.NewDecoder(&buf).Decode(&oauthReq)
+				} else if contentType == "application/x-www-form-urlencoded" {
+					if err = req.Request.ParseForm(); err == nil {
+						err = httputil.UnmarshalURLValues(req.Request.Form, &oauthReq)
+					}
+				}
+				if (err == nil || err == io.EOF) && len(oauthReq.ClientId) != 0 && len(oauthReq.ClientSecret) != 0 {
+					authReq = &endpoint.AuthenticationRequest{
+						AuthKey:    oauthReq.ClientId,
+						AuthSecret: oauthReq.ClientSecret,
+					}
+				}
 			}
 		}
 		if authReq != nil {
@@ -260,6 +281,8 @@ func HTTPApplicationAuthenticationFilter(endpoints endpoint.Set) restful.FilterF
 			if err != nil {
 				errorEncoder(ctx, err, resp)
 			} else if app != nil {
+				ctx = context.WithValue(ctx, global.MetaApp, app)
+				req.Request = req.Request.WithContext(ctx)
 				chain.ProcessFilter(req, resp)
 				return
 			}
@@ -280,8 +303,9 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 		if token := getTokenByRequest(req.Request); token != nil {
 			ctx = context.WithValue(ctx, global.LoginSession, token.Token)
 			req.Request = req.Request.WithContext(ctx)
-			if user, err := endpoints.GetSessionByToken(ctx, token); err == nil {
-				if user.(*models.User) != nil {
+			sessionReq := &HTTPRequest[endpoint.GetSessionParams]{restfulRequest: req, restfulResponse: resp, Data: *token}
+			if user, err := endpoints.GetSessionByToken(ctx, sessionReq); err == nil {
+				if u := user.(*models.User); u != nil {
 					ctx = context.WithValue(ctx, global.MetaUser, user)
 					req.Request = req.Request.WithContext(ctx)
 					filterChan.ProcessFilter(req, resp)
@@ -314,10 +338,19 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 			}
 		}
 		if autoRedirectToLoginPage, ok := ctx.Value(global.MetaAutoRedirectToLoginPage).(bool); ok && autoRedirectToLoginPage {
+			redirectURI := req.Request.RequestURI
+			if externalURL, ok := ctx.Value(global.HTTPExternalURLKey).(string); ok {
+				extURL, err := url.Parse(externalURL)
+				if err == nil {
+					extURL.Path = http2.JoinPath(extURL.Path, req.Request.URL.Path)
+					extURL.RawQuery = req.Request.URL.RawQuery
+					redirectURI = extURL.String()
+				}
+			}
 			if loginURL, ok := ctx.Value(global.HTTPLoginURLKey).(string); ok && len(loginURL) > 0 {
-				resp.Header().Set("Location", fmt.Sprintf("%s?redirect_uri=%s", loginURL, url.QueryEscape(req.Request.RequestURI)))
+				resp.Header().Set("Location", fmt.Sprintf("%s?redirect_uri=%s", loginURL, url.QueryEscape(redirectURI)))
 			} else {
-				resp.Header().Set("Location", fmt.Sprintf("/admin/account/login?redirect_uri=%s", url.QueryEscape(req.Request.RequestURI)))
+				resp.Header().Set("Location", fmt.Sprintf("/admin/account/login?redirect_uri=%s", url.QueryEscape(redirectURI)))
 			}
 			resp.WriteHeader(302)
 			return

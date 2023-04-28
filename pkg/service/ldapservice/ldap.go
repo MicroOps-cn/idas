@@ -41,13 +41,28 @@ func NewUserAndAppService(ctx context.Context, name string, client *ldap.Client)
 	if classes.HasAll("idasCore", "idasApp") {
 		hasIDASClass = true
 	}
-	return &UserAndAppService{name: name, Client: client, hasIDASClass: hasIDASClass}
+	var appObjectClass []string
+	var memberAttr string
+	if hasIDASClass {
+		appObjectClass = []string{ClassIdasCore, ClassIdasApp}
+	}
+	appMemberClass := client.Options().GetAppObjectClass()
+	if len(appMemberClass) == 0 || appMemberClass == "groupOfUniqueNames" {
+		appObjectClass = append(appObjectClass, "groupOfUniqueNames", "top")
+		memberAttr = "uniqueMember"
+	} else {
+		appObjectClass = append(appObjectClass, "groupOfNames", "top")
+		memberAttr = "member"
+	}
+	return &UserAndAppService{name: name, Client: client, hasIDASClass: hasIDASClass, appObjectClass: appObjectClass, memberAttr: memberAttr}
 }
 
 type UserAndAppService struct {
 	*ldap.Client
-	name         string
-	hasIDASClass bool
+	name           string
+	hasIDASClass   bool
+	appObjectClass []string
+	memberAttr     string
 }
 
 func (s UserAndAppService) GetUserClass() sets.Set[string] {
@@ -57,11 +72,12 @@ func (s UserAndAppService) GetUserClass() sets.Set[string] {
 	return sets.New[string](ClassExtensibleObject)
 }
 
-func (s UserAndAppService) GetAppClass() sets.Set[string] {
-	if s.hasIDASClass {
-		return sets.New[string](ClassIdasCore, ClassIdasApp)
-	}
-	return sets.New[string](ClassExtensibleObject)
+func (s UserAndAppService) GetAppClass() []string {
+	return s.appObjectClass
+}
+
+func (s UserAndAppService) GetMemberAttr() string {
+	return s.memberAttr
 }
 
 func (s UserAndAppService) Name() string {

@@ -48,7 +48,6 @@ func MakeCurrentUserEndpoint(s service.Service) endpoint.Endpoint {
 			return user, nil
 		}
 		if restfulRequester, ok := request.(RestfulRequester); ok {
-			restfulRequester.GetRestfulRequest()
 			restfulRequest := restfulRequester.GetRestfulRequest()
 			if auth := restfulRequest.Request.Header.Get("Authorization"); len(auth) > 0 {
 				if strings.HasPrefix(auth, "Bearer ") {
@@ -103,6 +102,9 @@ func (r PatchCurrentUserRequest) Map() map[string]interface{} {
 	if r.SmsAsMfa != nil {
 		m["sms_as_mfa"] = r.SmsAsMfa
 	}
+	if r.TotpAsMfa != nil {
+		m["totp_as_mfa"] = r.TotpAsMfa
+	}
 	return m
 }
 
@@ -125,22 +127,109 @@ func MakePatchCurrentUserEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
+func PasswordComplexityVerification(username, password string) (bool, error) {
+	var (
+		uppercase int
+		lowercase int
+		number    int
+		special   int
+	)
+	allow := config.GetRuntimeConfig().Security.PasswordComplexity
+	if minLength := config.GetRuntimeConfig().Security.PasswordMinLength; minLength > 0 {
+		if len(password) < int(minLength) {
+			return false, errors.NewServerError(400, "passwords too short. ", errors.CodePasswordTooShort)
+		}
+	}
+	if allow == config.PasswordComplexity_unsafe {
+		return true, nil
+	}
+	if len(username) != 0 && strings.Contains(password, username) {
+		return false, errors.NewServerError(400, "passwords should not include username. ", errors.CodePasswordCannotContainUsername)
+	}
+	for _, chr := range password {
+		if chr >= 'A' && chr <= 'Z' {
+			uppercase++
+		} else if chr >= 'a' && chr <= 'z' {
+			lowercase++
+		} else if chr >= '0' && chr <= '9' {
+			number++
+		} else {
+			special++
+		}
+	}
+	typeNum := 0
+	if uppercase > 0 {
+		typeNum++
+	}
+	if number > 0 {
+		typeNum++
+	}
+	if lowercase > 0 {
+		typeNum++
+	}
+	if special > 0 {
+		typeNum++
+	}
+	switch allow {
+	case config.PasswordComplexity_general:
+		if typeNum < 2 {
+			return false, errors.NewServerError(400, "it must be composed of at least two combinations of uppercase letters, lowercase letters, numbers, and special characters. ", errors.CodePasswordBaseGeneralTooSimple)
+		}
+	case config.PasswordComplexity_safe:
+		if typeNum < 3 {
+			return false, errors.NewServerError(400, "it must be composed of at least any three combinations of uppercase letters, lowercase letters, numbers, and special characters. ", errors.CodePasswordBaseSafeTooSimple)
+		}
+	case config.PasswordComplexity_very_safe:
+		if typeNum < 4 {
+			return false, errors.NewServerError(400, "must contain uppercase and lowercase letters, numbers, and special characters. ", errors.CodePasswordBaseVerySafeTooSimple)
+		}
+	}
+	return true, nil
+}
+
+func (r *ResetUserPasswordRequest) GetToken() string {
+	if r != nil && r.Token != nil {
+		return string(*r.Token)
+	}
+	return ""
+}
+
 func MakeResetUserPasswordEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		begin := time.Now()
 		req := request.(Requester).GetRequestData().(*ResetUserPasswordRequest)
 		resp := TotalResponseWrapper[interface{}]{}
-		if len(req.Token) > 0 && len(req.UserId) > 0 {
-			var user *models.User
-			if s.VerifyToken(ctx, req.Token, models.TokenTypeResetPassword, user, req.UserId) {
+		var user *models.User
+		defer func() {
+			var userId, username string
+			if user != nil {
+				userId = user.Id
+				username = user.Username
+			}
+			eventId, message, status, took := GetEventMeta(ctx, "ResetUserPassword", begin, err, resp)
+			if e := s.PostEventLog(ctx, eventId, userId, username, "", "ResetUserPassword", message, status, took); e != nil {
+				level.Error(logs.GetContextLogger(ctx)).Log("failed to post event log", "err", e)
+			}
+		}()
+		if _, err = PasswordComplexityVerification(req.Username, string(*req.NewPassword)); err != nil {
+			resp.Error = err
+			return resp, nil
+		}
+		if len(req.GetToken()) > 0 && len(req.UserId) > 0 {
+			user = new(models.User)
+			if s.VerifyToken(ctx, req.GetToken(), models.TokenTypeResetPassword, user, req.UserId) {
 				if err = s.ResetPassword(ctx, user.Id, string(*req.NewPassword)); err != nil {
 					return nil, err
+				}
+				if err = s.DeleteToken(ctx, models.TokenTypeResetPassword, req.GetToken()); err != nil {
+					level.Error(logs.GetContextLogger(ctx)).Log("msg", "failed to delete token", "err", err)
 				}
 			} else {
 				return nil, errors.ParameterError("invalid token")
 			}
 		} else if req.OldPassword != nil && len(*req.OldPassword) != 0 {
 			if len(req.Username) > 0 {
-				user, err := s.VerifyPassword(ctx, req.Username, string(*req.OldPassword))
+				user, err = s.VerifyPassword(ctx, req.Username, string(*req.OldPassword), true)
 				if err != nil {
 					return nil, err
 				}
@@ -151,7 +240,7 @@ func MakeResetUserPasswordEndpoint(s service.Service) endpoint.Endpoint {
 					return nil, err
 				}
 			} else if len(req.UserId) > 0 {
-				if user := s.VerifyPasswordById(ctx, req.UserId, string(*req.OldPassword)); user != nil {
+				if user = s.VerifyPasswordById(ctx, req.UserId, string(*req.OldPassword), true); user != nil {
 					resp.Error = s.ResetPassword(ctx, req.UserId, string(*req.NewPassword))
 				} else {
 					return nil, errors.UnauthorizedError()
@@ -164,9 +253,23 @@ func MakeResetUserPasswordEndpoint(s service.Service) endpoint.Endpoint {
 
 func MakeForgotPasswordEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		begin := time.Now()
 		req := request.(Requester).GetRequestData().(*ForgotUserPasswordRequest)
 		resp := SimpleResponseWrapper[interface{}]{}
-		user, err := s.GetUserInfoByUsernameAndEmail(ctx, req.Username, req.Email)
+		var user *models.User
+		defer func() {
+			var userId, username string
+			if user != nil {
+				userId = user.Id
+				username = user.Username
+			}
+			eventId, message, status, took := GetEventMeta(ctx, "ForgotPassword", begin, err, resp)
+			if e := s.PostEventLog(ctx, eventId, userId, username, "", "ForgotPassword", message, status, took); e != nil {
+				level.Error(logs.GetContextLogger(ctx)).Log("failed to post event log", "err", e)
+			}
+		}()
+
+		user, err = s.GetUserInfoByUsernameAndEmail(ctx, req.Username, req.Email)
 		if err != nil {
 			level.Warn(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to reset password", "username", req.Username, "email", req.Email)
 			return resp, nil
@@ -178,10 +281,13 @@ func MakeForgotPasswordEndpoint(s service.Service) endpoint.Endpoint {
 		}
 
 		to := fmt.Sprintf("%s<%s>", user.FullName, user.Email)
+
+		httpExternalURL, _ := ctx.Value(global.HTTPExternalURLKey).(string)
 		err = s.SendEmail(ctx, map[string]interface{}{
-			"user":   user,
-			"userId": token.GetRelationId(),
-			"token":  token,
+			"user":            user,
+			"userId":          token.GetRelationId(),
+			"token":           token,
+			"httpExternalURL": httpExternalURL,
 		}, "User:ResetPassword", to)
 		if err != nil {
 			level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to send email")
@@ -387,9 +493,17 @@ func MakeSendActivationMailEndpoint(s service.Service) endpoint.Endpoint {
 		if err != nil {
 			return nil, err
 		}
+
 		if !user.Status.IsAnyOne(models.UserMeta_user_inactive, models.UserMeta_password_expired) {
 			return nil, errors.NewServerError(http.StatusInternalServerError, "Unknown user's status")
 		}
+		if err = s.PatchUserExtData(ctx, req.UserId, map[string]interface{}{"activation_time": time.Now()}); err != nil {
+			return nil, errors.NewServerError(http.StatusInternalServerError, "failed to active user.")
+		}
+		//user.Status = models.UserMeta_normal
+		//if err = s.UpdateUser(ctx, user, "status"); err != nil {
+		//	return nil, errors.NewServerError(http.StatusInternalServerError, "failed to active user.")
+		//}
 		token, err := s.CreateToken(ctx, models.TokenTypeActive, user)
 		if err != nil {
 			return nil, errors.NewServerError(http.StatusInternalServerError, "Failed to create token")
@@ -408,13 +522,36 @@ func MakeSendActivationMailEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
+func (r *ActivateAccountRequest) GetToken() string {
+	if r != nil && r.Token != nil {
+		return string(*r.Token)
+	}
+	return ""
+}
+
 func MakeActivateAccountEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		begin := time.Now()
 		req := request.(Requester).GetRequestData().(*ActivateAccountRequest)
 		resp := TotalResponseWrapper[interface{}]{}
-		if len(req.Token) > 0 {
-			if s.VerifyToken(ctx, req.Token, models.TokenTypeActive, nil, req.UserId) {
-				resp.Error = s.ResetPassword(ctx, req.UserId, req.NewPassword)
+		defer func() {
+			eventId, message, status, took := GetEventMeta(ctx, "ActivateAccount", begin, err, response)
+			if e := s.PostEventLog(ctx, eventId, req.UserId, "", "", "ActivateAccount", message, status, took); e != nil {
+				level.Error(logs.GetContextLogger(ctx)).Log("failed to post event log", "err", e)
+			}
+		}()
+		if _, err = PasswordComplexityVerification("", string(*req.NewPassword)); err != nil {
+			resp.Error = err
+			return resp, nil
+		}
+		if len(req.GetToken()) > 0 {
+			if s.VerifyToken(ctx, req.GetToken(), models.TokenTypeActive, nil, req.UserId) {
+				resp.Error = s.ResetPassword(ctx, req.UserId, string(*req.NewPassword))
+				if resp.Error == nil {
+					if err = s.DeleteToken(ctx, models.TokenTypeActive, req.GetToken()); err != nil {
+						level.Error(logs.GetContextLogger(ctx)).Log("msg", "failed to delete token", "err", err)
+					}
+				}
 			} else {
 				return nil, errors.ParameterError("invalid token")
 			}
@@ -461,14 +598,21 @@ func (s TOTPSecret) GetSecret() (secret string, err error) {
 	return string(sec), err
 }
 
+func (r *CreateTOTPSecretRequest) GetToken() string {
+	if r != nil && r.Token != nil {
+		return string(*r.Token)
+	}
+	return ""
+}
+
 func MakeCreateTOTPSecretEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*CreateTOTPSecretRequest)
 		resp := &SimpleResponseWrapper[CreateTOTPSecretResponseData]{}
 		var user *models.User
-		if len(req.Token) != 0 {
+		if len(req.GetToken()) != 0 {
 			user = new(models.User)
-			if !s.VerifyToken(ctx, req.Token, models.TokenTypeEnableMFA, user) {
+			if !s.VerifyToken(ctx, req.GetToken(), models.TokenTypeEnableMFA, user) {
 				return nil, errors.NewServerError(400, "Invalid token.")
 			}
 		} else if user, _ = ctx.Value(global.MetaUser).(*models.User); user == nil {
@@ -494,6 +638,13 @@ func MakeCreateTOTPSecretEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
+func (r *CreateTOTPRequest) GetToken() string {
+	if r != nil && r.Token != nil {
+		return string(*r.Token)
+	}
+	return ""
+}
+
 func MakeCreateTOTPEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*CreateTOTPRequest)
@@ -503,7 +654,7 @@ func MakeCreateTOTPEndpoint(s service.Service) endpoint.Endpoint {
 			return nil, errors.NotLoginError()
 		}
 		var secret TOTPSecret
-		if !s.VerifyToken(ctx, req.Token, models.TokenTypeTotpSecret, &secret) {
+		if !s.VerifyToken(ctx, req.GetToken(), models.TokenTypeTotpSecret, &secret) {
 			resp.Error = errors.ParameterError("token")
 			return resp, nil
 		}
@@ -526,7 +677,7 @@ func MakeCreateTOTPEndpoint(s service.Service) endpoint.Endpoint {
 		} else {
 			resp.Error = s.CreateTOTP(ctx, user.Id, sec)
 			if resp.Error == nil {
-				_ = s.DeleteToken(ctx, models.TokenTypeTotpSecret, req.Token)
+				_ = s.DeleteToken(ctx, models.TokenTypeTotpSecret, req.GetToken())
 			}
 		}
 

@@ -18,13 +18,14 @@ package errors
 
 import (
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
+	errors "github.com/pkg/errors"
 	"gorm.io/gorm"
 )
 
@@ -220,7 +221,22 @@ func IsNotFount(err error) bool {
 	return false
 }
 
+func Is(err, target error) bool {
+	return stderrors.Is(err, target)
+}
+
 const (
-	CodeUserDisable           = "E0001"
-	CodeUserNeedResetPassword = "E0002"
+	CodeSystemError                   = "E0000"
+	CodeInvalidCredentials            = "E0001"
+	CodeUserDisable                   = "E0002"
+	CodeUserStatusUnknown             = "E0003"
+	CodeUserNeedResetPassword         = "E0004"
+	CodeUserInactive                  = "E0005"
+	CodePasswordBaseGeneralTooSimple  = "E0010"
+	CodePasswordBaseSafeTooSimple     = "E0011"
+	CodePasswordBaseVerySafeTooSimple = "E0012"
+	CodePasswordCannotContainUsername = "E0013"
+	CodePasswordTooShort              = "E0014"
+	CodePasswordRepetition            = "E0015"
+	CodePasswordTooSimple             = "E0016"
 )

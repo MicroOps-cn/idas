@@ -19,13 +19,18 @@ package endpoint
 import (
 	"context"
 	"fmt"
+	gohttp "net/http"
+	"strings"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/http"
 	"github.com/MicroOps-cn/fuck/log"
+	"github.com/emicklei/go-restful/v3"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/log/level"
 
+	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
@@ -49,16 +54,67 @@ func InstrumentingMiddleware(duration metrics.Histogram) endpoint.Middleware {
 
 // LoggingMiddleware returns an endpoint middleware that logs the
 // duration of each invocation, and the resulting error, if any.
-func LoggingMiddleware(method string) endpoint.Middleware {
+func LoggingMiddleware(svc service.Service, method string, ps models.Permissions) endpoint.Middleware {
+	var postAuditLog func(ctx context.Context, request interface{}, response interface{}, took time.Duration, err error)
+	if m := ps.GetMethod(method); m != nil && m.EnableAudit {
+		postAuditLog = func(ctx context.Context, request interface{}, response interface{}, took time.Duration, err error) {
+			logger := log.GetContextLogger(ctx)
+			defer func() {
+				if r := recover(); r != nil {
+					level.Error(logger).Log("msg", "failed to post event log", "err", err)
+				}
+			}()
+			var stdReq *gohttp.Request
+			if requester, ok := request.(RestfulRequester); ok {
+				stdReq = requester.GetRestfulRequest().Request
+			} else if restReq, ok := request.(restful.Request); ok {
+				stdReq = restReq.Request
+			} else {
+				stdReq = &gohttp.Request{}
+			}
+			remoteAddr := http.GetRemoteAddr(stdReq, config.Get().Security.TrustIp)
+			var username, userId string
+			if user, ok := ctx.Value(global.MetaUser).(*models.User); ok || user != nil {
+				username, userId = user.Username, user.Id
+			}
+			call := ps.Get(method)
+			var msg string
+			var status bool
+			if err != nil {
+				msg = fmt.Sprintf("Failed to call %s (%s): %s", call[0].Name, call[0].Description, err)
+			} else if f, ok := response.(endpoint.Failer); ok && f.Failed() != nil {
+				msg = fmt.Sprintf("Failed to call %s (%s): %s", call[0].Name, call[0].Description, f.Failed())
+			} else {
+				msg = fmt.Sprintf("Success to call %s (%s)", call[0].Name, call[0].Description)
+				status = true
+			}
+			l := map[string]string{
+				"Title":           msg,
+				"RequestLine":     fmt.Sprintf("%s %s %s", stdReq.Method, stdReq.URL.String(), stdReq.Proto),
+				"X-Forwarded-For": strings.Join(stdReq.Header.Values("X-Forwarded-For"), ","),
+				"RemoteAddr":      stdReq.RemoteAddr,
+				"User-Agent":      strings.Join(stdReq.Header.Values("User-Agent"), ","),
+				//"Request":         w.JSONStringer(reqData).String(),
+				"Type": "call_endpoint",
+			}
+			if e := svc.PostEventLog(ctx, log.GetTraceId(ctx), userId, username, remoteAddr, method, msg, status, took, l); e != nil {
+				level.Error(logger).Log("failed to post event log", "err", e)
+			}
+		}
+	}
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 			logger := log.GetContextLogger(ctx)
 			level.Debug(logger).Log("msg", "call method", "method", method)
 			defer func(begin time.Time) {
+				took := time.Since(begin)
+				if postAuditLog != nil {
+					postAuditLog(ctx, request, response, took, err)
+				}
 				if err != nil {
-					level.Debug(logger).Log("msg", "method call finished", "transport_error", err, "method", method, "took", time.Since(begin))
+					level.Debug(logger).Log("msg", "method call finished", "transport_error", err, "method", method, "took", took)
 				} else {
-					level.Debug(logger).Log("msg", "method call finished", "method", method, "took", time.Since(begin))
+					level.Debug(logger).Log("msg", "method call finished", "method", method, "took", took)
 				}
 			}(time.Now())
 			return next(ctx, request)

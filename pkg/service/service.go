@@ -22,8 +22,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	gohttp "net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	logs "github.com/MicroOps-cn/fuck/log"
@@ -31,6 +33,7 @@ import (
 
 	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/client/email"
+	"github.com/MicroOps-cn/idas/pkg/client/geoip"
 	"github.com/MicroOps-cn/idas/pkg/client/http"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
@@ -51,11 +54,11 @@ type baseService interface {
 
 type Service interface {
 	baseService
-	InitData(ctx context.Context) error
+	InitData(ctx context.Context, username string) error
 	DeleteLoginSession(ctx context.Context, session string) error
 	GetSessionByToken(ctx context.Context, id string, tokenType models.TokenType, receiver interface{}) error
-	VerifyPassword(ctx context.Context, username string, password string) (user *models.User, err error)
-	GetAuthCodeByAppId(ctx context.Context, clientId string, userId *models.User, sessionId string) (code string, err error)
+	VerifyPassword(ctx context.Context, username string, password string, allowPasswordExpired bool) (user *models.User, err error)
+	VerifyPasswordById(ctx context.Context, userId, password string, allowPasswordExpired bool) (user *models.User)
 	GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByPassword(ctx context.Context, token, username, password string) (accessToken, refreshToken string, expiresIn int, err error)
@@ -98,7 +101,6 @@ type Service interface {
 	PatchApp(ctx context.Context, fields map[string]interface{}) (err error)
 	DeleteApp(ctx context.Context, id string) (err error)
 	ResetPassword(ctx context.Context, id, password string) error
-	VerifyPasswordById(ctx context.Context, userId, password string) (user *models.User)
 
 	UpdateToken(ctx context.Context, id string, tokenType models.TokenType, data interface{}) (err error)
 	UpdateUserSession(ctx context.Context, userId string) (err error)
@@ -131,12 +133,55 @@ type Service interface {
 	GetTOTPSecrets(ctx context.Context, ids []string) ([]string, error)
 	PatchSystemConfig(ctx context.Context, prefix string, patch map[string]interface{}) error
 	LoadSystemConfig(ctx context.Context) error
+	PostEventLog(ctx context.Context, eventId, userId, username, clientIP, action, message string, status bool, took time.Duration, log ...interface{}) error
+	GetEvents(ctx context.Context, filters map[string]string, keywords string, startTime time.Time, endTime time.Time, current int64, size int64) (count int64, event []*models.Event, err error)
+	GetEventLogs(ctx context.Context, filters map[string]string, keywords string, current int64, size int64) (count int64, event []*models.EventLog, err error)
+	InsertWeakPassword(ctx context.Context, passwords ...string) error
+	VerifyWeakPassword(ctx context.Context, password string) error
+	UpdateTokenExpires(ctx context.Context, id string, expiry time.Time) error
 }
 
 type Set struct {
 	userAndAppService UserAndAppService
 	sessionService    SessionService
 	commonService     CommonService
+	loggingService    LoggingService
+	geoIPClient       *geoip.Client
+}
+
+func (s Set) GetEvents(ctx context.Context, filters map[string]string, keywords string, startTime, endTime time.Time, current int64, size int64) (count int64, event []*models.Event, err error) {
+	return s.loggingService.GetEvents(ctx, filters, keywords, startTime, endTime, current, size)
+}
+
+func (s Set) GetEventLogs(ctx context.Context, filters map[string]string, keywords string, current int64, size int64) (count int64, event []*models.EventLog, err error) {
+	return s.loggingService.GetEventLogs(ctx, filters, keywords, current, size)
+}
+
+func (s Set) PostEventLog(ctx context.Context, eventId, userId, username, clientIP, action, message string, status bool, took time.Duration, log ...interface{}) error {
+	var loc string
+	if s.geoIPClient != nil {
+		logger := logs.GetContextLogger(ctx)
+		city, err := s.geoIPClient.City(net.ParseIP(clientIP))
+		if err != nil {
+			level.Error(logger).Log("msg", "failed to convert ip to location", "err", err, "clientIP", clientIP)
+		} else {
+			var locs []string
+
+			if country, ok := city.Country.Names["zh-CN"]; ok {
+				locs = append(locs, country)
+			}
+			if len(city.Subdivisions) > 0 {
+				if sub, ok := city.Subdivisions[0].Names["zh-CN"]; ok {
+					locs = append(locs, sub)
+				}
+			}
+			if cityName, ok := city.City.Names["zh-CN"]; ok {
+				locs = append(locs, cityName)
+			}
+			loc = strings.Join(locs, "/")
+		}
+	}
+	return s.loggingService.PostEventLog(ctx, eventId, userId, username, clientIP, loc, action, message, status, took, log...)
 }
 
 func (s Set) SendProxyRequest(ctx context.Context, r *gohttp.Request, proxyConfig *models.AppProxyConfig) (*gohttp.Response, error) {
@@ -182,7 +227,7 @@ func (s Set) SendEmail(ctx context.Context, data map[string]interface{}, topic s
 	}
 	subject, body, err := smtpConfig.GetSubjectAndBody(data, topic)
 	if err != nil {
-		return errors.WithServerError(500, err, fmt.Sprintf("failed to get email body: topic=%s", topic))
+		return errors.WithServerError(500, err, fmt.Sprintf("failed to get email body: topic=%s ", topic))
 	}
 	client, err := email.NewSMTPClient(ctx, smtpConfig)
 	if err != nil {
@@ -220,55 +265,8 @@ func (s Set) UpdateToken(ctx context.Context, id string, tokenType models.TokenT
 	return nil
 }
 
-func (s Set) UpdateUserSession(ctx context.Context, userId string) (err error) {
-	newUser, err := s.GetUser(ctx, opts.WithUserId(userId), opts.WithUserExt)
-	if err != nil {
-		return err
-	}
-	logger := logs.GetContextLogger(ctx)
-	if err != nil {
-		level.Warn(logger).Log("msg", "Failed to update current user cache info: can't get user info.", "err", err)
-	} else {
-		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithUsers(userId), opts.WithAppName("IDAS"))
-		if err != nil && !errors.IsNotFount(err) {
-			level.Error(logger).Log("msg", "failed to get app info", "err", err)
-		} else if app != nil {
-			role, err := s.GetAppRoleByUserId(ctx, app.Id, userId)
-			if err == nil {
-				newUser.RoleId = role.Id
-				newUser.Role = role.Name
-			} else if !errors.IsNotFount(err) {
-				level.Error(logger).Log("msg", "failed to get app role", "err", err)
-			}
-		}
-		var sessions []*models.Token
-		var maxCount, count, current int64
-		for count <= maxCount {
-			current++
-			maxCount, sessions, err = s.sessionService.GetSessions(ctx, userId, current, 100)
-			if err != nil {
-				return err
-			} else if len(sessions) == 0 {
-				return nil
-			}
-			count += int64(len(sessions))
-			for _, tk := range sessions {
-				rawData, err := json.Marshal(newUser)
-				if err != nil {
-					return err
-				}
-				tk.Data = rawData
-				if err = s.sessionService.UpdateToken(ctx, tk); err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func (s Set) ResetPassword(ctx context.Context, id string, password string) error {
-	return s.userAndAppService.ResetPassword(ctx, id, password)
+func (s Set) UpdateTokenExpires(ctx context.Context, id string, expiry time.Time) (err error) {
+	return s.sessionService.UpdateTokenExpires(ctx, id, expiry)
 }
 
 func (s Set) VerifyToken(ctx context.Context, token string, tokenType models.TokenType, receiver interface{}, relationId ...string) bool {
@@ -284,10 +282,8 @@ func (s Set) VerifyToken(ctx context.Context, token string, tokenType models.Tok
 		return false
 	}
 	switch tokenType {
-	case models.TokenTypeResetPassword,
-		models.TokenTypeCode,
-		models.TokenTypeAppProxyLogin,
-		models.TokenTypeActive:
+	case models.TokenTypeCode,
+		models.TokenTypeAppProxyLogin:
 		if err = s.DeleteToken(ctx, tokenType, tk.Id); err != nil {
 			level.Warn(logger).Log("msg", "failed to delete token.", "err", err)
 		}
@@ -304,22 +300,21 @@ func (s Set) VerifyToken(ctx context.Context, token string, tokenType models.Tok
 	return true
 }
 
-func (s Set) InitData(ctx context.Context) error {
-	svc := s.userAndAppService
-	adminUser, err := svc.GetUserInfo(ctx, "", "admin")
+func (s Set) InitData(ctx context.Context, username string) error {
+	adminUser, err := s.GetUserInfo(ctx, "", username)
 	if errors.IsNotFount(err) {
 		adminUser = &models.User{
-			Username: "admin",
+			Username: username,
 			Password: sql.RawBytes("idas"),
 		}
-		err = svc.CreateUser(ctx, adminUser)
+		err = s.CreateUser(ctx, adminUser)
 		if err != nil {
 			return err
 		}
 	} else if err != nil {
 		return err
 	}
-	idasApp, err := svc.GetAppInfo(ctx, opts.WithAppName(global.IdasAppName))
+	idasApp, err := s.GetAppInfo(ctx, opts.WithAppName(global.IdasAppName))
 	if errors.IsNotFount(err) {
 		idasApp = &models.App{
 			Name:        global.IdasAppName,
@@ -336,14 +331,14 @@ func (s Set) InitData(ctx context.Context) error {
 				Role:  "admin",
 			}},
 		}
-		if err = svc.CreateApp(ctx, idasApp); err != nil {
+		if err = s.CreateApp(ctx, idasApp); err != nil {
 			return errors.WithMessage(err, "failed to initialize application data")
 		}
 	} else if err != nil {
 		return errors.WithMessage(err, "failed to initialize application data")
 	}
-	if len(idasApp.Roles) == 0 {
-		if len(idasApp.Roles) == 0 {
+	if len(idasApp.Roles) == 0 || len(idasApp.Users) == 0 || idasApp.Roles.GetRole("admin") == nil {
+		if len(idasApp.Roles) == 0 || idasApp.Roles.GetRole("admin") == nil {
 			idasApp.Roles = models.AppRoles{{
 				Name: "admin",
 			}, {
@@ -351,16 +346,13 @@ func (s Set) InitData(ctx context.Context) error {
 				IsDefault: true,
 			}}
 		}
-		if err = svc.UpdateApp(ctx, idasApp); err != nil {
-			return err
+		if len(idasApp.Users) == 0 {
+			idasApp.Users = []*models.User{{
+				Model: models.Model{Id: adminUser.Id},
+				Role:  "admin",
+			}}
 		}
-	}
-	if len(idasApp.Users) == 0 {
-		idasApp.Users = []*models.User{{
-			Model:  models.Model{Id: adminUser.Id},
-			RoleId: idasApp.Roles.GetRole("admin").GetId(),
-		}}
-		if err = svc.UpdateApp(ctx, idasApp); err != nil {
+		if err = s.commonService.UpdateAppAccessControl(ctx, idasApp); err != nil {
 			return err
 		}
 	}
@@ -369,7 +361,7 @@ func (s Set) InitData(ctx context.Context) error {
 
 func (s Set) AutoMigrate(ctx context.Context) error {
 	svcs := []baseService{
-		s.commonService, s.sessionService, s.userAndAppService,
+		s.commonService, s.sessionService, s.userAndAppService, s.loggingService,
 	}
 	for _, svc := range svcs {
 		if err := svc.AutoMigrate(ctx); err != nil {
@@ -385,6 +377,8 @@ func New(ctx context.Context) Service {
 		userAndAppService: NewUserAndAppService(ctx),
 		sessionService:    NewSessionService(ctx),
 		commonService:     NewCommonService(ctx),
+		loggingService:    NewLoggingService(ctx),
+		geoIPClient:       config.Get().GetStorage().Geoip,
 	}
 }
 
@@ -396,7 +390,6 @@ type UserAndAppService interface {
 	PatchUsers(ctx context.Context, patch []map[string]interface{}) (count int64, err error)
 	DeleteUsers(ctx context.Context, id []string) (count int64, err error)
 	UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (err error)
-	UpdateLoginTime(ctx context.Context, id string) error
 	GetUserInfo(ctx context.Context, id string, username string) (*models.User, error)
 	GetUser(ctx context.Context, options *opts.GetUserOptions) (*models.User, error)
 	CreateUser(ctx context.Context, user *models.User) (err error)

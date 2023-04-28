@@ -42,18 +42,21 @@ type SessionService interface {
 	GetToken(ctx context.Context, token string, tokenType models.TokenType, relationId ...string) (*models.Token, error)
 	CreateToken(ctx context.Context, token *models.Token) error
 	UpdateToken(ctx context.Context, token *models.Token) error
+	Counter(ctx context.Context, seed string, expireTime *time.Time, num ...int64) (err error)
+	GetCounter(ctx context.Context, seed string) (count int64, err error)
+	UpdateTokenExpires(ctx context.Context, id string, expiry time.Time) error
 }
 
-func NewSessionService(_ context.Context) SessionService {
+func NewSessionService(ctx context.Context) SessionService {
 	// logger := log.With(logs.GetContextLogger(ctx), "service", "session")
 	// ctx = context.WithValue(ctx, global.LoggerName, logger)
 	var sessionService SessionService
 	sessionStorage := config.Get().GetStorage().GetSession()
 	switch sessionSource := sessionStorage.GetStorageSource().(type) {
 	case *config.Storage_Mysql:
-		sessionService = gormservice.NewSessionService(sessionStorage.Name, sessionSource.Mysql.Client)
+		sessionService = gormservice.NewSessionService(ctx, sessionStorage.Name, sessionSource.Mysql.Client)
 	case *config.Storage_Sqlite:
-		sessionService = gormservice.NewSessionService(sessionStorage.Name, sessionSource.Sqlite.Client)
+		sessionService = gormservice.NewSessionService(ctx, sessionStorage.Name, sessionSource.Sqlite.Client)
 	case *config.Storage_Redis:
 		sessionService = redisservice.NewSessionService(sessionStorage.Name, sessionSource.Redis)
 	default:

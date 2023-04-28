@@ -76,7 +76,7 @@ func SetupSignalHandler(logger log.Logger) (stopCh *StopChan) {
 
 		go func() {
 			sig := <-c
-			level.Info(logger).Log("msg", fmt.Sprintf("收到信号[%s],进程停止\n", sig))
+			level.Info(logger).Log("msg", fmt.Sprintf("收到信号[%s],进程停止.", sig))
 			close(stopChan.stopCh)
 			stopChan.WaitRequest()
 			stopChan.Wait()

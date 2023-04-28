@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	g "github.com/MicroOps-cn/fuck/generator"
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/sets"
 	w "github.com/MicroOps-cn/fuck/wrapper"
@@ -41,8 +42,49 @@ type SessionService struct {
 	name string
 }
 
+func getCounterKey(seed string) string {
+	return strings.Join([]string{global.RedisKeyPrefix, "COUNTER", fmt.Sprintf("%x", sha256.Sum256([]byte(seed)))}, ":")
+}
+
+func (s SessionService) Counter(ctx context.Context, seed string, expireTime *time.Time, num ...int64) (err error) {
+	redisClt := s.Redis(ctx)
+	var ret *goredis.IntCmd
+	key := getCounterKey(seed)
+	if len(num) == 0 {
+		if ret = redisClt.Incr(key); ret.Err() != nil {
+			return ret.Err()
+		}
+	} else {
+		sum := int64(0)
+		for _, n := range num {
+			sum += n
+		}
+		if sum != 0 {
+			if ret = redisClt.IncrBy(key, sum); ret.Err() != nil {
+				return ret.Err()
+			}
+		}
+	}
+	if expireTime != nil {
+		redisClt.ExpireAt(key, *expireTime)
+	}
+	return nil
+}
+
+func (s SessionService) GetCounter(ctx context.Context, seed string) (count int64, err error) {
+	count, err = s.Redis(ctx).Get(getCounterKey(seed)).Int64()
+	if err != nil && err != goredis.Nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (s SessionService) UpdateToken(ctx context.Context, token *models.Token) error {
 	return s.Redis(ctx).Set(getTokenKey(token.Id), NewToken(token), -time.Since(token.Expiry)).Err()
+}
+
+func (s SessionService) UpdateTokenExpires(ctx context.Context, id string, expiry time.Time) error {
+	return s.Redis(ctx).ExpireAt(getTokenKey(id), expiry).Err()
 }
 
 type Token struct {
@@ -105,7 +147,7 @@ func getTokenKey(tokenId string) string {
 func (s SessionService) CreateToken(ctx context.Context, token *models.Token) error {
 	redisClt := s.Redis(ctx)
 	if len(token.Id) == 0 {
-		token.Id = models.NewId()
+		token.Id = g.NewId(token.RelationId)
 	}
 	if token.CreateTime.IsZero() {
 		token.CreateTime = time.Now()

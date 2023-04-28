@@ -3,7 +3,7 @@
 <script type="application/javascript">
     window.document.cookie = {{ .RedirectURICookieName }} + "=" + encodeURIComponent(window.location.href) + ";path=/";
     let url = new URL({{ .ExternalURL }});
-    url.pathname="/api/v1/oauth/authorize";
+    url.pathname=url.pathname+"api/v1/oauth/authorize";
     url.searchParams.set("access_type","online")
     url.searchParams.set("client_id",{{.ClientId}})
     url.searchParams.set("redirect_uri",window.location.origin+"/-/oauth")

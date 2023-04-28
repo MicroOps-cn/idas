@@ -9,6 +9,7 @@ message OAuthTokenResponse{
   int32 expires_in = 3[(gogoproto.customtype) = "int", (gogoproto.nullable) = false];
   string refresh_token = 4;
   string error = 5;
+  string id_token = 6;
 }
 
 message OAuthAuthorizeRequest{
@@ -47,7 +48,7 @@ message OAuthTokenRequest {
   string client_secret = 5;
   string username = 6;
   string password = 7;
-  string refresh_token = 8;
+  string refresh_token = 8[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.Secret"];
   string state = 9;
   bool disable_refresh_token = 10;
   OAuthTokenType token_type = 11;

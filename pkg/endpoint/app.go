@@ -18,11 +18,13 @@ package endpoint
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/go-kit/kit/endpoint"
 	"github.com/modern-go/reflect2"
 
 	"github.com/MicroOps-cn/idas/pkg/errors"
+	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/service/opts"
@@ -33,6 +35,19 @@ func MakeGetAppsEndpoint(s service.Service) endpoint.Endpoint {
 		req := request.(Requester).GetRequestData().(*GetAppsRequest)
 		resp := NewBaseListResponse[[]*models.App](&req.BaseListRequest)
 		resp.Total, resp.Data, resp.BaseResponse.Error = s.GetApps(ctx, req.Keywords, nil, req.Current, req.PageSize)
+		return &resp, nil
+	}
+}
+
+func MakeGetCurrentUserAppsEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(Requester).GetRequestData().(*BaseListRequest)
+		resp := NewBaseListResponse[[]*models.App](req)
+		user, ok := ctx.Value(global.MetaUser).(*models.User)
+		if !ok || user == nil || len(user.Id) == 0 {
+			return nil, errors.NewServerError(http.StatusUnauthorized, "Failed to obtain the current login user information.")
+		}
+		resp.Total, resp.Data, resp.BaseResponse.Error = s.GetApps(ctx, req.Keywords, map[string]interface{}{"user_id": user.Id}, req.Current, req.PageSize)
 		return &resp, nil
 	}
 }
@@ -120,6 +135,8 @@ func MakeUpdateAppEndpoint(s service.Service) endpoint.Endpoint {
 			Users:       req.GetUsers(),
 			Roles:       req.GetRoles(),
 			Proxy:       req.GetProxyConfig(),
+			DisplayName: req.DisplayName,
+			Url:         req.Url,
 		}); resp.Error != nil {
 			resp.Error = errors.NewServerError(200, resp.Error.Error())
 		}
@@ -193,9 +210,11 @@ func MakeCreateAppEndpoint(s service.Service) endpoint.Endpoint {
 			Avatar:      req.Avatar,
 			GrantType:   models.NewGrantType(req.GrantType...),
 			GrantMode:   req.GrantMode,
+			DisplayName: req.DisplayName,
 			Users:       req.GetUsers(),
 			Roles:       req.GetRoles(),
 			Proxy:       req.GetProxyConfig(),
+			Url:         req.Url,
 		})
 		return &resp, nil
 	}
@@ -216,8 +235,10 @@ func MakePatchAppEndpoint(s service.Service) endpoint.Endpoint {
 			"avatar":      req.Avatar,
 			"grantType":   req.GrantType,
 			"grantMode":   req.GrantMode,
+			"displayName": req.DisplayName,
 			"status":      req.Status,
 			"isDelete":    req.IsDelete,
+			"url":         req.Url,
 		}
 		patch := map[string]interface{}{}
 		for name, val := range tmpPatch {

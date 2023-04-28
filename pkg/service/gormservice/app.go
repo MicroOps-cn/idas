@@ -95,7 +95,7 @@ func (s UserAndAppService) PatchApps(ctx context.Context, patch []map[string]int
 //	@return total  int64
 //	@return err    error
 func (s UserAndAppService) DeleteApps(ctx context.Context, id []string) (total int64, err error) {
-	deleted := s.Session(ctx).Model(&models.App{}).Where("id in ?", id).Update("delete_time", time.Now())
+	deleted := s.Session(ctx).Model(&models.App{}).Where("`id` in ? and `name` != 'IDAS'", id).Update("delete_time", time.Now())
 	if err = deleted.Error; err != nil {
 		return deleted.RowsAffected, err
 	}
@@ -122,10 +122,10 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 	if len(updateColumns) != 0 {
 		q = q.Select(updateColumns)
 	} else {
-		q = q.Select("name", "description", "avatar", "grant_type", "grant_mode", "status")
+		q = q.Select("description", "display_name", "avatar", "grant_type", "grant_mode", "status", "url")
 	}
 
-	if err = q.Updates(&app).Error; err != nil {
+	if err = q.Omit("name").Updates(&app).Error; err != nil {
 		return err
 	}
 
@@ -192,11 +192,10 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (err 
 func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]interface{}) (err error) {
 	if id, ok := fields["id"].(string); ok {
 		tx := s.Session(ctx).Begin()
-		if err = tx.Model(&models.User{}).Where("id = ?", id).Updates(fields).Error; err != nil {
+		if err = tx.Model(&models.User{}).Omit("create_time", "name").Where("id = ?", id).Updates(fields).Error; err != nil {
 			return err
 		}
-		tx.Commit()
-		return nil
+		return tx.Commit().Error
 	}
 	return errors.ParameterError("id is null")
 }

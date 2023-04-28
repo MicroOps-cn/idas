@@ -54,8 +54,7 @@ func (s Set) GetAppAccessControl(ctx context.Context, app *models.App, o ...opts
 		if user != nil {
 			user.RoleId = rel.RoleId
 		} else {
-			user = &models.User{Model: models.Model{Id: rel.UserId}, RoleId: rel.RoleId}
-			app.Users = append(app.Users, user)
+			continue
 		}
 		if role := app.Roles.GetRoleById(rel.RoleId); role != nil {
 			user.Role = role.Name
