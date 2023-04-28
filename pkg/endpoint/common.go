@@ -103,5 +103,5 @@ func GetEventMeta(ctx context.Context, action string, beginTime time.Time, err e
 		message = fmt.Sprintf("Successfully called %s method.", action)
 		status = true
 	}
-	return eventId, message, true, time.Since(beginTime)
+	return eventId, message, status, time.Since(beginTime)
 }
