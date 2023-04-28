@@ -32,7 +32,7 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
-var openapiOutputFile string
+var outputFile string
 
 // migrateCmd represents the migrate command
 var rootCmd = &cobra.Command{
@@ -48,21 +48,24 @@ var rootCmd = &cobra.Command{
 			cancelFunc()
 		}()
 		ctx = context.WithValue(ctx, global.HTTPWebPrefixKey, "/")
+
 		handler := transport.NewHTTPHandler(ctx, logger, endpoint.Set{}, nil, nil, "/apidocs.json")
 
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/apidocs.json", nil)
 		handler.ServeHTTP(w, req)
-		if len(openapiOutputFile) == 0 {
-			_, _ = io.Copy(os.Stdout, w.Body)
-		} else if err := os.WriteFile(openapiOutputFile, w.Body.Bytes(), 0600); err != nil {
-			panic(err)
+		if w.Body != nil {
+			if len(outputFile) == 0 {
+				_, _ = io.Copy(os.Stdout, w.Body)
+			} else if err := os.WriteFile(outputFile, w.Body.Bytes(), 0o600); err != nil {
+				panic(err)
+			}
 		}
 	},
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&openapiOutputFile, "output", "o", "", "Output openAPI to the specified file")
+	rootCmd.PersistentFlags().StringVarP(&outputFile, "output", "o", "", "Output openAPI to the specified file")
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
