@@ -253,7 +253,15 @@ func (s UserAndAppService) ResetPassword(ctx context.Context, id string, passwor
 	if info.Status.Is(models.UserMeta_disabled) {
 		return errors.NewServerError(500, "unknown user status: "+info.Status.String())
 	}
+
+	objectClass, err := s.getUserObjectClass(ldap.WithConnContext(ctx, conn), dn)
+	if err != nil {
+		return err
+	}
+	objectClass.Insert(s.GetUserClass().List()...)
+
 	req := goldap.NewModifyRequest(dn, nil)
+	req.Replace("objectClass", objectClass.List())
 	req.Replace("userPassword", []string{"{CRYPT}" + phash})
 	req.Replace(UserStatusName, []string{strconv.Itoa(int(models.UserMeta_normal))})
 	return conn.Modify(req)
