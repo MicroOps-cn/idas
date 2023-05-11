@@ -508,6 +508,9 @@ func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 				}
 			}
 			if err == nil && params.TokenType == models.TokenTypeLoginSession {
+				if resp.ExtendedData == nil {
+					resp.ExtendedData = new(models.UserExt)
+				}
 				if !resp.ExtendedData.LoginTime.IsZero() && time.Since(resp.ExtendedData.LoginTime) > time.Hour {
 					maxTime := config.GetRuntimeConfig().GetLoginSessionMaxTime()
 					if time.Since(resp.ExtendedData.LoginTime) < (time.Hour * time.Duration(maxTime)) {
