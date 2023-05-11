@@ -201,11 +201,11 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 						resp.Error = errors.ParameterError("token")
 						return resp, nil
 					}
+					_ = s.DeleteToken(ctx, models.TokenTypeLoginCode, req.Token)
 					if code.Code != req.Code || user.Id != code.UserId || req.Type != code.Type {
 						resp.Error = errors.ParameterError("code")
 						return resp, nil
 					}
-					_ = s.DeleteToken(ctx, models.TokenTypeLoginCode, req.Token)
 				default:
 					if method.Len() != 0 {
 						resp.Data = &UserLoginResponseData{NextMethod: method.List()}
@@ -238,11 +238,11 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 				return resp, nil
 			}
 
+			_ = s.DeleteToken(ctx, models.TokenTypeLoginCode, req.Token)
 			if code.Code != req.Code || req.Type != code.Type {
 				resp.Error = errors.ParameterError("code")
 				return resp, nil
 			}
-			_ = s.DeleteToken(ctx, models.TokenTypeLoginCode, req.Token)
 
 			switch req.Type {
 			case LoginType_email:
