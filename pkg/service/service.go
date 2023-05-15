@@ -29,6 +29,7 @@ import (
 	"time"
 
 	logs "github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/go-kit/log/level"
 
 	"github.com/MicroOps-cn/idas/config"
@@ -220,6 +221,21 @@ func (s Set) SendEmail(ctx context.Context, data map[string]interface{}, topic s
 	if len(to) == 0 {
 		level.Error(logs.GetContextLogger(ctx)).Log("err")
 		return errors.ParameterError("recipient is empty")
+	}
+
+	nowTs := time.Now().Unix()
+	ts := nowTs - nowTs%60
+	seed := fmt.Sprintf("%s|%s|%d", topic, strings.Join(sets.New[string](to...).SortedList(), ","), ts)
+	count, err := s.sessionService.GetCounter(ctx, seed)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return errors.NewServerError(429, "the sending frequency is too fast. please try again in 60 seconds", errors.CodeRequestTooFrequently)
+	}
+	expr := time.Now().Add(time.Minute)
+	if err = s.sessionService.Counter(ctx, seed, &expr); err != nil {
+		return err
 	}
 	smtpConfig := config.Get().Smtp
 	if smtpConfig == nil {
