@@ -272,8 +272,7 @@ func (s Set) VerifyPassword(ctx context.Context, username string, password strin
 			return nil, errors.NewServerError(http.StatusInternalServerError, "System error: Please contact the administrator.", errors.CodeSystemError)
 		}
 		if count >= failedThreshold {
-			level.Error(logs.GetContextLogger(ctx)).Log("msg", "The number of password errors has reached the threshold.")
-			return nil, errors.NewServerError(http.StatusOK, "Wrong user name or password. ", errors.CodeInvalidCredentials)
+			return nil, errors.NewServerError(http.StatusOK, "The number of password errors has reached the threshold. ", errors.CodeTooManyLoginFailures)
 		}
 	}
 	user = s.userAndAppService.VerifyPassword(ctx, username, password)
@@ -364,8 +363,7 @@ func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, 
 			return nil, errors.NewServerError(http.StatusInternalServerError, "System error: Please contact the administrator.", errors.CodeSystemError)
 		}
 		if count >= int64(failedThreshold) {
-			level.Error(logs.GetContextLogger(ctx)).Log("msg", "The number of password errors has reached the threshold.")
-			return nil, errors.NewServerError(http.StatusOK, "Wrong user name or password. ", errors.CodeInvalidCredentials)
+			return nil, errors.NewServerError(http.StatusOK, "The number of password errors has reached the threshold. ", errors.CodeTooManyLoginFailures)
 		}
 	}
 

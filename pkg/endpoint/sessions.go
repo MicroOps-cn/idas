@@ -99,8 +99,7 @@ func MakeSendLoginCaptchaEndpoint(s service.Service) endpoint.Endpoint {
 					"userId": user.Id,
 				}
 				if err = s.SendEmail(ctx, data, "User:SendLoginCaptcha", to); err != nil {
-					level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to send email")
-					return nil, errors.NewServerError(500, "failed to send email")
+					return nil, err
 				}
 				resp.Data = &SendLoginCaptchaResponseData{Token: token.Id}
 				return &resp, nil

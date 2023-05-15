@@ -232,6 +232,7 @@ const (
 	CodeUserStatusUnknown             = "E0003"
 	CodeUserNeedResetPassword         = "E0004"
 	CodeUserInactive                  = "E0005"
+	CodeTooManyLoginFailures          = "E0006"
 	CodePasswordBaseGeneralTooSimple  = "E0010"
 	CodePasswordBaseSafeTooSimple     = "E0011"
 	CodePasswordBaseVerySafeTooSimple = "E0012"
@@ -239,4 +240,5 @@ const (
 	CodePasswordTooShort              = "E0014"
 	CodePasswordRepetition            = "E0015"
 	CodePasswordTooSimple             = "E0016"
+	CodeRequestTooFrequently          = "E0429"
 )
