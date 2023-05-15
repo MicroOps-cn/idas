@@ -119,6 +119,9 @@ func (s Set) GetUser(ctx context.Context, options ...opts.WithGetUserOptions) (u
 	}
 	if o.Ext {
 		user.ExtendedData, err = s.commonService.GetUserExtendedData(ctx, user.Id)
+		if user.ExtendedData == nil {
+			user.ExtendedData = new(models.UserExt)
+		}
 	}
 	return user, err
 }
@@ -485,6 +488,11 @@ func (s Set) UpdateUserSession(ctx context.Context, userId string) (err error) {
 			count += int64(len(sessions))
 			for _, tk := range sessions {
 				var oldUser models.User
+				if err := tk.To(&oldUser); err != nil {
+					return err
+				} else if oldUser.ExtendedData == nil {
+					oldUser.ExtendedData = new(models.UserExt)
+				}
 				newUser.ExtendedData.LoginTime = oldUser.ExtendedData.LoginTime
 				rawData, err := json.Marshal(newUser)
 				if err != nil {
