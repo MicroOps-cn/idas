@@ -181,6 +181,7 @@ func (s UserAndAppService) GetApps(ctx context.Context, keywords string, filters
 		}
 		fts = append(fts, fmt.Sprintf("(%s=%v)", name, val))
 	}
+	fts = append(fts, "(url=*)")
 	var filter string
 	if len(fts) >= 1 {
 		filter = fmt.Sprintf("(&%s)", strings.Join(fts, ""))
