@@ -83,6 +83,7 @@ func MakeDownloadFileEndpoint(s service.Service) endpoint.Endpoint {
 			stdResp.Header().Add("Content-Disposition", fmt.Sprintf("attachment; filename=%s", fileName))
 			stdResp.Header().Add("Content-Type", "application/octet-stream")
 		} else if len(mimiType) != 0 {
+			stdResp.Header().Add("Cache-Control", "max-age=86400")
 			stdResp.Header().Add("Content-Type", mimiType)
 		}
 		_, err = io.Copy(stdResp, f)
