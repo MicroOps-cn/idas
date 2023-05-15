@@ -120,7 +120,7 @@ type PageEndpoints struct {
 }
 
 type FileEndpoints struct {
-	UploadFile   endpoint.Endpoint `name:"" description:"Upload files to the server" role:"admin" audit:"false"`
+	UploadFile   endpoint.Endpoint `name:"" description:"Upload files to the server" auth:"false" audit:"false"`
 	DownloadFile endpoint.Endpoint `auth:"false" audit:"false"`
 }
 
