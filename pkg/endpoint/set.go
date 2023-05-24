@@ -89,7 +89,7 @@ type SessionEndpoints struct {
 	UserLogout               endpoint.Endpoint `auth:"false" audit:"true"`
 	GetSessionByToken        endpoint.Endpoint `auth:"false" audit:"false"`
 	GetProxySessionByToken   endpoint.Endpoint `auth:"false" audit:"false"`
-	OAuthTokens              endpoint.Endpoint `auth:"false" audit:"true"`
+	OAuthTokens              endpoint.Endpoint `auth:"false" audit:"false"`
 	OAuthAuthorize           endpoint.Endpoint `auth:"false" audit:"true"`
 	Authentication           endpoint.Endpoint `auth:"false" audit:"false"`
 	SessionRenewal           endpoint.Endpoint `auth:"false" audit:"false"`
