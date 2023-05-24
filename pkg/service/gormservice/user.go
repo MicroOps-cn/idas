@@ -424,6 +424,24 @@ func (c *CommonService) GetUserExtendedData(ctx context.Context, id string) (*mo
 	return &ext, err
 }
 
+func (c *CommonService) GetUsersExtendedData(ctx context.Context, id []string) ([]*models.UserExt, error) {
+	conn := c.Session(ctx)
+	if len(id) == 0 {
+		return nil, nil
+	}
+	var exts []*models.UserExt
+	err := conn.Where("user_id in ?", id).Find(&exts).Error
+	if err == gogorm.ErrRecordNotFound {
+		return nil, nil
+	}
+	for _, ext := range exts {
+		if ext.EmailAsMFA || ext.SmsAsMFA || ext.TOTPAsMFA {
+			ext.ForceMFA = true
+		}
+	}
+	return exts, err
+}
+
 func (c *CommonService) PatchUserExtData(ctx context.Context, id string, patch map[string]interface{}) error {
 	conn := c.Session(ctx)
 	ext := models.UserExt{UserId: id}
@@ -472,7 +490,7 @@ func (c *CommonService) VerifyAndRecordHistoryPassword(ctx context.Context, id s
 //	@param id 	string
 //	@return error
 func (c *CommonService) UpdateLoginTime(ctx context.Context, id string) error {
-	return c.Session(ctx).Model(&models.User{Model: models.Model{Id: id}}).UpdateColumn("login_time", time.Now().UTC()).Error
+	return c.Session(ctx).Model(&models.UserExt{UserId: id}).UpdateColumn("login_time", time.Now().UTC()).Error
 }
 
 func (c CommonService) InsertWeakPassword(ctx context.Context, passwords ...string) error {

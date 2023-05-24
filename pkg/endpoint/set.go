@@ -85,6 +85,7 @@ type SessionEndpoints struct {
 	GetCurrentUserSessions   endpoint.Endpoint `description:"Get current user session list" auth:"false" audit:"false"`
 	DeleteCurrentUserSession endpoint.Endpoint `description:"Get current user session list" auth:"false" audit:"false"`
 	UserLogin                endpoint.Endpoint `auth:"false" audit:"true"`
+	UserOAuthLogin           endpoint.Endpoint `auth:"false" audit:"false"`
 	UserLogout               endpoint.Endpoint `auth:"false" audit:"true"`
 	GetSessionByToken        endpoint.Endpoint `auth:"false" audit:"false"`
 	GetProxySessionByToken   endpoint.Endpoint `auth:"false" audit:"false"`
@@ -133,6 +134,11 @@ type ConfigEndpoints struct {
 	GetSecurityConfig   endpoint.Endpoint `description:"Get security config." role:"admin" audit:"false"`
 	PatchSecurityConfig endpoint.Endpoint `description:"Patch security config." role:"admin"`
 }
+
+type GlobalEndpoints struct {
+	GetLoginType endpoint.Endpoint `description:"Get login type." auth:"false" audit:"false"`
+}
+
 type EventEndpoints struct {
 	GetEvents               endpoint.Endpoint `description:"Get events." role:"admin" audit:"false"`
 	GetEventLogs            endpoint.Endpoint `description:"Get event logs." role:"admin" audit:"false"`
@@ -153,6 +159,7 @@ type Set struct {
 	PageEndpoints    `name:"Page" description:"Page"`
 	ConfigEndpoints  `name:"Config" description:"System Config Manage"`
 	EventEndpoints   `name:"Event" description:"Event"`
+	GlobalEndpoints  `name:"Global" description:"Global"`
 }
 
 func GetPermissionsDefine(typeOf reflect.Type) models.Permissions {
@@ -265,6 +272,7 @@ func New(_ context.Context, svc service.Service, duration metrics.Histogram, otT
 			DeleteCurrentUserSession: injectEndpoint("DeleteCurrentUserSession", MakeDeleteCurrentUserSessionEndpoint(svc)),
 			DeleteSession:            injectEndpoint("DeleteSession", MakeDeleteSessionEndpoint(svc)),
 			UserLogin:                injectEndpoint("UserLogin", MakeUserLoginEndpoint(svc)),
+			UserOAuthLogin:           injectEndpoint("UserOAuthLogin", MakeUserOAuthLoginEndpoint(svc)),
 			Authentication:           injectEndpoint("Authentication", MakeAuthenticationEndpoint(svc)),
 			UserLogout:               injectEndpoint("UserLogout", MakeUserLogoutEndpoint(svc)),
 			GetSessionByToken:        injectEndpoint("GetSessionByToken", MakeGetSessionByTokenEndpoint(svc)),
@@ -323,6 +331,9 @@ func New(_ context.Context, svc service.Service, duration metrics.Histogram, otT
 			GetEventLogs:            injectEndpoint("GetEventLogs", MakeGetEventLogsEndpoint(svc)),
 			GetCurrentUserEvents:    injectEndpoint("GetCurrentUserEvents", MakeGetCurrentUserEventsEndpoint(svc)),
 			GetCurrentUserEventLogs: injectEndpoint("GetCurrentUserEventLogs", MakeGetCurrentUserEventLogsEndpoint(svc)),
+		},
+		GlobalEndpoints: GlobalEndpoints{
+			GetLoginType: injectEndpoint("GetLoginType", MakeGetLoginTypeEndpoint(svc)),
 		},
 	}
 }

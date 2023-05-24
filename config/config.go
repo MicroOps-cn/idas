@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	oauth2 "github.com/MicroOps-cn/idas/pkg/client/oauth2"
 	"os"
 	"reflect"
 	"strconv"
@@ -234,6 +235,15 @@ func (x *Config) GetWorkspace() afero.Fs {
 	if x.Global != nil {
 		if len(x.Global.Workspace) != 0 {
 			return afero.NewBasePathFs(afero.NewOsFs(), x.Global.Workspace)
+		}
+	}
+	return nil
+}
+
+func (x *Config) GetOAuthOption(id string) *oauth2.Option {
+	for _, option := range x.GetGlobal().GetOauth2() {
+		if option.Id == id {
+			return option
 		}
 	}
 	return nil

@@ -19,23 +19,22 @@ package endpoint
 import (
 	"context"
 	"fmt"
+	uuid "github.com/satori/go.uuid"
 	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/MicroOps-cn/fuck/http"
 	logs "github.com/MicroOps-cn/fuck/log"
-	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/log/level"
-	"github.com/golang-jwt/jwt/v4"
-	uuid "github.com/satori/go.uuid"
-
 	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/service/opts"
+	"github.com/go-kit/kit/endpoint"
+	"github.com/go-kit/log/level"
+	"github.com/golang-jwt/jwt/v4"
 )
 
 //nolint:revive
@@ -46,6 +45,13 @@ func (r *OAuthTokenRequest) GetRefreshToken() string {
 		return string(*r.RefreshToken)
 	}
 	return ""
+}
+
+type UserToken struct {
+	jwt.StandardClaims
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	FullName string `json:"fullName"`
 }
 
 func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
@@ -121,7 +127,11 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					if !ok {
 						return "", errors.UnauthorizedError()
 					}
-
+					if role, err := s.GetAppRoleByUserId(ctx, app.Id, user.Id); err != nil {
+						user.Role = ""
+					} else {
+						user.Role = role.Name
+					}
 					jwtSecret := config.Get().Global.GetJwtSecret()
 
 					at, err := s.CreateToken(ctx, tokenType, user)
@@ -134,6 +144,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 						ExpiresAt: at.Expiry.Unix(),
 						IssuedAt:  time.Now().Unix(),
 						NotBefore: time.Now().Unix(),
+						Subject:   user.Username,
 					}).SignedString([]byte(jwtSecret))
 					if err != nil {
 						return "", errors.NewServerError(500, err.Error())
@@ -156,14 +167,19 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					}
 
 					if app.GrantType&models.AppMeta_oidc == models.AppMeta_oidc {
-						resp.IdToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-							Id:        uuid.NewV4().String(),
-							Audience:  app.Name,
-							ExpiresAt: time.Now().Add(time.Minute * 10).Unix(),
-							Issuer:    global.IdasAppName,
-							IssuedAt:  time.Now().Unix(),
-							NotBefore: time.Now().Unix(),
-							Subject:   user.Username,
+						resp.IdToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, &UserToken{
+							StandardClaims: jwt.StandardClaims{
+								Id:        uuid.NewV4().String(),
+								Audience:  app.Name,
+								ExpiresAt: time.Now().Add(time.Minute * 10).Unix(),
+								Issuer:    global.IdasAppName,
+								IssuedAt:  time.Now().Unix(),
+								NotBefore: time.Now().Unix(),
+								Subject:   user.Username,
+							},
+							Username: user.Username,
+							Email:    user.Email,
+							FullName: user.FullName,
 						}).SignedString([]byte(jwtSecret))
 						if err != nil {
 							return "", errors.NewServerError(500, err.Error())
@@ -241,13 +257,13 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 			}
 			u, err := url.Parse(httpExternalURL)
 			if err != nil {
-				return nil, errors.StatusNotFound("Authorize")
+				return nil, errors.StatusNotFound("httpExternalURL")
 			}
 			u.Path = http.JoinPath(u.Path, webPrefix, "403")
 			stdResp.AddHeader("Location", u.String())
 			stdResp.WriteHeader(302)
 		} else {
-
+			user.Role = app.Users[0].Role
 			token, err := s.CreateToken(ctx, models.TokenTypeCode, user)
 			if err != nil {
 				return "", err

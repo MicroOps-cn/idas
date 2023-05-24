@@ -43,6 +43,7 @@ const (
 	TokenTypeTotpSecret    TokenType = "totp_secret"
 	TokenTypeLoginCode     TokenType = "login_code"
 	TokenTypeEnableMFA     TokenType = "enable_mfa"
+	TokenTypeOAuthState    TokenType = "oauth_state"
 )
 
 func (t TokenType) GetExpiry() time.Time {
@@ -55,6 +56,8 @@ func (t TokenType) GetExpiry() time.Time {
 		return time.Now().UTC().Add(global.RefreshTokenExpiration)
 	case TokenTypeResetPassword:
 		return time.Now().UTC().Add(global.ResetPasswordExpiration)
+	case TokenTypeOAuthState:
+		return time.Now().UTC().Add(time.Minute * 10)
 	case TokenTypeLoginSession:
 		expirationTime := config.GetRuntimeConfig().GetLoginSessionInactivityTime()
 		if expirationTime == 0 {

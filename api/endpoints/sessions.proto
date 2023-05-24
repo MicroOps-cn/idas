@@ -45,6 +45,7 @@ enum LoginType {
   mfa_sms = 3;
   email = 4;
   sms = 5;
+  oauth2 = 6;
   enable_mfa_totp = 10;
   enable_mfa_email = 11;
   enable_mfa_sms = 12;
@@ -63,7 +64,7 @@ message UserLoginRequest{
   string second_code = 10[(gogoproto.jsontag) = "secondCode,omitempty"];
 }
 message UserLoginResponseData{
-  string  token =1;
+  string  token = 1;
   repeated LoginType next_method = 2 [(gogoproto.jsontag) = "nextMethod"];
   string email = 3;
   string phone_number = 4;
@@ -87,4 +88,10 @@ message SendLoginCaptchaResponseData{
 message SendLoginCaptchaResponse{
   idas.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
   SendLoginCaptchaResponseData data = 2;
+}
+
+message OAuthLoginRequest{
+  string id = 1[(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required"'];
+  string state = 2;
+  string code = 3;
 }

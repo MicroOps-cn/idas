@@ -41,6 +41,7 @@ var apiServiceSet = []func(ctx context.Context, options []httptransport.ServerOp
 	PageService,
 	ConfigService,
 	EventService,
+	GlobalService,
 }
 
 // UserService User Manager Service for restful Http container
@@ -505,6 +506,15 @@ func CurrentUserService(ctx context.Context, options []httptransport.ServerOptio
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.UserLoginResponse{}),
 	)
+	v1ws.Route(v1ws.GET("/oauth/{id}").
+		To(NewKitHTTPServer[endpoint.OAuthLoginRequest](ctx, endpoints.UserOAuthLogin, options)).
+		Operation("userOAuthLogin").
+		Doc("OAuth login.").
+		Param(v1ws.PathParameter("id", "identifier of the oauth").DataType("string").Required(true)).
+		Metadata(global.MetaNeedLogin, false).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(302, "OK", endpoint.UserLoginResponse{}),
+	)
 	v1ws.Route(v1ws.POST("/logout").
 		To(NewKitHTTPServer[struct{}](ctx, endpoints.UserLogout, options)).
 		Operation("userLogout").
@@ -767,6 +777,24 @@ func EventService(ctx context.Context, options []httptransport.ServerOption, end
 		Doc("Get event logs.").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Returns(200, "OK", endpoint.GetEventLogsResponse{}),
+	)
+
+	return tag, []*restful.WebService{v1ws}
+}
+
+func GlobalService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
+	tag := spec.Tag{TagProps: spec.TagProps{Name: "global", Description: "Global service"}}
+	tags := []string{tag.Name}
+	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
+
+	v1ws.Route(v1ws.GET("loginType").
+		To(NewKitHTTPServer[struct{}](ctx, endpoints.GetLoginType, options)).
+		Operation("getGlobalLoginType").
+		Doc("Get global login type.").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Metadata(global.MetaNeedLogin, false).
+		Returns(200, "OK", endpoint.GlobalLoginTypeResponse{}),
 	)
 
 	return tag, []*restful.WebService{v1ws}

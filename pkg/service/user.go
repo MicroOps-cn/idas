@@ -48,7 +48,16 @@ import (
 //	@return users    []*models.User
 //	@return err      error
 func (s Set) GetUsers(ctx context.Context, keywords string, status models.UserMeta_UserStatus, appId string, current, pageSize int64) (total int64, users models.Users, err error) {
-	return s.GetUserAndAppService().GetUsers(ctx, keywords, status, appId, current, pageSize)
+	total, users, err = s.GetUserAndAppService().GetUsers(ctx, keywords, status, appId, current, pageSize)
+	if err != nil {
+		return total, users, err
+	}
+	if exts, err := s.commonService.GetUsersExtendedData(ctx, users.Id()); err == nil {
+		for _, ext := range exts {
+			users.GetById(ext.UserId).LoginTime = &ext.LoginTime
+		}
+	}
+	return total, users, nil
 }
 
 // PatchUsers

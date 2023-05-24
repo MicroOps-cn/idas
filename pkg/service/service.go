@@ -299,6 +299,8 @@ func (s Set) VerifyToken(ctx context.Context, token string, tokenType models.Tok
 	}
 	switch tokenType {
 	case models.TokenTypeCode,
+		models.TokenTypeOAuthState,
+		models.TokenTypeLoginCode,
 		models.TokenTypeAppProxyLogin:
 		if err = s.DeleteToken(ctx, tokenType, tk.Id); err != nil {
 			level.Warn(logger).Log("msg", "failed to delete token.", "err", err)

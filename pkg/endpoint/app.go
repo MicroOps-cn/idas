@@ -47,7 +47,7 @@ func MakeGetCurrentUserAppsEndpoint(s service.Service) endpoint.Endpoint {
 		if !ok || user == nil || len(user.Id) == 0 {
 			return nil, errors.NewServerError(http.StatusUnauthorized, "Failed to obtain the current login user information.")
 		}
-		resp.Total, resp.Data, resp.BaseResponse.Error = s.GetApps(ctx, req.Keywords, map[string]interface{}{"user_id": user.Id}, req.Current, req.PageSize)
+		resp.Total, resp.Data, resp.BaseResponse.Error = s.GetApps(ctx, req.Keywords, map[string]interface{}{"user_id": user.Id, "url": "*"}, req.Current, req.PageSize)
 		return &resp, nil
 	}
 }

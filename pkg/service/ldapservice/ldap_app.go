@@ -19,6 +19,7 @@ package ldapservice
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -179,9 +180,15 @@ func (s UserAndAppService) GetApps(ctx context.Context, keywords string, filters
 			fts = append(fts, fmt.Sprintf("(|(uniqueMember=%v)(member=%v))", val, val))
 			continue
 		}
-		fts = append(fts, fmt.Sprintf("(%s=%v)", name, val))
+		if ok, _ := regexp.MatchString("^[-_a-zA-Z0-9]+$", name); !ok {
+			return 0, nil, errors.ParameterError(name)
+		}
+		value := fmt.Sprintf("%v", val)
+		if ok, _ := regexp.MatchString("^[-_a-zA-Z0-9*]+$", value); !ok {
+			return 0, nil, errors.ParameterError(name)
+		}
+		fts = append(fts, fmt.Sprintf("(%s=%v)", name, value))
 	}
-	fts = append(fts, "(url=*)")
 	var filter string
 	if len(fts) >= 1 {
 		filter = fmt.Sprintf("(&%s)", strings.Join(fts, ""))

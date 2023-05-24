@@ -1,0 +1,19 @@
+syntax = "proto3";
+package idas.endpoint;
+import public "gogoproto/gogo.proto";
+import "endpoints/sessions.proto";
+import "endpoints/base.proto";
+option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
+
+message GlobalLoginType{
+  LoginType type = 1[(gogoproto.jsontag) = "type"];
+  string name = 2;
+  string icon = 3 ;
+  bool auto_login = 4;
+  string id = 5;
+}
+
+message GlobalLoginTypeResponse{
+  idas.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated GlobalLoginType data = 2;
+}

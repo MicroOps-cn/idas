@@ -19,6 +19,8 @@ package endpoint
 import (
 	"context"
 	"fmt"
+	http2 "github.com/MicroOps-cn/fuck/http"
+	"github.com/MicroOps-cn/idas/pkg/client/oauth2"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -130,6 +132,109 @@ func getMFAMethod(user *models.User) sets.Set[LoginType] {
 	return method
 }
 
+func MakeUserOAuthLoginEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		stdResp := request.(RestfulRequester).GetRestfulResponse()
+		stdReq := request.(RestfulRequester).GetRestfulRequest()
+		req := request.(Requester).GetRequestData().(*OAuthLoginRequest)
+		oAuthOption := config.Get().GetOAuthOption(req.Id)
+		if oAuthOption != nil {
+			if req.Code == "" && req.State == "" {
+				httpExternalURL, ok := ctx.Value(global.HTTPExternalURLKey).(string)
+				if !ok {
+					return nil, errors.StatusNotFound("httpExternalURL")
+				}
+				redirectUri, err := url.Parse(httpExternalURL)
+				if !ok {
+					return nil, err
+				}
+				redirectUri.Path = http2.JoinPath(redirectUri.Path, "api/v1/user/oauth/"+req.Id)
+
+				authURL, err := url.Parse(oAuthOption.AuthUrl)
+				if err != nil {
+					return nil, err
+				}
+				q := authURL.Query()
+				q.Set("response_type", "code")
+				q.Set("scope", "user:email")
+				q.Set("scope", "user:email")
+				q.Set("redirect_uri", redirectUri.String())
+				q.Set("client_id", oAuthOption.ClientId)
+				token, err := s.CreateToken(ctx, models.TokenTypeOAuthState, "")
+				if err != nil {
+					return nil, err
+				}
+				q.Set("state", token.Id)
+				authURL.RawQuery = q.Encode()
+				http.Redirect(stdResp.ResponseWriter, stdReq.Request, authURL.String(), 302)
+			} else if req.Code != "" && req.State != "" {
+				if s.VerifyToken(ctx, req.State, models.TokenTypeOAuthState, nil) {
+					user, err := oauth2.NewClient(oAuthOption).GetUserInfo(ctx, req.Code)
+					if err != nil {
+						return nil, err
+					}
+					userInfo, err := s.GetUser(ctx, opts.WithUsername(user.Username))
+					if err != nil {
+						return nil, err
+					}
+					if len(userInfo.Role) == 0 {
+						userInfo.Role = user.Role
+					}
+					sess, err := s.CreateToken(ctx, models.TokenTypeLoginSession, userInfo)
+					if err != nil {
+						return "", err
+					}
+
+					jwtSecret := config.Get().Global.GetJwtSecret()
+					token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
+						Id:        sess.Id,
+						ExpiresAt: sess.Expiry.Unix(),
+						IssuedAt:  time.Now().Unix(),
+						NotBefore: time.Now().Unix(),
+					}).SignedString([]byte(jwtSecret))
+					if err != nil {
+						return "", errors.NewServerError(500, err.Error())
+					}
+
+					cookie := http.Cookie{
+						Name:  global.LoginSession,
+						Value: token,
+						Path:  "/",
+					}
+					if httpExternalURL, ok := ctx.Value(global.HTTPExternalURLKey).(string); ok && len(httpExternalURL) > 0 {
+						if extURL, err := url.Parse(httpExternalURL); err == nil {
+							cookie.Path = extURL.Path
+						}
+					}
+
+					http.SetCookie(stdResp, &http.Cookie{
+						Name:  global.CookieAutoLogin,
+						Value: "false",
+						Path:  cookie.Path,
+					})
+					http.SetCookie(stdResp, &cookie)
+
+					webPrefix, ok := ctx.Value(global.HTTPWebPrefixKey).(string)
+					if !ok {
+						return nil, errors.NewServerError(500, "webPrefix is null")
+					}
+					externalURL, ok := ctx.Value(global.HTTPExternalURLKey).(string)
+					if !ok {
+						return nil, errors.NewServerError(500, "externalURL is null")
+					}
+					extURL, err := url.Parse(externalURL)
+					if err != nil {
+						return nil, errors.NewServerError(500, "")
+					}
+					extURL.Path = http2.JoinPath(extURL.Path, webPrefix)
+					http.Redirect(stdResp.ResponseWriter, stdReq.Request, extURL.String(), 302)
+				}
+			}
+		}
+		return nil, nil
+	}
+}
+
 func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		begin := time.Now()
@@ -200,7 +305,6 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 						resp.Error = errors.ParameterError("token")
 						return resp, nil
 					}
-					_ = s.DeleteToken(ctx, models.TokenTypeLoginCode, req.Token)
 					if code.Code != req.Code || user.Id != code.UserId || req.Type != code.Type {
 						resp.Error = errors.ParameterError("code")
 						return resp, nil
@@ -237,7 +341,6 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 				return resp, nil
 			}
 
-			_ = s.DeleteToken(ctx, models.TokenTypeLoginCode, req.Token)
 			if code.Code != req.Code || req.Type != code.Type {
 				resp.Error = errors.ParameterError("code")
 				return resp, nil
@@ -315,7 +418,7 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 			return resp, nil
 		}
 
-		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithUsers(user.Id), opts.WithAppName("IDAS"))
+		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithUsers(user.Id), opts.WithAppName(config.Get().GetGlobal().GetAppName()))
 		if err != nil && !errors.IsNotFount(err) {
 			level.Error(logger).Log("msg", "failed to get app info", "err", err)
 		} else if app != nil {
