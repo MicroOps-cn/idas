@@ -47,7 +47,9 @@ type EventBuffers struct {
 
 func (b *EventBuffers) PutEvent(ctx context.Context, eventId, userId, username, clientIP, loc, action, message string, status bool, took time.Duration, logItems ...interface{}) error {
 	if len(eventId) == 0 {
-		eventId = logs.GetTraceId(ctx)
+		if eventId = logs.GetTraceId(ctx); len(eventId) == 0 {
+			eventId = logs.NewTraceId()
+		}
 	}
 
 	b.mux.Lock()
@@ -61,15 +63,16 @@ func (b *EventBuffers) PutEvent(ctx context.Context, eventId, userId, username, 
 		event.Message = httputil.NewValue(message, httputil.Default(event.Message)).String()
 		event.Status = status
 		event.Took = took
+		event.CreateTime = time.Now().UTC()
 	} else {
 		b.event[eventId] = &models.Event{UserId: userId, Username: username, ClientIP: clientIP, Location: loc, Action: action, Message: message, Status: status, Took: took}
 		b.event[eventId].Id = eventId
+		b.event[eventId].CreateTime = time.Now().UTC()
 	}
 
 	var errs errors.MultipleServerError
 	for _, item := range logItems {
-		fmt.Println(eventId)
-		eventLog := models.EventLog{EventId: eventId}
+		eventLog := models.EventLog{Model: models.Model{CreateTime: time.Now().UTC()}, EventId: eventId}
 		switch v := item.(type) {
 		case []byte:
 			eventLog.Log = v
@@ -97,10 +100,15 @@ func (b *EventBuffers) getEvents() ([]models.Event, []models.EventLog) {
 	var events []models.Event
 	var log []models.EventLog
 	if len(b.event) > 0 {
+		newEvents := make(map[string]*models.Event)
 		for _, event := range b.event {
-			events = append(events, *event)
+			if time.Now().UTC().Sub(event.CreateTime) > time.Second*3 {
+				events = append(events, *event)
+			} else {
+				newEvents[event.Id] = event
+			}
 		}
-		b.event = make(map[string]*models.Event)
+		b.event = newEvents
 	}
 	if len(b.logs) > 0 {
 		for _, l := range b.logs {
