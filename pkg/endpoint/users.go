@@ -509,10 +509,12 @@ func MakeSendActivationMailEndpoint(s service.Service) endpoint.Endpoint {
 			return nil, errors.NewServerError(http.StatusInternalServerError, "Failed to create token")
 		}
 		to := fmt.Sprintf("%s<%s>", user.FullName, user.Email)
+		httpExternalURL, _ := ctx.Value(global.HTTPExternalURLKey).(string)
 		err = s.SendEmail(ctx, map[string]interface{}{
-			"user":   user,
-			"token":  token,
-			"userId": token.ParentId,
+			"user":            user,
+			"token":           token,
+			"userId":          token.ParentId,
+			"httpExternalURL": httpExternalURL,
 		}, "User:ActivateAccount", to)
 		if err != nil {
 			level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to send email")
