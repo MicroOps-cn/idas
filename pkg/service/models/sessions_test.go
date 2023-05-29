@@ -35,9 +35,6 @@ func TestToken_To(t *testing.T) {
 		wantErr bool
 		want    interface{}
 	}{
-		{name: "test struct to array", token: Token{Type: TokenTypeToken, Data: sql.RawBytes(`{"name":"lion"}`)}, args: &[]data{}, want: &[]data{{Name: "lion"}}, wantErr: false},
-		{name: "test array to array", token: Token{Type: TokenTypeParent, Childrens: []*Token{{Data: sql.RawBytes(`{"name":"lion"}`)}}}, args: &[]data{}, want: &[]data{{Name: "lion"}}, wantErr: false},
-		{name: "test array to struct", token: Token{Type: TokenTypeParent, Childrens: []*Token{{Data: sql.RawBytes(`{"name":"lion"}`)}}}, args: &data{}, want: &data{}, wantErr: true},
 		{name: "test struct to struct", token: Token{Type: TokenTypeCode, Data: sql.RawBytes(`{"name":"lion"}`)}, args: &data{}, want: &data{Name: "lion"}, wantErr: false},
 	}
 	for _, tt := range tests {

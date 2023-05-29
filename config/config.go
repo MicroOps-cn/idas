@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	oauth2 "github.com/MicroOps-cn/idas/pkg/client/oauth2"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"os"
 	"reflect"
 	"strconv"
@@ -116,7 +117,7 @@ func (x *Storage) findRef(path string, root interface{}) error {
 	return nil
 }
 
-func (x *Config) Init(logger log.Logger) error {
+func (x *Config) Init(_ log.Logger) error {
 	if x.Storage == nil || x.Storage.Default == nil {
 		return fmt.Errorf("default storage is null")
 	}
@@ -179,6 +180,7 @@ func (x *GlobalOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []by
 	options := NewGlobalOptions()
 	x.MaxBodySize = options.MaxBodySize
 	x.MaxUploadSize = options.MaxUploadSize
+	x.JwtSecret = options.JwtSecret
 	x.UploadPath = "uploads"
 	err := unmarshaller.Unmarshal(bytes.NewReader(b), (*pbGlobalOptions)(x))
 	if err != nil {
@@ -199,6 +201,7 @@ func NewGlobalOptions() *GlobalOptions {
 	return &GlobalOptions{
 		MaxUploadSize: capacity.NewCapacity(defaultMaxUploadSize),
 		MaxBodySize:   capacity.NewCapacity(defaultMaxBodySize),
+		JwtSecret:     rand.String(128),
 	}
 }
 

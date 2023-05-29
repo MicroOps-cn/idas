@@ -255,7 +255,8 @@ storage:
 }
 
 func TestService(t *testing.T) {
-	logs.SetDefaultLogger(logs.New())
+	logs.SetDefaultLogger(logs.New(logs.WithConfig(logs.MustNewConfig("debug", "logfmt"))))
+
 	tests := []struct {
 		name string
 		sg   testServiceGenerate

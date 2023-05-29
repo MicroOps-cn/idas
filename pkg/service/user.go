@@ -387,12 +387,11 @@ func (s Set) verifyUserStatus(ctx context.Context, user *models.User, allowPassw
 //	@return ${ret_name}	[]*models.User
 //	@return ${ret_name}	error
 func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm sign.AuthAlgorithm, key, secret, payload, signStr string) (user *models.User, err error) {
-	failedSec := config.GetRuntimeConfig().GetSecurity().PasswordFailedLockDuration * 60
-	failedThreshold := config.GetRuntimeConfig().GetSecurity().PasswordFailedLockThreshold
+	failedSec, failedThreshold := config.GetRuntimeConfig().GetPasswordFailedLockConfig()
 	nowTs := time.Now().Unix()
-	ts := nowTs - nowTs%int64(failedSec)
-	counterSeed := fmt.Sprintf("LOGIN:%s:%d", key, ts)
 	if failedSec > 0 && failedThreshold > 0 {
+		ts := nowTs - nowTs%failedSec
+		counterSeed := fmt.Sprintf("LOGIN:%s:%d", key, ts)
 		var count int64
 		count, err = s.sessionService.GetCounter(ctx, counterSeed)
 		if err != nil {
@@ -406,6 +405,8 @@ func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, 
 
 	if failedSec > 0 && failedThreshold > 0 {
 		defer func() {
+			ts := nowTs - nowTs%failedSec
+			counterSeed := fmt.Sprintf("LOGIN:%s:%d", key, ts)
 			if err != nil || user == nil {
 				expir := time.Unix(ts+int64(failedSec), 0)
 				if err = s.sessionService.Counter(ctx, counterSeed, &expir); err != nil {

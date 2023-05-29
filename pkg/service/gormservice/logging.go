@@ -207,7 +207,6 @@ func (s *LoggingService) GetEvents(ctx context.Context, filters map[string]strin
 	if err = tb.Order("`id` DESC").Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).Find(&events).Error; err != nil {
 		return 0, nil, err
 	}
-	fmt.Println(count)
 	return count, events, nil
 }
 

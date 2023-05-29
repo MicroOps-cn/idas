@@ -36,7 +36,9 @@ storage:
   default: 
     sqlite: 
       path: ":memory:"
-global: {}
+global: {
+    
+}
 `
 
 func TestSignHttpRequest(t *testing.T) {

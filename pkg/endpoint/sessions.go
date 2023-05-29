@@ -118,7 +118,6 @@ func getMFAMethod(user *models.User) sets.Set[LoginType] {
 	method := sets.New[LoginType]()
 	userExt := user.ExtendedData
 	if userExt != nil {
-		fmt.Println(*userExt)
 		if userExt.EmailAsMFA {
 			method.Insert(LoginType_mfa_email)
 		}

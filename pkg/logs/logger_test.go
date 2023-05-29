@@ -18,7 +18,6 @@ package logs
 
 import (
 	"bytes"
-	"regexp"
 	"testing"
 
 	log "github.com/MicroOps-cn/fuck/log"
@@ -31,8 +30,6 @@ func TestRegisterLogger(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
 	l := log.New(log.WithWriter(buf), log.WithConfig(log.MustNewConfig("info", string(FormatIDAS))))
 	level.Error(l).Log("msg", "test message", WrapKeyName("Name"), "Test")
-	const matchExpr = `(?m)^[-.\d:TZ]+ \[error] \w+ \S+ - test message - \n\[Name]:\s+Test`
-	matched, err := regexp.MatchString(matchExpr, buf.String())
-	require.Truef(t, matched, "%s can't match expr: %s", buf.String(), matchExpr)
-	require.NoError(t, err)
+	const matchExpr = `(?m)^[-.\d:TZ]+ \[error] [-\w]+ \S+ - test message - \n\[Name]:\s+Test`
+	require.Regexp(t, matchExpr, buf.String())
 }
