@@ -142,10 +142,11 @@ func (s UserAndAppService) getDNSByReq(ctx context.Context, searchReq *goldap.Se
 //	@param searchReq   *ldap.SearchRequest
 //	@return userDetail *models.User
 //	@return err        error
-func (s UserAndAppService) getUserByReq(ctx context.Context, searchReq *goldap.SearchRequest) (*models.User, error) {
+func (s UserAndAppService) getUserByReq(ctx context.Context, searchReq *goldap.SearchRequest, o *opts.GetUserOptions) (*models.User, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
-	searchReq.Attributes = []string{s.Options().GetAttrUsername(), s.Options().GetAttrUserPhoneNo(), s.Options().GetAttrEmail(), s.Options().GetAttrUserDisplayName(), "entryUUID", "avatar", "createTimestamp", "modifyTimestamp", UserStatusName, "memberOf"}
+	searchReq.Attributes = []string{s.Options().GetAttrUsername(), s.Options().GetAttrUserPhoneNo(), s.Options().GetAttrEmail(), s.Options().GetAttrUserDisplayName(), "entryUUID", "avatar", "createTimestamp", "modifyTimestamp", UserStatusName}
+
 	ret, err := conn.Search(searchReq)
 	if err != nil {
 		return nil, err
@@ -168,6 +169,20 @@ func (s UserAndAppService) getUserByReq(ctx context.Context, searchReq *goldap.S
 		Avatar:      userEntry.GetAttributeValue("avatar"),
 		Status:      models.UserMeta_UserStatus(w.M[int](httputil.NewValue(userEntry.GetAttributeValue(UserStatusName)).Default("0").Int())),
 	}
+	if o != nil && o.Apps {
+		appsResp, err := conn.Search(goldap.NewSearchRequest(s.Options().AppSearchBase, goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 0, 0, false,
+			fmt.Sprintf("(&(|(uniqueMember=%s)(member=%s))%s)", userEntry.DN, userEntry.DN, s.GetAppSearchFilter()), []string{"entryUUID", "objectClass", "member", "uniqueMember", "cn"}, nil))
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range appsResp.Entries {
+			app, err := s.getAppDetailByDn(ctx, entry.DN, opts.NewAppOptions(opts.WithBasic))
+			if err != nil {
+				return nil, err
+			}
+			userInfo.Apps = append(userInfo.Apps, app)
+		}
+	}
 	return userInfo, nil
 }
 
@@ -184,7 +199,7 @@ func (s UserAndAppService) getUserByDn(ctx context.Context, dn string) (*models.
 		dn, goldap.ScopeBaseObject, goldap.NeverDerefAliases, 1, 0, false,
 		"(objectClass=*)", nil, nil,
 	)
-	return s.getUserByReq(ctx, searchReq)
+	return s.getUserByReq(ctx, searchReq, nil)
 }
 
 // getUserByUsername
@@ -195,13 +210,13 @@ func (s UserAndAppService) getUserByDn(ctx context.Context, dn string) (*models.
 //	@param username      string
 //	@return userDetail   *models.User
 //	@return err          error
-func (s UserAndAppService) getUserByUsername(ctx context.Context, username string) (*models.User, error) {
+func (s UserAndAppService) getUserByUsername(ctx context.Context, username string, o *opts.GetUserOptions) (*models.User, error) {
 	searchReq := goldap.NewSearchRequest(
 		s.Options().UserSearchBase,
 		goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 2, 0, false,
 		s.Options().ParseUserSearchFilter(username), nil, nil,
 	)
-	return s.getUserByReq(ctx, searchReq)
+	return s.getUserByReq(ctx, searchReq, o)
 }
 
 // GetUserInfoByUsernameAndEmail
@@ -222,7 +237,7 @@ func (s UserAndAppService) GetUserInfoByUsernameAndEmail(ctx context.Context, us
 			s.Options().GetAttrEmail(), email),
 		nil, nil,
 	)
-	return s.getUserByReq(ctx, searchReq)
+	return s.getUserByReq(ctx, searchReq, nil)
 }
 
 // ResetPassword
@@ -460,7 +475,7 @@ func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, up
 	}
 
 	if len(updateColumns) == 0 {
-		updateColumns = []string{"username", "email", "phone_number", "full_name", "avatar", "status"}
+		updateColumns = []string{"username", "email", "phone_number", "full_name", "avatar", "status", "apps"}
 	}
 	columns := sets.New[string](updateColumns...)
 	req := goldap.NewModifyRequest(dn, nil)
@@ -483,7 +498,68 @@ func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, up
 	}
 
 	if len(req.Changes) > 0 {
-		return conn.Modify(req)
+		if err = conn.Modify(req); err != nil {
+			return err
+		}
+	}
+
+	if columns.Has("apps") {
+		appsResp, err := conn.Search(goldap.NewSearchRequest(s.Options().AppSearchBase, goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 0, 0, false,
+			fmt.Sprintf("(&(|(uniqueMember=%s)(member=%s))%s)", dn, dn, s.GetAppSearchFilter()), []string{"entryUUID", "objectClass", "member", "uniqueMember", "cn"}, nil))
+		for _, entry := range appsResp.Entries {
+			appUUID := entry.GetAttributeValue("entryUUID")
+			if app := user.Apps.GetById(appUUID); app == nil {
+				classes := sets.New[string](entry.GetAttributeValues("objectClass")...)
+				delMemberReq := goldap.NewModifyRequest(entry.DN, nil)
+				if classes.Has("groupOfNames") {
+					delMemberReq.Delete("member", []string{dn})
+				} else if classes.Has("groupOfUniqueNames") {
+					delMemberReq.Delete("uniqueMember", []string{dn})
+				} else {
+					return errors.NewServerError(500, "This application does not support modification.")
+				}
+				if err = conn.Modify(delMemberReq); err != nil {
+					appsResp.Entries[0].Print()
+					if strings.Contains(err.Error(), "object class 'groupOfUniqueNames' requires attribute 'uniqueMember'") {
+						return errors.NewServerError(500, fmt.Sprintf("application %s cannot have no members. Please add members first before deleting the current member", appsResp.Entries[0].GetAttributeValue("cn")), errors.CodeAppMemberCannotBeEmpty)
+					}
+					return err
+				}
+			}
+
+		}
+		oldAppIds := sets.New[string](w.Map(appsResp.Entries, func(item *goldap.Entry) string {
+			return item.GetAttributeValue("entryUUID")
+		})...)
+		for _, app := range user.Apps {
+			if !oldAppIds.Has(app.Id) {
+				appRet, err := conn.Search(goldap.NewSearchRequest(
+					s.Options().AppSearchBase,
+					goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 1, 0, false,
+					fmt.Sprintf("(entryUUID=%s)", app.Id),
+					[]string{"objectClass"},
+					nil,
+				))
+				if err != nil {
+					return err
+				}
+				if len(appRet.Entries) == 0 {
+					return fmt.Errorf("app %s is not exists", app.Id)
+				}
+				classes := sets.New[string](appRet.Entries[0].GetAttributeValues("objectClass")...)
+				addMemberReq := goldap.NewModifyRequest(appRet.Entries[0].DN, nil)
+				if classes.Has("groupOfNames") {
+					addMemberReq.Add("member", []string{dn})
+				} else if classes.Has("groupOfUniqueNames") {
+					addMemberReq.Add("uniqueMember", []string{dn})
+				} else {
+					return errors.NewServerError(500, "This application does not support modification.")
+				}
+				if err = conn.Modify(addMemberReq); err != nil {
+					return err
+				}
+			}
+		}
 	}
 	return nil
 }
@@ -496,7 +572,7 @@ func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, up
 //	@param id 	string
 //	@return userDetail	*models.User
 //	@return err	error
-func (s UserAndAppService) GetUserInfoById(ctx context.Context, id string) (*models.User, error) {
+func (s UserAndAppService) GetUserInfoById(ctx context.Context, id string, o *opts.GetUserOptions) (*models.User, error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
 	searchReq := goldap.NewSearchRequest(
@@ -504,7 +580,7 @@ func (s UserAndAppService) GetUserInfoById(ctx context.Context, id string) (*mod
 		goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 1, 0, false,
 		fmt.Sprintf("(entryUUID=%s)", id), nil, nil,
 	)
-	return s.getUserByReq(ldap.WithConnContext(ctx, conn), searchReq)
+	return s.getUserByReq(ldap.WithConnContext(ctx, conn), searchReq, o)
 }
 
 // GetUser
@@ -519,10 +595,10 @@ func (s UserAndAppService) GetUser(ctx context.Context, o *opts.GetUserOptions) 
 	conn := s.Session(ctx)
 	defer conn.Close()
 	if len(o.Id) != 0 {
-		return s.GetUserInfoById(ldap.WithConnContext(ctx, conn), o.Id)
+		return s.GetUserInfoById(ldap.WithConnContext(ctx, conn), o.Id, o)
 	}
 	if len(o.Username) != 0 {
-		return s.getUserByUsername(ldap.WithConnContext(ctx, conn), o.Username)
+		return s.getUserByUsername(ldap.WithConnContext(ctx, conn), o.Username, o)
 	}
 	if len(o.Email) != 0 {
 		filters := []string{
@@ -534,7 +610,7 @@ func (s UserAndAppService) GetUser(ctx context.Context, o *opts.GetUserOptions) 
 			goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 2, 0, false,
 			fmt.Sprintf("(&%s)", strings.Join(filters, "")), nil, nil,
 		)
-		return s.getUserByReq(ctx, searchReq)
+		return s.getUserByReq(ctx, searchReq, o)
 	}
 	if len(o.PhoneNumber) > 0 {
 		filters := []string{
@@ -546,7 +622,7 @@ func (s UserAndAppService) GetUser(ctx context.Context, o *opts.GetUserOptions) 
 			goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 2, 0, false,
 			fmt.Sprintf("(&%s)", strings.Join(filters, "")), nil, nil,
 		)
-		return s.getUserByReq(ctx, searchReq)
+		return s.getUserByReq(ctx, searchReq, o)
 	}
 	return nil, errors.NewServerError(500, "Unknown user filter condition")
 }
@@ -570,10 +646,10 @@ func (s UserAndAppService) GetUserInfo(ctx context.Context, id string, username 
 	var userEntry *goldap.Entry
 
 	if len(id) != 0 {
-		return s.GetUserInfoById(ldap.WithConnContext(ctx, conn), id)
+		return s.GetUserInfoById(ldap.WithConnContext(ctx, conn), id, nil)
 	}
 	if userEntry == nil && len(username) != 0 {
-		return s.getUserByUsername(ldap.WithConnContext(ctx, conn), username)
+		return s.getUserByUsername(ldap.WithConnContext(ctx, conn), username, nil)
 	}
 	return nil, errors.StatusNotFound("user")
 }
@@ -625,11 +701,40 @@ func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (e
 	if err != nil {
 		return err
 	}
-	newUser, err := s.getUserByDn(ldap.WithConnContext(ctx, conn), dn)
-	if err != nil {
+	if newUser, err := s.getUserByDn(ldap.WithConnContext(ctx, conn), dn); err != nil {
 		return err
+	} else {
+		user.Model = newUser.Model
 	}
-	user.Model = newUser.Model
+
+	for _, app := range user.Apps {
+		appRet, err := conn.Search(goldap.NewSearchRequest(
+			s.Options().AppSearchBase,
+			goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 1, 0, false,
+			fmt.Sprintf("(entryUUID=%s)", app.Id),
+			[]string{"objectClass"},
+			nil,
+		))
+		if err != nil {
+			return err
+		}
+		if len(appRet.Entries) == 0 {
+			return fmt.Errorf("app %s is not exists", app.Id)
+		}
+		classes := sets.New[string](appRet.Entries[0].GetAttributeValues("objectClass")...)
+		addMemberReq := goldap.NewModifyRequest(appRet.Entries[0].DN, nil)
+		if classes.Has("groupOfNames") {
+			addMemberReq.Add("member", []string{dn})
+		} else if classes.Has("groupOfUniqueNames") {
+			addMemberReq.Add("uniqueMember", []string{dn})
+		} else {
+			return errors.NewServerError(500, "This application does not support modification.")
+		}
+		if err = conn.Modify(addMemberReq); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -778,7 +883,7 @@ func (s UserAndAppService) VerifyPassword(ctx context.Context, username string, 
 
 func (s UserAndAppService) GetUsersById(ctx context.Context, ids []string) (users models.Users, err error) {
 	for _, id := range ids {
-		userInfo, err := s.GetUserInfoById(ctx, id)
+		userInfo, err := s.GetUserInfoById(ctx, id, nil)
 		if err != nil && !strings.Contains(err.Error(), "Not Found") {
 			return nil, err
 		} else if userInfo == nil {

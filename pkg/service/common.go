@@ -61,6 +61,7 @@ type CommonService interface {
 	UpdateAppProxyConfig(ctx context.Context, proxy *models.AppProxy) error
 	GetAppProxyConfig(ctx context.Context, appId string) (proxy *models.AppProxy, err error)
 	UpdateAppAccessControl(ctx context.Context, app *models.App) error
+	UpdateUserAccessControl(ctx context.Context, userId string, appUsers models.Apps) error
 	GetAppAccessControl(ctx context.Context, appId string, o ...opts.WithGetAppOptions) (users models.AppUsers, roles models.AppRoles, err error)
 	GetAppRoleByUserId(ctx context.Context, appId string, userId string) (role *models.AppRole, err error)
 
@@ -90,6 +91,7 @@ type CommonService interface {
 	UpdateLoginTime(ctx context.Context, id string) error
 	VerifyWeakPassword(ctx context.Context, password string) error
 	InsertWeakPassword(ctx context.Context, passwords ...string) error
+	GetAppRoles(ctx context.Context, id string) (models.AppRoles, error)
 }
 
 func NewCommonService(ctx context.Context) CommonService {

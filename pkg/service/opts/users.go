@@ -27,6 +27,7 @@ type GetUserOptions struct {
 	PhoneNumber string
 	Ext         bool
 	Err         error
+	Apps        bool
 }
 
 func WithPhoneNumber(no string) WithGetUserOptions {
@@ -62,6 +63,10 @@ func WithUserId(id string) WithGetUserOptions {
 			o.Err = errors.LackParameterError("id")
 		}
 	}
+}
+
+func WithApps(o *GetUserOptions) {
+	o.Apps = true
 }
 
 func WithEmail(email string) WithGetUserOptions {

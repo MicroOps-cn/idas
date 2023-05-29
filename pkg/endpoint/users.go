@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"github.com/MicroOps-cn/idas/pkg/service/opts"
 	"net/http"
 	"strings"
 	"time"
@@ -377,8 +378,14 @@ func MakeUpdateUserEndpoint(s service.Service) endpoint.Endpoint {
 			FullName:    req.FullName,
 			Avatar:      req.Avatar,
 			Status:      req.Status,
+			Apps: w.Map(req.Apps, func(app *UserApp) *models.App {
+				return &models.App{
+					Model:  models.Model{Id: app.Id},
+					RoleId: app.RoleId,
+				}
+			}),
 		}); resp.Error != nil {
-			resp.Error = errors.NewServerError(200, resp.Error.Error())
+			resp.Error = errors.WithServerError(500, resp.Error, "failed to update user")
 		}
 		return &resp, nil
 	}
@@ -386,9 +393,9 @@ func MakeUpdateUserEndpoint(s service.Service) endpoint.Endpoint {
 
 func MakeGetUserInfoEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(GetUserRequest)
+		req := request.(Requester).GetRequestData().(*GetUserRequest)
 		resp := SimpleResponseWrapper[*models.User]{}
-		resp.Data, resp.Error = s.GetUserInfo(ctx, req.Id, req.Username)
+		resp.Data, resp.Error = s.GetUser(ctx, opts.WithUserId(req.Id), opts.WithApps)
 		return &resp, nil
 	}
 }
@@ -404,6 +411,12 @@ func MakeCreateUserEndpoint(s service.Service) endpoint.Endpoint {
 			FullName:    req.FullName,
 			Avatar:      req.Avatar,
 			Status:      models.UserMeta_user_inactive,
+			Apps: w.Map(req.Apps, func(app *UserApp) *models.App {
+				return &models.App{
+					Model:  models.Model{Id: app.Id},
+					RoleId: app.RoleId,
+				}
+			}),
 		})
 		return &resp, nil
 	}

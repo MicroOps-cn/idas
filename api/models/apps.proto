@@ -65,7 +65,8 @@ message App {
   idas.service.models.AppProxy proxy = 10 [(gogoproto.jsontag) = "proxy,omitempty", (gogoproto.moretags) = 'gorm:"-"'];
   string url = 11 [(gogoproto.jsontag) = "url", (gogoproto.moretags) = 'gorm:"type:varchar(200)"'];
   string display_name = 12 [(gogoproto.jsontag) = "displayName,omitempty", (gogoproto.moretags) = 'gorm:"type:varchar(128)"'];
-
+  string role = 13 [(gogoproto.jsontag) = "role,omitempty", (gogoproto.moretags) = 'gorm:"-"'];
+  string role_id = 14 [(gogoproto.jsontag) = "roleId,omitempty", (gogoproto.moretags) = 'gorm:"-"'];
   // Custom fields
 }
 

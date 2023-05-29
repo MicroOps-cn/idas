@@ -24,6 +24,7 @@ import (
 	"time"
 
 	logs "github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/go-kit/log/level"
 	uuid "github.com/satori/go.uuid"
 
@@ -93,7 +94,15 @@ func (s Set) DeleteUsers(ctx context.Context, id []string) (total int64, err err
 //	@param updateColumns	...string
 //	@return err	error
 func (s Set) UpdateUser(ctx context.Context, user *models.User, updateColumns ...string) (err error) {
-	return s.GetUserAndAppService().UpdateUser(ctx, user, updateColumns...)
+	if err = s.GetUserAndAppService().UpdateUser(ctx, user, updateColumns...); err != nil {
+		return err
+	}
+	if len(updateColumns) == 0 || sets.New[string](updateColumns...).Has("apps") {
+		if err := s.commonService.UpdateUserAccessControl(ctx, user.Id, user.Apps); err != nil {
+			return errors.WithServerError(500, err, "failed to update app acl")
+		}
+	}
+	return
 }
 
 // GetUserInfo
@@ -132,6 +141,19 @@ func (s Set) GetUser(ctx context.Context, options ...opts.WithGetUserOptions) (u
 			user.ExtendedData = new(models.UserExt)
 		}
 	}
+	for _, app := range user.Apps {
+		appUsers, roles, err := s.commonService.GetAppAccessControl(ctx, app.Id, opts.WithUsers(user.Id), opts.WithoutProxy)
+		if err != nil {
+			return nil, err
+		}
+		for _, appUser := range appUsers {
+			app.RoleId = appUser.RoleId
+			if role := roles.GetRoleById(appUser.RoleId); role != nil {
+				app.Role = role.Name
+			}
+			break
+		}
+	}
 	return user, err
 }
 
@@ -146,7 +168,13 @@ func (s Set) CreateUser(ctx context.Context, user *models.User) (err error) {
 	if len(user.Username) == 0 {
 		return errors.ParameterError("username is null")
 	}
-	return s.GetUserAndAppService().CreateUser(ctx, user)
+	if err = s.GetUserAndAppService().CreateUser(ctx, user); err != nil {
+		return err
+	}
+	if err = s.commonService.UpdateUserAccessControl(ctx, user.Id, user.Apps); err != nil {
+		return errors.WithServerError(500, err, "failed to update app acl")
+	}
+	return nil
 }
 
 // CreateUserKey

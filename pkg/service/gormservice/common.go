@@ -233,7 +233,6 @@ func (c CommonService) PatchAppRole(ctx context.Context, role *models.AppRole) e
 	if err := conn.Unscoped().Select("user_id", "role_id", "delete_time").Where("app_id = ?", role.AppId).Find(&oriUsers).Error; err != nil {
 		return err
 	}
-	fmt.Println(oriUsers)
 	for _, user := range role.Users {
 		if oriUser := oriUsers.GetByUserId(user.Id); oriUser == nil {
 			appUser := models.AppUser{AppId: role.AppId, UserId: user.Id, RoleId: role.Id}
@@ -266,6 +265,15 @@ func (c CommonService) GetAppRoleByUserId(ctx context.Context, appId string, use
 		return nil, err
 	}
 	return
+}
+
+func (c CommonService) GetAppRoles(ctx context.Context, appId string) (roles models.AppRoles, err error) {
+	conn := c.Session(ctx)
+	err = conn.Where("app_id = ?", appId).Find(&roles).Error
+	if err != nil {
+		return nil, err
+	}
+	return roles, nil
 }
 
 func (c CommonService) GetAppAccessControl(ctx context.Context, appId string, o ...opts.WithGetAppOptions) (users models.AppUsers, roles models.AppRoles, err error) {
@@ -313,6 +321,32 @@ func (c CommonService) GetAppAccessControl(ctx context.Context, appId string, o 
 		}
 	}
 	return
+}
+
+func (c CommonService) UpdateUserAccessControl(ctx context.Context, userId string, apps models.Apps) (err error) {
+	tx := c.Session(ctx).Begin()
+	defer tx.Rollback()
+	var appUsers models.AppUsers
+	if err = tx.Where("user_id = ?", userId).Find(&appUsers).Error; err != nil {
+		return err
+	}
+	for _, app := range apps {
+		if appUser := appUsers.GetByAppId(app.Id); appUser == nil {
+			if err = tx.Create(&models.AppUser{AppId: app.Id, UserId: userId, RoleId: app.RoleId}).Error; err != nil {
+				return err
+			}
+		} else {
+			if appUser.RoleId != app.RoleId {
+				if err = tx.Model(&models.AppUser{}).Where("id = ?", appUser.Id).Update("role_id", app.RoleId).Error; err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if err = tx.Where("user_id = ? AND app_id NOT IN ?", userId, apps.Id()).Delete(&models.AppUser{}).Error; err != nil {
+		return err
+	}
+	return tx.Commit().Error
 }
 
 func (c CommonService) UpdateAppAccessControl(ctx context.Context, app *models.App) (err error) {

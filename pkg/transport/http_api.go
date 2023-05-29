@@ -89,7 +89,7 @@ func UserService(ctx context.Context, options []httptransport.ServerOption, endp
 		Param(v1ws.PathParameter("id", "identifier of the user").DataType("string")).
 		Doc("Get user information.").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Returns(200, "OK", endpoint.GetUserRequest{}),
+		Returns(200, "OK", endpoint.GetUserResponse{}),
 	)
 	v1ws.Route(v1ws.PUT("/{id}").
 		To(NewKitHTTPServer[endpoint.UpdateUserRequest](ctx, endpoints.UpdateUser, options)).

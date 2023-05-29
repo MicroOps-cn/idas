@@ -18,7 +18,6 @@ package service
 
 import (
 	"context"
-
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/go-kit/log/level"
@@ -30,7 +29,14 @@ import (
 )
 
 func (s Set) GetApps(ctx context.Context, keywords string, filter map[string]interface{}, current, pageSize int64) (total int64, apps []*models.App, err error) {
-	return s.GetUserAndAppService().GetApps(ctx, keywords, filter, current, pageSize)
+	count, apps, err := s.GetUserAndAppService().GetApps(ctx, keywords, filter, current, pageSize)
+	for _, app := range apps {
+		app.Roles, err = s.commonService.GetAppRoles(ctx, app.Id)
+		if err != nil {
+			return 0, nil, errors.WithServerError(500, err, "failed to get app roles")
+		}
+	}
+	return count, apps, err
 }
 
 func (s Set) PatchApps(ctx context.Context, patch []map[string]interface{}) (total int64, err error) {

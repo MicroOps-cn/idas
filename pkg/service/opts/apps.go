@@ -44,6 +44,7 @@ func WithoutACL(o *GetAppOptions) {
 
 func WithUsers(id ...string) func(o *GetAppOptions) {
 	return func(o *GetAppOptions) {
+		o.DisableGetUsers = false
 		o.UserId = id
 	}
 }
@@ -51,6 +52,7 @@ func WithUsers(id ...string) func(o *GetAppOptions) {
 func WithBasic(o *GetAppOptions) {
 	WithoutACL(o)
 	WithoutProxy(o)
+	WithoutUsers(o)
 	o.DisableGetAccessController = true
 }
 
