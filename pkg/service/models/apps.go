@@ -18,6 +18,23 @@ package models
 
 type Apps []*App
 
+func (a Apps) Id() []string {
+	ids := make([]string, len(a))
+	for idx, app := range a {
+		ids[idx] = app.Id
+	}
+	return ids
+}
+
+func (a Apps) GetById(id string) *App {
+	for _, app := range a {
+		if id == app.Id {
+			return app
+		}
+	}
+	return nil
+}
+
 //type AppRole struct {
 //	Model
 //	AppId     string  `json:"appId" gorm:"type:char(36);not null"`
@@ -77,6 +94,15 @@ func (s AppUsers) UserId() (ids []string) {
 		ids = append(ids, user.UserId)
 	}
 	return
+}
+
+func (s AppUsers) GetByAppId(id string) *AppUser {
+	for _, user := range s {
+		if user.AppId == id {
+			return user
+		}
+	}
+	return nil
 }
 
 type AppUser struct {
