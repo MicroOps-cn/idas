@@ -224,13 +224,17 @@ func (s UserAndAppService) DeleteApp(ctx context.Context, id string) (err error)
 //	@return apps     []*models.App
 //	@return err      error
 func (s UserAndAppService) GetApps(ctx context.Context, keywords string, filters map[string]interface{}, current, pageSize int64) (total int64, apps []*models.App, err error) {
-	query := s.Session(ctx).Model(&models.App{}).Where("delete_time IS NULL and url <> '' and url IS NOT NULL")
+	query := s.Session(ctx).Model(&models.App{}).Where("delete_time IS NULL")
 	if len(keywords) > 0 {
 		keywords = fmt.Sprintf("%%%s%%", keywords)
 		query = query.Where("name like ? or description like ?", keywords, keywords)
 	}
 	for name, val := range filters {
-		query = query.Where(clause.Eq{Column: name, Value: val})
+		if name == "url" && val == "*" {
+			query = query.Where("url <> '' and url IS NOT NULL")
+		} else {
+			query = query.Where(clause.Eq{Column: name, Value: val})
+		}
 	}
 	if err = query.Count(&total).Error; err != nil {
 		return 0, nil, err
