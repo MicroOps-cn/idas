@@ -18,9 +18,11 @@ package endpoint
 
 import (
 	"context"
+
+	"github.com/go-kit/kit/endpoint"
+
 	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/service"
-	"github.com/go-kit/kit/endpoint"
 )
 
 func MakeGetLoginTypeEndpoint(svc service.Service) endpoint.Endpoint {

@@ -19,22 +19,23 @@ package endpoint
 import (
 	"context"
 	"fmt"
-	uuid "github.com/satori/go.uuid"
 	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/MicroOps-cn/fuck/http"
 	logs "github.com/MicroOps-cn/fuck/log"
+	"github.com/go-kit/kit/endpoint"
+	"github.com/go-kit/log/level"
+	"github.com/golang-jwt/jwt/v4"
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/service/opts"
-	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/log/level"
-	"github.com/golang-jwt/jwt/v4"
 )
 
 //nolint:revive

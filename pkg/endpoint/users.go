@@ -21,7 +21,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
-	"github.com/MicroOps-cn/idas/pkg/service/opts"
 	"net/http"
 	"strings"
 	"time"
@@ -40,6 +39,7 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
+	"github.com/MicroOps-cn/idas/pkg/service/opts"
 )
 
 func MakeCurrentUserEndpoint(s service.Service) endpoint.Endpoint {

@@ -22,12 +22,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	logs "github.com/MicroOps-cn/fuck/log"
-	"github.com/MicroOps-cn/idas/pkg/errors"
-	"github.com/emicklei/go-restful/v3"
-	"github.com/go-kit/log/level"
 	"net/http"
 	"strings"
+
+	logs "github.com/MicroOps-cn/fuck/log"
+	"github.com/emicklei/go-restful/v3"
+	"github.com/go-kit/log/level"
+
+	"github.com/MicroOps-cn/idas/pkg/errors"
 )
 
 type Client struct {
@@ -80,6 +82,7 @@ func (c *Client) GetToken(ctx context.Context, code string) (*TokenResponse, err
 	}
 	return &tokenResp, nil
 }
+
 func (c *Client) GetUserInfo(ctx context.Context, code string) (*UserInfo, error) {
 	tokenData, err := c.GetToken(ctx, code)
 	if err != nil {

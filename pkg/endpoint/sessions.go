@@ -19,14 +19,13 @@ package endpoint
 import (
 	"context"
 	"fmt"
-	http2 "github.com/MicroOps-cn/fuck/http"
-	"github.com/MicroOps-cn/idas/pkg/client/oauth2"
 	"math/rand"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	http2 "github.com/MicroOps-cn/fuck/http"
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/go-kit/kit/endpoint"
@@ -36,6 +35,7 @@ import (
 	"github.com/xlzd/gotp"
 
 	"github.com/MicroOps-cn/idas/config"
+	"github.com/MicroOps-cn/idas/pkg/client/oauth2"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
@@ -143,11 +143,11 @@ func MakeUserOAuthLoginEndpoint(s service.Service) endpoint.Endpoint {
 				if !ok {
 					return nil, errors.StatusNotFound("httpExternalURL")
 				}
-				redirectUri, err := url.Parse(httpExternalURL)
+				redirectURI, err := url.Parse(httpExternalURL)
 				if !ok {
 					return nil, err
 				}
-				redirectUri.Path = http2.JoinPath(redirectUri.Path, "api/v1/user/oauth/"+req.Id)
+				redirectURI.Path = http2.JoinPath(redirectURI.Path, "api/v1/user/oauth/"+req.Id)
 
 				authURL, err := url.Parse(oAuthOption.AuthUrl)
 				if err != nil {
@@ -157,7 +157,7 @@ func MakeUserOAuthLoginEndpoint(s service.Service) endpoint.Endpoint {
 				q.Set("response_type", "code")
 				q.Set("scope", "user:email")
 				q.Set("scope", "user:email")
-				q.Set("redirect_uri", redirectUri.String())
+				q.Set("redirect_uri", redirectURI.String())
 				q.Set("client_id", oAuthOption.ClientId)
 				token, err := s.CreateToken(ctx, models.TokenTypeOAuthState, "")
 				if err != nil {

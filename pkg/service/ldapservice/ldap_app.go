@@ -162,6 +162,8 @@ func (s UserAndAppService) GetApps(ctx context.Context, keywords string, filters
 	if len(keywords) > 0 {
 		fts = append(fts, fmt.Sprintf("(|(cn=*%s*)(description=*%s*))", keywords, keywords))
 	}
+	matchFilterName := regexp.MustCompile("^[-_a-zA-Z0-9]+$")
+	matchFilterValue := regexp.MustCompile("^[-_a-zA-Z0-9*]+$")
 	for name, val := range filters {
 		switch name {
 		case "id":
@@ -180,11 +182,11 @@ func (s UserAndAppService) GetApps(ctx context.Context, keywords string, filters
 			fts = append(fts, fmt.Sprintf("(|(uniqueMember=%v)(member=%v))", val, val))
 			continue
 		}
-		if ok, _ := regexp.MatchString("^[-_a-zA-Z0-9]+$", name); !ok {
+		if ok := matchFilterName.MatchString(name); !ok {
 			return 0, nil, errors.ParameterError(name)
 		}
 		value := fmt.Sprintf("%v", val)
-		if ok, _ := regexp.MatchString("^[-_a-zA-Z0-9*]+$", value); !ok {
+		if ok := matchFilterValue.MatchString(value); !ok {
 			return 0, nil, errors.ParameterError(name)
 		}
 		fts = append(fts, fmt.Sprintf("(%s=%v)", name, value))

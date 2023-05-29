@@ -20,8 +20,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	oauth2 "github.com/MicroOps-cn/idas/pkg/client/oauth2"
-	"k8s.io/apimachinery/pkg/util/rand"
 	"os"
 	"reflect"
 	"strconv"
@@ -31,7 +29,9 @@ import (
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/afero"
+	"k8s.io/apimachinery/pkg/util/rand"
 
+	oauth2 "github.com/MicroOps-cn/idas/pkg/client/oauth2"
 	"github.com/MicroOps-cn/idas/pkg/utils/capacity"
 )
 

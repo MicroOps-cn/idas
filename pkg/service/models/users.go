@@ -22,7 +22,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/MicroOps-cn/idas/pkg/utils/sign"
 	"reflect"
 	"strings"
 	"time"
@@ -32,6 +31,7 @@ import (
 
 	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/errors"
+	"github.com/MicroOps-cn/idas/pkg/utils/sign"
 )
 
 func (u User) MarshalJSON() ([]byte, error) {

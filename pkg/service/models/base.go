@@ -23,13 +23,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	g "github.com/MicroOps-cn/fuck/generator"
-	"gorm.io/gorm/clause"
 	"io"
 	"time"
 
+	g "github.com/MicroOps-cn/fuck/generator"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func (m *Model) BeforeCreate(db *gorm.DB) error {
@@ -112,9 +112,9 @@ func (c CompressField) GormValue(ctx context.Context, db *gorm.DB) clause.Expr {
 	w := zlib.NewWriter(buf)
 	_, err := w.Write(c)
 	if err != nil {
-		db.AddError(err)
+		_ = db.AddError(err)
 	} else if err = w.Flush(); err != nil {
-		db.AddError(err)
+		_ = db.AddError(err)
 	} else {
 		return clause.Expr{
 			SQL:  "from_base64(?)",

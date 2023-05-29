@@ -506,6 +506,9 @@ func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, up
 	if columns.Has("apps") {
 		appsResp, err := conn.Search(goldap.NewSearchRequest(s.Options().AppSearchBase, goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 0, 0, false,
 			fmt.Sprintf("(&(|(uniqueMember=%s)(member=%s))%s)", dn, dn, s.GetAppSearchFilter()), []string{"entryUUID", "objectClass", "member", "uniqueMember", "cn"}, nil))
+		if err != nil {
+			return err
+		}
 		for _, entry := range appsResp.Entries {
 			appUUID := entry.GetAttributeValue("entryUUID")
 			if app := user.Apps.GetById(appUUID); app == nil {
@@ -701,11 +704,11 @@ func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (e
 	if err != nil {
 		return err
 	}
-	if newUser, err := s.getUserByDn(ldap.WithConnContext(ctx, conn), dn); err != nil {
+	newUser, err := s.getUserByDn(ldap.WithConnContext(ctx, conn), dn)
+	if err != nil {
 		return err
-	} else {
-		user.Model = newUser.Model
 	}
+	user.Model = newUser.Model
 
 	for _, app := range user.Apps {
 		appRet, err := conn.Search(goldap.NewSearchRequest(

@@ -19,14 +19,13 @@ package models
 import (
 	"database/sql"
 	"encoding/json"
-	g "github.com/MicroOps-cn/fuck/generator"
-	"github.com/MicroOps-cn/idas/config"
-	"reflect"
 	"time"
 
+	g "github.com/MicroOps-cn/fuck/generator"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 
+	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/global"
 )
 
@@ -104,13 +103,6 @@ func NewToken(tokenType TokenType, data interface{}) (*Token, error) {
 	}
 	token.Data = rawData
 	return token, nil
-}
-
-func getValElem(valOf reflect.Value) reflect.Value {
-	if valOf.Kind() == reflect.Ptr || valOf.Kind() == reflect.Pointer {
-		return getValElem(valOf.Elem())
-	}
-	return valOf
 }
 
 func (s *Token) To(r interface{}) error {
