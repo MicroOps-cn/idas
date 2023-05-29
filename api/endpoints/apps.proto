@@ -131,7 +131,7 @@ message UpdateAppRequest {
   repeated AppRole roles = 9;
   idas.service.models.AppMeta.Status status = 10 [(gogoproto.jsontag) = "status"];
   bool is_delete = 11 [(gogoproto.jsontag) = "isDelete,omitempty"];
-  string url = 12 [(gogoproto.jsontag) = "url", (gogoproto.moretags) = 'valid:"required"'];
+  string url = 12 [(gogoproto.jsontag) = "url"];
   AppProxy proxy = 17;
   string display_name = 13 [(gogoproto.jsontag) = "displayName,omitempty", (gogoproto.moretags) = 'gorm:"type:varchar(128)"'];
 }
