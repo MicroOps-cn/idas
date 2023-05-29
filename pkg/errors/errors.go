@@ -241,4 +241,5 @@ const (
 	CodePasswordRepetition            = "E0015"
 	CodePasswordTooSimple             = "E0016"
 	CodeRequestTooFrequently          = "E0429"
+	CodeAppMemberCannotBeEmpty        = "E1101"
 )
