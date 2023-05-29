@@ -26,9 +26,11 @@ import (
 	"io/fs"
 	stdlog "log"
 	"net/http"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/MicroOps-cn/fuck/buffer"
 	logs "github.com/MicroOps-cn/fuck/log"
@@ -115,8 +117,30 @@ func NewHTTPHandler(ctx context.Context, logger log.Logger, endpoints endpoint.S
 		m.Add(restfulspec.NewOpenAPIService(specConf))
 	}
 	webPrefix := ctx.Value(global.HTTPWebPrefixKey).(string)
-	m.Handle(webPrefix, http.StripPrefix(webPrefix, http.FileServer(http.FS(NewTryFileFS(w.M[fs.FS](fs.Sub(staticFs, "static")))))))
+	m.Handle(webPrefix, http.StripPrefix(webPrefix, NewTryFileServer(w.M[fs.FS](fs.Sub(staticFs, "static")))))
 	return m
+}
+
+func SetCacheHeader(h http.Handler) http.Handler {
+	modifyTime := time.Now().UTC().Truncate(time.Second)
+	if executable, err := os.Executable(); err == nil {
+		if stat, err := os.Stat(executable); err == nil {
+			modifyTime = stat.ModTime().UTC()
+		}
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if clientModify := r.Header.Get("If-Modified-Since"); len(clientModify) > 0 {
+			if clientModifyTime, err := time.Parse(http.TimeFormat, clientModify); err == nil {
+				if !clientModifyTime.Before(modifyTime) {
+					w.WriteHeader(304)
+					return
+				}
+			}
+		}
+		w.Header().Set("Last-Modified", modifyTime.Format(http.TimeFormat))
+		w.Header().Set("Cache-Control", "max-age=3600")
+		h.ServeHTTP(w, r)
+	})
 }
 
 type TryFileFS struct {
@@ -131,8 +155,8 @@ func (t *TryFileFS) Open(name string) (fs.File, error) {
 	return open, err
 }
 
-func NewTryFileFS(fileSystem fs.FS) fs.FS {
-	return &TryFileFS{fs: fileSystem}
+func NewTryFileServer(fileSystem fs.FS) http.Handler {
+	return SetCacheHeader(http.FileServer(http.FS(&TryFileFS{fs: fileSystem})))
 }
 
 const DisableStackTrace = "__disable_stack_trace__"
