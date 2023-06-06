@@ -22,8 +22,10 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/proto"
 	"github.com/oschwald/geoip2-golang"
@@ -38,7 +40,32 @@ type Client struct {
 	o *GeoIPOptions
 }
 
-func (c Client) City(ip net.IP) (*geoip2.City, error) {
+func (c Client) City(ip net.IP) (string, error) {
+	for _, options := range c.o.Custom {
+		if sets.IPNets(options.Subnets).Contains(ip) {
+			return options.Name, nil
+		}
+	}
+	city, err := c.GeoCity(ip)
+	if err != nil {
+		return "", err
+	}
+	var locs []string
+	if country, ok := city.Country.Names["zh-CN"]; ok {
+		locs = append(locs, country)
+	}
+	if len(city.Subdivisions) > 0 {
+		if sub, ok := city.Subdivisions[0].Names["zh-CN"]; ok {
+			locs = append(locs, sub)
+		}
+	}
+	if cityName, ok := city.City.Names["zh-CN"]; ok {
+		locs = append(locs, cityName)
+	}
+	return strings.Join(locs, "/"), nil
+}
+
+func (c Client) GeoCity(ip net.IP) (*geoip2.City, error) {
 	return c.c.City(ip)
 }
 

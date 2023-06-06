@@ -191,7 +191,7 @@ func (c CommonService) UpdateAppProxyConfig(ctx context.Context, proxy *models.A
 }
 
 func (c CommonService) GetAppProxyConfig(ctx context.Context, appId string) (proxy *models.AppProxy, err error) {
-	if err = c.Session(ctx).Where("app_id = ?", appId).Preload("Urls").First(&proxy).Error; err != nil {
+	if err = c.Session(ctx).Where("app_id = ?", appId).Preload("Urls").First(&proxy).Error; err != nil && !errors.IsNotFount(err) {
 		return nil, err
 	}
 	sort.Sort(proxy.Urls)
@@ -403,15 +403,15 @@ func (c CommonService) CreateAppKey(ctx context.Context, appId, name string) (*m
 		return nil, err
 	}
 	appKey := &models.AppKey{
-		Name:   name,
-		AppId:  appId,
-		Key:    pub1,
-		Secret: sign.SumSha256Hmac(pub1, privateKey),
+		Name:       name,
+		AppId:      appId,
+		Key:        pub1,
+		Secret:     sign.SumSha256Hmac(pub1, privateKey),
+		PrivateKey: privateKey,
 	}
 	if err = conn.Create(&appKey).Error; err != nil {
 		return nil, err
 	}
-	appKey.Secret = privateKey
 	return appKey, nil
 }
 

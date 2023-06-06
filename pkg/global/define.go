@@ -20,7 +20,6 @@ import "time"
 
 const (
 	AppName                     = "idas"
-	IdasAppName                 = "IDAS"
 	OAuthStateCookieName        = "oauth_state"
 	RedirectURICookieName       = "oauth_redirect_uri"
 	ClientIDCookieName          = "client_id"
@@ -30,6 +29,7 @@ const (
 	RestfulResponseContextName  = "__restful_response__"
 	MetaUser                    = "__user__"
 	MetaApp                     = "__app__"
+	MetaAppSecretHash           = "__app_secret_hash__"
 	MetaProxyConfig             = "__proxy_config__"
 	MetaNeedLogin               = "__need_login__"
 	MetaUpdateLastSeen          = "__need_login__"

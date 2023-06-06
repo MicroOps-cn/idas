@@ -158,28 +158,13 @@ func (s Set) GetEventLogs(ctx context.Context, filters map[string]string, keywor
 	return s.loggingService.GetEventLogs(ctx, filters, keywords, current, size)
 }
 
-func (s Set) PostEventLog(ctx context.Context, eventId, userId, username, clientIP, action, message string, status bool, took time.Duration, log ...interface{}) error {
+func (s Set) PostEventLog(ctx context.Context, eventId, userId, username, clientIP, action, message string, status bool, took time.Duration, log ...interface{}) (err error) {
 	var loc string
 	if s.geoIPClient != nil {
 		logger := logs.GetContextLogger(ctx)
-		city, err := s.geoIPClient.City(net.ParseIP(clientIP))
+		loc, err = s.geoIPClient.City(net.ParseIP(clientIP))
 		if err != nil {
 			level.Error(logger).Log("msg", "failed to convert ip to location", "err", err, "clientIP", clientIP)
-		} else {
-			var locs []string
-
-			if country, ok := city.Country.Names["zh-CN"]; ok {
-				locs = append(locs, country)
-			}
-			if len(city.Subdivisions) > 0 {
-				if sub, ok := city.Subdivisions[0].Names["zh-CN"]; ok {
-					locs = append(locs, sub)
-				}
-			}
-			if cityName, ok := city.City.Names["zh-CN"]; ok {
-				locs = append(locs, cityName)
-			}
-			loc = strings.Join(locs, "/")
 		}
 	}
 	return s.loggingService.PostEventLog(ctx, eventId, userId, username, clientIP, loc, action, message, status, took, log...)
@@ -332,10 +317,10 @@ func (s Set) InitData(ctx context.Context, username string) error {
 	} else if err != nil {
 		return err
 	}
-	idasApp, err := s.GetAppInfo(ctx, opts.WithAppName(global.IdasAppName))
+	idasApp, err := s.GetAppInfo(ctx, opts.WithAppName(config.Get().GetGlobal().GetAppName()))
 	if errors.IsNotFount(err) {
 		idasApp = &models.App{
-			Name:        global.IdasAppName,
+			Name:        config.Get().GetGlobal().GetAppName(),
 			Description: "Identity authentication service. It is bound to the current service. Please do not delete it at will.",
 			GrantMode:   models.AppMeta_manual,
 			Roles: models.AppRoles{{

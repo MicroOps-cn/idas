@@ -29,6 +29,10 @@ import (
 	"gorm.io/gorm"
 )
 
+func New(text string) error {
+	return stderrors.New(text)
+}
+
 type ServerError interface {
 	Code() string
 	StatusCode() int

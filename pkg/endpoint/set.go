@@ -64,19 +64,20 @@ type UserEndpoints struct {
 }
 
 type AppEndpoints struct {
-	PatchApps          endpoint.Endpoint `description:"Batch modify application information (incremental)" role:"admin" audit:"true"`
-	DeleteApps         endpoint.Endpoint `description:"Batch delete applications" role:"admin" audit:"true"`
-	GetAppInfo         endpoint.Endpoint `description:"Get application details" role:"admin|viewer" audit:"false"`
-	CreateApp          endpoint.Endpoint `description:"Create an application" role:"admin" audit:"true"`
-	UpdateApp          endpoint.Endpoint `description:"Modify application information" role:"admin" audit:"true"`
-	PatchApp           endpoint.Endpoint `description:"Modify application information (incremental)" role:"admin" audit:"true"`
-	DeleteApp          endpoint.Endpoint `description:"Delete a application" role:"admin" audit:"true"`
-	GetApps            endpoint.Endpoint `description:"Get application list" role:"admin|viewer" audit:"false"`
-	AppAuthentication  endpoint.Endpoint `auth:"false" audit:"false"`
-	CreateAppKey       endpoint.Endpoint `description:"Create a app key-pair" role:"admin" audit:"true"`
-	DeleteAppKey       endpoint.Endpoint `description:"Delete a app key-pair" role:"admin" audit:"true"`
-	GetAppKeys         endpoint.Endpoint `description:"Get a app key-pairs" role:"admin" audit:"false"`
-	GetCurrentUserApps endpoint.Endpoint `auth:"false" audit:"false"`
+	PatchApps             endpoint.Endpoint `description:"Batch modify application information (incremental)" role:"admin" audit:"true"`
+	DeleteApps            endpoint.Endpoint `description:"Batch delete applications" role:"admin" audit:"true"`
+	GetAppInfo            endpoint.Endpoint `description:"Get application details" role:"admin|viewer" audit:"false"`
+	CreateApp             endpoint.Endpoint `description:"Create an application" role:"admin" audit:"true"`
+	UpdateApp             endpoint.Endpoint `description:"Modify application information" role:"admin" audit:"true"`
+	PatchApp              endpoint.Endpoint `description:"Modify application information (incremental)" role:"admin" audit:"true"`
+	DeleteApp             endpoint.Endpoint `description:"Delete a application" role:"admin" audit:"true"`
+	GetApps               endpoint.Endpoint `description:"Get application list" role:"admin|viewer" audit:"false"`
+	AppAuthentication     endpoint.Endpoint `auth:"false" audit:"false"`
+	CreateAppKey          endpoint.Endpoint `description:"Create a app key-pair" role:"admin" audit:"true"`
+	DeleteAppKey          endpoint.Endpoint `description:"Delete a app key-pair" role:"admin" audit:"true"`
+	GetAppKeys            endpoint.Endpoint `description:"Get a app key-pairs" role:"admin" audit:"false"`
+	GetCurrentUserApps    endpoint.Endpoint `auth:"false" audit:"false"`
+	GetAppAndKeyFromKeyId endpoint.Endpoint `auth:"false" audit:"false"`
 }
 
 type SessionEndpoints struct {
@@ -136,7 +137,7 @@ type ConfigEndpoints struct {
 }
 
 type GlobalEndpoints struct {
-	GetLoginType endpoint.Endpoint `description:"Get login type." auth:"false" audit:"false"`
+	GetGlobalConfig endpoint.Endpoint `description:"Get login type." auth:"false" audit:"false"`
 }
 
 type EventEndpoints struct {
@@ -281,19 +282,20 @@ func New(_ context.Context, svc service.Service, duration metrics.Histogram, otT
 			OAuthAuthorize:           injectEndpoint("OAuthAuthorize", MakeOAuthAuthorizeEndpoint(svc)),
 		},
 		AppEndpoints: AppEndpoints{
-			GetApps:            injectEndpoint("GetApps", MakeGetAppsEndpoint(svc)),
-			DeleteApps:         injectEndpoint("DeleteApps", MakeDeleteAppsEndpoint(svc)),
-			PatchApps:          injectEndpoint("PatchApps", MakePatchAppsEndpoint(svc)),
-			UpdateApp:          injectEndpoint("UpdateApp", MakeUpdateAppEndpoint(svc)),
-			GetAppInfo:         injectEndpoint("GetAppInfo", MakeGetAppInfoEndpoint(svc)),
-			CreateApp:          injectEndpoint("CreateApp", MakeCreateAppEndpoint(svc)),
-			PatchApp:           injectEndpoint("PatchApp", MakePatchAppEndpoint(svc)),
-			DeleteApp:          injectEndpoint("DeleteApp", MakeDeleteAppEndpoint(svc)),
-			AppAuthentication:  injectEndpoint("AppAuthentication", MakeAppAuthenticationEndpoint(svc)),
-			CreateAppKey:       injectEndpoint("CreateAppKey", MakeCreateAppKeyEndpoint(svc)),
-			DeleteAppKey:       injectEndpoint("DeleteAppKey", MakeDeleteAppKeyEndpoint(svc)),
-			GetAppKeys:         injectEndpoint("GetAppKeys", MakeGetAppKeysEndpoint(svc)),
-			GetCurrentUserApps: injectEndpoint("GetCurrentUserApps", MakeGetCurrentUserAppsEndpoint(svc)),
+			GetApps:               injectEndpoint("GetApps", MakeGetAppsEndpoint(svc)),
+			DeleteApps:            injectEndpoint("DeleteApps", MakeDeleteAppsEndpoint(svc)),
+			PatchApps:             injectEndpoint("PatchApps", MakePatchAppsEndpoint(svc)),
+			UpdateApp:             injectEndpoint("UpdateApp", MakeUpdateAppEndpoint(svc)),
+			GetAppInfo:            injectEndpoint("GetAppInfo", MakeGetAppInfoEndpoint(svc)),
+			CreateApp:             injectEndpoint("CreateApp", MakeCreateAppEndpoint(svc)),
+			PatchApp:              injectEndpoint("PatchApp", MakePatchAppEndpoint(svc)),
+			DeleteApp:             injectEndpoint("DeleteApp", MakeDeleteAppEndpoint(svc)),
+			AppAuthentication:     injectEndpoint("AppAuthentication", MakeAppAuthenticationEndpoint(svc)),
+			CreateAppKey:          injectEndpoint("CreateAppKey", MakeCreateAppKeyEndpoint(svc)),
+			DeleteAppKey:          injectEndpoint("DeleteAppKey", MakeDeleteAppKeyEndpoint(svc)),
+			GetAppKeys:            injectEndpoint("GetAppKeys", MakeGetAppKeysEndpoint(svc)),
+			GetCurrentUserApps:    injectEndpoint("GetCurrentUserApps", MakeGetCurrentUserAppsEndpoint(svc)),
+			GetAppAndKeyFromKeyId: injectEndpoint("GetAppAndKeyFromKeyId", MakeGetAppAndKeyFromKeyIdEndpoint(svc)),
 		},
 		RoleEndpoints: RoleEndpoints{
 			GetRoles:       injectEndpoint("GetRoles", MakeGetRolesEndpoint(svc)),
@@ -333,7 +335,7 @@ func New(_ context.Context, svc service.Service, duration metrics.Histogram, otT
 			GetCurrentUserEventLogs: injectEndpoint("GetCurrentUserEventLogs", MakeGetCurrentUserEventLogsEndpoint(svc)),
 		},
 		GlobalEndpoints: GlobalEndpoints{
-			GetLoginType: injectEndpoint("GetLoginType", MakeGetLoginTypeEndpoint(svc)),
+			GetGlobalConfig: injectEndpoint("GetGlobalConfig", MakeGetGlobalConfigEndpoint(svc)),
 		},
 	}
 }

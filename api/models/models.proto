@@ -31,6 +31,7 @@ message AppMeta {
     client_credentials = 8;
     proxy = 16;
     oidc = 32;
+    radius = 64;
   }
   // @sync-to-public:public/src/services/idas/enums.ts:GrantMode
   enum GrantMode {

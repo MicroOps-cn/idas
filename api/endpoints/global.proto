@@ -9,11 +9,20 @@ message GlobalLoginType{
   LoginType type = 1[(gogoproto.jsontag) = "type"];
   string name = 2;
   string icon = 3 ;
-  bool auto_login = 4;
-  string id = 5;
+  bool auto_login = 4[(gogoproto.jsontag) = "autoLogin,omitempty"];
+  bool auto_redirect = 5[(gogoproto.jsontag) = "autoRedirect,omitempty"];
+  string id = 6;
 }
 
-message GlobalLoginTypeResponse{
+message GlobalConfig{
+  repeated GlobalLoginType login_type = 1[(gogoproto.jsontag) = "loginType"];
+  string title =2;
+  string sub_title =3[(gogoproto.jsontag) = "subTitle,omitempty"];
+  string logo =4;
+  string copyright =5;
+}
+
+message GlobalConfigResponse{
   idas.endpoint.BaseResponse base_response = 1[(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
-  repeated GlobalLoginType data = 2;
+  GlobalConfig data = 2;
 }

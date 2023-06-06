@@ -389,7 +389,14 @@ func (s Set) verifyUserStatus(ctx context.Context, user *models.User, allowPassw
 func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm sign.AuthAlgorithm, key, secret, payload, signStr string) (user *models.User, err error) {
 	failedSec, failedThreshold := config.GetRuntimeConfig().GetPasswordFailedLockConfig()
 	nowTs := time.Now().Unix()
-	if failedSec > 0 && failedThreshold > 0 {
+	if method == models.AuthMeta_basic {
+		if _, err = uuid.FromString(key); err != nil {
+			if config.Get().GetGlobal().DisableLoginForm {
+				return nil, errors.ParameterError("unsupported login type")
+			}
+			return s.VerifyPassword(ctx, key, secret, false)
+		}
+	} else if failedSec > 0 && failedThreshold > 0 {
 		ts := nowTs - nowTs%failedSec
 		counterSeed := fmt.Sprintf("LOGIN:%s:%d", key, ts)
 		var count int64
@@ -401,12 +408,9 @@ func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, 
 		if count >= int64(failedThreshold) {
 			return nil, errors.NewServerError(http.StatusOK, "The number of password errors has reached the threshold. ", errors.CodeTooManyLoginFailures)
 		}
-	}
-
-	if failedSec > 0 && failedThreshold > 0 {
 		defer func() {
-			ts := nowTs - nowTs%failedSec
-			counterSeed := fmt.Sprintf("LOGIN:%s:%d", key, ts)
+			ts = nowTs - nowTs%failedSec
+			counterSeed = fmt.Sprintf("LOGIN:%s:%d", key, ts)
 			if err != nil || user == nil {
 				expir := time.Unix(ts+int64(failedSec), 0)
 				if err = s.sessionService.Counter(ctx, counterSeed, &expir); err != nil {
@@ -414,11 +418,6 @@ func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, 
 				}
 			}
 		}()
-	}
-	if method == models.AuthMeta_basic {
-		if _, err = uuid.FromString(key); err != nil {
-			return s.VerifyPassword(ctx, key, secret, false)
-		}
 	}
 	var userKey *models.UserKey
 	userKey, err = s.commonService.GetUserKey(ctx, key)
@@ -499,7 +498,7 @@ func (s Set) UpdateUserSession(ctx context.Context, userId string) (err error) {
 	if err != nil {
 		level.Warn(logger).Log("msg", "Failed to update current user cache info: can't get user info.", "err", err)
 	} else {
-		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithUsers(userId), opts.WithAppName("IDAS"))
+		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithUsers(userId), opts.WithAppName(config.Get().GetGlobal().GetAppName()))
 		if err != nil && !errors.IsNotFount(err) {
 			level.Error(logger).Log("msg", "failed to get app info", "err", err)
 		} else if app != nil {

@@ -366,14 +366,17 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 func getSafeHeader(req *http.Request) fmt.Stringer {
 	header := req.Header.Clone()
 	cookies := req.Cookies()
-	header.Del("Cookie")
 	return w.NewStringer(func() string {
+		if auth := header.Get("Authorization"); len(auth) > 0 {
+			header.Set("Authorization", fmt.Sprintf("[sha256]%x", sha256.Sum256([]byte(auth))))
+		}
+		header.Del("Cookie")
 		for _, cookie := range cookies {
 			cookieVal := cookie.Value
 			if cookie.Name == global.LoginSession {
 				cookieVal = fmt.Sprintf("[sha256]%x", sha256.Sum256([]byte(cookie.Value)))
 			}
-			header.Add("Cookie", fmt.Sprintf(cookie.Name, cookieVal))
+			header.Add("Cookie", fmt.Sprintf("%s=%s", cookie.Name, cookieVal))
 		}
 		return w.JSONStringer(header).String()
 	})
@@ -445,7 +448,6 @@ func HTTPLoggingFilter(pctx context.Context) func(req *restful.Request, resp *re
 		} else {
 			reqBody = bytes.NewBufferString("<body>")
 		}
-		getSafeHeader(req.Request)
 		level.Info(logger).Log(
 			"msg", "HTTP request received.",
 			logs.TitleKey, "request",

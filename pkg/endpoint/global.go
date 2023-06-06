@@ -25,15 +25,21 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/service"
 )
 
-func MakeGetLoginTypeEndpoint(svc service.Service) endpoint.Endpoint {
+func MakeGetGlobalConfigEndpoint(_ service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		var resp []GlobalLoginType
-		oauth2 := config.Get().GetGlobal().Oauth2
-		if !config.Get().GetGlobal().DisableLoginForm {
-			resp = append(resp, GlobalLoginType{Type: LoginType_normal}, GlobalLoginType{Type: LoginType_email})
+		globalConfig := config.Get().GetGlobal()
+		resp := &GlobalConfig{
+			Title:     globalConfig.Title,
+			SubTitle:  globalConfig.SubTitle,
+			Logo:      globalConfig.Logo,
+			Copyright: globalConfig.Copyright,
+		}
+		oauth2 := globalConfig.Oauth2
+		if !globalConfig.DisableLoginForm {
+			resp.LoginType = append(resp.LoginType, &GlobalLoginType{Type: LoginType_normal}, &GlobalLoginType{Type: LoginType_email})
 		}
 		for _, options := range oauth2 {
-			resp = append(resp, GlobalLoginType{
+			resp.LoginType = append(resp.LoginType, &GlobalLoginType{
 				Id:        options.Id,
 				Type:      LoginType_oauth2,
 				Name:      options.Name,

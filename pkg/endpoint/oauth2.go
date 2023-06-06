@@ -19,18 +19,21 @@ package endpoint
 import (
 	"context"
 	"fmt"
+	gohttp "net/http"
 	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/MicroOps-cn/fuck/http"
 	logs "github.com/MicroOps-cn/fuck/log"
+	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log/level"
 	"github.com/golang-jwt/jwt/v4"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/MicroOps-cn/idas/config"
+	"github.com/MicroOps-cn/idas/pkg/common"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
@@ -62,6 +65,10 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 		if restfulReq := request.(RestfulRequester).GetRestfulRequest(); restfulReq == nil {
 			err = fmt.Errorf("invalid_grant")
 		} else {
+			app, ok := ctx.Value(global.MetaApp).(*models.App)
+			if !ok {
+				return "", errors.UnauthorizedError()
+			}
 			if req.GrantType == OAuthGrantType_refresh_token {
 				if username, password, ok := restfulReq.Request.BasicAuth(); ok {
 					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByPassword(ctx, req.GetRefreshToken(), username, password)
@@ -79,6 +86,9 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 				user := new(models.User)
 				switch req.GrantType {
 				case OAuthGrantType_proxy:
+					if app.GrantType&models.AppMeta_proxy == 0 {
+						return nil, errors.NewServerError(500, "Unsupported authorization type.")
+					}
 					var session models.ProxySession
 					var proxyConfig []*models.AppProxyConfig
 					err = s.GetSessionByToken(ctx, req.Code, models.TokenTypeCode, &session.User)
@@ -112,22 +122,27 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					resp.ExpiresIn = int(global.TokenExpiration / time.Minute)
 					return &resp, nil
 				case OAuthGrantType_authorization_code:
+					if app.GrantType&models.AppMeta_authorization_code == 0 {
+						return nil, errors.NewServerError(500, "Unsupported authorization type.")
+					}
 					err = s.GetSessionByToken(ctx, req.Code, models.TokenTypeCode, user)
 					if err == nil {
 						_ = s.DeleteToken(ctx, models.TokenTypeCode, req.Code)
 					}
 				case OAuthGrantType_password:
+					if app.GrantType&models.AppMeta_password == 0 {
+						return nil, errors.NewServerError(500, "Unsupported authorization type.")
+					}
 					user, err = s.VerifyPassword(ctx, req.Username, req.Password, false)
 				case OAuthGrantType_client_credentials:
+					if app.GrantType&models.AppMeta_client_credentials == 0 {
+						return nil, errors.NewServerError(500, "Unsupported authorization type.")
+					}
 					if username, password, ok := restfulReq.Request.BasicAuth(); ok {
 						user, err = s.VerifyPassword(ctx, username, password, false)
 					}
 				}
 				if err == nil && user != nil && len(user.Id) > 0 {
-					app, ok := ctx.Value(global.MetaApp).(*models.App)
-					if !ok {
-						return "", errors.UnauthorizedError()
-					}
 					if role, err := s.GetAppRoleByUserId(ctx, app.Id, user.Id); err != nil {
 						user.Role = ""
 					} else {
@@ -173,7 +188,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 								Id:        uuid.NewV4().String(),
 								Audience:  app.Name,
 								ExpiresAt: time.Now().Add(time.Minute * 10).Unix(),
-								Issuer:    global.IdasAppName,
+								Issuer:    config.Get().GetGlobal().GetAppName(),
 								IssuedAt:  time.Now().Unix(),
 								NotBefore: time.Now().Unix(),
 								Subject:   user.Username,
@@ -209,6 +224,7 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 		req := request.(Requester).GetRequestData().(*OAuthAuthorizeRequest)
 		resp := SimpleResponseWrapper[interface{}]{}
 
+		stdReq := request.(RestfulRequester).GetRestfulRequest()
 		stdResp := request.(RestfulRequester).GetRestfulResponse()
 
 		if len(req.ClientId) == 0 {
@@ -233,7 +249,8 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 		appKey, err := s.GetAppKeyFromKey(ctx, req.ClientId)
 		if err != nil {
 			level.Error(logger).Log("msg", "failed to get appId from client_id")
-			return nil, errors.ParameterError("client_id")
+			gohttp.Redirect(stdResp.ResponseWriter, stdReq.Request, w.M(common.GetWebURL(ctx, common.WithSubPages("404"))), gohttp.StatusFound)
+			return nil, nil
 		}
 
 		query := uri.Query()
@@ -241,12 +258,17 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 		if err != nil {
 			return err, nil
 		} else if app == nil {
-			return nil, errors.StatusNotFound("Authorize")
+			gohttp.Redirect(stdResp.ResponseWriter, stdReq.Request, w.M(common.GetWebURL(ctx, common.WithSubPages("404"))), gohttp.StatusFound)
+			return nil, nil
 		}
 
 		//if code, err = s.GetAuthCodeByAppId(ctx, appKey.AppId, user, sessionId); err != nil && !errors.IsNotFount(err) {
 		//	return nil, err
 		//}
+
+		if app.GrantType&models.AppMeta_authorization_code == 0 {
+			return nil, errors.NewServerError(500, "Unsupported authorization type.")
+		}
 		if len(app.Users) == 0 {
 			httpExternalURL, ok := ctx.Value(global.HTTPExternalURLKey).(string)
 			if !ok {

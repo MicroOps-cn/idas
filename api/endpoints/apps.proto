@@ -144,6 +144,7 @@ message AppKeyInfo{
   string app_id = 5[(gogoproto.jsontag) = "appId"];
   string key = 6[(gogoproto.jsontag) = "key"];
   string secret = 7[(gogoproto.jsontag) = "secret"];
+  string privateKey = 8[(gogoproto.jsontag) = "privateKey"];
 }
 
 message SimpleAppKeyInfo{

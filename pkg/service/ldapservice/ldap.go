@@ -129,4 +129,5 @@ type ldapUpdateColumn struct {
 	columnName     string
 	ldapColumnName string
 	val            []string
+	oriVals        []string
 }

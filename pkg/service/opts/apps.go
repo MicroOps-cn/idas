@@ -22,6 +22,7 @@ type GetAppOptions struct {
 	DisableGetProxy bool
 	Id, Name string
 	UserId   []string
+	GetTags  bool
 }
 
 func NewAppOptions(opts ...WithGetAppOptions) *GetAppOptions {
@@ -36,6 +37,10 @@ type WithGetAppOptions func(o *GetAppOptions)
 
 func WithoutUsers(o *GetAppOptions) {
 	o.DisableGetUsers = true
+}
+
+func WithGetTags(o *GetAppOptions) {
+	o.GetTags = true
 }
 
 func WithoutACL(o *GetAppOptions) {

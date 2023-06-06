@@ -88,7 +88,7 @@ func MakeUpdateCurrentUserEndpoint(s service.Service) endpoint.Endpoint {
 			Avatar:      req.Avatar,
 			Status:      req.Status,
 		}, "email", "phone_number", "full_name", "avatar"); resp.Error != nil {
-			resp.Error = err
+			return resp, nil
 		}
 		resp.Error = s.UpdateUserSession(ctx, user.Id)
 		return resp, nil
@@ -647,7 +647,7 @@ func MakeCreateTOTPSecretEndpoint(s service.Service) endpoint.Endpoint {
 			resp.Error = errors.WithServerError(http.StatusInternalServerError, err, "Failed to general secret")
 			return resp, nil
 		}
-		resp.Data.Secret = gotp.NewDefaultTOTP(randomSecret).ProvisioningUri(user.Username, "IDAS")
+		resp.Data.Secret = gotp.NewDefaultTOTP(randomSecret).ProvisioningUri(user.Username, config.Get().GetGlobal().GetAppName())
 		resp.Data.Token = token.Id
 		return resp, nil
 	}

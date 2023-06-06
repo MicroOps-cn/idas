@@ -148,7 +148,7 @@ func MakeGetAppInfoEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*GetAppRequest)
 		resp := SimpleResponseWrapper[*models.App]{}
-		resp.Data, resp.Error = s.GetAppInfo(ctx, opts.WithAppId(req.Id))
+		resp.Data, resp.Error = s.GetAppInfo(ctx, opts.WithAppId(req.Id), opts.WithGetTags)
 		return &resp, nil
 	}
 }
@@ -290,6 +290,36 @@ func MakeAppAuthenticationEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*AuthenticationRequest)
 		return s.AppAuthentication(ctx, req.AuthKey, req.AuthSecret)
+	}
+}
+
+type GetAppKeyRequestData struct {
+	Username string
+	Key      string
+}
+
+type GetAppKeyResponseData struct {
+	App *models.App
+	Key *models.AppKey
+}
+
+func MakeGetAppAndKeyFromKeyIdEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		key := request.(Requester).GetRequestData().(*GetAppKeyRequestData)
+		appKey, err := s.GetAppKeyFromKey(ctx, key.Key)
+		if err != nil {
+			return nil, err
+		}
+		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithAppId(appKey.AppId), opts.WithUsers(key.Username))
+		if err != nil {
+			return err, nil
+		} else if app == nil {
+			return nil, errors.StatusNotFound("Authorize")
+		}
+		return &GetAppKeyResponseData{
+			App: app,
+			Key: appKey,
+		}, nil
 	}
 }
 

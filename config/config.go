@@ -243,7 +243,7 @@ func (x *Config) GetWorkspace() afero.Fs {
 	return nil
 }
 
-func (x *Config) GetOAuthOption(id string) *oauth2.Option {
+func (x *Config) GetOAuthOptions(id string) *oauth2.Options {
 	for _, option := range x.GetGlobal().GetOauth2() {
 		if option.Id == id {
 			return option

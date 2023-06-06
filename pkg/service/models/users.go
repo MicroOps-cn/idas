@@ -108,10 +108,11 @@ type UserKey struct {
 
 type AppKey struct {
 	Model
-	Name   string `gorm:"type:varchar(50)" json:"name"`
-	AppId  string `gorm:"type:char(36);" json:"appId"`
-	Key    string `gorm:"type:varchar(50);" json:"key"`
-	Secret string `gorm:"type:varchar(50);" json:"secret"`
+	Name       string `gorm:"type:varchar(50)" json:"name"`
+	AppId      string `gorm:"type:char(36);" json:"appId"`
+	Key        string `gorm:"type:varchar(50);" json:"key"`
+	Secret     string `gorm:"type:varchar(50);" json:"secret"`
+	PrivateKey string `gorm:"-" json:"privateKey"`
 }
 
 type UserExt struct {

@@ -70,6 +70,7 @@ var (
 	appdashAddr     string
 	openapiPath     string
 	swaggerPath     string
+	radiusAddr      string
 	swaggerFilePath string
 )
 
@@ -146,8 +147,8 @@ func Run(ctx context.Context, logger kitlog.Logger, _ *signals.StopChan) (err er
 	{
 		// Endpoint-level metrics.
 		duration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "example",
-			Subsystem: "addsvc",
+			Namespace: "idas",
+			Subsystem: "idas",
 			Name:      "request_duration_seconds",
 			Help:      "Request duration in seconds.",
 		}, []string{"method", "success"})
@@ -233,6 +234,18 @@ func Run(ctx context.Context, logger kitlog.Logger, _ *signals.StopChan) (err er
 			proxyHTTPListener.Close()
 		})
 	}
+	{
+		if len(radiusAddr) > 0 {
+			radiusService := transport.NewRadiusService(ctx, endpoints)
+			radiusService.Addr = radiusAddr
+			g.Add(func() error {
+				level.Info(logger).Log("msg", "Listening port", "transport", "Radius", "addr", radiusService.Addr)
+				return radiusService.ListenAndServe()
+			}, func(error) {
+				_ = radiusService.Shutdown(ctx)
+			})
+		}
+	}
 	return g.Run()
 }
 
@@ -257,6 +270,7 @@ func init() {
 	// log level and format
 	flag.AddFlags(rootCmd.PersistentFlags(), nil)
 
+	rootCmd.Flags().StringVar(&radiusAddr, "radius.listen-address", "", "Radius listen address")
 	rootCmd.Flags().StringVar(&debugAddr, "debug.listen-address", ":8080", "Debug and metrics listen address")
 	rootCmd.Flags().StringVar(&proxyHTTPAddr, "proxy.listen-address", ":8082", "HTTP proxy listen address")
 	rootCmd.Flags().StringVar(&httpAddr, "http.listen-address", ":8081", "HTTP listen address")

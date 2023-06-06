@@ -109,9 +109,38 @@ func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *gol
 	var users []*models.User
 
 	if opt == nil || !opt.DisableGetUsers {
+		grantMode := models.AppMeta_GrantMode(w.M[int](httputil.NewValue(appEntry.GetAttributeValue("grantMode")).Default("0").Int()))
 		member := append(appEntry.GetAttributeValues("uniqueMember"), appEntry.GetAttributeValues("member")...)
-		if len(member) > 0 {
+		if len(opt.UserId) > 0 && len(member) > 0 {
+			for _, userId := range opt.UserId {
+				getUserReq := goldap.NewSearchRequest(
+					s.Options().UserSearchBase,
+					goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 1, 0, false,
+					"",
+					[]string{s.Options().GetAttrUsername(), s.Options().GetAttrUserPhoneNo(), s.Options().GetAttrEmail(), s.Options().GetAttrUserDisplayName(), "entryUUID", "avatar", "createTimestamp", "modifyTimestamp", UserStatusName},
+					nil,
+				)
+				uid, err := uuid.FromString(userId)
+				if err == nil {
+					getUserReq.Filter = fmt.Sprintf("(entryUUID=%s)", uid.String())
+				} else {
+					getUserReq.Filter = s.Options().ParseUserSearchFilter(userId)
+				}
+				if result, err := conn.Search(getUserReq); err != nil {
+					return nil, err
+				} else if len(result.Entries) == 0 {
+					continue
+				} else {
+					for _, entry := range result.Entries {
+						if grantMode == models.AppMeta_full || w.Include(member, entry.DN) {
+							users = append(users, s.getUserByEntry(ctx, entry))
+						}
+					}
+				}
+			}
+		} else if len(member) > 0 {
 			for _, userDn := range member {
+
 				userInfo, err := s.getUserByDn(ctx, userDn)
 				if err != nil {
 					if ldap.IsLdapError(err, goldap.LDAPResultControlNotFound) {
@@ -119,7 +148,7 @@ func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *gol
 					}
 					continue
 				}
-				if len(opt.UserId) == 0 || w.Include(opt.UserId, userInfo.Id) {
+				if len(opt.UserId) == 0 || w.Include(opt.UserId, userInfo.Id) || w.Include(opt.UserId, userInfo.Username) {
 					users = append(users, userInfo)
 				}
 			}
@@ -160,7 +189,7 @@ func (s UserAndAppService) GetApps(ctx context.Context, keywords string, filters
 	defer conn.Close()
 	fts := []string{s.GetAppSearchFilter()}
 	if len(keywords) > 0 {
-		fts = append(fts, fmt.Sprintf("(|(cn=*%s*)(description=*%s*))", keywords, keywords))
+		fts = append(fts, fmt.Sprintf("(|(cn=*%s*)(displayName=*%s*)(description=*%s*))", keywords, keywords, keywords))
 	}
 	matchFilterName := regexp.MustCompile("^[-_a-zA-Z0-9]+$")
 	matchFilterValue := regexp.MustCompile("^[-_a-zA-Z0-9*]+$")
@@ -310,7 +339,17 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 	ret, err := conn.Search(goldap.NewSearchRequest(
 		s.Options().AppSearchBase,
 		goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 1, 0, false,
-		fmt.Sprintf("(entryUUID=%s)", app.Id), []string{"objectClass"}, nil))
+		fmt.Sprintf("(entryUUID=%s)", app.Id), []string{
+			"objectClass",
+			"cn",
+			"description",
+			"avatar",
+			"grantType",
+			"displayName",
+			"grantMode",
+			"status",
+			"url",
+		}, nil))
 	if err != nil {
 		return err
 	} else if len(ret.Entries) == 0 {
@@ -355,8 +394,12 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 		{columnName: "url", ldapColumnName: "url", val: []string{app.Url}},
 	}
 	for _, value := range replace {
-		if columns.Has(value.columnName) && len(value.val) > 0 && len(value.val[0]) > 0 {
-			req.Replace(value.ldapColumnName, value.val)
+		if columns.Has(value.columnName) {
+			if len(value.val) > 0 && len(value.val[0]) > 0 {
+				req.Replace(value.ldapColumnName, value.val)
+			} else if len(entry.GetAttributeValues(value.ldapColumnName)) > 0 {
+				req.Delete(value.ldapColumnName, []string{})
+			}
 		}
 	}
 
@@ -381,6 +424,7 @@ func (s UserAndAppService) UpdateApp(ctx context.Context, app *models.App, updat
 func (s UserAndAppService) GetAppInfo(ctx context.Context, o ...opts.WithGetAppOptions) (appDetail *models.App, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
+
 	opt := opts.NewAppOptions(o...)
 	if len(opt.Id) == 0 && len(opt.Name) == 0 {
 		return nil, errors.ParameterError("require id or name")

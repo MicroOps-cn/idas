@@ -453,6 +453,7 @@ func OAuthService(ctx context.Context, options []httptransport.ServerOption, end
 		Reads(endpoint.OAuthTokenRequest{}).
 		Consumes("application/x-www-form-urlencoded", restful.MIME_JSON).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Metadata(global.MetaSensitiveData, true).
 		Returns(200, "OK", endpoint.OAuthTokenResponse{}),
 	)
 
@@ -788,13 +789,13 @@ func GlobalService(ctx context.Context, options []httptransport.ServerOption, en
 	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
-	v1ws.Route(v1ws.GET("loginType").
-		To(NewKitHTTPServer[struct{}](ctx, endpoints.GetLoginType, options)).
-		Operation("getGlobalLoginType").
-		Doc("Get global login type.").
+	v1ws.Route(v1ws.GET("config").
+		To(NewKitHTTPServer[struct{}](ctx, endpoints.GetGlobalConfig, options)).
+		Operation("getGlobalConfig").
+		Doc("Get global config.").
 		Metadata(restfulspec.KeyOpenAPITags, tags).
 		Metadata(global.MetaNeedLogin, false).
-		Returns(200, "OK", endpoint.GlobalLoginTypeResponse{}),
+		Returns(200, "OK", endpoint.GlobalConfigResponse{}),
 	)
 
 	return tag, []*restful.WebService{v1ws}

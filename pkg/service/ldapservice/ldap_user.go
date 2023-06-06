@@ -18,6 +18,7 @@ package ldapservice
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strconv"
 	"strings"
@@ -49,7 +50,7 @@ const UserStatusName = "status"
 //	@return error
 func hash(password []byte) (string, error) {
 	c := sha256_crypt.New()
-	salt := string(uuid.NewV4().Bytes())
+	salt := base64.StdEncoding.EncodeToString(uuid.NewV4().Bytes())
 	return c.Generate(password, []byte("$5$"+salt))
 }
 
@@ -154,8 +155,25 @@ func (s UserAndAppService) getUserByReq(ctx context.Context, searchReq *goldap.S
 	if len(ret.Entries) == 0 {
 		return nil, errors.StatusNotFound("user")
 	}
+	userInfo := s.getUserByEntry(ctx, ret.Entries[0])
+	if o != nil && o.Apps {
+		appsResp, err := conn.Search(goldap.NewSearchRequest(s.Options().AppSearchBase, goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 0, 0, false,
+			fmt.Sprintf("(&(|(uniqueMember=%s)(member=%s))%s)", ret.Entries[0].DN, ret.Entries[0].DN, s.GetAppSearchFilter()), []string{"entryUUID", "objectClass", "member", "uniqueMember", "cn"}, nil))
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range appsResp.Entries {
+			app, err := s.getAppDetailByDn(ctx, entry.DN, opts.NewAppOptions(opts.WithBasic))
+			if err != nil {
+				return nil, err
+			}
+			userInfo.Apps = append(userInfo.Apps, app)
+		}
+	}
+	return userInfo, nil
+}
 
-	userEntry := ret.Entries[0]
+func (s UserAndAppService) getUserByEntry(_ context.Context, userEntry *goldap.Entry) *models.User {
 	userInfo := &models.User{
 		Model: models.Model{
 			Id:         userEntry.GetAttributeValue("entryUUID"),
@@ -169,21 +187,7 @@ func (s UserAndAppService) getUserByReq(ctx context.Context, searchReq *goldap.S
 		Avatar:      userEntry.GetAttributeValue("avatar"),
 		Status:      models.UserMeta_UserStatus(w.M[int](httputil.NewValue(userEntry.GetAttributeValue(UserStatusName)).Default("0").Int())),
 	}
-	if o != nil && o.Apps {
-		appsResp, err := conn.Search(goldap.NewSearchRequest(s.Options().AppSearchBase, goldap.ScopeWholeSubtree, goldap.NeverDerefAliases, 0, 0, false,
-			fmt.Sprintf("(&(|(uniqueMember=%s)(member=%s))%s)", userEntry.DN, userEntry.DN, s.GetAppSearchFilter()), []string{"entryUUID", "objectClass", "member", "uniqueMember", "cn"}, nil))
-		if err != nil {
-			return nil, err
-		}
-		for _, entry := range appsResp.Entries {
-			app, err := s.getAppDetailByDn(ctx, entry.DN, opts.NewAppOptions(opts.WithBasic))
-			if err != nil {
-				return nil, err
-			}
-			userInfo.Apps = append(userInfo.Apps, app)
-		}
-	}
-	return userInfo, nil
+	return userInfo
 }
 
 // getUserByDn
@@ -365,19 +369,7 @@ func (s UserAndAppService) GetUsers(ctx context.Context, keywords string, status
 		}
 	}
 	for _, entry := range entrys {
-		users = append(users, &models.User{
-			Model: models.Model{
-				Id:         entry.GetAttributeValue("entryUUID"),
-				CreateTime: w.M[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("createTimestamp"))),
-				UpdateTime: w.M[time.Time](time.Parse("20060102150405Z", entry.GetAttributeValue("modifyTimestamp"))),
-			},
-			Username:    entry.GetAttributeValue(s.Options().GetAttrUsername()),
-			Email:       entry.GetAttributeValue(s.Options().GetAttrEmail()),
-			PhoneNumber: entry.GetAttributeValue(s.Options().GetAttrUserPhoneNo()),
-			FullName:    entry.GetAttributeValue(s.Options().GetAttrUserDisplayName()),
-			Avatar:      entry.GetAttributeValue("avatar"),
-			Status:      models.UserMeta_UserStatus(w.M[int](httputil.NewValue(entry.GetAttributeValue(UserStatusName)).Default("0").Int())),
-		})
+		users = append(users, s.getUserByEntry(ctx, entry))
 	}
 	return total, users, nil
 }
@@ -477,14 +469,18 @@ func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, up
 	if len(updateColumns) == 0 {
 		updateColumns = []string{"username", "email", "phone_number", "full_name", "avatar", "status", "apps"}
 	}
+	oriUser, err := s.getUserByDn(ldap.WithConnContext(ctx, conn), dn)
+	if err != nil {
+		return err
+	}
 	columns := sets.New[string](updateColumns...)
 	req := goldap.NewModifyRequest(dn, nil)
 	replace := []ldapUpdateColumn{
-		{columnName: "email", ldapColumnName: s.Options().GetAttrEmail(), val: []string{user.Email}},
-		{columnName: "phone_number", ldapColumnName: s.Options().GetAttrUserPhoneNo(), val: []string{user.PhoneNumber}},
-		{columnName: "full_name", ldapColumnName: s.Options().GetAttrUserDisplayName(), val: []string{user.FullName}},
-		{columnName: "avatar", ldapColumnName: "avatar", val: []string{user.Avatar}},
-		{columnName: "status", ldapColumnName: "status", val: []string{strconv.Itoa(int(user.Status))}},
+		{columnName: "email", ldapColumnName: s.Options().GetAttrEmail(), val: []string{user.Email}, oriVals: []string{oriUser.Email}},
+		{columnName: "phone_number", ldapColumnName: s.Options().GetAttrUserPhoneNo(), val: []string{user.PhoneNumber}, oriVals: []string{oriUser.PhoneNumber}},
+		{columnName: "full_name", ldapColumnName: s.Options().GetAttrUserDisplayName(), val: []string{user.FullName}, oriVals: []string{oriUser.FullName}},
+		{columnName: "avatar", ldapColumnName: "avatar", val: []string{user.Avatar}, oriVals: []string{oriUser.Avatar}},
+		{columnName: "status", ldapColumnName: "status", val: []string{strconv.Itoa(int(user.Status))}, oriVals: []string{strconv.Itoa(int(oriUser.Status))}},
 	}
 	if !objectClass.HasAll(s.GetUserClass().List()...) {
 		objectClass.Insert(s.GetUserClass().List()...)
@@ -492,8 +488,12 @@ func (s UserAndAppService) UpdateUser(ctx context.Context, user *models.User, up
 	}
 
 	for _, value := range replace {
-		if columns.Has(value.columnName) && len(value.val[0]) > 0 {
-			req.Replace(value.ldapColumnName, value.val)
+		if columns.Has(value.columnName) {
+			if len(value.val[0]) > 0 {
+				req.Replace(value.ldapColumnName, value.val)
+			} else if len(value.oriVals[0]) > 0 {
+				req.Delete(value.ldapColumnName, []string{})
+			}
 		}
 	}
 
@@ -586,6 +586,23 @@ func (s UserAndAppService) GetUserInfoById(ctx context.Context, id string, o *op
 	return s.getUserByReq(ldap.WithConnContext(ctx, conn), searchReq, o)
 }
 
+func getPhoneNumberFilter(name string, phoneNo string) string {
+	filters := []string{fmt.Sprintf("(%s=%s)", name, phoneNo)}
+	if strings.HasPrefix(phoneNo, "+86") {
+		if strings.HasPrefix(phoneNo, "+86-") {
+			filters = append(filters, fmt.Sprintf("(%s=%s)", name, strings.TrimPrefix(phoneNo, "+86-")))
+		} else if strings.HasPrefix(phoneNo, "+86 ") {
+			filters = append(filters, fmt.Sprintf("(%s=%s)", name, strings.TrimPrefix(phoneNo, "+86 ")))
+		} else {
+			filters = append(filters, fmt.Sprintf("(%s=%s)", name, strings.TrimPrefix(phoneNo, "+86")))
+		}
+	}
+	if len(filters) == 1 {
+		return filters[0]
+	}
+	return fmt.Sprintf("(|%s)", strings.Join(filters, ""))
+}
+
 // GetUser
 //
 //	@Description[en-US]: Get user info.
@@ -618,7 +635,7 @@ func (s UserAndAppService) GetUser(ctx context.Context, o *opts.GetUserOptions) 
 	if len(o.PhoneNumber) > 0 {
 		filters := []string{
 			s.Options().ParseUserSearchFilter("*"),
-			fmt.Sprintf("(%s=%s)", s.Options().AttrUserPhoneNo, o.PhoneNumber),
+			getPhoneNumberFilter(s.Options().AttrUserPhoneNo, o.PhoneNumber),
 		}
 		searchReq := goldap.NewSearchRequest(
 			s.Options().UserSearchBase,

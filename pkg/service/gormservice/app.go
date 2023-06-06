@@ -227,7 +227,7 @@ func (s UserAndAppService) GetApps(ctx context.Context, keywords string, filters
 	query := s.Session(ctx).Model(&models.App{}).Where("delete_time IS NULL")
 	if len(keywords) > 0 {
 		keywords = fmt.Sprintf("%%%s%%", keywords)
-		query = query.Where("name like ? or description like ?", keywords, keywords)
+		query = query.Where("name like ? or description like ? or display_name like ?", keywords, keywords, keywords)
 	}
 	for name, val := range filters {
 		if name == "url" && val == "*" {

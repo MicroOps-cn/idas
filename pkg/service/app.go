@@ -177,6 +177,7 @@ func (s Set) GetAppInfo(ctx context.Context, o ...opts.WithGetAppOptions) (app *
 			return nil, err
 		}
 	}
+
 	return app, nil
 }
 
@@ -243,7 +244,6 @@ func (s Set) CreateApp(ctx context.Context, app *models.App) (err error) {
 			return err
 		}
 	}
-
 	return s.commonService.UpdateAppAccessControl(ctx, app)
 }
 
