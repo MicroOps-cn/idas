@@ -10,14 +10,14 @@ import "endpoints/base.proto";
 option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
 
 
-message AppProxyUrl {
+message AppProxyUrlInfo {
   string id = 1 [(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
   string name = 3 [(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'gorm:"type:varchar(50);"'];
   string method = 4 [(gogoproto.jsontag) = "method", (gogoproto.moretags) = 'gorm:"type:varchar(8);"'];
   string url = 5 [(gogoproto.jsontag) = "url", (gogoproto.moretags) = 'gorm:"type:varchar(50);"'];
 }
 
-message AppProxy {
+message AppProxyInfo {
   string domain = 3 [(gogoproto.jsontag) = "domain", (gogoproto.moretags) = 'gorm:"type:varchar(50);" valid:"required"'];
   string upstream = 4 [(gogoproto.jsontag) = "upstream", (gogoproto.moretags) = 'gorm:"type:varchar(50);" valid:"required"'];
   string urls = 5 [(gogoproto.jsontag) = "urls", (gogoproto.customtype) = "AppProxyUrls", (gogoproto.nullable) = false, (gogoproto.moretags) = 'gorm:"foreignKey:AppProxyId"'];
@@ -38,8 +38,8 @@ message AppInfo {
   string create_time = 13 [(gogoproto.jsontag) = "createTime", (gogoproto.moretags) = 'valid:"required"'];
   bool is_delete = 14 [(gogoproto.jsontag) = "isDelete", (gogoproto.moretags) = 'valid:"required"'];
   repeated idas.endpoint.UserInfo users = 15;
-  repeated AppRole roles = 16;
-  AppProxy proxy = 17;
+  repeated AppRoleInfo roles = 16;
+  AppProxyInfo proxy = 17;
   string display_name = 18 [(gogoproto.jsontag) = "displayName,omitempty", (gogoproto.moretags) = 'gorm:"type:varchar(128)"'];
 }
 
@@ -79,7 +79,7 @@ message PatchAppRequest {
   idas.service.models.AppMeta.Status status = 8 [(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.AppMeta_Status"];
   string url = 12[(gogoproto.customtype) = "string"];
   bool is_delete = 14 [(gogoproto.customtype) = "bool", (gogoproto.jsontag) = "isDelete,omitempty"];
-  AppProxy proxy = 15 [(gogoproto.jsontag) = "proxy,omitempty"];
+  AppProxyInfo proxy = 15 [(gogoproto.jsontag) = "proxy,omitempty"];
   string display_name = 16 [(gogoproto.jsontag) = "displayName,omitempty", (gogoproto.moretags) = 'gorm:"type:varchar(128)"'];
 }
 
@@ -90,7 +90,7 @@ message AppUser {
   string role = 3;
 }
 
-message AppRole {
+message AppRoleInfo {
   string id = 1 [(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
   string name = 2 [(gogoproto.jsontag) = "name", (gogoproto.moretags) = 'valid:"required"'];
   repeated string urls = 4;
@@ -109,9 +109,9 @@ message CreateAppRequest {
   repeated idas.service.models.AppMeta.GrantType grant_type = 6 [(gogoproto.jsontag) = "grantType,omitempty"];
   idas.service.models.AppMeta.GrantMode grant_mode = 7 [(gogoproto.jsontag) = "grantMode,omitempty"];
   repeated AppUser users = 8;
-  repeated AppRole roles = 9;
+  repeated AppRoleInfo roles = 9;
   string url = 12 [(gogoproto.jsontag) = "url", (gogoproto.moretags) = 'valid:"required"'];
-  AppProxy proxy = 17;
+  AppProxyInfo proxy = 17;
   string display_name = 13 [(gogoproto.jsontag) = "displayName,omitempty", (gogoproto.moretags) = 'gorm:"type:varchar(128)"'];
 }
 
@@ -128,11 +128,11 @@ message UpdateAppRequest {
   repeated idas.service.models.AppMeta.GrantType grant_type = 6 [(gogoproto.jsontag) = "grantType,omitempty"];
   idas.service.models.AppMeta.GrantMode grant_mode = 7 [(gogoproto.jsontag) = "grantMode,omitempty"];
   repeated AppUser users = 8;
-  repeated AppRole roles = 9;
+  repeated AppRoleInfo roles = 9;
   idas.service.models.AppMeta.Status status = 10 [(gogoproto.jsontag) = "status"];
   bool is_delete = 11 [(gogoproto.jsontag) = "isDelete,omitempty"];
   string url = 12 [(gogoproto.jsontag) = "url"];
-  AppProxy proxy = 17;
+  AppProxyInfo proxy = 17;
   string display_name = 13 [(gogoproto.jsontag) = "displayName,omitempty", (gogoproto.moretags) = 'gorm:"type:varchar(128)"'];
 }
 
