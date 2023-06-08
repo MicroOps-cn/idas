@@ -260,7 +260,7 @@ func MakeDeleteAppEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
-type AppProxyUrls []*AppProxyUrl
+type AppProxyUrls []*AppProxyUrlInfo
 
 func (m *UpdateAppRequest) GetProxyConfig() *models.AppProxy {
 	if m.Proxy == nil {
