@@ -26,7 +26,7 @@ import (
 
 	"github.com/MicroOps-cn/fuck/sets"
 	w "github.com/MicroOps-cn/fuck/wrapper"
-	goldap "github.com/go-ldap/ldap"
+	goldap "github.com/go-ldap/ldap/v3"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/MicroOps-cn/idas/pkg/client/ldap"

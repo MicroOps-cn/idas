@@ -18,8 +18,10 @@ package ldap
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	tls2 "github.com/MicroOps-cn/idas/pkg/client/internal/tls"
 	"net"
 	"regexp"
 	"time"
@@ -27,7 +29,7 @@ import (
 	"github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/go-kit/log/level"
-	"github.com/go-ldap/ldap"
+	"github.com/go-ldap/ldap/v3"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 
@@ -40,15 +42,30 @@ func NewLdapPool(ctx context.Context, options *LdapOptions) (pool Pool, err erro
 	if err = options.Valid(); err != nil {
 		return nil, err
 	}
-
-	level.Debug(logger).Log("msg", "connect to ldap server", "host", options.Host, "manager_dn", options.ManagerDn)
+	var tlsConfig *tls.Config
+	if options.StartTLS || options.IsTLS {
+		tlsConfig, err = tls2.NewTLSConfig(options.TLS)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse ldap tls config: %s", err)
+		}
+	}
+	level.Debug(logger).Log("msg", "connect to ldap server", "host", options.Host, "manager_dn", options.ManagerDn, "isTLS", options.IsTLS, "startTLS", options.StartTLS)
 	pool, err = NewChannelPool(ctx, 2, 64, "ldap", func(s string) (c ldap.Client, err error) {
 		conn, err := (&net.Dialer{Timeout: ldap.DefaultTimeout}).DialContext(ctx, "tcp", options.Host)
 		if err != nil {
 			return nil, err
 		}
-		ldapConn := ldap.NewConn(conn, false)
+		if options.IsTLS {
+			conn = tls.Client(conn, tlsConfig)
+		}
+		ldapConn := ldap.NewConn(conn, options.IsTLS)
 		ldapConn.Start()
+		if options.StartTLS {
+			fmt.Println(options.TLS.InsecureSkipVerify)
+			if err = ldapConn.StartTLS(tlsConfig); err != nil {
+				return nil, err
+			}
+		}
 		return ldapConn, nil
 	}, []uint16{ldap.LDAPResultAdminLimitExceeded, ldap.ErrorNetwork})
 

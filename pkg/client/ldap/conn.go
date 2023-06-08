@@ -22,7 +22,7 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/go-ldap/ldap"
+	"github.com/go-ldap/ldap/v3"
 )
 
 // PoolConn implements Client to override the Close() method
@@ -33,6 +33,34 @@ type PoolConn struct {
 	closeAt  []uint16
 	logger   log.Logger
 	tlsed    bool
+}
+
+func (p *PoolConn) IsClosing() bool {
+	return p.Conn.IsClosing()
+}
+
+func (p *PoolConn) TLSConnectionState() (tls.ConnectionState, bool) {
+	return p.Conn.TLSConnectionState()
+}
+
+func (p *PoolConn) UnauthenticatedBind(username string) error {
+	return p.Conn.UnauthenticatedBind(username)
+}
+
+func (p *PoolConn) ExternalBind() error {
+	return p.Conn.ExternalBind()
+}
+
+func (p *PoolConn) NTLMUnauthenticatedBind(domain, username string) error {
+	return p.Conn.NTLMUnauthenticatedBind(domain, username)
+}
+
+func (p *PoolConn) Unbind() error {
+	return p.Conn.Unbind()
+}
+
+func (p *PoolConn) ModifyWithResult(request *ldap.ModifyRequest) (*ldap.ModifyResult, error) {
+	return p.Conn.ModifyWithResult(request)
 }
 
 func (p *PoolConn) Start() {

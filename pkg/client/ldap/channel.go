@@ -24,7 +24,7 @@ import (
 	"github.com/MicroOps-cn/fuck/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/go-ldap/ldap"
+	"github.com/go-ldap/ldap/v3"
 )
 
 // channelPool implements the Pool interface based on buffered channels.

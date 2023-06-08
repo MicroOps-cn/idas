@@ -28,7 +28,7 @@ import (
 	"github.com/MicroOps-cn/fuck/sets"
 	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/go-kit/log/level"
-	goldap "github.com/go-ldap/ldap"
+	goldap "github.com/go-ldap/ldap/v3"
 	uuid "github.com/satori/go.uuid"
 	"github.com/tredoe/osutil/user/crypt/sha256_crypt"
 

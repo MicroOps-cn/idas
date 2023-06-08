@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/MicroOps-cn/fuck/sets"
-	goldap "github.com/go-ldap/ldap"
+	goldap "github.com/go-ldap/ldap/v3"
 
 	"github.com/MicroOps-cn/idas/pkg/client/ldap"
 )

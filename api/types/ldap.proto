@@ -1,5 +1,7 @@
 syntax = "proto3";
 package idas.client.ldap;
+import public "gogoproto/gogo.proto";
+import "types/tls.proto";
 option go_package = "github.com/MicroOps-cn/idas/pkg/client/ldap;ldap";
 
 
@@ -16,4 +18,7 @@ message LdapOptions{
   string attr_email = 10;
   string attr_user_display_name = 11;
   string attr_user_phone_no = 12;
+  bool is_tls = 13[(gogoproto.customname)="IsTLS"];
+  bool start_tls = 14[(gogoproto.customname)="StartTLS"];
+  idas.client.tls.TLSOptions tls =15[(gogoproto.customname)="TLS"];
 }

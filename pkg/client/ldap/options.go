@@ -19,6 +19,7 @@ package ldap
 import (
 	"bytes"
 	"fmt"
+	"github.com/MicroOps-cn/idas/pkg/client/internal/tls"
 	"strings"
 
 	"github.com/asaskevich/govalidator"
@@ -52,6 +53,9 @@ func (x *LdapOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []byte
 	x.AttrUsername = options.AttrUsername
 	x.AttrUserDisplayName = options.AttrUserDisplayName
 	x.AttrUserPhoneNo = options.AttrUserPhoneNo
+	x.StartTLS = options.StartTLS
+	x.IsTLS = options.IsTLS
+	x.TLS = options.TLS
 	err := unmarshaller.Unmarshal(bytes.NewReader(b), (*pbLdapOptions)(x))
 	if err != nil {
 		return err
@@ -77,6 +81,7 @@ func NewLdapOptions() *LdapOptions {
 		AttrUsername:        "uid",
 		AttrUserDisplayName: "cn",
 		AttrUserPhoneNo:     "telephoneNumber",
+		TLS:                 &tls.TLSOptions{},
 	}
 }
 
@@ -127,5 +132,11 @@ func (x *LdapOptions) Valid() error {
 	if govalidator.IsNull(x.AttrUserDisplayName) {
 		return errors.New("ldap attr_user_display_name option is null")
 	}
-	return nil
+	if x.StartTLS && x.IsTLS {
+		return errors.New("ldap start_tls and is_tls cannot be both true")
+	}
+	if _, ok := tls.Versions[x.TLS.MinVersion]; ok {
+		return nil
+	}
+	return fmt.Errorf("unknown TLS version: %s", x.TLS.MinVersion)
 }

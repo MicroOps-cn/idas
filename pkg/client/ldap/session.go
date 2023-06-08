@@ -27,7 +27,7 @@ import (
 	w "github.com/MicroOps-cn/fuck/wrapper"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/go-ldap/ldap"
+	"github.com/go-ldap/ldap/v3"
 
 	"github.com/MicroOps-cn/idas/pkg/logs"
 )
@@ -76,6 +76,37 @@ type Session struct {
 	c   ldap.Client
 	err error
 	ctx context.Context
+}
+
+func (s *Session) IsClosing() bool {
+	return s.c.IsClosing()
+}
+
+func (s *Session) TLSConnectionState() (tls.ConnectionState, bool) {
+	return s.c.TLSConnectionState()
+}
+
+func (s *Session) UnauthenticatedBind(username string) error {
+	return s.c.UnauthenticatedBind(username)
+}
+
+func (s *Session) ExternalBind() error {
+	return s.c.ExternalBind()
+}
+
+func (s *Session) NTLMUnauthenticatedBind(domain, username string) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Session) Unbind() error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (s *Session) ModifyWithResult(request *ldap.ModifyRequest) (*ldap.ModifyResult, error) {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (s *Session) Error() error {
