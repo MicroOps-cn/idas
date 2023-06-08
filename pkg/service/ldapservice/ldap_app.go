@@ -484,7 +484,7 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (err 
 		"displayName":     {app.DisplayName},
 		"grantMode":       {strconv.Itoa(int(app.GrantMode))},
 		"status":          {strconv.Itoa(int(app.Status))},
-		"objectClass":     s.GetAppClass(),
+		"objectClass":     s.GetAppClass().List(),
 		s.GetMemberAttr(): member,
 		"url":             {app.Url},
 	}
@@ -588,7 +588,7 @@ func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]inter
 	if len(req.Changes) == 0 {
 		return nil
 	}
-	req.Replace("objectClass", s.GetAppClass())
+	req.Replace("objectClass", s.GetAppClass().List())
 	return conn.Modify(req)
 }
 

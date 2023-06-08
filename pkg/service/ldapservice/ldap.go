@@ -72,8 +72,11 @@ func (s UserAndAppService) GetUserClass() sets.Set[string] {
 	return sets.New[string](ClassExtensibleObject)
 }
 
-func (s UserAndAppService) GetAppClass() []string {
-	return s.appObjectClass
+func (s UserAndAppService) GetAppClass() sets.Set[string] {
+	if s.hasIDASClass {
+		return sets.New[string](ClassIdasCore, ClassIdasApp)
+	}
+	return sets.New[string](ClassExtensibleObject)
 }
 
 func (s UserAndAppService) GetMemberAttr() string {
