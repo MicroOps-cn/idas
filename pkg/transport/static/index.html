@@ -8,8 +8,12 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"
     />
-    <title>IDAS</title>
-    <link rel="icon" href="/idas/admin/logo.svg" type="image/x-icon" />
+    <title>{{ .title }}</title>
+    <link
+      rel="icon"
+      href='{{ or .logo "/idas/admin/logo.svg" }}'
+      type="image/x-icon"
+    />
     <link rel="stylesheet" href="/idas/admin/umi.65cd65dc.css" />
     <script>
       window.routerBase = "/idas/admin/";
@@ -34,8 +38,8 @@
             <b>enable Javascript</b>
           </a>
         </div>
-        in your browser to use Identity authentication service, Out-of-the-box
-        mid-stage front/design solution!
+        in your browser to use {{ .sub_title }}, Out-of-the-box mid-stage
+        front/design solution!
       </div>
     </noscript>
     <div id="root">
@@ -233,11 +237,11 @@
             width="32"
             style="margin-right: 8px"
           />
-          Identity authentication service
+          {{ .sub_title }} {{ .sub_title }}
         </div>
       </div>
     </div>
 
-    <script src="/idas/admin/umi.93b32efb.js"></script>
+    <script src="/idas/admin/umi.0bf6fdcd.js"></script>
   </body>
 </html>

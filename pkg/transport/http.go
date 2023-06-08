@@ -17,11 +17,13 @@
 package transport
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"encoding/json"
 	errors2 "errors"
 	"fmt"
+	"html/template"
 	"io"
 	"io/fs"
 	stdlog "log"
@@ -117,7 +119,10 @@ func NewHTTPHandler(ctx context.Context, logger log.Logger, endpoints endpoint.S
 		m.Add(restfulspec.NewOpenAPIService(specConf))
 	}
 	webPrefix := ctx.Value(global.HTTPWebPrefixKey).(string)
-	m.Handle(webPrefix, http.StripPrefix(webPrefix, NewTryFileServer(w.M[fs.FS](fs.Sub(staticFs, "static")))))
+	m.Handle(webPrefix, http.StripPrefix(webPrefix, NewStaticFileServer(ctx, w.M[fs.FS](fs.Sub(staticFs, "static")))))
+	m.Handle("/healthz", http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Write([]byte("ok\n"))
+	}))
 	return m
 }
 
@@ -143,20 +148,76 @@ func SetCacheHeader(h http.Handler) http.Handler {
 	})
 }
 
-type TryFileFS struct {
-	fs fs.FS
+type File struct {
+	io.Reader
+	stat StaticFSInfo
 }
 
-func (t *TryFileFS) Open(name string) (fs.File, error) {
+func (f File) Stat() (fs.FileInfo, error) {
+	return f.stat, nil
+}
+func (f File) Read(p []byte) (int, error) {
+	n, err := f.Reader.Read(p)
+	return n, err
+}
+
+func (f File) Close() error {
+	return nil
+}
+
+type StaticFSInfo struct {
+	fs.FileInfo
+	size int64
+}
+
+func (i StaticFSInfo) Size() int64 { return i.size }
+
+type StaticFS struct {
+	fs            fs.FS
+	indexTmpl     *template.Template
+	indexTmplStat fs.FileInfo
+	ctx           context.Context
+}
+
+func (t *StaticFS) GetIndexFile() (fs.File, error) {
+	gConf := config.Get().GetGlobal()
+	var buf bytes.Buffer
+	err := t.indexTmpl.Execute(&buf, map[string]interface{}{
+		"title":     gConf.Title,
+		"sub_title": gConf.SubTitle,
+		"logo":      gConf.Logo,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &File{Reader: &buf, stat: StaticFSInfo{FileInfo: t.indexTmplStat, size: int64(buf.Len())}}, nil
+}
+
+func (t *StaticFS) Open(name string) (fs.File, error) {
+	if name == "index.html" {
+		return t.GetIndexFile()
+	}
 	open, err := t.fs.Open(name)
 	if errors2.Is(err, fs.ErrNotExist) {
-		return t.fs.Open("index.html")
+		return t.GetIndexFile()
 	}
 	return open, err
 }
 
-func NewTryFileServer(fileSystem fs.FS) http.Handler {
-	return SetCacheHeader(http.FileServer(http.FS(&TryFileFS{fs: fileSystem})))
+func NewStaticFileServer(ctx context.Context, fileSystem fs.FS) http.Handler {
+	f, err := fileSystem.Open("index.html")
+	if err != nil {
+		panic(fmt.Errorf("failed to open index file: %s", err))
+	}
+	stat, err := f.Stat()
+	if err != nil {
+		panic(fmt.Errorf("failed to get index file stat: %s", err))
+	}
+	tmpl, err := template.ParseFS(fileSystem, "index.html")
+	if err != nil {
+		panic(fmt.Errorf("failed to open index file: %s", err))
+	}
+	return SetCacheHeader(http.FileServer(http.FS(&StaticFS{ctx: ctx, fs: fileSystem, indexTmpl: tmpl, indexTmplStat: stat})))
 }
 
 const DisableStackTrace = "__disable_stack_trace__"
