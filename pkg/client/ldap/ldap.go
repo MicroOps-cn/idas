@@ -61,7 +61,6 @@ func NewLdapPool(ctx context.Context, options *LdapOptions) (pool Pool, err erro
 		ldapConn := ldap.NewConn(conn, options.IsTLS)
 		ldapConn.Start()
 		if options.StartTLS {
-			fmt.Println(options.TLS.InsecureSkipVerify)
 			if err = ldapConn.StartTLS(tlsConfig); err != nil {
 				return nil, err
 			}

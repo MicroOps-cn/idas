@@ -45,6 +45,8 @@ func NewUserAndAppService(ctx context.Context, name string, client *ldap.Client)
 	var memberAttr string
 	if hasIDASClass {
 		appObjectClass = []string{ClassIdasCore, ClassIdasApp}
+	} else {
+		appObjectClass = []string{ClassExtensibleObject}
 	}
 	appMemberClass := client.Options().GetAppObjectClass()
 	if len(appMemberClass) == 0 || appMemberClass == "groupOfUniqueNames" {
@@ -72,11 +74,8 @@ func (s UserAndAppService) GetUserClass() sets.Set[string] {
 	return sets.New[string](ClassExtensibleObject)
 }
 
-func (s UserAndAppService) GetAppClass() sets.Set[string] {
-	if s.hasIDASClass {
-		return sets.New[string](ClassIdasCore, ClassIdasApp)
-	}
-	return sets.New[string](ClassExtensibleObject)
+func (s UserAndAppService) GetAppClass() []string {
+	return s.appObjectClass
 }
 
 func (s UserAndAppService) GetMemberAttr() string {
