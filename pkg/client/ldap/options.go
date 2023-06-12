@@ -19,12 +19,13 @@ package ldap
 import (
 	"bytes"
 	"fmt"
-	"github.com/MicroOps-cn/idas/pkg/client/internal/tls"
 	"strings"
 
 	"github.com/asaskevich/govalidator"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/pkg/errors"
+
+	"github.com/MicroOps-cn/idas/pkg/client/internal/tls"
 )
 
 type pbLdapOptions LdapOptions
@@ -76,12 +77,14 @@ func NewLdapOptions() *LdapOptions {
 		AppSearchBase:       "ou=groups,dc=example,dc=org",
 		UserSearchFilter:    "(&(objectClass=inetOrgPerson)(uid={}))",
 		AppSearchFilter:     "(&(|(objectclass=groupOfNames)(objectclass=groupOfUniqueNames))(cn={}))",
-		AppObjectClass:      "groupOfUniqueNames",
+		AppObjectClass:      "groupOfNames",
 		AttrEmail:           "mail",
 		AttrUsername:        "uid",
 		AttrUserDisplayName: "cn",
 		AttrUserPhoneNo:     "telephoneNumber",
-		TLS:                 &tls.TLSOptions{},
+		TLS: &tls.TLSOptions{
+			MinVersion: "TLS12",
+		},
 	}
 }
 

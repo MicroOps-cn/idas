@@ -95,18 +95,15 @@ func (s *Session) ExternalBind() error {
 }
 
 func (s *Session) NTLMUnauthenticatedBind(domain, username string) error {
-	//TODO implement me
-	panic("implement me")
+	return s.c.NTLMUnauthenticatedBind(domain, username)
 }
 
 func (s *Session) Unbind() error {
-	//TODO implement me
-	panic("implement me")
+	return s.c.Unbind()
 }
 
 func (s *Session) ModifyWithResult(request *ldap.ModifyRequest) (*ldap.ModifyResult, error) {
-	//TODO implement me
-	panic("implement me")
+	return s.c.ModifyWithResult(request)
 }
 
 func (s *Session) Error() error {

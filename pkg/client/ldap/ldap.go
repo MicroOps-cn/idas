@@ -21,7 +21,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	tls2 "github.com/MicroOps-cn/idas/pkg/client/internal/tls"
 	"net"
 	"regexp"
 	"time"
@@ -34,6 +33,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/MicroOps-cn/idas/api"
+	tls2 "github.com/MicroOps-cn/idas/pkg/client/internal/tls"
 	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
