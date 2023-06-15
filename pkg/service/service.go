@@ -60,6 +60,7 @@ type Service interface {
 	GetSessionByToken(ctx context.Context, id string, tokenType models.TokenType, receiver interface{}) error
 	VerifyPassword(ctx context.Context, username string, password string, allowPasswordExpired bool) (user *models.User, err error)
 	VerifyPasswordById(ctx context.Context, userId, password string, allowPasswordExpired bool) (user *models.User)
+	VerifyUserStatus(ctx context.Context, user *models.User, allowPasswordExpired bool) (err error)
 	GetOAuthTokenByAuthorizationCode(ctx context.Context, code, clientId string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByAuthorizationCode(ctx context.Context, token, clientId, clientSecret string) (accessToken, refreshToken string, expiresIn int, err error)
 	RefreshOAuthTokenByPassword(ctx context.Context, token, username, password string) (accessToken, refreshToken string, expiresIn int, err error)

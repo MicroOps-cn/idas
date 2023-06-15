@@ -133,8 +133,7 @@ func (s Set) UploadFile(ctx context.Context, name, contentType string, f io.Read
 	}
 	dirName := now.Format("2006-01")
 	if _, err = d.Stat(dirName); os.IsNotExist(err) {
-		//nolint:gofumpt
-		if err = d.MkdirAll(dirName, 0755); err != nil {
+		if err = d.MkdirAll(dirName, 0o755); err != nil {
 			level.Error(logger).Log("msg", "failed to create directory", "err", err)
 		}
 	} else if err != nil {
@@ -143,8 +142,7 @@ func (s Set) UploadFile(ctx context.Context, name, contentType string, f io.Read
 	filePath := fmt.Sprintf("%s/%d%s", dirName, now.UnixNano(), path.Ext(name))
 
 	var ff io.ReadWriteCloser
-	//nolint:gofumpt
-	if ff, err = d.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644); err != nil {
+	if ff, err = d.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644); err != nil {
 		level.Error(logger).Log("err", err, "msg", "failed to open file", "filePath", filePath)
 		return "", errors.InternalServerError()
 	}

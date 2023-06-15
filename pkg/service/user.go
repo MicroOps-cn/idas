@@ -267,7 +267,7 @@ func (s Set) VerifyPasswordById(ctx context.Context, userId, password string, al
 	user = s.GetUserAndAppService().VerifyPasswordById(ctx, userId, password)
 	if user == nil {
 		return nil
-	} else if err = s.verifyUserStatus(ctx, user, allowPasswordExpired); err != nil {
+	} else if err = s.VerifyUserStatus(ctx, user, allowPasswordExpired); err != nil {
 		return nil
 	}
 	return user
@@ -321,13 +321,13 @@ func (s Set) VerifyPassword(ctx context.Context, username string, password strin
 			}
 		}
 		return nil, errors.NewServerError(http.StatusOK, "Wrong user name or password. ", errors.CodeInvalidCredentials)
-	} else if err = s.verifyUserStatus(ctx, user, allowPasswordExpired); err != nil {
+	} else if err = s.VerifyUserStatus(ctx, user, allowPasswordExpired); err != nil {
 		return nil, err
 	}
 	return user, nil
 }
 
-func (s Set) verifyUserStatus(ctx context.Context, user *models.User, allowPasswordExpired bool) (err error) {
+func (s Set) VerifyUserStatus(ctx context.Context, user *models.User, allowPasswordExpired bool) (err error) {
 	logger := logs.GetContextLogger(ctx)
 	switch user.Status {
 	case models.UserMeta_normal:

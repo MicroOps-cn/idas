@@ -96,10 +96,12 @@ func MakeSendLoginCaptchaEndpoint(s service.Service) endpoint.Endpoint {
 				}
 				to := fmt.Sprintf("%s<%s>", user.FullName, user.Email)
 				data := map[string]interface{}{
-					"user":   user,
-					"token":  token,
-					"code":   loginCode.Code,
-					"userId": user.Id,
+					"user":       user,
+					"token":      token,
+					"code":       loginCode.Code,
+					"userId":     user.Id,
+					"siteTitle":  config.Get().GetGlobal().GetTitle(),
+					"adminEmail": config.Get().GetGlobal().GetAdminEmail(),
 				}
 				if err = s.SendEmail(ctx, data, "User:SendLoginCaptcha", to); err != nil {
 					return nil, err
@@ -470,7 +472,9 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 			resp.Error = errors.ParameterError("type")
 			return resp, nil
 		}
-
+		if err = s.VerifyUserStatus(ctx, user, false); err != nil {
+			return nil, err
+		}
 		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithUsers(user.Id), opts.WithAppName(config.Get().GetGlobal().GetAppName()))
 		if err != nil && !errors.IsNotFount(err) {
 			level.Error(logger).Log("msg", "failed to get app info", "err", err)

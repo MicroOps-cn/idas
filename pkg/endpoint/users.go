@@ -289,6 +289,8 @@ func MakeForgotPasswordEndpoint(s service.Service) endpoint.Endpoint {
 			"userId":          token.GetRelationId(),
 			"token":           token,
 			"httpExternalURL": httpExternalURL,
+			"siteTitle":       config.Get().GetGlobal().GetTitle(),
+			"adminEmail":      config.Get().GetGlobal().GetAdminEmail(),
 		}, "User:ResetPassword", to)
 		if err != nil {
 			level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to send email")
@@ -513,10 +515,6 @@ func MakeSendActivationMailEndpoint(s service.Service) endpoint.Endpoint {
 		if err = s.PatchUserExtData(ctx, req.UserId, map[string]interface{}{"activation_time": time.Now()}); err != nil {
 			return nil, errors.NewServerError(http.StatusInternalServerError, "failed to active user.")
 		}
-		//user.Status = models.UserMeta_normal
-		//if err = s.UpdateUser(ctx, user, "status"); err != nil {
-		//	return nil, errors.NewServerError(http.StatusInternalServerError, "failed to active user.")
-		//}
 		token, err := s.CreateToken(ctx, models.TokenTypeActive, user)
 		if err != nil {
 			return nil, errors.NewServerError(http.StatusInternalServerError, "Failed to create token")
@@ -528,6 +526,8 @@ func MakeSendActivationMailEndpoint(s service.Service) endpoint.Endpoint {
 			"token":           token,
 			"userId":          token.ParentId,
 			"httpExternalURL": httpExternalURL,
+			"siteTitle":       config.Get().GetGlobal().GetTitle(),
+			"adminEmail":      config.Get().GetGlobal().GetAdminEmail(),
 		}, "User:ActivateAccount", to)
 		if err != nil {
 			level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to send email")

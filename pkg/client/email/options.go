@@ -18,6 +18,7 @@ package email
 
 import (
 	"bytes"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -27,9 +28,39 @@ import (
 	"github.com/MicroOps-cn/idas/api"
 )
 
+//go:embed template
+var templFs embed.FS
+
+var innerTmpl []Template
+
 type Template struct {
 	*OriginalTemplate
 	tmpl *template.Template
+}
+
+func init() {
+	innerTmpl = append(innerTmpl, Template{
+		OriginalTemplate: &OriginalTemplate{
+			Subject:      "Reset Password",
+			Topic:        "User:ResetPassword",
+			TemplateFile: "template/reset_password.html",
+		},
+		tmpl: template.Must(template.ParseFS(templFs, "template/reset_password.html")),
+	}, Template{
+		OriginalTemplate: &OriginalTemplate{
+			Subject:      "Activate Account",
+			Topic:        "User:ActivateAccount",
+			TemplateFile: "template/activate_account.html",
+		},
+		tmpl: template.Must(template.ParseFS(templFs, "template/activate_account.html")),
+	}, Template{
+		OriginalTemplate: &OriginalTemplate{
+			Subject:      "One-time Password",
+			Topic:        "User:SendLoginCaptcha",
+			TemplateFile: "template/send_login_code.html",
+		},
+		tmpl: template.Must(template.ParseFS(templFs, "template/send_login_code.html")),
+	})
 }
 
 var _ api.CustomType = &Template{}
@@ -46,10 +77,7 @@ func (t *Template) Unmarshal(data []byte) (err error) {
 		return err
 	}
 	t.tmpl, err = template.ParseFiles(t.TemplateFile)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (t Template) MarshalJSON() ([]byte, error) {
@@ -71,17 +99,17 @@ func (t *Template) UnmarshalJSON(data []byte) (err error) {
 }
 
 func (m *SmtpOptions) getTemplate(topic string, sets ...string) *Template {
-	if len(sets) == 0 {
-		sets = append(sets, "")
-	}
+	var tmpls []Template
+	tmpls = append(tmpls, m.Template...)
+	tmpls = append(tmpls, innerTmpl...)
 	for _, set := range sets {
-		for _, tmpl := range m.Template {
+		for _, tmpl := range tmpls {
 			if tmpl.Topic == topic && tmpl.Set == set {
 				return &tmpl
 			}
 		}
 	}
-	for _, tmpl := range m.Template {
+	for _, tmpl := range tmpls {
 		if tmpl.Topic == topic && (tmpl.Set == "" || tmpl.Set == "__default__") {
 			return &tmpl
 		}

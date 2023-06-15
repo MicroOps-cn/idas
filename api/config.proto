@@ -52,6 +52,7 @@ message GlobalOptions{
   string sub_title=11;
   string logo =12;
   string copyright =13;
+  string admin_email =14;
 }
 
 message security{

@@ -36,6 +36,10 @@ PROTOC_OPTS := $(PROTOC_OPTS) -I./api
 PROTOC_OPTS := $(PROTOC_OPTS) --gogo_out=plugins=grpc,module=${GOMODULENAME}:gogo_out
 PROTOC_OPTS := $(PROTOC_OPTS) --grpc-gateway_out=${GOGO_OPT}:gogo_out
 
+BASE_PATH = /idas
+
+IMAGE_SUFFIX :=
+
 # golangci-lint only supports linux, darwin and windows platforms on i386/amd64.
 # windows isn't included here because of the path separator being different.
 ifeq ($(GOHOSTOS),$(filter $(GOHOSTOS),linux darwin))
@@ -51,6 +55,24 @@ ifeq ($(GOHOSTOS),$(filter $(GOHOSTOS),linux darwin))
 endif
 
 pkgs          = ./...
+
+GitCommit   = $(shell git rev-parse --short HEAD)
+BuildDate   = $(shell date +%Y-%m-%dT%H:%M:%S%Z)
+GoVersion   = $(shell go version|awk '{print $$3}')
+Platform    = $(shell go version|awk '{print $$4}')
+Version     ?= $(shell cat version)
+LDFlags     := -w -s -X 'lampao/pkg/utils/version.GitCommit=$(GitCommit)'
+LDFlags     += -X 'lampao/pkg/utils/version.BuildDate=$(BuildDate)'
+LDFlags     += -X 'lampao/pkg/utils/version.GoVersion=$(GoVersion)'
+LDFlags     += -X 'lampao/pkg/utils/version.Platform=$(Platform)'
+LDFlags     += -X 'lampao/pkg/utils/version.Version=$(Version).$(GitCommit)'
+
+info:
+	@echo "Version: $(Version)"
+	@echo "Git commit: $(GitCommit)"
+	@echo "Build date: $(BuildDate)"
+	@echo "Platform: $(Platform)"
+	@echo "Go version: $(GoVersion)"
 
 .PHONY: all
 all: common-check_license protos common-lint test idas
@@ -99,7 +121,7 @@ common-check_license:
 
 .PHONY: idas
 idas:
-	CGO_ENABLED=0 go build -ldflags="-s -w" -o dist/idas ./cmd/idas
+	CGO_ENABLED=0 go build -ldflags="-s -w $(LDFlags)" -o dist/idas ./cmd/idas
 
 .PHONY: common-lint
 common-lint: $(GOLANGCI_LINT)
@@ -128,5 +150,23 @@ openapi:
 
 .PHONY: ui
 ui:
-	cd public && yarn install && yarn run build --basePath='/idas/admin/' --apiPath='/idas/'
+	rm -rf public/src/.umi-production/
+	cd public && yarn install && yarn run build --basePath='$(BASE_PATH)/admin/' --apiPath='$(BASE_PATH)/'
 	rm -rf pkg/transport/static && cp -r public/dist pkg/transport/static
+
+
+.PHONY: ui-vpn
+ui-vpn:
+	rm -rf public/src/.umi-production/
+	cd public && yarn install && yarn run build --basePath='/vpn/idas/admin/' --apiPath='/vpn/idas/'
+	rm -rf pkg/transport/static && cp -r public/dist pkg/transport/static
+
+.PHONY: idas-vpn
+idas-vpn:
+	CGO_ENABLED=0 go build -ldflags="-s -w $(LDFlags)" -o dist/idas-vpn ./cmd/idas
+
+.PHONY: docker-image
+docker-image:
+	cp dist/idas docker/
+	if [ ! -f docker/GeoLite2-City.mmdb ];then wget -O docker/GeoLite2-City.mmdb.gz -c "https://cdn.jsdelivr.net/npm/geolite2-city@1.0.0/GeoLite2-City.mmdb.gz";gunzip docker/GeoLite2-City.mmdb.gz; fi
+	cd docker && docker build -t wiseasy/idas:v$(Version).$(GitCommit)$(IMAGE_SUFFIX) .

@@ -36,7 +36,10 @@ func MakeGetGlobalConfigEndpoint(_ service.Service) endpoint.Endpoint {
 		}
 		oauth2 := globalConfig.Oauth2
 		if !globalConfig.DisableLoginForm {
-			resp.LoginType = append(resp.LoginType, &GlobalLoginType{Type: LoginType_normal}, &GlobalLoginType{Type: LoginType_email})
+			resp.LoginType = append(resp.LoginType, &GlobalLoginType{Type: LoginType_normal})
+			if !config.GetRuntimeConfig().GetSecurity().ForceEnableMfa {
+				resp.LoginType = append(resp.LoginType, &GlobalLoginType{Type: LoginType_email})
+			}
 		}
 		for _, options := range oauth2 {
 			resp.LoginType = append(resp.LoginType, &GlobalLoginType{

@@ -110,7 +110,7 @@ message CreateAppRequest {
   idas.service.models.AppMeta.GrantMode grant_mode = 7 [(gogoproto.jsontag) = "grantMode,omitempty"];
   repeated AppUser users = 8;
   repeated AppRoleInfo roles = 9;
-  string url = 12 [(gogoproto.jsontag) = "url", (gogoproto.moretags) = 'valid:"required"'];
+  string url = 12 [(gogoproto.jsontag) = "url"];
   AppProxyInfo proxy = 17;
   string display_name = 13 [(gogoproto.jsontag) = "displayName,omitempty", (gogoproto.moretags) = 'gorm:"type:varchar(128)"'];
 }
