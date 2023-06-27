@@ -143,6 +143,9 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					}
 				}
 				if err == nil && user != nil && len(user.Id) > 0 {
+					if err = s.VerifyUserStatus(ctx, user, false); err != nil {
+						return nil, err
+					}
 					if role, err := s.GetAppRoleByUserId(ctx, app.Id, user.Id); err != nil {
 						user.Role = ""
 					} else {

@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -134,6 +135,43 @@ func getMFAMethod(user *models.User) sets.Set[LoginType] {
 	return method
 }
 
+func NewJsonWebToken(_ context.Context, loginTime time.Time, tokenId string) (*time.Time, string, error) {
+	rtc := config.GetRuntimeConfig()
+	expiry := time.Now().UTC().Add(time.Hour * time.Duration(rtc.GetLoginSessionInactivityTime()))
+	maxExpire := loginTime.UTC().Add(time.Hour * time.Duration(rtc.GetLoginSessionMaxTime()))
+	if expiry.After(maxExpire) {
+		expiry = maxExpire
+	}
+
+	jwtSecret := config.Get().Global.GetJwtSecret()
+	signedString, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
+		Id:        tokenId,
+		ExpiresAt: expiry.Unix(),
+		IssuedAt:  time.Now().UTC().Unix(),
+		NotBefore: time.Now().UTC().Unix(),
+	}).SignedString([]byte(jwtSecret))
+	if err != nil {
+		return nil, "", err
+	}
+	return &expiry, signedString, nil
+}
+
+func writeLoginCookie(ctx context.Context, writer http.ResponseWriter, token string, expire time.Time, autoLogin bool) {
+	cookie := http.Cookie{Name: global.LoginSession, Value: token, Path: "/"}
+	if httpExternalURL, ok := ctx.Value(global.HTTPExternalURLKey).(string); ok && len(httpExternalURL) > 0 {
+		if extURL, err := url.Parse(httpExternalURL); err == nil {
+			cookie.Path = extURL.Path
+		}
+	}
+	autoLoginCookie := http.Cookie{Name: global.CookieAutoLogin, Value: strconv.FormatBool(autoLogin), Path: cookie.Path}
+	if autoLogin {
+		autoLoginCookie.Expires = expire
+		cookie.Expires = expire
+	}
+	http.SetCookie(writer, &cookie)
+	http.SetCookie(writer, &autoLoginCookie)
+}
+
 func MakeUserOAuthLoginEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		stdResp := request.(RestfulRequester).GetRestfulResponse()
@@ -209,6 +247,11 @@ func MakeUserOAuthLoginEndpoint(s service.Service) endpoint.Endpoint {
 						http.Redirect(stdResp.ResponseWriter, stdReq.Request, w.M(common.GetWebURL(ctx, common.WithSubPages("403"))), http.StatusFound)
 						return nil, nil
 					}
+					if err = s.VerifyUserStatus(ctx, userInfo, true); err != nil {
+						level.Warn(logs.GetContextLogger(ctx)).Log("msg", "Abnormal user status", "user", user.String(), "err", err)
+						http.Redirect(stdResp.ResponseWriter, stdReq.Request, w.M(common.GetWebURL(ctx, common.WithSubPages("403"))), http.StatusFound)
+						return nil, nil
+					}
 					app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithUsers(userInfo.Id), opts.WithAppName(config.Get().GetGlobal().GetAppName()))
 					if err != nil && !errors.IsNotFount(err) {
 						level.Error(logs.GetContextLogger(ctx)).Log("msg", "failed to get app info", "err", err)
@@ -233,44 +276,12 @@ func MakeUserOAuthLoginEndpoint(s service.Service) endpoint.Endpoint {
 						return "", err
 					}
 
-					jwtSecret := config.Get().Global.GetJwtSecret()
-					token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-						Id:        sess.Id,
-						ExpiresAt: sess.Expiry.Unix(),
-						IssuedAt:  time.Now().Unix(),
-						NotBefore: time.Now().Unix(),
-					}).SignedString([]byte(jwtSecret))
+					expire, token, err := NewJsonWebToken(ctx, time.Now().UTC(), sess.Id)
 					if err != nil {
 						return "", errors.NewServerError(500, err.Error())
 					}
+					writeLoginCookie(ctx, stdResp, token, *expire, oAuthOptions.AutoLogin)
 
-					cookie := http.Cookie{
-						Name:  global.LoginSession,
-						Value: token,
-						Path:  "/",
-					}
-					if httpExternalURL, ok := ctx.Value(global.HTTPExternalURLKey).(string); ok && len(httpExternalURL) > 0 {
-						if extURL, err := url.Parse(httpExternalURL); err == nil {
-							cookie.Path = extURL.Path
-						}
-					}
-
-					if oAuthOptions.AutoLogin {
-						cookie.Expires = sess.Expiry
-						http.SetCookie(stdResp, &http.Cookie{
-							Name:    global.CookieAutoLogin,
-							Value:   "true",
-							Path:    cookie.Path,
-							Expires: sess.Expiry,
-						})
-					} else {
-						http.SetCookie(stdResp, &http.Cookie{
-							Name:  global.CookieAutoLogin,
-							Value: "false",
-							Path:  cookie.Path,
-						})
-					}
-					http.SetCookie(stdResp, &cookie)
 					if oriRedirectURI := stdReq.QueryParameter("redirect_uri"); len(oriRedirectURI) > 0 {
 						http.Redirect(stdResp.ResponseWriter, stdReq.Request, oriRedirectURI, http.StatusFound)
 					} else {
@@ -472,7 +483,7 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 			resp.Error = errors.ParameterError("type")
 			return resp, nil
 		}
-		if err = s.VerifyUserStatus(ctx, user, false); err != nil {
+		if err = s.VerifyUserStatus(ctx, user, true); err != nil {
 			return nil, err
 		}
 		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithUsers(user.Id), opts.WithAppName(config.Get().GetGlobal().GetAppName()))
@@ -492,53 +503,18 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 		}
 		user.ExtendedData.LoginTime = time.Now().UTC()
 
-		if err = s.PatchUserExtData(ctx, user.Id, map[string]interface{}{"login_time": time.Now()}); err != nil {
-			return nil, errors.NewServerError(http.StatusInternalServerError, "failed to active user.")
-		}
 		stdResp := request.(RestfulRequester).GetRestfulResponse().ResponseWriter
 		sess, err := s.CreateToken(ctx, models.TokenTypeLoginSession, user)
 		if err != nil {
 			return "", err
 		}
 
-		jwtSecret := config.Get().Global.GetJwtSecret()
-		token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-			Id:        sess.Id,
-			ExpiresAt: sess.Expiry.Unix(),
-			IssuedAt:  time.Now().Unix(),
-			NotBefore: time.Now().Unix(),
-		}).SignedString([]byte(jwtSecret))
+		expire, token, err := NewJsonWebToken(ctx, time.Now().UTC(), sess.Id)
 		if err != nil {
 			return "", errors.NewServerError(500, err.Error())
 		}
 
-		cookie := http.Cookie{
-			Name:  global.LoginSession,
-			Value: token,
-			Path:  "/",
-		}
-		if httpExternalURL, ok := ctx.Value(global.HTTPExternalURLKey).(string); ok && len(httpExternalURL) > 0 {
-			if extURL, err := url.Parse(httpExternalURL); err == nil {
-				cookie.Path = extURL.Path
-			}
-		}
-
-		if req.AutoLogin {
-			cookie.Expires = sess.Expiry
-			http.SetCookie(stdResp, &http.Cookie{
-				Name:    global.CookieAutoLogin,
-				Value:   "true",
-				Path:    cookie.Path,
-				Expires: sess.Expiry,
-			})
-		} else {
-			http.SetCookie(stdResp, &http.Cookie{
-				Name:  global.CookieAutoLogin,
-				Value: "false",
-				Path:  cookie.Path,
-			})
-		}
-		http.SetCookie(stdResp, &cookie)
+		writeLoginCookie(ctx, stdResp, token, *expire, req.AutoLogin)
 
 		return &resp, nil
 	}
@@ -577,6 +553,15 @@ func MakeUserLogoutEndpoint(s service.Service) endpoint.Endpoint {
 				Path:    loginCookie.Path,
 				Expires: time.Now().UTC(),
 			})
+			autoLoginCookie, err := request.(RestfulRequester).GetRestfulRequest().Request.Cookie(global.CookieAutoLogin)
+			if len(autoLoginCookie.Value) != 0 {
+				http.SetCookie(respWriter, &http.Cookie{
+					Name:    global.CookieAutoLogin,
+					Value:   autoLoginCookie.Value,
+					Path:    loginCookie.Path,
+					Expires: time.Now().UTC(),
+				})
+			}
 			if loginCookie.Path != "/" {
 				http.SetCookie(respWriter, &http.Cookie{
 					Name:    global.LoginSession,
@@ -584,6 +569,14 @@ func MakeUserLogoutEndpoint(s service.Service) endpoint.Endpoint {
 					Path:    "/",
 					Expires: time.Now().UTC(),
 				})
+				if len(autoLoginCookie.Value) != 0 {
+					http.SetCookie(respWriter, &http.Cookie{
+						Name:    global.CookieAutoLogin,
+						Value:   autoLoginCookie.Value,
+						Path:    "/",
+						Expires: time.Now().UTC(),
+					})
+				}
 			}
 		} else {
 			resp.Error = errors.NewServerError(http.StatusUnauthorized, "Invalid identity information")
@@ -604,54 +597,8 @@ type GetSessionParams struct {
 	TokenType models.TokenType
 }
 
-func UpdateSessionExpires(ctx context.Context, s service.Service, id string, stdResp http.ResponseWriter, loginTime time.Time) {
-	expiry := models.TokenTypeLoginSession.GetExpiry()
-	maxExpire := loginTime.Add(time.Hour * time.Duration(config.GetRuntimeConfig().GetLoginSessionMaxTime()))
-	if expiry.After(maxExpire) {
-		expiry = maxExpire
-	}
-	if err := s.UpdateTokenExpires(ctx, id, expiry); err != nil {
-		logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))
-		level.Error(logger).Log("msg", "failed to update session expires")
-	} else {
-		jwtSecret := config.Get().Global.GetJwtSecret()
-		newToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-			Id:        id,
-			ExpiresAt: expiry.Unix(),
-			IssuedAt:  time.Now().Unix(),
-			NotBefore: time.Now().Unix(),
-		}).SignedString([]byte(jwtSecret))
-		if err != nil {
-			logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))
-			level.Error(logger).Log("msg", "failed to create jwt token.")
-		}
-
-		cookie := http.Cookie{
-			Name:  global.LoginSession,
-			Value: newToken,
-			Path:  "/",
-		}
-		if httpExternalURL, ok := ctx.Value(global.HTTPExternalURLKey).(string); ok && len(httpExternalURL) > 0 {
-			if extURL, err := url.Parse(httpExternalURL); err == nil {
-				cookie.Path = extURL.Path
-			}
-		}
-		cookie.Expires = expiry
-
-		http.SetCookie(stdResp, &http.Cookie{
-			Name:    global.CookieAutoLogin,
-			Value:   "true",
-			Path:    cookie.Path,
-			Expires: expiry,
-		})
-
-		http.SetCookie(stdResp, &cookie)
-	}
-}
-
 func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		stdReq := request.(RestfulRequester).GetRestfulRequest().Request
 		params := request.(Requester).GetRequestData().(*GetSessionParams)
 		var resp *models.User
 		if len(params.Token) > 0 {
@@ -678,17 +625,19 @@ func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 				}
 			}
 			if err == nil && params.TokenType == models.TokenTypeLoginSession {
-				if resp.ExtendedData == nil {
-					resp.ExtendedData = new(models.UserExt)
-				}
-				if !resp.ExtendedData.LoginTime.IsZero() && time.Since(resp.ExtendedData.LoginTime) > time.Hour {
-					maxTime := config.GetRuntimeConfig().GetLoginSessionMaxTime()
-					if time.Since(resp.ExtendedData.LoginTime) < (time.Hour * time.Duration(maxTime)) {
-						if autoLoginCookie, _ := stdReq.Cookie(global.CookieAutoLogin); autoLoginCookie != nil && autoLoginCookie.Value == "true" {
-							stdResp := request.(RestfulRequester).GetRestfulResponse().ResponseWriter
-							UpdateSessionExpires(ctx, s, claims.Id, stdResp, resp.ExtendedData.LoginTime)
-						}
+				if (time.Now().UTC().Unix()-claims.IssuedAt) > 3600 && !resp.ExtendedData.LoginTime.IsZero() {
+					stdResp := request.(RestfulRequester).GetRestfulResponse().ResponseWriter
+					stdReq := request.(RestfulRequester).GetRestfulRequest().Request
+					expiry, newToken, err := NewJsonWebToken(ctx, resp.ExtendedData.LoginTime, claims.Id)
+					if err != nil {
+						logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))
+						level.Error(logger).Log("msg", "failed to create jwt token.")
 					}
+					var autoLogin bool
+					if autoLoginCookie, _ := stdReq.Cookie(global.CookieAutoLogin); autoLoginCookie != nil && autoLoginCookie.Value == "true" {
+						autoLogin = true
+					}
+					writeLoginCookie(ctx, stdResp, newToken, *expiry, autoLogin)
 				}
 			}
 		} else {

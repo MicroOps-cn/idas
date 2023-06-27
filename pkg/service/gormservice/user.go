@@ -445,7 +445,7 @@ func (c *CommonService) GetUsersExtendedData(ctx context.Context, id []string) (
 func (c *CommonService) PatchUserExtData(ctx context.Context, id string, patch map[string]interface{}) error {
 	conn := c.Session(ctx)
 	ext := models.UserExt{UserId: id}
-	if created := c.Session(ctx).Where("user_id = ?", id).FirstOrCreate(&ext); created.Error != nil {
+	if created := c.Session(ctx).FirstOrCreate(&ext); created.Error != nil {
 		return created.Error
 	}
 	return conn.Model(&models.UserExt{}).Where("user_id = ?", id).Updates(patch).Error

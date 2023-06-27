@@ -234,6 +234,9 @@ func MakeResetUserPasswordEndpoint(s service.Service) endpoint.Endpoint {
 				if err != nil {
 					return nil, err
 				}
+				if err = s.VerifyUserStatus(ctx, user, true); err != nil {
+					return nil, err
+				}
 				if user == nil {
 					return nil, errors.NewServerError(http.StatusBadRequest, "Invalid old password")
 				}
@@ -242,6 +245,9 @@ func MakeResetUserPasswordEndpoint(s service.Service) endpoint.Endpoint {
 				}
 			} else if len(req.UserId) > 0 {
 				if user = s.VerifyPasswordById(ctx, req.UserId, string(*req.OldPassword), true); user != nil {
+					if resp.Error = s.VerifyUserStatus(ctx, user, true); resp.Error != nil {
+						return resp, err
+					}
 					resp.Error = s.ResetPassword(ctx, req.UserId, string(*req.NewPassword))
 				} else {
 					return nil, errors.UnauthorizedError()
@@ -512,7 +518,7 @@ func MakeSendActivationMailEndpoint(s service.Service) endpoint.Endpoint {
 		if !user.Status.IsAnyOne(models.UserMeta_user_inactive, models.UserMeta_password_expired) {
 			return nil, errors.NewServerError(http.StatusInternalServerError, "Unknown user's status")
 		}
-		if err = s.PatchUserExtData(ctx, req.UserId, map[string]interface{}{"activation_time": time.Now()}); err != nil {
+		if err = s.PatchUserExtData(ctx, req.UserId, map[string]interface{}{"activation_time": time.Now().UTC()}); err != nil {
 			return nil, errors.NewServerError(http.StatusInternalServerError, "failed to active user.")
 		}
 		token, err := s.CreateToken(ctx, models.TokenTypeActive, user)

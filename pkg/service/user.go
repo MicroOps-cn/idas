@@ -267,8 +267,6 @@ func (s Set) VerifyPasswordById(ctx context.Context, userId, password string, al
 	user = s.GetUserAndAppService().VerifyPasswordById(ctx, userId, password)
 	if user == nil {
 		return nil
-	} else if err = s.VerifyUserStatus(ctx, user, allowPasswordExpired); err != nil {
-		return nil
 	}
 	return user
 }
@@ -321,8 +319,6 @@ func (s Set) VerifyPassword(ctx context.Context, username string, password strin
 			}
 		}
 		return nil, errors.NewServerError(http.StatusOK, "Wrong user name or password. ", errors.CodeInvalidCredentials)
-	} else if err = s.VerifyUserStatus(ctx, user, allowPasswordExpired); err != nil {
-		return nil, err
 	}
 	return user, nil
 }
@@ -342,9 +338,11 @@ func (s Set) VerifyUserStatus(ctx context.Context, user *models.User, allowPassw
 	default:
 		return errors.NewServerError(http.StatusOK, "Unknown user status.", errors.CodeUserStatusUnknown)
 	}
-	user.ExtendedData, err = s.commonService.GetUserExtendedData(ctx, user.Id)
-	if err != nil {
-		return errors.WithServerError(http.StatusInternalServerError, err, "Failed to obtain user. ")
+	if user.ExtendedData == nil || len(user.ExtendedData.UserId) == 0 {
+		user.ExtendedData, err = s.commonService.GetUserExtendedData(ctx, user.Id)
+		if err != nil {
+			return errors.WithServerError(http.StatusInternalServerError, err, "Failed to obtain user. ")
+		}
 	}
 
 	if accountInactiveLock := time.Duration(config.GetRuntimeConfig().Security.AccountInactiveLock) * time.Hour * 24; accountInactiveLock > 0 {
@@ -394,7 +392,13 @@ func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, 
 			if config.Get().GetGlobal().DisableLoginForm {
 				return nil, errors.ParameterError("unsupported login type")
 			}
-			return s.VerifyPassword(ctx, key, secret, false)
+			user, err = s.VerifyPassword(ctx, key, secret, false)
+			if err != nil {
+				return nil, err
+			} else if err = s.VerifyUserStatus(ctx, user, false); err != nil {
+				return nil, err
+			}
+			return user, err
 		}
 	} else if failedSec > 0 && failedThreshold > 0 {
 		ts := nowTs - nowTs%failedSec
