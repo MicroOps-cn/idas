@@ -21,11 +21,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	stdlog "log"
 	"net"
 	"net/http"
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/log/flag"
@@ -33,21 +35,19 @@ import (
 	"github.com/go-kit/kit/metrics/prometheus"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/go-logr/stdr"
 	"github.com/gogo/protobuf/jsonpb"
-	"github.com/lightstep/lightstep-tracer-go"
 	"github.com/oklog/oklog/pkg/group"
-	stdopentracing "github.com/opentracing/opentracing-go"
-	zipkinot "github.com/openzipkin-contrib/zipkin-go-opentracing"
-	"github.com/openzipkin/zipkin-go"
-	zipkinhttp "github.com/openzipkin/zipkin-go/reporter/http"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"gopkg.in/yaml.v3"
-	"sourcegraph.com/sourcegraph/appdash"
-	appdashot "sourcegraph.com/sourcegraph/appdash/opentracing"
 
 	"github.com/MicroOps-cn/idas/config"
+	"github.com/MicroOps-cn/idas/pkg/client/tracing"
 	"github.com/MicroOps-cn/idas/pkg/endpoint"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
@@ -64,10 +64,6 @@ var (
 	webPrefix       string
 	httpAddr        string
 	proxyHTTPAddr   string
-	zipkinURL       string
-	zipkinBridge    bool
-	lightstepToken  string
-	appdashAddr     string
 	openapiPath     string
 	swaggerPath     string
 	radiusAddr      string
@@ -87,55 +83,25 @@ var rootCmd = &cobra.Command{
 			<-ch.Channel()
 			cancelFunc()
 		}()
+		ctx = context.WithValue(ctx, "command", cmd.Use)
 		return Run(ctx, logger, ch)
 	},
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	//	Run: func(cmd *cobra.Command, args []string) { },
 }
 
-func Run(ctx context.Context, logger kitlog.Logger, _ *signals.StopChan) (err error) {
-	var zipkinTracer *zipkin.Tracer
+func Run(ctx context.Context, logger kitlog.Logger, stopCh *signals.StopChan) (err error) {
+	var tracer *sdktrace.TracerProvider
 	{
-		if zipkinURL != "" {
-			var (
-				err         error
-				hostPort    = "localhost:80"
-				serviceName = "idas"
-				reporter    = zipkinhttp.NewReporter(zipkinURL)
-			)
-			defer reporter.Close()
-			zEP, _ := zipkin.NewEndpoint(serviceName, hostPort)
-			zipkinTracer, err = zipkin.NewTracer(reporter, zipkin.WithLocalEndpoint(zEP))
+		if traceOptions := config.Get().Trace; traceOptions != nil {
+			otel.SetLogger(stdr.New(stdlog.New(kitlog.NewStdlibAdapter(level.Info(logger)), "[restful]", stdlog.LstdFlags|stdlog.Lshortfile)))
+			tracer, err = tracing.NewTraceProvider(ctx, config.Get().Trace)
 			if err != nil {
-				logger.Log("err", err)
-				os.Exit(1)
+				return err
 			}
-			if !(zipkinBridge) {
-				logger.Log("tracer", "Zipkin", "type", "Native", "URL", zipkinURL)
+			otel.SetTracerProvider(tracer)
+			if http.DefaultClient.Transport == nil {
+				http.DefaultClient.Transport = otelhttp.NewTransport(http.DefaultTransport)
 			}
-		}
-	}
-
-	// Determine which OpenTracing tracer to use. We'll pass the tracer to all the
-	// components that use it, as a dependency.
-	var tracer stdopentracing.Tracer
-	{
-		if zipkinBridge && zipkinTracer != nil {
-			logger.Log("tracer", "Zipkin", "type", "OpenTracing", "URL", zipkinURL)
-			tracer = zipkinot.Wrap(zipkinTracer)
-			zipkinTracer = nil // do not instrument with both native tracer and opentracing bridge
-		} else if lightstepToken != "" {
-			logger.Log("tracer", "LightStep") // probably don't want to print out the token :)
-			tracer = lightstep.NewTracer(lightstep.Options{
-				AccessToken: lightstepToken,
-			})
-			defer lightstep.Flush(ctx, tracer)
-		} else if appdashAddr != "" {
-			logger.Log("tracer", "Appdash", "addr", appdashAddr)
-			tracer = appdashot.NewTracer(appdash.NewRemoteCollector(appdashAddr))
-		} else {
-			tracer = stdopentracing.GlobalTracer() // no-op
+			tracing.SetTraceOptions(config.Get().Trace)
 		}
 	}
 
@@ -161,9 +127,9 @@ func Run(ctx context.Context, logger kitlog.Logger, _ *signals.StopChan) (err er
 	level.Info(logger).Log("msg", "Start service", "externalUrl", httpExternalURL, "webPrefix", webPrefix, "loginUrl", httpLoginURL)
 	var (
 		svc          = service.New(ctx)
-		endpoints    = endpoint.New(ctx, svc, duration, tracer, zipkinTracer)
-		httpHandler  = transport.NewHTTPHandler(ctx, logger, endpoints, tracer, zipkinTracer, openapiPath)
-		proxyHandler = transport.NewProxyHandler(ctx, logger, endpoints, tracer, zipkinTracer)
+		endpoints    = endpoint.New(ctx, svc, duration)
+		httpHandler  = transport.NewHTTPHandler(ctx, logger, endpoints, openapiPath)
+		proxyHandler = transport.NewProxyHandler(ctx, logger, endpoints)
 		httpServer   = http.NewServeMux()
 	)
 	if err = svc.LoadSystemConfig(ctx); err != nil {
@@ -197,6 +163,7 @@ func Run(ctx context.Context, logger kitlog.Logger, _ *signals.StopChan) (err er
 			return http.Serve(debugListener, http.DefaultServeMux)
 		}, func(error) {
 			debugListener.Close()
+			level.Debug(logger).Log("msg", "Listen closed", "transport", "debug/HTTP", "addr", debugAddr)
 		})
 	}
 	{
@@ -215,6 +182,7 @@ func Run(ctx context.Context, logger kitlog.Logger, _ *signals.StopChan) (err er
 			return serv.Serve(httpListener)
 		}, func(error) {
 			httpListener.Close()
+			level.Debug(logger).Log("msg", "Listen closed", "transport", "HTTP", "addr", httpAddr)
 		})
 	}
 	{
@@ -232,6 +200,7 @@ func Run(ctx context.Context, logger kitlog.Logger, _ *signals.StopChan) (err er
 			return serv.Serve(proxyHTTPListener)
 		}, func(error) {
 			proxyHTTPListener.Close()
+			level.Debug(logger).Log("msg", "Listen closed", "transport", "Proxy/HTTP", "addr", proxyHTTPAddr)
 		})
 	}
 	{
@@ -243,9 +212,32 @@ func Run(ctx context.Context, logger kitlog.Logger, _ *signals.StopChan) (err er
 				return radiusService.ListenAndServe()
 			}, func(error) {
 				_ = radiusService.Shutdown(ctx)
+				level.Debug(logger).Log("msg", "Listen closed", "transport", "Radius", "addr", radiusService.Addr)
 			})
 		}
 	}
+	{
+		stopCh.Add(1)
+		g.Add(func() error {
+			stopCh.WaitRequest()
+			return nil
+		}, func(error) {
+			if tracer != nil {
+				timeoutCtx, closeCh := context.WithTimeout(context.Background(), time.Second*3)
+				defer closeCh()
+				if err = tracer.ForceFlush(timeoutCtx); err != nil {
+					level.Debug(logger).Log("msg", "failed to force flush trace", "err", err)
+					return
+				}
+				if err = tracer.Shutdown(timeoutCtx); err != nil {
+					level.Debug(logger).Log("msg", "failed to force close trace", "err", err)
+					return
+				}
+				stopCh.Done()
+			}
+		})
+	}
+
 	return g.Run()
 }
 
@@ -278,10 +270,6 @@ func init() {
 	rootCmd.Flags().StringVar(&swaggerPath, "http.swagger-path", "/apidocs/", "path of swagger ui. If the value is empty, the swagger UI is disabled.")
 	rootCmd.Flags().Var(&httpExternalURL, "http.external-url", "The URL under which IDAS is externally reachable (for example, if IDAS is served via a reverse proxy). Used for generating relative and absolute links back to IDAS itself. If the URL has a path portion, it will be used to prefix all HTTP endpoints served by IDAS. If omitted, relevant URL components will be derived automatically.")
 	rootCmd.Flags().StringVar(&webPrefix, "http.web-prefix", "/admin/", "The path prefix of the static page. The default is the path of http.external-url.")
-	rootCmd.Flags().StringVar(&zipkinURL, "zipkin.url", "", "Enable Zipkin tracing via HTTP reporter URL e.g. http://localhost:9411/api/v2/spans")
-	rootCmd.Flags().BoolVar(&zipkinBridge, "zipkin.ot-bridge", false, "Use Zipkin OpenTracing bridge instead of native implementation")
-	rootCmd.Flags().StringVar(&lightstepToken, "lightstep.token", "", "Enable LightStep tracing via a LightStep access token")
-	rootCmd.Flags().StringVar(&appdashAddr, "appdash.addr", "", "Enable Appdash tracing via an Appdash server host:port")
 	rootCmd.Flags().StringVar(&swaggerFilePath, "swagger.file-path", "", "path of swagger ui local file. If the value is empty, the swagger UI is disabled.")
 }
 

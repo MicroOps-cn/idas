@@ -30,6 +30,7 @@ import (
 	w "github.com/MicroOps-cn/fuck/wrapper"
 	log2 "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 var DefaultProxyClient = NewProxyClient()
@@ -42,7 +43,8 @@ func NewProxyClient() *http.Client {
 		},
 		Transport: &dynamicServerHostTransport{
 			mux: &mux,
-			tr: &http.Transport{
+			tr: otelhttp.NewTransport(&http.Transport{
+				Proxy: http.ProxyFromEnvironment,
 				DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 					isInsecureSkipVerify, _ := ctx.Value(optionInsecureSkipVerify{}).(bool)
 					transparentServerName, _ := ctx.Value(optionTransparentServerName{}).(string)
@@ -57,13 +59,18 @@ func NewProxyClient() *http.Client {
 					}
 					return conn, conn.HandshakeContext(ctx)
 				},
-			},
+				ForceAttemptHTTP2:     true,
+				MaxIdleConns:          100,
+				IdleConnTimeout:       90 * time.Second,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+			}),
 		},
 	}
 }
 
 type dynamicServerHostTransport struct {
-	tr  *http.Transport
+	tr  http.RoundTripper
 	mux *sync.Mutex
 }
 

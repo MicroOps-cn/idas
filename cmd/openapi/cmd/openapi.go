@@ -49,7 +49,7 @@ var rootCmd = &cobra.Command{
 		}()
 		ctx = context.WithValue(ctx, global.HTTPWebPrefixKey, "/")
 
-		handler := transport.NewHTTPHandler(ctx, logger, endpoint.Set{}, nil, nil, "/apidocs.json")
+		handler := transport.NewHTTPHandler(ctx, logger, endpoint.Set{}, "/apidocs.json")
 
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest("GET", "/apidocs.json", nil)

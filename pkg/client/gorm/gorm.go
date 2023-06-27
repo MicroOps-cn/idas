@@ -19,11 +19,15 @@ package gorm
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log/level"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"gorm.io/gorm"
+
+	"github.com/MicroOps-cn/idas/pkg/client/tracing"
 )
 
 type Database struct {
@@ -31,13 +35,72 @@ type Database struct {
 }
 
 type Client struct {
+	name          string
 	database      *Database
 	slowThreshold time.Duration
+	tracer        *sdktrace.TracerProvider
+	tracerInitial sync.Once
 }
 
+type Handler func(*gorm.DB)
+
+type Interceptor func(name string, next Handler) Handler
+
+type Processor interface {
+	Get(name string) func(*gorm.DB)
+	Replace(name string, handler func(*gorm.DB)) error
+}
+
+//
+//func TracingInterceptor(provider *sdktrace.TracerProvider) func(name string, next Handler) Handler {
+//	return func(name string, next Handler) Handler {
+//		return func(db *gorm.DB) {
+//			ctx, span := provider.Tracer("gorm").Start(db.Statement.Context, "ExecuteSQL:"+name)
+//			defer span.End()
+//			db.Statement.Context = ctx
+//			next(db)
+//		}
+//	}
+//}
+//
+//func RegisterInterceptor(db *gorm.DB, interceptors ...Interceptor) *gorm.DB {
+//	var processors = []struct {
+//		Name      string
+//		Processor Processor
+//	}{
+//		{"gorm:create", db.Callback().Create()},
+//		{"gorm:query", db.Callback().Query()},
+//		{"gorm:delete", db.Callback().Delete()},
+//		{"gorm:update", db.Callback().Update()},
+//		{"gorm:row", db.Callback().Row()},
+//		{"gorm:raw", db.Callback().Raw()},
+//	}
+//
+//	for _, interceptor := range interceptors {
+//		for _, processor := range processors {
+//			handler := processor.Processor.Get(processor.Name)
+//			handler = interceptor(processor.Name, handler)
+//			processor.Processor.Replace(processor.Name, handler)
+//		}
+//	}
+//	return db
+//}
+
 func (c *Client) Session(ctx context.Context) *Database {
+	if tracing.DefaultOptions != nil {
+		c.tracerInitial.Do(func() {
+			var err error
+			o := *tracing.DefaultOptions
+			o.ServiceName = c.name
+
+			if c.tracer, err = tracing.NewTraceProvider(context.Background(), &o); err != nil {
+				level.Error(logs.GetContextLogger(ctx)).Log("msg", "failed to initial db tracer", "err", err)
+				return
+			}
+		})
+	}
 	logger := logs.GetContextLogger(ctx)
-	session := &gorm.Session{Logger: NewLogAdapter(logger, c.slowThreshold)}
+	session := &gorm.Session{Logger: NewLogAdapter(logger, c.slowThreshold, c.tracer)}
 	if conn := ctx.Value(gormConn{}); conn != nil {
 		switch db := conn.(type) {
 		case *Database:

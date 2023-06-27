@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 
 	"github.com/MicroOps-cn/fuck/log"
 	gosqlite "github.com/glebarez/go-sqlite"
@@ -30,6 +31,7 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/types"
+	"go.opentelemetry.io/otel"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
@@ -59,6 +61,7 @@ func NewSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *Client, 
 			return nil, err
 		}
 	}
+	clt.name = fmt.Sprintf("[SQLite]%s", filepath.Base(options.Path))
 
 	level.Debug(logger).Log("msg", "connect to sqlite", "dsn", options.Path)
 	db, err := gorm.Open(sqlite.Open(options.Path), &gorm.Config{
@@ -66,13 +69,12 @@ func NewSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *Client, 
 			TablePrefix:   "t_",
 			SingularTable: true,
 		},
-		Logger: NewLogAdapter(logger, clt.slowThreshold),
+		Logger: NewLogAdapter(logger, clt.slowThreshold, nil),
 	})
 	if err != nil {
 		level.Error(logger).Log("msg", fmt.Sprintf("failed to connect to SQLite database: %s", options.Path), "err", err)
 		return nil, errors.WithServerError(http.StatusInternalServerError, err, fmt.Sprintf("failed to connect to SQLite database: %s", options.Path))
 	}
-
 	stopCh := signals.SetupSignalHandler(logger)
 	stopCh.Add(1)
 	go func() {
@@ -86,7 +88,7 @@ func NewSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *Client, 
 		level.Debug(logger).Log("msg", "Sqlite connect closed")
 		stopCh.Done()
 	}()
-
+	fmt.Println(otel.GetTracerProvider())
 	clt.database = &Database{DB: db}
 	return clt, nil
 }

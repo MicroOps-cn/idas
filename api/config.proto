@@ -48,11 +48,11 @@ message GlobalOptions{
   string app_name = 7;
   repeated idas.client.oauth2.Options oauth2 = 8;
   bool disable_login_form = 9;
-  string title =10;
-  string sub_title=11;
-  string logo =12;
-  string copyright =13;
-  string admin_email =14;
+  string title = 10;
+  string sub_title = 11;
+  string logo = 12;
+  string copyright = 13;
+  string admin_email = 14;
 }
 
 message security{
@@ -64,6 +64,7 @@ message Config {
   GlobalOptions global = 2;
   idas.client.email.SmtpOptions smtp = 3[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/client/email.SmtpOptions"];
   security security = 4;
+  string trace = 5[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/client/tracing.TraceOptions"];
 }
 
 // @sync-to-public:public/src/services/idas/enums.ts:PasswordComplexity

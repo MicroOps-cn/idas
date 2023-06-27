@@ -53,7 +53,7 @@ func openMysqlConn(ctx context.Context, slowThreshold time.Duration, options *My
 				TablePrefix:   options.TablePrefix,
 				SingularTable: true,
 			},
-			Logger: NewLogAdapter(logger, slowThreshold),
+			Logger: NewLogAdapter(logger, slowThreshold, nil),
 		},
 	)
 
@@ -92,6 +92,7 @@ func NewMySQLClient(ctx context.Context, options MySQLOptions) (clt *Client, err
 			return nil, err
 		}
 	}
+	clt.name = fmt.Sprintf("[MySQL]%s", options.Schema)
 	level.Debug(logger).Log("msg", "connect to mysql server",
 		"host", options.Host, "username", options.Username,
 		"schema", options.Schema,
@@ -135,7 +136,7 @@ func NewMySQLClient(ctx context.Context, options MySQLOptions) (clt *Client, err
 		"charset", options.Charset,
 		"collation", options.Collation)
 	clt.database = &Database{
-		db,
+		DB: db,
 	}
 	return clt, nil
 }

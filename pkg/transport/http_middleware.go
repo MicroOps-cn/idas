@@ -36,9 +36,14 @@ import (
 	http2 "github.com/MicroOps-cn/fuck/http"
 	"github.com/MicroOps-cn/fuck/log"
 	w "github.com/MicroOps-cn/fuck/wrapper"
+	"github.com/MicroOps-cn/idas/config"
 	"github.com/emicklei/go-restful/v3"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	uuid "github.com/satori/go.uuid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/MicroOps-cn/idas/pkg/endpoint"
 	"github.com/MicroOps-cn/idas/pkg/errors"
@@ -401,24 +406,25 @@ func HTTPContextFilter(pctx context.Context) restful.FilterFunction {
 
 func HTTPLoggingFilter(pctx context.Context) func(req *restful.Request, resp *restful.Response, filterChan *restful.FilterChain) {
 	return func(req *restful.Request, resp *restful.Response, filterChan *restful.FilterChain) {
+		var logger kitlog.Logger
 		ctx := req.Request.Context()
 		if ctx == nil {
 			ctx = pctx
 		}
 		hasSensitiveData, _ := ctx.Value(global.MetaSensitiveData).(bool)
-		traceId := req.HeaderParameter("TraceId")
-		if len(traceId) > 36 || len(traceId) <= 0 {
-			if traceId = req.HeaderParameter("X-Request-Id"); len(traceId) > 36 || len(traceId) <= 0 {
-				traceId = log.NewTraceId()
-			}
-		}
-		var logger kitlog.Logger
-		ctx, logger = log.NewContextLogger(ctx, log.WithTraceId(traceId))
-		req.Request = req.Request.WithContext(ctx)
 		start := time.Now()
-
+		spanName := req.Request.RequestURI
+		var spanOptions []trace.SpanStartOption
+		if req.SelectedRoute() != nil {
+			spanName = req.SelectedRoute().Operation()
+		}
+		ctx, span := otel.GetTracerProvider().Tracer(config.Get().GetAppName()).Start(ctx, spanName, spanOptions...)
+		ctx, _ = log.NewContextLogger(ctx, log.WithTraceId(uuid.UUID(span.SpanContext().TraceID()).String()))
+		req.Request = req.Request.WithContext(ctx)
+		logger = log.GetContextLogger(ctx)
 		defer func() {
 			if r := recover(); r != nil {
+				span.SetStatus(codes.Error, fmt.Sprintf("%+v", r))
 				errorEncoder(ctx, errors.NewServerError(http.StatusInternalServerError, "Server exception"), resp)
 				buf := bytes.NewBufferString(fmt.Sprintf("recover from panic situation: - %v\n", r))
 				for i := 2; ; i++ {
@@ -439,6 +445,7 @@ func HTTPLoggingFilter(pctx context.Context) func(req *restful.Request, resp *re
 				logs.WrapKeyName("contentLength"), resp.ContentLength(),
 			)
 			level.Info(logger).Log(logs.WrapKeyName("totalTime"), fmt.Sprintf("%dms", time.Since(start).Milliseconds()))
+			span.End()
 		}()
 		var reqBody fmt.Stringer
 		if !hasSensitiveData {

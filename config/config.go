@@ -243,6 +243,15 @@ func (x *Config) GetWorkspace() afero.Fs {
 	return nil
 }
 
+func (x *Config) GetAppName() string {
+	if x.Global != nil {
+		if len(x.Global.AppName) != 0 {
+			return x.Global.AppName
+		}
+	}
+	return "idas"
+}
+
 func (x *Config) GetOAuthOptions(id string) *oauth2.Options {
 	for _, option := range x.GetGlobal().GetOauth2() {
 		if option.Id == id {

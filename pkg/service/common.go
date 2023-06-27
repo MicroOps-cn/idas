@@ -168,7 +168,7 @@ func (s Set) DownloadFile(ctx context.Context, id string) (f io.ReadCloser, mimi
 	}
 	if f, err = d.Open(filePath); err != nil {
 		level.Error(logger).Log("err", err, "msg", "failed to open file", "filePath", filePath)
-		return nil, "", "", errors.InternalServerError()
+		return nil, "", "", errors.NotFoundError()
 	}
 	return f, mimiType, fileName, nil
 }

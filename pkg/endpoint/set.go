@@ -26,10 +26,6 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/ratelimit"
-	"github.com/go-kit/kit/tracing/opentracing"
-	"github.com/go-kit/kit/tracing/zipkin"
-	stdopentracing "github.com/opentracing/opentracing-go"
-	stdzipkin "github.com/openzipkin/zipkin-go"
 	"github.com/sony/gobreaker"
 	"golang.org/x/time/rate"
 
@@ -206,7 +202,7 @@ func GetPermissionsDefine(typeOf reflect.Type) models.Permissions {
 
 // New returns a Set that wraps the provided server, and wires in all of the
 // expected endpoint middlewares via the various parameters.
-func New(_ context.Context, svc service.Service, duration metrics.Histogram, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer) Set {
+func New(_ context.Context, svc service.Service, duration metrics.Histogram) Set {
 	ps := Set{}.GetPermissionsDefine()
 	eps := sets.New[string]()
 	injectEndpoint := func(name string, ep endpoint.Endpoint) endpoint.Endpoint {
@@ -222,15 +218,9 @@ func New(_ context.Context, svc service.Service, duration metrics.Histogram, otT
 		eps.Insert(name)
 		ep = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Limit(1), 100))(ep)
 		ep = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(ep)
-		if otTracer != nil {
-			ep = opentracing.TraceServer(otTracer, name)(ep)
-		}
-		if zipkinTracer != nil {
-			ep = zipkin.TraceEndpoint(zipkinTracer, name)(ep)
-		}
 		ep = LoggingMiddleware(svc, name, ps)(ep)
 		if duration != nil {
-			ep = InstrumentingMiddleware(duration.With("method", "Concat"))(ep)
+			ep = InstrumentingMiddleware(duration, name)(ep)
 		}
 		if psd[0].EnableAuth {
 			ep = AuthorizationMiddleware(svc, name)(ep)

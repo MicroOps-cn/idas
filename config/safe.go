@@ -102,6 +102,7 @@ func (sc *safeConfig) SetConfig(conf *Config) {
 	sc.Lock()
 	defer sc.Unlock()
 	sc.C = conf
+	os.Setenv("APP_NAME", conf.GetAppName())
 }
 
 func (sc *safeConfig) GetConfig() *Config {

@@ -42,8 +42,6 @@ import (
 	restfulspec "github.com/emicklei/go-restful-openapi/v2"
 	"github.com/emicklei/go-restful/v3"
 	kitendpoint "github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/kit/tracing/opentracing"
-	"github.com/go-kit/kit/tracing/zipkin"
 	"github.com/go-kit/kit/transport"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/go-kit/log"
@@ -51,8 +49,6 @@ import (
 	"github.com/go-openapi/spec"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
-	stdopentracing "github.com/opentracing/opentracing-go"
-	stdzipkin "github.com/openzipkin/zipkin-go"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/MicroOps-cn/idas/config"
@@ -71,26 +67,13 @@ var staticFs embed.FS
 // NewHTTPHandler returns an HTTP handler that makes a set of endpoints
 // available on predefined paths.
 
-func NewHTTPHandler(ctx context.Context, logger log.Logger, endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer, openapiPath string) http.Handler {
+func NewHTTPHandler(ctx context.Context, logger log.Logger, endpoints endpoint.Set, openapiPath string) http.Handler {
 	options := []httptransport.ServerOption{
 		httptransport.ServerErrorEncoder(errorEncoder),
 	}
-
-	if zipkinTracer != nil {
-		// Zipkin HTTP Server Trace can either be instantiated per endpoint with a
-		// provided operation name or a global tracing service can be instantiated
-		// without an operation name and fed to each Go kit endpoint as ServerOption.
-		// In the latter case, the operation name will be the endpoint's http method.
-		// We demonstrate a global tracing service here.
-		options = append(options, zipkin.HTTPServerTrace(zipkinTracer))
-	}
-
 	m := restful.NewContainer()
 	m.Filter(HTTPContextFilter(ctx))
 	m.Filter(HTTPLoggingFilter(ctx))
-	if otTracer != nil {
-		options = append(options, httptransport.ServerBefore(opentracing.HTTPToContext(otTracer, "Concat", logger)))
-	}
 	restful.TraceLogger(stdlog.New(log.NewStdlibAdapter(level.Info(logger)), "[restful]", stdlog.LstdFlags|stdlog.Lshortfile))
 	var specTags []spec.Tag
 	for _, serviceGenerator := range apiServiceSet {
@@ -546,7 +529,7 @@ loopObjFields:
 	return params
 }
 
-func NewProxyHandler(c context.Context, logger log.Logger, endpoints endpoint.Set, otTracer stdopentracing.Tracer, zipkinTracer *stdzipkin.Tracer) http.Handler {
+func NewProxyHandler(c context.Context, logger log.Logger, endpoints endpoint.Set) http.Handler {
 	m := restful.NewContainer()
 	m.Filter(HTTPLoggingFilter(c))
 	m.Filter(HTTPProxyAuthenticationFilter(c, endpoints))
@@ -554,15 +537,7 @@ func NewProxyHandler(c context.Context, logger log.Logger, endpoints endpoint.Se
 		httptransport.ServerErrorEncoder(errorEncoder),
 		httptransport.ServerErrorHandler(transport.NewLogErrorHandler(logs.WithCaller(9)(logger))),
 	}
-	if zipkinTracer != nil {
-		// Zipkin HTTP Server Trace can either be instantiated per endpoint with a
-		// provided operation name or a global tracing service can be instantiated
-		// without an operation name and fed to each Go kit endpoint as ServerOption.
-		// In the latter case, the operation name will be the endpoint's http method.
-		// We demonstrate a global tracing service here.
-		options = append(options, zipkin.HTTPServerTrace(zipkinTracer))
-	}
-	options = append(options, httptransport.ServerBefore(opentracing.HTTPToContext(otTracer, "Concat", logger)))
+
 	m.HandleWithFilter("/", httptransport.NewServer(
 		endpoints.ProxyRequest,
 		func(_ context.Context, request *http.Request) (interface{}, error) {

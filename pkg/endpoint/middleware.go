@@ -29,6 +29,8 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/log/level"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 
 	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/errors"
@@ -41,9 +43,17 @@ import (
 // the duration of each invocation to the passed histogram. The middleware adds
 // a single field: "success", which is "true" if no error is returned, and
 // "false" otherwise.
-func InstrumentingMiddleware(duration metrics.Histogram) endpoint.Middleware {
+func InstrumentingMiddleware(duration metrics.Histogram, name string) endpoint.Middleware {
+	duration = duration.With("method", name)
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+			ctx, span := otel.GetTracerProvider().Tracer(config.Get().GetAppName()).Start(ctx, name)
+			defer func() {
+				if err != nil {
+					span.SetStatus(codes.Error, fmt.Sprintf("%+v", err))
+				}
+				span.End()
+			}()
 			defer func(begin time.Time) {
 				duration.With("success", fmt.Sprint(err == nil)).Observe(time.Since(begin).Seconds())
 			}(time.Now())
