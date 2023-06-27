@@ -150,7 +150,7 @@ func (s SessionService) CreateToken(ctx context.Context, token *models.Token) er
 		token.Id = g.NewId(token.RelationId)
 	}
 	if token.CreateTime.IsZero() {
-		token.CreateTime = time.Now()
+		token.CreateTime = time.Now().UTC()
 	}
 	tk := NewToken(token)
 	// 创建Token

@@ -158,8 +158,8 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					resp.AccessToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
 						Id:        at.Id,
 						ExpiresAt: at.Expiry.Unix(),
-						IssuedAt:  time.Now().Unix(),
-						NotBefore: time.Now().Unix(),
+						IssuedAt:  time.Now().UTC().Unix(),
+						NotBefore: time.Now().UTC().Unix(),
 						Subject:   user.Username,
 					}).SignedString([]byte(jwtSecret))
 					if err != nil {
@@ -174,8 +174,8 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 						resp.RefreshToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
 							Id:        rt.Id,
 							ExpiresAt: rt.Expiry.Unix(),
-							IssuedAt:  time.Now().Unix(),
-							NotBefore: time.Now().Unix(),
+							IssuedAt:  time.Now().UTC().Unix(),
+							NotBefore: time.Now().UTC().Unix(),
 						}).SignedString([]byte(jwtSecret))
 						if err != nil {
 							return "", errors.NewServerError(500, err.Error())
@@ -187,10 +187,10 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 							StandardClaims: jwt.StandardClaims{
 								Id:        uuid.NewV4().String(),
 								Audience:  app.Name,
-								ExpiresAt: time.Now().Add(time.Minute * 10).Unix(),
+								ExpiresAt: time.Now().UTC().Add(time.Minute * 10).Unix(),
 								Issuer:    config.Get().GetGlobal().GetAppName(),
-								IssuedAt:  time.Now().Unix(),
-								NotBefore: time.Now().Unix(),
+								IssuedAt:  time.Now().UTC().Unix(),
+								NotBefore: time.Now().UTC().Unix(),
 								Subject:   user.Username,
 							},
 							Username: user.Username,

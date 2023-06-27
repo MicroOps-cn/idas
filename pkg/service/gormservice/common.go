@@ -136,7 +136,7 @@ func (c CommonService) GetUserKeys(ctx context.Context, userId string, current, 
 }
 
 func (c CommonService) DeleteUserKeys(ctx context.Context, userId string, id []string) (affected int64, err error) {
-	deleted := c.Session(ctx).Model(&models.UserKey{}).Where("id in ? and user_id = ?", id, userId).Update("delete_time", time.Now())
+	deleted := c.Session(ctx).Model(&models.UserKey{}).Where("id in ? and user_id = ?", id, userId).Update("delete_time", time.Now().UTC())
 	if err = deleted.Error; err != nil {
 		return deleted.RowsAffected, err
 	}
@@ -416,7 +416,7 @@ func (c CommonService) CreateAppKey(ctx context.Context, appId, name string) (*m
 }
 
 func (c CommonService) DeleteAppKeys(ctx context.Context, appId string, id []string) (affected int64, err error) {
-	deleted := c.Session(ctx).Model(&models.AppKey{}).Where("id in ? and app_id = ?", id, appId).Update("delete_time", time.Now())
+	deleted := c.Session(ctx).Model(&models.AppKey{}).Where("id in ? and app_id = ?", id, appId).Update("delete_time", time.Now().UTC())
 	if err = deleted.Error; err != nil {
 		return deleted.RowsAffected, err
 	}

@@ -258,7 +258,7 @@ func (s UserAndAppService) PatchUsers(ctx context.Context, patch []map[string]in
 //	@return count	int64
 //	@return err		error
 func (s UserAndAppService) DeleteUsers(ctx context.Context, id []string) (int64, error) {
-	deleted := s.Session(ctx).Model(&models.User{}).Where("id in ?", id).Update("delete_time", time.Now())
+	deleted := s.Session(ctx).Model(&models.User{}).Where("id in ?", id).Update("delete_time", time.Now().UTC())
 	if err := deleted.Error; err != nil {
 		return deleted.RowsAffected, err
 	}

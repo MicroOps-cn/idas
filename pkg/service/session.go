@@ -77,7 +77,7 @@ func (s Set) GetSessionByToken(ctx context.Context, id string, tokenType models.
 	}
 
 	if time.Since(token.LastSeen) > time.Minute {
-		token.LastSeen = time.Now()
+		token.LastSeen = time.Now().UTC()
 		if err = s.sessionService.UpdateToken(ctx, token); err != nil {
 			level.Warn(logger).Log("msg", "failed to update token last seen.", "err", err)
 		}

@@ -52,10 +52,10 @@ loop:
 	for {
 		logger := logs.NewTraceLogger()
 		conn := s.Session(ctx)
-		if err := conn.Where("expiry < ?", time.Now()).Delete(&models.Token{}).Error; err != nil {
+		if err := conn.Where("expiry < ?", time.Now().UTC()).Delete(&models.Token{}).Error; err != nil {
 			level.Error(logger).Log("msg", "Failed to delete expired token.", "err", err)
 		}
-		if err := conn.Where("expire_time < ?", time.Now()).Delete(&models.Counter{}).Error; err != nil {
+		if err := conn.Where("expire_time < ?", time.Now().UTC()).Delete(&models.Counter{}).Error; err != nil {
 			level.Error(logger).Log("msg", "Failed to delete expired counter.", "err", err)
 		}
 		select {

@@ -124,7 +124,7 @@ func MakePatchPagesEndpoint(svc service.Service) endpoint.Endpoint {
 				pagePatch["is_disable"] = pageRequest.IsDisable
 			}
 			if pageRequest.IsDelete != nil {
-				pagePatch["delete_time"] = time.Now()
+				pagePatch["delete_time"] = time.Now().UTC()
 			}
 			pages = append(pages, pagePatch)
 		}

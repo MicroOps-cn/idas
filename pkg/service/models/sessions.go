@@ -92,7 +92,7 @@ func (s *Token) GetRelationId() string {
 }
 
 func NewToken(tokenType TokenType, data interface{}) (*Token, error) {
-	token := &Token{Id: g.NewId(string(tokenType)), CreateTime: time.Now(), Type: tokenType, LastSeen: time.Now(), Expiry: tokenType.GetExpiry()}
+	token := &Token{Id: g.NewId(string(tokenType)), CreateTime: time.Now().UTC(), Type: tokenType, LastSeen: time.Now().UTC(), Expiry: tokenType.GetExpiry()}
 	rawData, err := json.Marshal(data)
 	if err != nil {
 		return nil, err

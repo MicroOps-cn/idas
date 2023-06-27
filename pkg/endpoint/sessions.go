@@ -490,7 +490,7 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 		if user.ExtendedData == nil {
 			user.ExtendedData = &models.UserExt{}
 		}
-		user.ExtendedData.LoginTime = time.Now()
+		user.ExtendedData.LoginTime = time.Now().UTC()
 
 		if err = s.PatchUserExtData(ctx, user.Id, map[string]interface{}{"login_time": time.Now()}); err != nil {
 			return nil, errors.NewServerError(http.StatusInternalServerError, "failed to active user.")
@@ -575,14 +575,14 @@ func MakeUserLogoutEndpoint(s service.Service) endpoint.Endpoint {
 				Name:    global.LoginSession,
 				Value:   loginCookie.Value,
 				Path:    loginCookie.Path,
-				Expires: time.Now(),
+				Expires: time.Now().UTC(),
 			})
 			if loginCookie.Path != "/" {
 				http.SetCookie(respWriter, &http.Cookie{
 					Name:    global.LoginSession,
 					Value:   loginCookie.Value,
 					Path:    "/",
-					Expires: time.Now(),
+					Expires: time.Now().UTC(),
 				})
 			}
 		} else {

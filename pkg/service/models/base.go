@@ -47,7 +47,7 @@ func (m *Model) BeforeCreate(db *gorm.DB) error {
 		db.Statement.SetColumn("CreateTime", time.Now().UTC())
 	}
 	if m.IsDelete && !m.DeleteTime.Valid {
-		m.DeleteTime = gorm.DeletedAt{Time: time.Now(), Valid: true}
+		m.DeleteTime = gorm.DeletedAt{Time: time.Now().UTC(), Valid: true}
 		db.Statement.SetColumn("DeleteTime", m.DeleteTime)
 	}
 	return nil
@@ -56,7 +56,7 @@ func (m *Model) BeforeCreate(db *gorm.DB) error {
 func (m *Model) BeforeSave(db *gorm.DB) error {
 	db.Statement.SetColumn("UpdateTime", time.Now().UTC())
 	if m.IsDelete && !m.DeleteTime.Valid {
-		m.DeleteTime = gorm.DeletedAt{Time: time.Now(), Valid: true}
+		m.DeleteTime = gorm.DeletedAt{Time: time.Now().UTC(), Valid: true}
 		db.Statement.SetColumn("DeleteTime", m.DeleteTime)
 	}
 	return nil

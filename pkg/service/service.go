@@ -219,7 +219,7 @@ func (s Set) SendEmail(ctx context.Context, data map[string]interface{}, topic s
 	if count > 0 {
 		return errors.NewServerError(429, "the sending frequency is too fast. please try again in 60 seconds", errors.CodeRequestTooFrequently)
 	}
-	expr := time.Now().Add(time.Minute)
+	expr := time.Now().UTC().Add(time.Minute)
 	if err = s.sessionService.Counter(ctx, seed, &expr); err != nil {
 		return err
 	}

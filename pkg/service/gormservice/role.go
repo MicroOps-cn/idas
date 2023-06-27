@@ -116,7 +116,7 @@ func (c CommonService) DeleteRoles(ctx context.Context, ids []string) error {
 	defer tx.Rollback()
 	if err := tx.Model(models.Role{}).Where("id in (?)", ids).Association("Permission").Delete(); err != nil {
 		return err
-	} else if err = tx.Model(models.Role{}).Where("id in (?)", ids).Update("delete_time", time.Now()).Error; err != nil {
+	} else if err = tx.Model(models.Role{}).Where("id in (?)", ids).Update("delete_time", time.Now().UTC()).Error; err != nil {
 		return err
 	}
 

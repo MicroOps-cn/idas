@@ -62,7 +62,7 @@ func (c CommonService) UpdatePage(ctx context.Context, page *models.PageConfig) 
 }
 
 func (c CommonService) DeletePages(ctx context.Context, ids []string) error {
-	return c.Session(ctx).Model(models.PageConfig{}).Where("id in (?)", ids).Update("delete_time", time.Now()).Error
+	return c.Session(ctx).Model(models.PageConfig{}).Where("id in (?)", ids).Update("delete_time", time.Now().UTC()).Error
 }
 
 func (c *CommonService) PatchPages(ctx context.Context, patch []map[string]interface{}) error {

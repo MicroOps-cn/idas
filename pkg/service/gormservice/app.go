@@ -95,7 +95,7 @@ func (s UserAndAppService) PatchApps(ctx context.Context, patch []map[string]int
 //	@return total  int64
 //	@return err    error
 func (s UserAndAppService) DeleteApps(ctx context.Context, id []string) (total int64, err error) {
-	deleted := s.Session(ctx).Model(&models.App{}).Where("`id` in ? and `name` != 'IDAS'", id).Update("delete_time", time.Now())
+	deleted := s.Session(ctx).Model(&models.App{}).Where("`id` in ? and `name` != 'IDAS'", id).Update("delete_time", time.Now().UTC())
 	if err = deleted.Error; err != nil {
 		return deleted.RowsAffected, err
 	}

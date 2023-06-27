@@ -250,7 +250,7 @@ func (s Set) DeleteUser(ctx context.Context, id string) (err error) {
 //	@param password 	string
 //	@return users	[]*models.User
 func (s Set) VerifyPasswordById(ctx context.Context, userId, password string, allowPasswordExpired bool) (user *models.User) {
-	begin := time.Now()
+	begin := time.Now().UTC()
 	var err error
 	defer func() {
 		var username string
@@ -282,7 +282,7 @@ func (s Set) VerifyPasswordById(ctx context.Context, userId, password string, al
 //	@param password 	string
 //	@return users	[]*models.User
 func (s Set) VerifyPassword(ctx context.Context, username string, password string, allowPasswordExpired bool) (user *models.User, err error) {
-	begin := time.Now()
+	begin := time.Now().UTC()
 	defer func() {
 		var userId string
 		if user != nil && len(user.Id) > 0 {
@@ -545,7 +545,7 @@ func (s Set) UpdateUserSession(ctx context.Context, userId string) (err error) {
 
 func (s Set) ResetPassword(ctx context.Context, id string, password string) (err error) {
 	logger := logs.GetContextLogger(ctx)
-	begin := time.Now()
+	begin := time.Now().UTC()
 	defer func() {
 		eventId, message, status, took := GetEventMeta(ctx, "ResetPassword", begin, err)
 		if e := s.PostEventLog(ctx, eventId, id, "", "", "ResetPassword", message, status, took); e != nil {
@@ -572,7 +572,7 @@ func (s Set) ResetPassword(ctx context.Context, id string, password string) (err
 		return fmt.Errorf("failed to reset password: %s", err)
 	}
 	if err = s.commonService.PatchUserExtData(ctx, id, map[string]interface{}{
-		"password_modify_time": time.Now(),
+		"password_modify_time": time.Now().UTC(),
 	}); err != nil {
 		level.Error(logger).Log("err", err, "msg", "failed to update `password_modify_time` and `login_time`")
 		return fmt.Errorf("The password was successfully modified, but a slight error was encountered. ")
