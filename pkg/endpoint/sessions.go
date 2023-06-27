@@ -135,7 +135,7 @@ func getMFAMethod(user *models.User) sets.Set[LoginType] {
 	return method
 }
 
-func NewJsonWebToken(_ context.Context, loginTime time.Time, tokenId string) (*time.Time, string, error) {
+func newJSONWebToken(_ context.Context, loginTime time.Time, tokenId string) (*time.Time, string, error) {
 	rtc := config.GetRuntimeConfig()
 	expiry := time.Now().UTC().Add(time.Hour * time.Duration(rtc.GetLoginSessionInactivityTime()))
 	maxExpire := loginTime.UTC().Add(time.Hour * time.Duration(rtc.GetLoginSessionMaxTime()))
@@ -276,7 +276,7 @@ func MakeUserOAuthLoginEndpoint(s service.Service) endpoint.Endpoint {
 						return "", err
 					}
 
-					expire, token, err := NewJsonWebToken(ctx, time.Now().UTC(), sess.Id)
+					expire, token, err := newJSONWebToken(ctx, time.Now().UTC(), sess.Id)
 					if err != nil {
 						return "", errors.NewServerError(500, err.Error())
 					}
@@ -509,7 +509,7 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 			return "", err
 		}
 
-		expire, token, err := NewJsonWebToken(ctx, time.Now().UTC(), sess.Id)
+		expire, token, err := newJSONWebToken(ctx, time.Now().UTC(), sess.Id)
 		if err != nil {
 			return "", errors.NewServerError(500, err.Error())
 		}
@@ -553,7 +553,7 @@ func MakeUserLogoutEndpoint(s service.Service) endpoint.Endpoint {
 				Path:    loginCookie.Path,
 				Expires: time.Now().UTC(),
 			})
-			autoLoginCookie, err := request.(RestfulRequester).GetRestfulRequest().Request.Cookie(global.CookieAutoLogin)
+			autoLoginCookie, _ := request.(RestfulRequester).GetRestfulRequest().Request.Cookie(global.CookieAutoLogin)
 			if len(autoLoginCookie.Value) != 0 {
 				http.SetCookie(respWriter, &http.Cookie{
 					Name:    global.CookieAutoLogin,
@@ -628,7 +628,7 @@ func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 				if (time.Now().UTC().Unix()-claims.IssuedAt) > 3600 && !resp.ExtendedData.LoginTime.IsZero() {
 					stdResp := request.(RestfulRequester).GetRestfulResponse().ResponseWriter
 					stdReq := request.(RestfulRequester).GetRestfulRequest().Request
-					expiry, newToken, err := NewJsonWebToken(ctx, resp.ExtendedData.LoginTime, claims.Id)
+					expiry, newToken, err := newJSONWebToken(ctx, resp.ExtendedData.LoginTime, claims.Id)
 					if err != nil {
 						logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))
 						level.Error(logger).Log("msg", "failed to create jwt token.")
