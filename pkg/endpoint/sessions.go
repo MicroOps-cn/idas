@@ -624,20 +624,23 @@ func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 					err = errors.NotLoginError()
 				}
 			}
-			if err == nil && params.TokenType == models.TokenTypeLoginSession {
-				if (time.Now().UTC().Unix()-claims.IssuedAt) > 3600 && !resp.ExtendedData.LoginTime.IsZero() {
-					stdResp := request.(RestfulRequester).GetRestfulResponse().ResponseWriter
-					stdReq := request.(RestfulRequester).GetRestfulRequest().Request
-					expiry, newToken, err := newJSONWebToken(ctx, resp.ExtendedData.LoginTime, claims.Id)
-					if err != nil {
-						logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))
-						level.Error(logger).Log("msg", "failed to create jwt token.")
+			if err == nil && resp.ExtendedData != nil && params.TokenType == models.TokenTypeLoginSession {
+				rtc := config.GetRuntimeConfig()
+				if rtc.GetLoginSessionInactivityTime() != rtc.GetLoginSessionMaxTime() {
+					if (time.Now().UTC().Unix()-claims.IssuedAt) > 3600 && !resp.ExtendedData.LoginTime.IsZero() {
+						stdResp := request.(RestfulRequester).GetRestfulResponse().ResponseWriter
+						stdReq := request.(RestfulRequester).GetRestfulRequest().Request
+						expiry, newToken, err := newJSONWebToken(ctx, resp.ExtendedData.LoginTime, claims.Id)
+						if err != nil {
+							logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))
+							level.Error(logger).Log("msg", "failed to create jwt token.")
+						}
+						var autoLogin bool
+						if autoLoginCookie, _ := stdReq.Cookie(global.CookieAutoLogin); autoLoginCookie != nil && autoLoginCookie.Value == "true" {
+							autoLogin = true
+						}
+						writeLoginCookie(ctx, stdResp, newToken, *expiry, autoLogin)
 					}
-					var autoLogin bool
-					if autoLoginCookie, _ := stdReq.Cookie(global.CookieAutoLogin); autoLoginCookie != nil && autoLoginCookie.Value == "true" {
-						autoLogin = true
-					}
-					writeLoginCookie(ctx, stdResp, newToken, *expiry, autoLogin)
 				}
 			}
 		} else {
