@@ -47,7 +47,6 @@ func (t *FileTracing) Shutdown(ctx context.Context) error {
 }
 
 func NewFileTraceExporter(ctx context.Context, filename string) (sdktrace.SpanExporter, error) {
-	otlptracehttp.NewClient()
 	f, err := os.Create(filename)
 	if err != nil {
 		return nil, err

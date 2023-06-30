@@ -40,7 +40,6 @@ import (
 	"github.com/emicklei/go-restful/v3"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	uuid "github.com/satori/go.uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -419,7 +418,13 @@ func HTTPLoggingFilter(pctx context.Context) func(req *restful.Request, resp *re
 			spanName = req.SelectedRoute().Operation()
 		}
 		ctx, span := otel.GetTracerProvider().Tracer(config.Get().GetAppName()).Start(ctx, spanName, spanOptions...)
-		ctx, _ = log.NewContextLogger(ctx, log.WithTraceId(uuid.UUID(span.SpanContext().TraceID()).String()))
+		traceId := span.SpanContext().TraceID()
+		traceIdStr := traceId.String()
+		if !traceId.IsValid() {
+			traceIdStr = log.NewTraceId()
+		}
+
+		ctx, _ = log.NewContextLogger(ctx, log.WithTraceId(traceIdStr))
 		req.Request = req.Request.WithContext(ctx)
 		logger = log.GetContextLogger(ctx)
 		defer func() {
