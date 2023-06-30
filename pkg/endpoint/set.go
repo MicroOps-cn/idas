@@ -45,10 +45,6 @@ type UserEndpoints struct {
 	ForgotPassword    endpoint.Endpoint `auth:"false" audit:"true"`
 	ResetPassword     endpoint.Endpoint `auth:"false" audit:"true"`
 	CurrentUser       endpoint.Endpoint `auth:"false" audit:"false"`
-	CreateUserKey     endpoint.Endpoint `description:"Create a user key-pair" role:"admin" audit:"true"`
-	DeleteUserKey     endpoint.Endpoint `description:"Delete a user key-pair" role:"admin" audit:"true"`
-	GetUserKeys       endpoint.Endpoint `description:"Get a user key-pairs" role:"admin|viewer" audit:"false"`
-	CreateKey         endpoint.Endpoint `auth:"false" audit:"true"`
 	CreateTOTPSecret  endpoint.Endpoint `auth:"false" audit:"false"`
 	CreateTOTP        endpoint.Endpoint `auth:"false" audit:"true"`
 	UnbindTOTP        endpoint.Endpoint `auth:"false" audit:"true"`
@@ -245,10 +241,6 @@ func New(_ context.Context, svc service.Service, duration metrics.Histogram) Set
 			CreateUser:        injectEndpoint("CreateUser", MakeCreateUserEndpoint(svc)),
 			PatchUser:         injectEndpoint("PatchUser", MakePatchUserEndpoint(svc)),
 			DeleteUser:        injectEndpoint("DeleteUser", MakeDeleteUserEndpoint(svc)),
-			CreateUserKey:     injectEndpoint("CreateUserKey", MakeCreateUserKeyEndpoint(svc)),
-			DeleteUserKey:     injectEndpoint("DeleteUserKey", MakeDeleteUserKeyEndpoint(svc)),
-			GetUserKeys:       injectEndpoint("GetUserKeys", MakeGetUserKeysEndpoint(svc)),
-			CreateKey:         injectEndpoint("CreateKey", MakeCreateKeyEndpoint(svc)),
 			CreateTOTPSecret:  injectEndpoint("CreateTOTPSecret", MakeCreateTOTPSecretEndpoint(svc)),
 			CreateTOTP:        injectEndpoint("CreateTOTP", MakeCreateTOTPEndpoint(svc)),
 			SendLoginCaptcha:  injectEndpoint("SendLoginCaptcha", MakeSendLoginCaptchaEndpoint(svc)),

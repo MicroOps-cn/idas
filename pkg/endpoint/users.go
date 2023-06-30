@@ -462,50 +462,6 @@ func MakeDeleteUserEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
-func MakeCreateUserKeyEndpoint(s service.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(Requester).GetRequestData().(*CreateUserKeyRequest)
-		resp := SimpleResponseWrapper[*models.UserKey]{}
-		resp.Data, resp.Error = s.CreateUserKey(ctx, req.UserId, req.Name)
-		return &resp, nil
-	}
-}
-
-func MakeDeleteUserKeyEndpoint(s service.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(Requester).GetRequestData().(*DeleteUserKeyRequest)
-		resp := SimpleResponseWrapper[struct{}]{}
-		resp.Error = s.DeleteUserKey(ctx, req.UserId, req.Id)
-		return &resp, nil
-	}
-}
-
-func MakeGetUserKeysEndpoint(s service.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(Requester).GetRequestData().(*GetUserKeysRequest)
-		resp := NewBaseListResponse[[]*models.UserKey](&req.BaseListRequest)
-		resp.Total, resp.Data, resp.Error = s.GetUserKeys(ctx, req.UserId, req.Current, req.PageSize)
-		return &resp, nil
-	}
-}
-
-func MakeCreateKeyEndpoint(s service.Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		req := request.(Requester).GetRequestData().(*CreateKeyRequest)
-		resp := SimpleResponseWrapper[*models.UserKey]{}
-		user, ok := ctx.Value(global.MetaUser).(*models.User)
-		if !ok || user == nil {
-			return nil, errors.NotLoginError()
-		}
-		if user.Id == req.UserId && user.Status == models.UserMeta_normal {
-			resp.Data, resp.Error = s.CreateUserKey(ctx, req.UserId, req.Name)
-			return &resp, nil
-		}
-
-		return nil, errors.StatusNotFound("user")
-	}
-}
-
 func MakeSendActivationMailEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*SendActivationMailRequest)

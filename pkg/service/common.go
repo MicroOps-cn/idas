@@ -53,10 +53,6 @@ type CommonService interface {
 	GetUserExtendedData(ctx context.Context, id string) (*models.UserExt, error)
 	GetUsersExtendedData(ctx context.Context, id []string) ([]*models.UserExt, error)
 	PatchUserExtData(ctx context.Context, id string, patch map[string]interface{}) error
-	GetUserKey(ctx context.Context, key string) (*models.UserKey, error)
-	GetUserKeys(ctx context.Context, userId string, current, pageSize int64) (count int64, keyPairs []*models.UserKey, err error)
-	CreateUserKeyWithId(ctx context.Context, userId string, name string) (userKey *models.UserKey, err error)
-	DeleteUserKeys(ctx context.Context, userId string, id []string) (affected int64, err error)
 	GetProxyConfig(ctx context.Context, host string) (*models.AppProxyConfig, error)
 	UpdateAppProxyConfig(ctx context.Context, proxy *models.AppProxy) error
 	GetAppProxyConfig(ctx context.Context, appId string) (proxy *models.AppProxy, err error)

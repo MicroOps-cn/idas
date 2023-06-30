@@ -177,36 +177,6 @@ func (s Set) CreateUser(ctx context.Context, user *models.User) (err error) {
 	return nil
 }
 
-// CreateUserKey
-//
-//	@Description[en-US]: Create a user key-pair.
-//	@Description[zh-CN]: 创建用户密钥对。
-//	@param ctx 	context.Context
-//	@param userId 	string
-//	@param name 	string
-//	@return keyPair	*models.UserKey
-//	@return err	error
-func (s Set) CreateUserKey(ctx context.Context, userId, name string) (keyPair *models.UserKey, err error) {
-	return s.commonService.CreateUserKeyWithId(ctx, userId, name)
-}
-
-// DeleteUserKey
-//
-//	@Description[en-US]: Delete a user key-pair.
-//	@Description[zh-CN]: 删除一个用户密钥对。
-//	@param ctx 	context.Context
-//	@param userId 	string
-//	@param id 	string
-//	@return error
-func (s Set) DeleteUserKey(ctx context.Context, userId string, id string) (err error) {
-	_, err = s.commonService.DeleteUserKeys(ctx, userId, []string{id})
-	return err
-}
-
-func (s Set) GetUserKeys(ctx context.Context, userId string, current, pageSize int64) (count int64, keyPairs []*models.UserKey, err error) {
-	return s.commonService.GetUserKeys(ctx, userId, current, pageSize)
-}
-
 // PatchUser
 //
 //	@Description[en-US]: Incremental update user.
@@ -385,8 +355,6 @@ func (s Set) VerifyUserStatus(ctx context.Context, user *models.User, allowPassw
 //	@return ${ret_name}	[]*models.User
 //	@return ${ret_name}	error
 func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm sign.AuthAlgorithm, key, secret, payload, signStr string) (user *models.User, err error) {
-	failedSec, failedThreshold := config.GetRuntimeConfig().GetPasswordFailedLockConfig()
-	nowTs := time.Now().Unix()
 	if method == models.AuthMeta_basic {
 		if _, err = uuid.FromString(key); err != nil {
 			if config.Get().GetGlobal().DisableLoginForm {
@@ -400,51 +368,6 @@ func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, 
 			}
 			return user, err
 		}
-	} else if failedSec > 0 && failedThreshold > 0 {
-		ts := nowTs - nowTs%failedSec
-		counterSeed := fmt.Sprintf("LOGIN:%s:%d", key, ts)
-		var count int64
-		count, err = s.sessionService.GetCounter(ctx, counterSeed)
-		if err != nil {
-			level.Error(logs.GetContextLogger(ctx)).Log("msg", "Failed to obtain password counter.", "err", err)
-			return nil, errors.NewServerError(http.StatusInternalServerError, "System error: Please contact the administrator.", errors.CodeSystemError)
-		}
-		if count >= int64(failedThreshold) {
-			return nil, errors.NewServerError(http.StatusOK, "The number of password errors has reached the threshold. ", errors.CodeTooManyLoginFailures)
-		}
-		defer func() {
-			ts = nowTs - nowTs%failedSec
-			counterSeed = fmt.Sprintf("LOGIN:%s:%d", key, ts)
-			if err != nil || user == nil {
-				expir := time.Unix(ts+int64(failedSec), 0)
-				if err = s.sessionService.Counter(ctx, counterSeed, &expir); err != nil {
-					level.Error(logs.GetContextLogger(ctx)).Log("msg", "Failed to write password failure counter.")
-				}
-			}
-		}()
-	}
-	var userKey *models.UserKey
-	userKey, err = s.commonService.GetUserKey(ctx, key)
-	if err != nil {
-		return nil, err
-	} else if userKey == nil {
-		return nil, nil
-	} else if user, err = s.GetUserAndAppService().GetUserInfo(ctx, userKey.UserId, ""); err != nil {
-		return nil, err
-	}
-
-	switch method {
-	case models.AuthMeta_basic:
-		if userKey.Secret == secret {
-			return user, nil
-		}
-	case models.AuthMeta_signature:
-		if sign.Verify(userKey.Key, userKey.Secret, userKey.Private, algorithm, signStr, payload) {
-			return user, nil
-		}
-		return nil, errors.ParameterError("Failed to verify the signature")
-	default:
-		return nil, errors.ParameterError("unknown auth method")
 	}
 	return nil, errors.ParameterError("unknown auth request")
 }

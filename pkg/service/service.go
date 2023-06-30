@@ -88,9 +88,6 @@ type Service interface {
 	DeleteUser(ctx context.Context, id string) error
 	PatchUserExtData(ctx context.Context, id string, m map[string]interface{}) error
 	Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm sign.AuthAlgorithm, key, secret, payload, signStr string) (*models.User, error)
-	CreateUserKey(ctx context.Context, userId, name string) (keyPair *models.UserKey, err error)
-	GetUserKeys(ctx context.Context, userId string, current, pageSize int64) (count int64, keyPairs []*models.UserKey, err error)
-	DeleteUserKey(ctx context.Context, userId string, id string) error
 
 	GetApps(ctx context.Context, keywords string, filter map[string]interface{}, current, pageSize int64) (total int64, apps []*models.App, err error)
 	PatchApps(ctx context.Context, patch []map[string]interface{}) (total int64, err error)

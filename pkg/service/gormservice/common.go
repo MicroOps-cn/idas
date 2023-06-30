@@ -50,7 +50,6 @@ func (c CommonService) AutoMigrate(ctx context.Context) error {
 		&models.File{},
 		&models.Permission{},
 		&models.Role{},
-		&models.UserKey{},
 		&models.AppKey{},
 		&models.AppProxy{},
 		&models.AppProxyUrl{},
@@ -83,64 +82,6 @@ func (c CommonService) GetFileInfoFromId(ctx context.Context, id string) (fileNa
 		return "", "", "", err
 	}
 	return file.Name, file.MimiType, file.Path, nil
-}
-
-func (c CommonService) CreateUserKeyWithId(ctx context.Context, userId string, name string) (userKey *models.UserKey, err error) {
-	conn := c.Session(ctx)
-	pub1, pub2, privateKey, err := sign.GenerateECDSAKeyPair()
-	if err != nil {
-		return nil, err
-	}
-	userKey = &models.UserKey{
-		Name:   name,
-		UserId: userId,
-		Key:    pub1,
-		Secret: pub2,
-	}
-	if err = conn.Create(&userKey).Error; err != nil {
-		return nil, err
-	}
-	return &models.UserKey{
-		Model:   userKey.Model,
-		UserId:  userId,
-		Key:     pub1,
-		Secret:  pub2,
-		Private: privateKey,
-	}, nil
-}
-
-func (c CommonService) GetUserKey(ctx context.Context, key string) (*models.UserKey, error) {
-	userKey := &models.UserKey{Key: key}
-	conn := c.Session(ctx)
-	if err := conn.Where("`key` = ?", key).First(&userKey).Error; err != nil && err != gogorm.ErrRecordNotFound {
-		return nil, errors.WithServerError(500, err, "failed to query user key")
-	} else if err != nil {
-		return nil, nil
-	}
-	return userKey, nil
-}
-
-func (c CommonService) GetUserKeys(ctx context.Context, userId string, current, pageSize int64) (count int64, keyPairs []*models.UserKey, err error) {
-	query := c.Session(ctx).Model(&models.UserKey{}).Where("user_id = ? and delete_time is NULL", userId)
-	if err = query.Select("id", "name", "create_time", "key").Order("id").Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).
-		Find(&keyPairs).Error; err != nil {
-		return 0, nil, err
-	} else if err = query.Count(&count).Error; err != nil {
-		return 0, nil, err
-	} else {
-		for _, keyPair := range keyPairs {
-			keyPair.UserId = userId
-		}
-		return count, keyPairs, nil
-	}
-}
-
-func (c CommonService) DeleteUserKeys(ctx context.Context, userId string, id []string) (affected int64, err error) {
-	deleted := c.Session(ctx).Model(&models.UserKey{}).Where("id in ? and user_id = ?", id, userId).Update("delete_time", time.Now().UTC())
-	if err = deleted.Error; err != nil {
-		return deleted.RowsAffected, err
-	}
-	return deleted.RowsAffected, nil
 }
 
 func (c CommonService) GetProxyConfig(ctx context.Context, host string) (*models.AppProxyConfig, error) {

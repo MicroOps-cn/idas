@@ -119,44 +119,6 @@ func UserService(ctx context.Context, options []httptransport.ServerOption, endp
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
 
-	v1ws.Route(v1ws.POST("/{userId}/key").
-		To(NewKitHTTPServer[endpoint.CreateUserKeyRequest](ctx, endpoints.CreateUserKey, options)).
-		Operation("createUserKey").
-		Doc("Create a user key pair.").
-		Param(v1ws.PathParameter("userId", "identifier of the user").DataType("string")).
-		Reads(endpoint.CreateUserKeyRequest{}).
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Returns(200, "OK", endpoint.CreateUserKeyResponse{}),
-	)
-
-	v1ws.Route(v1ws.DELETE("/{userId}/key/{id}").
-		To(NewKitHTTPServer[endpoint.DeleteUserKeyRequest](ctx, endpoints.DeleteUserKey, options)).
-		Operation("deleteUserKey").
-		Doc("Delete a user key pair.").
-		Param(v1ws.PathParameter("userId", "identifier of the user").DataType("string")).
-		Param(v1ws.PathParameter("id", "identifier of the user key-pair").DataType("string")).
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Returns(200, "OK", endpoint.BaseResponse{}),
-	)
-
-	v1ws.Route(v1ws.GET("/{userId}/key").
-		To(NewKitHTTPServer[endpoint.GetUserKeysRequest](ctx, endpoints.GetUserKeys, options)).
-		Operation("getUserKeys").
-		Doc("Get a user key-pairs.").
-		Param(v1ws.PathParameter("userId", "identifier of the user").DataType("string")).
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Returns(200, "OK", endpoint.GetUserKeysResponse{}),
-	)
-
-	v1ws.Route(v1ws.POST("/key").
-		To(NewKitHTTPServer[endpoint.CreateKeyRequest](ctx, endpoints.CreateKey, options)).
-		Operation("createKey").
-		Doc("Create your own key pair.").
-		Reads(endpoint.CreateKeyRequest{}).
-		Metadata(restfulspec.KeyOpenAPITags, tags).
-		Returns(200, "OK", endpoint.CreateKeyResponse{}),
-	)
-
 	v1ws.Route(v1ws.POST("/sendActivateMail").
 		To(NewKitHTTPServer[endpoint.SendActivationMailRequest](ctx, endpoints.SendActivateMail, options)).
 		Operation("sendActivateMail").
