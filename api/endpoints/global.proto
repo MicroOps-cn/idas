@@ -20,6 +20,7 @@ message GlobalConfig{
   string sub_title =3[(gogoproto.jsontag) = "subTitle,omitempty"];
   string logo =4;
   string copyright =5;
+  LoginType DefaultLoginType = 6[(gogoproto.jsontag) = "defaultLoginType"];
 }
 
 message GlobalConfigResponse{

@@ -29,11 +29,13 @@ func MakeGetGlobalConfigEndpoint(_ service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		globalConfig := config.Get().GetGlobal()
 		resp := &GlobalConfig{
-			Title:     globalConfig.Title,
-			SubTitle:  globalConfig.SubTitle,
-			Logo:      globalConfig.Logo,
-			Copyright: globalConfig.Copyright,
+			Title:            globalConfig.Title,
+			SubTitle:         globalConfig.SubTitle,
+			Logo:             globalConfig.Logo,
+			Copyright:        globalConfig.Copyright,
+			DefaultLoginType: LoginType(LoginType_value[globalConfig.DefaultLoginType]),
 		}
+
 		oauth2 := globalConfig.Oauth2
 		if !globalConfig.DisableLoginForm {
 			resp.LoginType = append(resp.LoginType, &GlobalLoginType{Type: LoginType_normal})

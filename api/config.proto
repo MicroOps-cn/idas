@@ -53,6 +53,7 @@ message GlobalOptions{
   string logo = 12;
   string copyright = 13;
   string admin_email = 14;
+  string default_login_type = 15;
 }
 
 message security{
