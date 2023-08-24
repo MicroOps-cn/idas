@@ -24,6 +24,7 @@ import (
 	stdlog "log"
 	"net"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path"
 	"strings"
