@@ -31,7 +31,6 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/types"
-	"go.opentelemetry.io/otel"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
@@ -88,7 +87,6 @@ func NewSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *Client, 
 		level.Debug(logger).Log("msg", "Sqlite connect closed")
 		stopCh.Done()
 	}()
-	fmt.Println(otel.GetTracerProvider())
 	clt.database = &Database{DB: db}
 	return clt, nil
 }

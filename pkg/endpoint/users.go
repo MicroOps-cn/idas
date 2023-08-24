@@ -253,6 +253,8 @@ func MakeResetUserPasswordEndpoint(s service.Service) endpoint.Endpoint {
 					return nil, errors.UnauthorizedError()
 				}
 			}
+		} else {
+			return nil, errors.LackParameterError("token,id")
 		}
 		return resp, nil
 	}

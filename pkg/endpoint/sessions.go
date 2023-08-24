@@ -603,7 +603,8 @@ func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 		var resp *models.User
 		if len(params.Token) > 0 {
 			var claims jwt.StandardClaims
-			token, err := jwt.ParseWithClaims(params.Token, &claims, func(token *jwt.Token) (interface{}, error) {
+			var token *jwt.Token
+			token, err = jwt.ParseWithClaims(params.Token, &claims, func(token *jwt.Token) (interface{}, error) {
 				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 					return nil, fmt.Errorf("unexpected login method %v", token.Header["alg"])
 				}
