@@ -158,7 +158,7 @@ func (s Set) GetEventLogs(ctx context.Context, filters map[string]string, keywor
 
 func (s Set) PostEventLog(ctx context.Context, eventId, userId, username, clientIP, action, message string, status bool, took time.Duration, log ...interface{}) (err error) {
 	var loc string
-	if s.geoIPClient != nil {
+	if s.geoIPClient != nil && len(clientIP) != 0 {
 		logger := logs.GetContextLogger(ctx)
 		loc, err = s.geoIPClient.City(net.ParseIP(clientIP))
 		if err != nil {
