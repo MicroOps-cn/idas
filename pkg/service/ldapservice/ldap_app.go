@@ -109,6 +109,9 @@ func (s UserAndAppService) getAppDetailByReq(ctx context.Context, searchReq *gol
 	var users []*models.User
 
 	if opt == nil || !opt.DisableGetUsers {
+		if opt == nil {
+			opt = &opts.GetAppOptions{}
+		}
 		grantMode := models.AppMeta_GrantMode(w.M[int](httputil.NewValue(appEntry.GetAttributeValue("grantMode")).Default("0").Int()))
 		member := append(appEntry.GetAttributeValues("uniqueMember"), appEntry.GetAttributeValues("member")...)
 		if len(opt.UserId) > 0 && len(member) > 0 {
@@ -295,9 +298,26 @@ func (s UserAndAppService) DeepDeleteEntry(ctx context.Context, dn string) (err 
 //	@param ids     []string         : ID List
 //	@return total  int64            : The quantity has been deleted. Since go ldap does not support transactions temporarily, an error may be reported after deleting a part.
 //	@return err    error
-func (s UserAndAppService) DeleteApps(ctx context.Context, ids []string) (total int64, err error) {
+func (s UserAndAppService) DeleteApps(ctx context.Context, ids ...string) (total int64, err error) {
 	conn := s.Session(ctx)
 	defer conn.Close()
+
+	_, err = s.getAppDetailByReq(ctx, goldap.NewSearchRequest(
+		s.Options().AppSearchBase,
+		goldap.ScopeSingleLevel, goldap.NeverDerefAliases, 1, 0, false,
+		fmt.Sprintf("(&(name=IDAS)(|%s))", strings.Join(w.Map(ids, func(item string) string {
+			return fmt.Sprintf("(entryUUID=%s)", item)
+		}), "")),
+		[]string{},
+		nil,
+	), opts.NewAppOptions(opts.WithBasic))
+	if err != nil {
+		if !errors.IsNotFount(err) {
+			return 0, err
+		}
+	} else {
+		return 0, errors.NewServerError(400, "can't delete the idas app", errors.CodeAppCannotBeDelete)
+	}
 	for _, id := range ids {
 		var dn string
 		if dn, err = s.getAppDnByEntryUUID(ldap.WithConnContext(ctx, conn), id); err != nil {
@@ -321,7 +341,7 @@ func (s UserAndAppService) DeleteApps(ctx context.Context, ids []string) (total 
 //	@param id 	string
 //	@return err	error
 func (s UserAndAppService) DeleteApp(ctx context.Context, id string) (err error) {
-	return w.E[int64](s.DeleteApps(ctx, []string{id}))
+	return w.E[int64](s.DeleteApps(ctx, id))
 }
 
 // UpdateApp
@@ -501,6 +521,9 @@ func (s UserAndAppService) CreateApp(ctx context.Context, app *models.App) (err 
 
 	err = conn.Add(req)
 	if err != nil {
+		if strings.Contains(err.Error(), "'groupOfNames' requires attribute 'member'") {
+			return errors.NewServerError(400, "Need to add members", errors.CodeAppMemberCannotBeEmpty)
+		}
 		return err
 	}
 	newApp, err := s.getAppDetailByDn(ldap.WithConnContext(ctx, conn), dn, opts.NewAppOptions(opts.WithoutUsers))

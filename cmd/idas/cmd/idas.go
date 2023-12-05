@@ -24,11 +24,13 @@ import (
 	stdlog "log"
 	"net"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"path"
 	"strings"
 	"time"
+
+	//revive:disable:blank-imports
+	_ "net/http/pprof"
 
 	"github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/log/flag"

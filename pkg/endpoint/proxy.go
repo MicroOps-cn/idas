@@ -20,6 +20,7 @@ import (
 	"context"
 	"io"
 	gohttp "net/http"
+	"sort"
 	"strings"
 
 	"github.com/emicklei/go-restful/v3"
@@ -86,14 +87,43 @@ func MakeProxyRequestEndpoint(s service.Service) endpoint.Endpoint {
 			resp.Code = 403
 			return resp, nil
 		}
+		sort.Sort(proxyConfig.Urls)
+		var proxyURLConfig *models.AppProxyUrl
+		for _, proxyURL := range proxyConfig.Urls {
+			if strings.HasPrefix(r.URL.Path, proxyURL.Url) {
+				proxyURLConfig = proxyURL
+				break
+			}
+		}
+		if proxyURLConfig == nil {
+			return nil, errors.StatusNotFound(r.URL.Path)
+		}
+		if len(proxyURLConfig.Upstream) == 0 {
+			proxyURLConfig.Upstream = proxyConfig.Upstream
+		}
+		if len(proxyConfig.URLRoles) > 0 {
+			var roleMatched bool
+			for _, role := range proxyConfig.URLRoles {
+				if role.AppProxyURLId == proxyURLConfig.Id && role.AppRoleId == user.RoleId {
+					roleMatched = true
+					break
+				}
+			}
+			if !roleMatched {
+				return nil, errors.StatusForbidden(r.URL.Path)
+			}
+		}
 
-		oriResp, err := s.SendProxyRequest(ctx, r, proxyConfig)
+		oriResp, err := s.SendProxyRequest(ctx, r, proxyConfig, proxyURLConfig)
 		if err != nil {
 			resp.Error = err
 			resp.Code = 500
 			return resp, nil
 		}
 		resp.Header = oriResp.Header.Clone()
+		if proxyConfig.HstsOffload {
+			resp.Header.Del("Strict-Transport-Security")
+		}
 		resp.Body = oriResp.Body
 		resp.Code = oriResp.StatusCode
 		return resp, nil

@@ -19,6 +19,7 @@ package opts
 type GetAppOptions struct {
 	DisableGetUsers,
 	DisableGetAccessController,
+	DisableGetI18n,
 	DisableGetProxy bool
 	Id, Name string
 	UserId   []string
@@ -47,6 +48,10 @@ func WithoutACL(o *GetAppOptions) {
 	o.DisableGetAccessController = true
 }
 
+func WithoutI18n(o *GetAppOptions) {
+	o.DisableGetI18n = true
+}
+
 func WithUsers(id ...string) func(o *GetAppOptions) {
 	return func(o *GetAppOptions) {
 		o.DisableGetUsers = false
@@ -58,6 +63,7 @@ func WithBasic(o *GetAppOptions) {
 	WithoutACL(o)
 	WithoutProxy(o)
 	WithoutUsers(o)
+	WithoutI18n(o)
 	o.DisableGetAccessController = true
 }
 

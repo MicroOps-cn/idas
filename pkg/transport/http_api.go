@@ -248,10 +248,11 @@ func FileService(ctx context.Context, options []httptransport.ServerOption, endp
 		Doc("Upload file").
 		Param(v1ws.MultiPartFormParameter("files", "files").AllowMultiple(true).DataType("file")).
 		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Metadata(global.MetaSensitiveData, true).
 		Returns(200, "OK", endpoint.FileUploadResponse{}),
 	)
 	v1ws.Route(v1ws.GET("/{id}").
-		To(NewKitHTTPServer[endpoint.FileDownloadRequest](ctx, endpoints.DownloadFile, options)).
+		To(NewSimpleKitHTTPServer[endpoint.FileDownloadRequest](ctx, endpoints.DownloadFile, decodeHTTPRequest[endpoint.FileDownloadRequest], noopEncodeHTTPResponse, options)).
 		Operation("downloadFile").
 		Param(v1ws.PathParameter("id", "identifier of the file").DataType("string").Required(true)).
 		Doc("Download/View File").

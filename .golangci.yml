@@ -30,12 +30,14 @@ linters-settings:
       - -SA1029
       - -SA1019
   depguard:
-    list-type: blacklist
-    include-go-root: true
-    packages-with-error-message:
-      - sync/atomic: "Use go.uber.org/atomic instead of sync/atomic"
-      - github.com/stretchr/testify/assert: "Use github.com/stretchr/testify/require instead of github.com/stretchr/testify/assert"
-      - github.com/go-kit/kit/log: "Use github.com/go-kit/log instead of github.com/go-kit/kit/log"
+    rules:
+      Main:
+        files:
+          - $all
+        deny:
+        - {pkg: "sync/atomic", desc: "Use go.uber.org/atomic instead of sync/atomic"}
+        - {pkg: "github.com/stretchr/testify/assert", desc: "Use github.com/stretchr/testify/require instead of github.com/stretchr/testify/assert"}
+        - {pkg: "github.com/go-kit/kit/log", desc: "Use github.com/go-kit/log instead of github.com/go-kit/kit/log"}
   errcheck:
     exclude: scripts/errcheck_excludes.txt
   goimports:

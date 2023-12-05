@@ -18,6 +18,7 @@ package endpoint
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	gohttp "net/http"
 	"net/url"
@@ -65,9 +66,26 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 		if restfulReq := request.(RestfulRequester).GetRestfulRequest(); restfulReq == nil {
 			err = fmt.Errorf("invalid_grant")
 		} else {
+			var proxyConfig *models.AppProxyConfig
 			app, ok := ctx.Value(global.MetaApp).(*models.App)
 			if !ok {
-				return "", errors.UnauthorizedError()
+				if req.GrantType == OAuthGrantType_proxy {
+					proxyConfig = new(models.AppProxyConfig)
+					if !s.VerifyToken(ctx, req.State, models.TokenTypeAppProxyLogin, proxyConfig) {
+						return nil, errors.UnauthorizedError()
+					}
+					if err = s.DeleteToken(ctx, models.TokenTypeAppProxyLogin, req.State); err != nil {
+						level.Warn(logs.GetContextLogger(ctx)).Log("msg", "failed to delete token", "err", err)
+					}
+					app, err = s.GetAppInfo(ctx, opts.WithBasic, opts.WithAppId(proxyConfig.AppId))
+					if err != nil {
+						return err, nil
+					} else if app == nil {
+						return "", errors.UnauthorizedError()
+					}
+				} else {
+					return "", errors.UnauthorizedError()
+				}
 			}
 			if req.GrantType == OAuthGrantType_refresh_token {
 				if username, password, ok := restfulReq.Request.BasicAuth(); ok {
@@ -90,23 +108,25 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 						return nil, errors.NewServerError(500, "Unsupported authorization type.")
 					}
 					var session models.ProxySession
-					var proxyConfig []*models.AppProxyConfig
-					err = s.GetSessionByToken(ctx, req.Code, models.TokenTypeCode, &session.User)
+					session.User = user
+					err = s.GetSessionByToken(ctx, req.Code, models.TokenTypeCode, session.User)
 					if err != nil {
-						return nil, errors.UnauthorizedError()
+						return nil, errors.WithServerError(gohttp.StatusUnauthorized, err, "Invalid identity information")
 					}
 					if err = s.DeleteToken(ctx, models.TokenTypeCode, req.Code); err != nil {
 						level.Warn(logs.GetContextLogger(ctx)).Log("msg", "failed to delete token", "err", err)
 					}
-					if !s.VerifyToken(ctx, req.State, models.TokenTypeAppProxyLogin, &proxyConfig, req.ClientId) {
-						return nil, errors.UnauthorizedError()
+					if err = s.VerifyUserStatus(ctx, user, false); err != nil {
+						return nil, err
 					}
-					if len(proxyConfig) > 1 {
-						return nil, errors.NewServerError(500, "proxy configuration exception")
-					} else if len(proxyConfig) == 0 {
-						return nil, errors.UnauthorizedError()
+					if role, err := s.GetAppRoleByUserId(ctx, app.Id, user.Id); err != nil {
+						user.Role = ""
+						user.RoleId = ""
+					} else {
+						user.Role = role.Name
+						user.RoleId = role.Id
 					}
-					session.Proxy = proxyConfig[0]
+					session.Proxy = proxyConfig
 					at, err := s.CreateToken(ctx, tokenType, &session)
 					if err != nil {
 						return "", errors.NewServerError(500, err.Error())
@@ -120,6 +140,34 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 						resp.RefreshToken = rt.Id
 					}
 					resp.ExpiresIn = int(global.TokenExpiration / time.Minute)
+					if proxyConfig.JwtProvider && len(proxyConfig.JwtCookieName) > 0 {
+						jwtSecret := []byte(config.Get().Global.GetJwtSecret())
+						if len(proxyConfig.JwtSecret) > 0 {
+							secret, err := proxyConfig.GetJwtSecret()
+							if err != nil {
+								return nil, errors.WithServerError(500, err, "failed to get jwt token")
+							}
+							jwtSecret, err = base64.StdEncoding.DecodeString(secret)
+							if err != nil {
+								return nil, errors.WithServerError(500, err, "failed to get jwt token")
+							}
+						}
+						token, err := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.StandardClaims{
+							Id:        at.Id,
+							ExpiresAt: at.Expiry.Unix(),
+							IssuedAt:  time.Now().UTC().Unix(),
+							NotBefore: time.Now().UTC().Unix(),
+							Subject:   user.Username,
+						}).SignedString(jwtSecret)
+						if err != nil {
+							return "", errors.NewServerError(500, err.Error())
+						}
+						resp.Cookies = append(resp.Cookies, (&gohttp.Cookie{
+							Name:  proxyConfig.JwtCookieName,
+							Path:  "/",
+							Value: token,
+						}).String())
+					}
 					return &resp, nil
 				case OAuthGrantType_authorization_code:
 					if app.GrantType&models.AppMeta_authorization_code == 0 {
@@ -148,7 +196,9 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					}
 					if role, err := s.GetAppRoleByUserId(ctx, app.Id, user.Id); err != nil {
 						user.Role = ""
+						user.RoleId = ""
 					} else {
+						user.RoleId = role.Id
 						user.Role = role.Name
 					}
 					jwtSecret := config.Get().Global.GetJwtSecret()
@@ -249,20 +299,34 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 		if err != nil {
 			return nil, errors.ParameterError("redirect_uri")
 		}
-		appKey, err := s.GetAppKeyFromKey(ctx, req.ClientId)
-		if err != nil {
-			level.Error(logger).Log("msg", "failed to get appId from client_id")
-			gohttp.Redirect(stdResp.ResponseWriter, stdReq.Request, w.M(common.GetWebURL(ctx, common.WithSubPages("404"))), gohttp.StatusFound)
-			return nil, nil
-		}
-
 		query := uri.Query()
-		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithAppId(appKey.AppId), opts.WithUsers(user.Id))
-		if err != nil {
-			return err, nil
-		} else if app == nil {
-			gohttp.Redirect(stdResp.ResponseWriter, stdReq.Request, w.M(common.GetWebURL(ctx, common.WithSubPages("404"))), gohttp.StatusFound)
-			return nil, nil
+		var app *models.App
+		if req.AccessType == "proxy" {
+			var proxyConfig models.AppProxyConfig
+			if !s.VerifyToken(ctx, req.State, models.TokenTypeAppProxyLogin, &proxyConfig, req.ClientId) {
+				return nil, errors.UnauthorizedError()
+			}
+			app, err = s.GetAppInfo(ctx, opts.WithBasic, opts.WithAppId(proxyConfig.AppId), opts.WithUsers(user.Id))
+			if err != nil {
+				return err, nil
+			} else if app == nil {
+				gohttp.Redirect(stdResp.ResponseWriter, stdReq.Request, w.M(common.GetWebURL(ctx, common.WithSubPages("404"))), gohttp.StatusFound)
+				return nil, nil
+			}
+		} else {
+			appKey, err := s.GetAppKeyFromKey(ctx, req.ClientId)
+			if err != nil {
+				level.Error(logger).Log("msg", "failed to get appId from client_id")
+				gohttp.Redirect(stdResp.ResponseWriter, stdReq.Request, w.M(common.GetWebURL(ctx, common.WithSubPages("404"))), gohttp.StatusFound)
+				return nil, nil
+			}
+			app, err = s.GetAppInfo(ctx, opts.WithBasic, opts.WithAppId(appKey.AppId), opts.WithUsers(user.Id))
+			if err != nil {
+				return err, nil
+			} else if app == nil {
+				gohttp.Redirect(stdResp.ResponseWriter, stdReq.Request, w.M(common.GetWebURL(ctx, common.WithSubPages("404"))), gohttp.StatusFound)
+				return nil, nil
+			}
 		}
 
 		//if code, err = s.GetAuthCodeByAppId(ctx, appKey.AppId, user, sessionId); err != nil && !errors.IsNotFount(err) {

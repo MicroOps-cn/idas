@@ -116,7 +116,7 @@ func (l *idasLogger) Log(keyvals ...interface{}) error {
 		switch k := keyvals[i].(type) {
 		case titleKey, *titleKey:
 			ll.title = fmt.Sprintf("%s", v)
-		case wrapKeyName, *wrapKeyName:
+		case wrapKeyName, *wrapKeyName, log.KeyName, *log.KeyName:
 			key := fmt.Sprintf("[%s]", k)
 			ll.other = append(ll.other, logKvPair{key: key, val: v})
 			if len(key) > ll.otherKeyMaxLen {

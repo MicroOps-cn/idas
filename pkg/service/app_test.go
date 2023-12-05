@@ -64,7 +64,7 @@ func testAppService(ctx context.Context, t *testing.T, svc Service) {
 		for i := 0; i < rCount; i++ {
 			var id string
 			if i%3 == 0 {
-				id = g.NewId()
+				id = g.NewUUID().String()
 			}
 			urls[i] = &models.AppProxyUrl{Model: models.Model{Id: id}, Name: rand.String(10)}
 		}
@@ -76,7 +76,7 @@ func testAppService(ctx context.Context, t *testing.T, svc Service) {
 		for i := 0; i < rCount; i++ {
 			var id string
 			if i%3 == 0 {
-				id = g.NewId()
+				id = g.NewUUID().String()
 			}
 			roles[i] = &models.AppRole{Model: models.Model{Id: id}, Name: rand.String(10)}
 		}

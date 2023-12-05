@@ -16,7 +16,15 @@
 
 package models
 
-import "strings"
+import (
+	"crypto/sha256"
+
+	"github.com/MicroOps-cn/fuck/crypto"
+	uuid "github.com/satori/go.uuid"
+
+	"github.com/MicroOps-cn/idas/config"
+	"github.com/MicroOps-cn/idas/pkg/errors"
+)
 
 type AppRoleURL struct {
 	AppRoleId     string `json:"app_role_id"`
@@ -34,10 +42,34 @@ func (c *AppProxyConfig) GetId() string {
 }
 
 type ProxySession struct {
-	User  Users
+	User  *User
 	Proxy *AppProxyConfig
 }
 
 func (c *ProxySession) GetId() string {
-	return strings.Join(c.User.Id(), ",")
+	return c.User.Id
+}
+
+func (c *AppProxy) SetJwtSecret(secret string) (err error) {
+	globalSecret := config.Get().GetGlobal().GetSecret()
+	if globalSecret == "" {
+		return errors.NewServerError(500, "global secret is not set")
+	}
+	c.JwtSecretSalt = uuid.NewV4().Bytes()
+	key := sha256.Sum256([]byte(string(c.JwtSecretSalt) + (globalSecret)))
+	c.JwtSecret, err = crypto.NewAESCipher(key[:]).CBCEncrypt([]byte(secret))
+	return err
+}
+
+func (c *AppProxy) GetJwtSecret() (string, error) {
+	if len(c.JwtSecret) == 0 || len(c.JwtSecretSalt) == 0 {
+		return "", nil
+	}
+	globalSecret := config.Get().GetGlobal().GetSecret()
+	if globalSecret == "" {
+		return "", errors.NewServerError(500, "global secret is not set")
+	}
+	key := sha256.Sum256([]byte(string(c.JwtSecretSalt) + (globalSecret)))
+	sec, err := crypto.NewAESCipher(key[:]).CBCDecrypt(c.JwtSecret)
+	return string(sec), err
 }

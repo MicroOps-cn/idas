@@ -21,6 +21,7 @@ import (
 
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/sets"
+	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/go-kit/log/level"
 
 	"github.com/MicroOps-cn/idas/pkg/errors"
@@ -36,6 +37,20 @@ func (s Set) GetApps(ctx context.Context, keywords string, filter map[string]int
 		if err != nil {
 			return 0, nil, errors.WithServerError(500, err, "failed to get app roles")
 		}
+		if app.Proxy != nil {
+			app.Proxy.JwtSecretSalt = nil
+			app.Proxy.JwtSecret = nil
+		}
+		app.I18N = new(models.AppI18NOptions)
+		var i18n map[string]string
+		if i18n, err = s.commonService.GetI18n(ctx, "app", app.Id, "description"); err != nil {
+			return 0, nil, err
+		}
+		app.I18N.Description = i18n
+		if i18n, err = s.commonService.GetI18n(ctx, "app", app.Id, "displayName"); err != nil {
+			return 0, nil, err
+		}
+		app.I18N.DisplayName = i18n
 	}
 	return count, apps, err
 }
@@ -44,8 +59,21 @@ func (s Set) PatchApps(ctx context.Context, patch []map[string]interface{}) (tot
 	return s.GetUserAndAppService().PatchApps(ctx, patch)
 }
 
-func (s Set) DeleteApps(ctx context.Context, id []string) (total int64, err error) {
-	return s.GetUserAndAppService().DeleteApps(ctx, id)
+func (s Set) DeleteApps(ctx context.Context, id ...string) (total int64, err error) {
+	if total, err = s.GetUserAndAppService().DeleteApps(ctx, id...); err != nil {
+		return total, err
+	}
+	if err = s.commonService.DeleteAppProxy(ctx, id...); err != nil {
+		return total, err
+	}
+	if err = s.commonService.DeleteAppAccessControl(ctx, id...); err != nil {
+		return total, err
+	}
+	if err = s.commonService.DeleteI18nBySourceId(ctx, id...); err != nil {
+		return total, err
+	}
+
+	return total, nil
 }
 
 func (s Set) GetAppAccessControl(ctx context.Context, app *models.App, o ...opts.WithGetAppOptions) (err error) {
@@ -89,6 +117,34 @@ func (s Set) GetAppAccessControl(ctx context.Context, app *models.App, o ...opts
 		}
 	}
 	return nil
+}
+
+func (s Set) PatchAppI18n(ctx context.Context, appId string, options *models.AppI18NOptions) (err error) {
+	if options == nil {
+		return nil
+	}
+	var i18ns []models.I18nTranslate
+
+	for lang, val := range options.DisplayName {
+		i18ns = append(i18ns, models.I18nTranslate{
+			Source:   "app",
+			Field:    "displayName",
+			SourceId: appId,
+			Lang:     lang,
+			Value:    val,
+		})
+	}
+	for lang, val := range options.Description {
+		i18ns = append(i18ns, models.I18nTranslate{
+			Source:   "app",
+			Field:    "description",
+			SourceId: appId,
+			Lang:     lang,
+			Value:    val,
+		})
+	}
+
+	return s.BatchPatchI18n(ctx, i18ns)
 }
 
 func (s Set) UpdateApp(ctx context.Context, app *models.App, updateColumns ...string) (err error) {
@@ -154,8 +210,7 @@ func (s Set) UpdateApp(ctx context.Context, app *models.App, updateColumns ...st
 	if err != nil {
 		return err
 	}
-
-	return nil
+	return s.PatchAppI18n(ctx, app.Id, app.I18N)
 }
 
 func (s Set) GetAppInfo(ctx context.Context, o ...opts.WithGetAppOptions) (app *models.App, err error) {
@@ -176,6 +231,18 @@ func (s Set) GetAppInfo(ctx context.Context, o ...opts.WithGetAppOptions) (app *
 		if err = s.GetAppAccessControl(ctx, app, o...); err != nil {
 			return nil, err
 		}
+	}
+	if !opts.NewAppOptions(o...).DisableGetI18n {
+		app.I18N = new(models.AppI18NOptions)
+		var i18n map[string]string
+		if i18n, err = s.commonService.GetI18n(ctx, "app", app.Id, "description"); err != nil {
+			return nil, err
+		}
+		app.I18N.Description = i18n
+		if i18n, err = s.commonService.GetI18n(ctx, "app", app.Id, "displayName"); err != nil {
+			return nil, err
+		}
+		app.I18N.DisplayName = i18n
 	}
 
 	return app, nil
@@ -244,7 +311,10 @@ func (s Set) CreateApp(ctx context.Context, app *models.App) (err error) {
 			return err
 		}
 	}
-	return s.commonService.UpdateAppAccessControl(ctx, app)
+	if err = s.commonService.UpdateAppAccessControl(ctx, app); err != nil {
+		return err
+	}
+	return s.PatchAppI18n(ctx, app.Id, app.I18N)
 }
 
 func (s Set) PatchApp(ctx context.Context, fields map[string]interface{}) (err error) {
@@ -252,7 +322,7 @@ func (s Set) PatchApp(ctx context.Context, fields map[string]interface{}) (err e
 }
 
 func (s Set) DeleteApp(ctx context.Context, id string) (err error) {
-	return s.GetUserAndAppService().DeleteApp(ctx, id)
+	return w.E(s.DeleteApps(ctx, id))
 }
 
 func (s Set) AppAuthentication(ctx context.Context, key string, secret string) (*models.App, error) {

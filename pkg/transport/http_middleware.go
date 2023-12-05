@@ -40,6 +40,7 @@ import (
 	"github.com/emicklei/go-restful/v3"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/sony/gobreaker"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -193,6 +194,9 @@ func HTTPProxyAuthenticationFilter(ptx context.Context, endpoints endpoint.Set) 
 					filterChan.ProcessFilter(req, resp)
 					return
 				}
+			} else if err == gobreaker.ErrOpenState || err == gobreaker.ErrTooManyRequests {
+				errorEncoder(ctx, err, resp)
+				return
 			}
 		}
 		if req.Request.URL.Path == "/-/oauth" {
@@ -202,6 +206,12 @@ func HTTPProxyAuthenticationFilter(ptx context.Context, endpoints endpoint.Set) 
 				if ar, err := endpoints.OAuthTokens(ctx, authReq); err != nil {
 					errorEncoder(ctx, err, resp)
 				} else if oar, ok := ar.(*endpoint.OAuthTokenResponse); ok && len(oar.AccessToken) != 0 {
+					for _, cookie := range oar.Cookies {
+						resp.ResponseWriter.Header().Add("Set-Cookie", cookie)
+					}
+					for name, value := range oar.Headers {
+						resp.ResponseWriter.Header().Add(name, value)
+					}
 					http.SetCookie(resp.ResponseWriter, &http.Cookie{Name: global.LoginSession, Path: "/", Value: oar.AccessToken})
 					http.SetCookie(resp.ResponseWriter, &http.Cookie{Name: global.ClientIDCookieName, Path: "/", MaxAge: -1})
 					http.SetCookie(resp.ResponseWriter, &http.Cookie{Name: global.OAuthStateCookieName, Path: "/", MaxAge: -1})

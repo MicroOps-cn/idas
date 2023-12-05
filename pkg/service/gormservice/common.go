@@ -61,6 +61,7 @@ func (c CommonService) AutoMigrate(ctx context.Context) error {
 		&models.SystemConfig{},
 		&models.UserPasswordHistory{},
 		&models.WeakPassword{},
+		&models.I18nTranslate{},
 	)
 	if err != nil {
 		return err
@@ -96,7 +97,6 @@ func (c CommonService) GetProxyConfig(ctx context.Context, host string) (*models
 		}
 		return nil, errors.NewServerError(500, err.Error())
 	}
-
 	if err := conn.Table("t_app_role_url").
 		Select("app_role_id", "`name` as `app_role_name`", "app_proxy_url_id").
 		Joins("JOIN `t_app_role` ON `t_app_role`.id = `t_app_role_url`.app_role_id").
@@ -110,6 +110,11 @@ func (c CommonService) GetProxyConfig(ctx context.Context, host string) (*models
 
 func (c CommonService) UpdateAppProxyConfig(ctx context.Context, proxy *models.AppProxy) (err error) {
 	conn := c.Session(ctx)
+	if len(proxy.JwtSecretSalt) == 0 && len(proxy.JwtSecret) > 0 {
+		if err = proxy.SetJwtSecret(string(proxy.JwtSecret)); err != nil {
+			return err
+		}
+	}
 	var model models.Model
 	for i, url := range proxy.Urls {
 		url.Index = uint32(i)
@@ -119,7 +124,11 @@ func (c CommonService) UpdateAppProxyConfig(ctx context.Context, proxy *models.A
 	}
 	proxy.Id = model.Id
 	if len(proxy.Id) > 0 {
-		if err = conn.Select("Urls", "update_time", "domain", "upstream", "insecure_skip_verify", "transparent_server_name").Session(&gogorm.Session{FullSaveAssociations: true}).
+		if err = conn.Select(
+			"Urls", "update_time", "domain", "upstream",
+			"insecure_skip_verify", "transparent_server_name",
+			"jwt_provider", "jwt_cookie_name", "jwt_secret", "jwt_secret_salt", "hsts_offload",
+		).Session(&gogorm.Session{FullSaveAssociations: true}).
 			Updates(proxy).Error; err != nil {
 			return err
 		}
@@ -135,6 +144,8 @@ func (c CommonService) GetAppProxyConfig(ctx context.Context, appId string) (pro
 	if err = c.Session(ctx).Where("app_id = ?", appId).Preload("Urls").First(&proxy).Error; err != nil && !errors.IsNotFount(err) {
 		return nil, err
 	}
+	proxy.JwtSecret = nil
+	proxy.JwtSecretSalt = nil
 	sort.Sort(proxy.Urls)
 	return proxy, nil
 }
@@ -162,6 +173,9 @@ func (c CommonService) PatchAppRole(ctx context.Context, role *models.AppRole) e
 				if err = conn.Select("name", "config", "is_delete", "is_default").Updates(&role).Error; err != nil {
 					return err
 				}
+			}
+			if err = conn.Model(&role).Association("Urls").Replace(role.Urls); err != nil {
+				return err
 			}
 		}
 	} else if role.Name != "" {
@@ -558,4 +572,67 @@ func (c CommonService) GetSystemConfig(ctx context.Context, prefix string) (map[
 		}
 	}
 	return cfgMap, nil
+}
+
+func (c CommonService) BatchPatchI18n(ctx context.Context, i18ns []models.I18nTranslate) (err error) {
+	conn := c.Session(ctx)
+	for _, i18n := range i18ns {
+		if err = conn.Where(i18n).FirstOrCreate(&i18n).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *CommonService) DeleteAppProxy(ctx context.Context, ids ...string) error {
+	if deleted := c.Session(ctx).Model(&models.AppRoleURL{}).
+		Where("app_id in ?", ids).
+		Update("delete_time", time.Now().UTC()); deleted.Error != nil {
+		return deleted.Error
+	}
+	if deleted := c.Session(ctx).Model(&models.AppProxyUrl{}).
+		Where("app_id in ?", ids).
+		Update("delete_time", time.Now().UTC()); deleted.Error != nil {
+		return deleted.Error
+	}
+	deleted := c.Session(ctx).Model(&models.AppProxy{}).Where("app_id in ?", ids).Update("delete_time", time.Now().UTC())
+	return deleted.Error
+}
+
+func (c *CommonService) DeleteAppAccessControl(ctx context.Context, ids ...string) error {
+	if deleted := c.Session(ctx).Model(&models.AppUser{}).
+		Where("app_id in ?", ids).
+		Update("delete_time", time.Now().UTC()); deleted.Error != nil {
+		return deleted.Error
+	}
+	if deleted := c.Session(ctx).Model(&models.AppRole{}).
+		Where("app_id in ?", ids).
+		Update("delete_time", time.Now().UTC()); deleted.Error != nil {
+		return deleted.Error
+	}
+	return nil
+}
+
+func (c *CommonService) DeleteI18nBySourceId(ctx context.Context, ids ...string) error {
+	if deleted := c.Session(ctx).Model(&models.I18nTranslate{}).
+		Where("source_id in ?", ids).
+		Update("delete_time", time.Now().UTC()); deleted.Error != nil {
+		return deleted.Error
+	}
+	return nil
+}
+
+func (c *CommonService) GetI18n(ctx context.Context, source string, sourceId string, field string) (map[string]string, error) {
+	var i18ns []models.I18nTranslate
+	err := c.Session(ctx).Model(&models.I18nTranslate{}).
+		Where("`source` = ? and `source_id` = ? and `field` = ?", source, sourceId, field).
+		Find(&i18ns).Error
+	if err != nil {
+		return nil, err
+	}
+	ret := make(map[string]string, len(i18ns))
+	for _, i18n := range i18ns {
+		ret[i18n.Lang] = i18n.Value
+	}
+	return ret, nil
 }

@@ -91,7 +91,7 @@ type Service interface {
 
 	GetApps(ctx context.Context, keywords string, filter map[string]interface{}, current, pageSize int64) (total int64, apps []*models.App, err error)
 	PatchApps(ctx context.Context, patch []map[string]interface{}) (total int64, err error)
-	DeleteApps(ctx context.Context, id []string) (total int64, err error)
+	DeleteApps(ctx context.Context, id ...string) (total int64, err error)
 	UpdateApp(ctx context.Context, app *models.App, updateColumns ...string) (err error)
 	GetAppInfo(ctx context.Context, options ...opts.WithGetAppOptions) (app *models.App, err error)
 	GetAppRoleByUserId(ctx context.Context, appId string, userId string) (role *models.AppRole, err error)
@@ -99,6 +99,7 @@ type Service interface {
 	CreateApp(ctx context.Context, app *models.App) (err error)
 	PatchApp(ctx context.Context, fields map[string]interface{}) (err error)
 	DeleteApp(ctx context.Context, id string) (err error)
+	PatchAppI18n(ctx context.Context, appId string, options *models.AppI18NOptions) (err error)
 	ResetPassword(ctx context.Context, id, password string) error
 
 	UpdateToken(ctx context.Context, id string, tokenType models.TokenType, data interface{}) (err error)
@@ -109,7 +110,7 @@ type Service interface {
 	Authorization(ctx context.Context, user *models.User, method string) bool
 	RegisterPermission(ctx context.Context, permissions models.Permissions) error
 	GetProxyConfig(ctx context.Context, host string) (*models.AppProxyConfig, error)
-	SendProxyRequest(ctx context.Context, r *gohttp.Request, proxyConfig *models.AppProxyConfig) (*gohttp.Response, error)
+	SendProxyRequest(ctx context.Context, r *gohttp.Request, proxyConfig *models.AppProxyConfig, proxyURL *models.AppProxyUrl) (*gohttp.Response, error)
 	AppAuthentication(ctx context.Context, username string, password string) (*models.App, error)
 	CreateAppKey(ctx context.Context, appId string, name string) (appKey *models.AppKey, err error)
 	GetAppKeys(ctx context.Context, appId string, current int64, pageSize int64) (count int64, keys []*models.AppKey, err error)
@@ -138,6 +139,7 @@ type Service interface {
 	InsertWeakPassword(ctx context.Context, passwords ...string) error
 	VerifyWeakPassword(ctx context.Context, password string) error
 	UpdateTokenExpires(ctx context.Context, id string, expiry time.Time) error
+	BatchPatchI18n(ctx context.Context, i18ns []models.I18nTranslate) (err error)
 }
 
 type Set struct {
@@ -168,14 +170,16 @@ func (s Set) PostEventLog(ctx context.Context, eventId, userId, username, client
 	return s.loggingService.PostEventLog(ctx, eventId, userId, username, clientIP, loc, action, message, status, took, log...)
 }
 
-func (s Set) SendProxyRequest(ctx context.Context, r *gohttp.Request, proxyConfig *models.AppProxyConfig) (*gohttp.Response, error) {
-	u, err := url.Parse(proxyConfig.Upstream)
+func (s Set) SendProxyRequest(ctx context.Context, r *gohttp.Request, proxyConfig *models.AppProxyConfig, proxyURL *models.AppProxyUrl) (*gohttp.Response, error) {
+	u, err := url.Parse(proxyURL.Upstream)
 	if err != nil {
 		return nil, errors.NewServerError(500, fmt.Sprintf("system error: failed to parse upstream domain: %s", proxyConfig.Upstream))
 	}
 	r.URL.Scheme = u.Scheme
 	r.URL.Host = u.Host
-
+	if len(u.Path) > 0 {
+		r.URL.Path = u.Path + strings.TrimPrefix(r.URL.Path, proxyURL.Url)
+	}
 	req, err := gohttp.NewRequest(r.Method, r.URL.String(), r.Body)
 	if err != nil {
 		return nil, errors.NewServerError(500, fmt.Sprintf("system error: failed to make request: %s", err))
@@ -283,8 +287,7 @@ func (s Set) VerifyToken(ctx context.Context, token string, tokenType models.Tok
 	switch tokenType {
 	case models.TokenTypeCode,
 		models.TokenTypeOAuthState,
-		models.TokenTypeLoginCode,
-		models.TokenTypeAppProxyLogin:
+		models.TokenTypeLoginCode:
 		if err = s.DeleteToken(ctx, tokenType, tk.Id); err != nil {
 			level.Warn(logger).Log("msg", "failed to delete token.", "err", err)
 		}
@@ -400,7 +403,7 @@ type UserAndAppService interface {
 
 	GetApps(ctx context.Context, keywords string, filter map[string]interface{}, current, pageSize int64) (total int64, apps []*models.App, err error)
 	PatchApps(ctx context.Context, patch []map[string]interface{}) (total int64, err error)
-	DeleteApps(ctx context.Context, id []string) (total int64, err error)
+	DeleteApps(ctx context.Context, id ...string) (total int64, err error)
 	UpdateApp(ctx context.Context, app *models.App, updateColumns ...string) (err error)
 	GetAppInfo(ctx context.Context, o ...opts.WithGetAppOptions) (app *models.App, err error)
 	CreateApp(ctx context.Context, app *models.App) (err error)

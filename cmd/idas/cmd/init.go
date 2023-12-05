@@ -18,8 +18,11 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 
 	logs "github.com/MicroOps-cn/fuck/log"
+	w "github.com/MicroOps-cn/fuck/wrapper"
+	"github.com/go-kit/log/level"
 	"github.com/spf13/cobra"
 
 	"github.com/MicroOps-cn/idas/pkg/endpoint"
@@ -36,7 +39,8 @@ var initDataCmd = &cobra.Command{
 	Long:  `The data initialization tool will create a table with missing columns and indexes. And create the required user and application data.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := logs.GetDefaultLogger()
-		InitData(context.Background(), signals.SetupSignalHandler(logger))
+		ctx := context.WithValue(cmd.Context(), "command", cmd.Use)
+		InitData(ctx, signals.SetupSignalHandler(logger))
 	},
 }
 
@@ -49,6 +53,10 @@ func InitData(ctx context.Context, _ *signals.StopChan) {
 		panic(err)
 	}
 	if err := svc.InitData(ctx, adminUsername); err != nil {
+		logger := logs.GetContextLogger(ctx)
+		level.Error(logs.WithPrint(w.NewStringer(func() string {
+			return fmt.Sprintf("%+v", err)
+		}))(logger)).Log("msg", "failed to http request", "err", err)
 		panic(err)
 	}
 }

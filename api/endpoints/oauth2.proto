@@ -10,6 +10,8 @@ message OAuthTokenResponse{
   string refresh_token = 4;
   string error = 5;
   string id_token = 6;
+  map<string,string> headers = 7;
+  repeated string cookies = 8;
 }
 
 message OAuthAuthorizeRequest{
@@ -24,6 +26,7 @@ message OAuthAuthorizeRequest{
   string redirect_uri = 3;
   string state = 4;
   string scope = 5;
+  string access_type = 6;
 }
 
 // @sync-to-public:public/src/services/idas/enums.ts:OAuthGrantType

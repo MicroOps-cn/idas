@@ -92,14 +92,14 @@ func (s *Token) GetRelationId() string {
 }
 
 func NewToken(tokenType TokenType, data interface{}) (*Token, error) {
-	token := &Token{Id: g.NewId(string(tokenType)), CreateTime: time.Now().UTC(), Type: tokenType, LastSeen: time.Now().UTC(), Expiry: tokenType.GetExpiry()}
+	token := &Token{Id: g.NewUUID(string(tokenType)).String(), CreateTime: time.Now().UTC(), Type: tokenType, LastSeen: time.Now().UTC(), Expiry: tokenType.GetExpiry()}
 	rawData, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
 	if obj, ok := data.(HasId); ok {
 		token.RelationId = obj.GetId()
-		token.Id = g.NewId(token.RelationId)
+		token.Id = g.NewUUID(token.RelationId).String()
 	}
 	token.Data = rawData
 	return token, nil
@@ -111,7 +111,7 @@ func (s *Token) To(r interface{}) error {
 
 func (s *Token) BeforeCreate(db *gorm.DB) error {
 	if s.Id == "" {
-		id := g.NewId(db.Statement.Table)
+		id := g.NewUUID(db.Statement.Table).String()
 		if len(id) != 36 {
 			return errors.New("生成ID失败: " + id)
 		}

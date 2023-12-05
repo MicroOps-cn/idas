@@ -26,6 +26,7 @@ import (
 	"github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log/level"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/MicroOps-cn/idas/pkg/service"
 )
@@ -96,6 +97,9 @@ func MakeDownloadFileEndpoint(s service.Service) endpoint.Endpoint {
 
 func GetEventMeta(ctx context.Context, action string, beginTime time.Time, err error, resp interface{}) (eventId, message string, status bool, took time.Duration) {
 	eventId = log.GetTraceId(ctx)
+	if u, err := uuid.FromString(eventId); err == nil {
+		eventId = u.String()
+	}
 	if err != nil {
 		message = fmt.Sprintf("Calling the %s method failed, err: %s", action, err)
 	} else if r, ok := resp.(endpoint.Failer); ok && r.Failed() != nil {

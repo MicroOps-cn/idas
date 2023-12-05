@@ -18,6 +18,7 @@ package config
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -25,13 +26,16 @@ import (
 	"strconv"
 	"strings"
 
+	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/go-kit/log"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/util/rand"
 
+	"github.com/MicroOps-cn/idas/pkg/client/gorm"
 	oauth2 "github.com/MicroOps-cn/idas/pkg/client/oauth2"
+	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/utils/capacity"
 )
 
@@ -118,8 +122,17 @@ func (x *Storage) findRef(path string, root interface{}) error {
 }
 
 func (x *Config) Init(_ log.Logger) error {
-	if x.Storage == nil || x.Storage.Default == nil {
-		return fmt.Errorf("default storage is null")
+	if x.Storage == nil {
+		x.Storage = &Storages{}
+	}
+	if x.Storage.Default == nil {
+		o := gorm.NewSQLiteOptions()
+		x.Storage.Default = &Storage{
+			Name: "default",
+			Source: &Storage_Sqlite{
+				Sqlite: w.M(gorm.NewSQLiteClient(context.Background(), o)),
+			},
+		}
 	}
 	if x.Storage.User == nil {
 		x.Storage.User = x.Storage.Default
@@ -181,13 +194,18 @@ func (x *GlobalOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []by
 	x.MaxBodySize = options.MaxBodySize
 	x.MaxUploadSize = options.MaxUploadSize
 	x.JwtSecret = options.JwtSecret
-	x.UploadPath = "uploads"
+	x.AppName = options.AppName
+	x.UploadPath = options.UploadPath
+	x.Title = options.Title
 	err := unmarshaller.Unmarshal(bytes.NewReader(b), (*pbGlobalOptions)(x))
 	if err != nil {
 		return err
 	}
 	if len(x.JwtSecret) == 0 {
 		return fmt.Errorf("`global.jwt_secret` cannot be empty")
+	}
+	if len(x.Secret) == 0 {
+		return fmt.Errorf("`global.secret` cannot be empty")
 	}
 	return nil
 }
@@ -202,6 +220,9 @@ func NewGlobalOptions() *GlobalOptions {
 		MaxUploadSize: capacity.NewCapacity(defaultMaxUploadSize),
 		MaxBodySize:   capacity.NewCapacity(defaultMaxBodySize),
 		JwtSecret:     rand.String(128),
+		AppName:       global.AppName,
+		Title:         "IDAS",
+		UploadPath:    "uploads",
 	}
 }
 

@@ -18,9 +18,12 @@ package ldapservice
 
 import (
 	"context"
+	"os"
 	"strings"
 
+	"github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/sets"
+	"github.com/go-kit/log/level"
 	goldap "github.com/go-ldap/ldap/v3"
 
 	"github.com/MicroOps-cn/idas/pkg/client/ldap"
@@ -38,8 +41,11 @@ func NewUserAndAppService(ctx context.Context, name string, client *ldap.Client)
 		return nil
 	}
 	var hasIDASClass bool
-	if classes.HasAll("idasCore", "idasApp") {
+	if classes.HasAll(ClassIdasCore, ClassIdasApp) {
 		hasIDASClass = true
+	} else if !classes.Has(ClassExtensibleObject) {
+		level.Error(log.GetContextLogger(ctx)).Log("msg", "If you want to run the platform normally, you need `extensibleObject` or idas related classes")
+		os.Exit(1)
 	}
 	var appObjectClass []string
 	var memberAttr string

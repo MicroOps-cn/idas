@@ -352,8 +352,8 @@ func (s Set) VerifyUserStatus(ctx context.Context, user *models.User, allowPassw
 //	@param secret 	string
 //	@param payload 	string
 //	@param signStr 	string
-//	@return ${ret_name}	[]*models.User
-//	@return ${ret_name}	error
+//	@return user	[]*models.User
+//	@return err	error
 func (s Set) Authentication(ctx context.Context, method models.AuthMeta_Method, algorithm sign.AuthAlgorithm, key, secret, payload, signStr string) (user *models.User, err error) {
 	if method == models.AuthMeta_basic {
 		if _, err = uuid.FromString(key); err != nil {

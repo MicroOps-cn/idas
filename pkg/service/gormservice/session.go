@@ -45,6 +45,9 @@ type SessionService struct {
 }
 
 func (s SessionService) startBroom(ctx context.Context) {
+	if ctx.Value("command") == "init" {
+		return
+	}
 	ticker := time.NewTicker(time.Hour)
 	stopCh := signals.SetupSignalHandler(logs.GetContextLogger(ctx))
 	stopCh.AddRequest(1)

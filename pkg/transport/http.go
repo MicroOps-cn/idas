@@ -37,7 +37,6 @@ import (
 	"github.com/MicroOps-cn/fuck/buffer"
 	logs "github.com/MicroOps-cn/fuck/log"
 	w "github.com/MicroOps-cn/fuck/wrapper"
-	idasLogs "github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/asaskevich/govalidator"
 	restfulspec "github.com/emicklei/go-restful-openapi/v2"
 	"github.com/emicklei/go-restful/v3"
@@ -55,6 +54,7 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/endpoint"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
+	idasLogs "github.com/MicroOps-cn/idas/pkg/logs"
 	"github.com/MicroOps-cn/idas/pkg/utils/httputil"
 )
 
@@ -91,8 +91,8 @@ func NewHTTPHandler(ctx context.Context, logger log.Logger, endpoints endpoint.S
 			PostBuildSwaggerObjectHandler: func(swo *spec.Swagger) {
 				swo.Info = &spec.Info{
 					InfoProps: spec.InfoProps{
-						Title:       "ItemTestService",
-						Description: "Resource for managing ItemTests",
+						Title:       "IDAS Service",
+						Description: "IDAS Service",
 						Version:     "1.0.0",
 					},
 				}
@@ -139,6 +139,7 @@ type File struct {
 func (f File) Stat() (fs.FileInfo, error) {
 	return f.stat, nil
 }
+
 func (f File) Read(p []byte) (int, error) {
 	n, err := f.Reader.Read(p)
 	return n, err
@@ -227,6 +228,7 @@ func errorEncoder(ctx context.Context, err error, writer http.ResponseWriter) {
 		writer.WriteHeader(serverErr.StatusCode())
 		resp.ErrorCode = serverErr.Code()
 	} else {
+		resp.ErrorCode = strconv.Itoa(http.StatusInternalServerError)
 		writer.Header().Set("Content-Type", "application/json; charset=utf-8")
 		writer.WriteHeader(http.StatusInternalServerError)
 	}
@@ -408,6 +410,13 @@ func simpleEncodeHTTPResponse(ctx context.Context, w http.ResponseWriter, respon
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	logWriter := logs.NewWriterAdapter(level.Debug(log.With(logs.WithCaller(7)(logger), "resp", fmt.Sprintf("%#v", response))), logs.Prefix("encoded http response: ", true))
 	return json.NewEncoder(io.MultiWriter(w, buffer.LimitWriter(logWriter, 1024, buffer.LimitWriterIgnoreError))).Encode(response)
+}
+
+func noopEncodeHTTPResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	if f, ok := response.(kitendpoint.Failer); ok && f.Failed() != nil {
+		errorEncoder(ctx, f.Failed(), w)
+	}
+	return nil
 }
 
 func WrapHTTPHandler(pctx context.Context, h *httptransport.Server) func(*restful.Request, *restful.Response) {

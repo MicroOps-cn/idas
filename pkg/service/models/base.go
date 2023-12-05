@@ -34,7 +34,7 @@ import (
 
 func (m *Model) BeforeCreate(db *gorm.DB) error {
 	if m.Id == "" {
-		id := g.NewId(db.Statement.Table)
+		id := g.NewUUID(db.Statement.Table).String()
 		if len(id) != 36 {
 			return errors.New("Failed to generate ID: " + id)
 		}

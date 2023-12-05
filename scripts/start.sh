@@ -9,6 +9,7 @@ make protos idas && (
     ./idas \
       --log.level=debug \
       --log.format=idas \
+      --config idas-test.yaml \
       --http.openapi-path=/apidocs.json \
       --http.openapi-path=/apidocs.json \
       --swagger.file-path=./swagger-ui \

@@ -49,6 +49,7 @@ type CommonService interface {
 	RegisterPermission(ctx context.Context, permissions models.Permissions) error
 	CreateOrUpdateRoleByName(ctx context.Context, role *models.Role) error
 	Authorization(ctx context.Context, roles []string, method string) bool
+	BatchPatchI18n(ctx context.Context, i18ns []models.I18nTranslate) (err error)
 
 	GetUserExtendedData(ctx context.Context, id string) (*models.UserExt, error)
 	GetUsersExtendedData(ctx context.Context, id []string) ([]*models.UserExt, error)
@@ -88,6 +89,10 @@ type CommonService interface {
 	VerifyWeakPassword(ctx context.Context, password string) error
 	InsertWeakPassword(ctx context.Context, passwords ...string) error
 	GetAppRoles(ctx context.Context, id string) (models.AppRoles, error)
+	DeleteAppProxy(ctx context.Context, id ...string) error
+	DeleteAppAccessControl(ctx context.Context, id ...string) error
+	DeleteI18nBySourceId(ctx context.Context, id ...string) error
+	GetI18n(ctx context.Context, source string, sourceId string, field string) (map[string]string, error)
 }
 
 func NewCommonService(ctx context.Context) CommonService {
@@ -222,4 +227,8 @@ func (s Set) InsertWeakPassword(ctx context.Context, passwords ...string) error 
 
 func (s Set) VerifyWeakPassword(ctx context.Context, password string) error {
 	return s.commonService.VerifyWeakPassword(ctx, password)
+}
+
+func (s Set) BatchPatchI18n(ctx context.Context, i18ns []models.I18nTranslate) (err error) {
+	return s.commonService.BatchPatchI18n(ctx, i18ns)
 }

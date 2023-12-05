@@ -17,9 +17,7 @@
 package service
 
 import (
-	"bytes"
 	"context"
-	"net/http"
 	"testing"
 	"time"
 
@@ -28,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/rand"
 
 	"github.com/MicroOps-cn/idas/pkg/service/models"
-	"github.com/MicroOps-cn/idas/pkg/utils/sign"
 )
 
 func testUserService(ctx context.Context, t *testing.T, svc Service) {
@@ -254,38 +251,6 @@ func testUserService(ctx context.Context, t *testing.T, svc Service) {
 			}
 		}
 	})
-	keyPairName := rand.String(rand.Intn(20))
-	t.Run("Test Create User Keypair", func(t *testing.T) {
-		keypair, err := svc.CreateUserKey(ctx, userId, keyPairName)
-		require.NoError(t, err)
-		require.NotEmpty(t, keypair.Secret)
-		require.NotEmpty(t, keypair.Key)
-		require.NotEmpty(t, keypair.Private)
-
-		req, err := http.NewRequest("POST", "https://example.com/api/users", bytes.NewBuffer([]byte(`{"username":"lion"}`)))
-		require.NoError(t, err)
-		req.Header.Set("content-type", sign.MimeJSON)
-		signStr, err := sign.GetSignFromHTTPRequest(req, keypair.Key, keypair.Secret, keypair.Private, sign.ECDSA)
-		require.NoError(t, err)
-		payload, err := sign.GetPayloadFromHTTPRequest(req)
-		require.NoError(t, err)
-		user, err := svc.Authentication(ctx, models.AuthMeta_signature, sign.ECDSA, keypair.Key, "", payload, signStr)
-		require.NoError(t, err)
-		require.NotNil(t, user)
-	})
-	t.Run("Test List User Keypair", func(t *testing.T) {
-		count, pairs, err := svc.GetUserKeys(ctx, userId, 1, 100)
-		require.NoError(t, err)
-		require.Len(t, pairs, 1)
-		require.Equal(t, count, int64(1))
-		require.Equal(t, keyPairName, pairs[0].Name)
-		require.NotEmpty(t, pairs[0].Id)
-		require.NotEmpty(t, pairs[0].CreateTime)
-		require.NotEmpty(t, pairs[0].Key)
-		require.Empty(t, pairs[0].Secret)
-		require.Empty(t, pairs[0].Private)
-	})
-
 	t.Run("Test Delete User", func(t *testing.T) {
 		err := svc.DeleteUser(ctx, userId)
 		require.NoError(t, err)

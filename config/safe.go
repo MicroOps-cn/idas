@@ -170,7 +170,8 @@ func (sc *safeConfig) ReloadConfigFromJSONReader(logger log.Logger, reader Reade
 	}()
 
 	c := Config{
-		Global: NewGlobalOptions(),
+		Global:  NewGlobalOptions(),
+		Storage: &Storages{},
 	}
 
 	var unmarshaler jsonpb.Unmarshaler

@@ -209,6 +209,7 @@ var (
 	ParameterError    = func(msg string) error { return NewServerError(http.StatusBadRequest, "Parameter Error: "+msg) }
 	UnauthorizedError = func() error { return NewServerError(http.StatusUnauthorized, "Invalid identity information") }
 	StatusNotFound    = func(name string) ServerError { return NewServerError(http.StatusNotFound, name+" Not Found") }
+	StatusForbidden   = func(name string) ServerError { return NewServerError(http.StatusForbidden, name+" StatusForbidden") }
 	NotFoundError     = func() error { return NewServerError(http.StatusNotFound, "record not found") }
 )
 
@@ -246,4 +247,5 @@ const (
 	CodePasswordTooSimple             = "E0016"
 	CodeRequestTooFrequently          = "E0429"
 	CodeAppMemberCannotBeEmpty        = "E1101"
+	CodeAppCannotBeDelete             = "E1102"
 )

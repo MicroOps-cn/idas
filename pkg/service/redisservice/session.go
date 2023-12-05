@@ -147,7 +147,7 @@ func getTokenKey(tokenId string) string {
 func (s SessionService) CreateToken(ctx context.Context, token *models.Token) error {
 	redisClt := s.Redis(ctx)
 	if len(token.Id) == 0 {
-		token.Id = g.NewId(token.RelationId)
+		token.Id = g.NewUUID(token.RelationId).String()
 	}
 	if token.CreateTime.IsZero() {
 		token.CreateTime = time.Now().UTC()

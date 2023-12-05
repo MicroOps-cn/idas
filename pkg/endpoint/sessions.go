@@ -554,7 +554,7 @@ func MakeUserLogoutEndpoint(s service.Service) endpoint.Endpoint {
 				Expires: time.Now().UTC(),
 			})
 			autoLoginCookie, _ := request.(RestfulRequester).GetRestfulRequest().Request.Cookie(global.CookieAutoLogin)
-			if len(autoLoginCookie.Value) != 0 {
+			if autoLoginCookie != nil && len(autoLoginCookie.Value) != 0 {
 				http.SetCookie(respWriter, &http.Cookie{
 					Name:    global.CookieAutoLogin,
 					Value:   autoLoginCookie.Value,
@@ -655,16 +655,14 @@ func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 func MakeGetProxySessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		params := request.(*GetSessionParams)
-		var session []*models.ProxySession
+		var session *models.ProxySession
 		if len(params.Token) > 0 {
 			if err = s.GetSessionByToken(ctx, params.Token, params.TokenType, &session); err != nil {
 				if err != errors.NotLoginError() {
 					level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to get session")
 				}
-			} else if len(session) == 1 {
-				return session[0], nil
-			} else if len(session) > 1 {
-				return nil, errors.NewServerError(500, "proxy configuration exception")
+			} else {
+				return session, nil
 			}
 		} else {
 			err = errors.NotLoginError()

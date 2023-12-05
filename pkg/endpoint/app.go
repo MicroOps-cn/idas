@@ -18,6 +18,7 @@ package endpoint
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 
 	"github.com/go-kit/kit/endpoint"
@@ -73,7 +74,7 @@ func MakePatchAppsEndpoint(s service.Service) endpoint.Endpoint {
 			patchApps = append(patchApps, patch)
 		}
 
-		resp.Total, resp.Error = s.PatchUsers(ctx, patchApps)
+		resp.Total, resp.Error = s.PatchApps(ctx, patchApps)
 
 		return &resp, nil
 	}
@@ -92,7 +93,7 @@ func MakeDeleteAppsEndpoint(s service.Service) endpoint.Endpoint {
 			}
 			delApps = append(delApps, app.Id)
 		}
-		resp.Total, resp.Error = s.DeleteApps(ctx, delApps)
+		resp.Total, resp.Error = s.DeleteApps(ctx, delApps...)
 		return &resp, nil
 	}
 }
@@ -137,8 +138,9 @@ func MakeUpdateAppEndpoint(s service.Service) endpoint.Endpoint {
 			Proxy:       req.GetProxyConfig(),
 			DisplayName: req.DisplayName,
 			Url:         req.Url,
+			I18N:        req.I18N,
 		}); resp.Error != nil {
-			resp.Error = errors.NewServerError(200, resp.Error.Error())
+			resp.Error = errors.WithServerError(200, resp.Error, "failed to update app")
 		}
 		return &resp, nil
 	}
@@ -149,6 +151,10 @@ func MakeGetAppInfoEndpoint(s service.Service) endpoint.Endpoint {
 		req := request.(Requester).GetRequestData().(*GetAppRequest)
 		resp := SimpleResponseWrapper[*models.App]{}
 		resp.Data, resp.Error = s.GetAppInfo(ctx, opts.WithAppId(req.Id), opts.WithGetTags)
+		if resp.Data.Proxy != nil {
+			resp.Data.Proxy.JwtSecretSalt = nil
+			resp.Data.Proxy.JwtSecret = nil
+		}
 		return &resp, nil
 	}
 }
@@ -186,15 +192,20 @@ func (r CreateAppRequest) GetProxyConfig() *models.AppProxy {
 		Upstream:              r.Proxy.Upstream,
 		InsecureSkipVerify:    r.Proxy.InsecureSkipVerify,
 		TransparentServerName: r.Proxy.TransparentServerName,
+		HstsOffload:           r.Proxy.HstsOffload,
+		JwtProvider:           r.Proxy.JwtProvider,
+		JwtCookieName:         r.Proxy.JwtCookieName,
+		JwtSecret:             sql.RawBytes(r.Proxy.JwtSecret),
 	}
 	for _, url := range r.Proxy.Urls {
 		proxy.Urls = append(
 			proxy.Urls,
 			&models.AppProxyUrl{
-				Model:  models.Model{Id: url.Id},
-				Name:   url.Name,
-				Method: url.Method,
-				Url:    url.Url,
+				Model:    models.Model{Id: url.Id},
+				Name:     url.Name,
+				Method:   url.Method,
+				Url:      url.Url,
+				Upstream: url.Upstream,
 			})
 	}
 	return proxy
@@ -215,7 +226,11 @@ func MakeCreateAppEndpoint(s service.Service) endpoint.Endpoint {
 			Roles:       req.GetRoles(),
 			Proxy:       req.GetProxyConfig(),
 			Url:         req.Url,
+			I18N:        req.I18N,
 		})
+		if resp.Error != nil {
+			resp.Error = errors.WithMessage(resp.Error, "Failed to create app")
+		}
 		return &resp, nil
 	}
 }
@@ -246,7 +261,16 @@ func MakePatchAppEndpoint(s service.Service) endpoint.Endpoint {
 				patch[name] = val
 			}
 		}
-		resp.Error = s.PatchApp(ctx, patch)
+
+		if resp.Error = s.PatchApp(ctx, patch); resp.Error != nil {
+			resp.Error = errors.WithServerError(200, resp.Error, "failed to patch app")
+			return &resp, nil
+		}
+
+		if resp.Error = s.PatchAppI18n(ctx, req.Id, req.I18N); resp.Error != nil {
+			resp.Error = errors.WithServerError(200, resp.Error, "failed to patch app")
+		}
+
 		return &resp, nil
 	}
 }
@@ -272,15 +296,20 @@ func (m *UpdateAppRequest) GetProxyConfig() *models.AppProxy {
 		Upstream:              m.Proxy.Upstream,
 		InsecureSkipVerify:    m.Proxy.InsecureSkipVerify,
 		TransparentServerName: m.Proxy.TransparentServerName,
+		HstsOffload:           m.Proxy.HstsOffload,
+		JwtProvider:           m.Proxy.JwtProvider,
+		JwtCookieName:         m.Proxy.JwtCookieName,
+		JwtSecret:             sql.RawBytes(m.Proxy.JwtSecret),
 	}
 	for _, url := range m.Proxy.Urls {
 		proxy.Urls = append(
 			proxy.Urls,
 			&models.AppProxyUrl{
-				Model:  models.Model{Id: url.Id},
-				Name:   url.Name,
-				Method: url.Method,
-				Url:    url.Url,
+				Model:    models.Model{Id: url.Id},
+				Name:     url.Name,
+				Method:   url.Method,
+				Url:      url.Url,
+				Upstream: url.Upstream,
 			})
 	}
 	return proxy

@@ -94,7 +94,14 @@ func (s UserAndAppService) PatchApps(ctx context.Context, patch []map[string]int
 //	@param ids     []string         : ID List
 //	@return total  int64
 //	@return err    error
-func (s UserAndAppService) DeleteApps(ctx context.Context, id []string) (total int64, err error) {
+func (s UserAndAppService) DeleteApps(ctx context.Context, id ...string) (total int64, err error) {
+	var idasCount int64
+	if err = s.Session(ctx).Model(&models.App{}).Where("`id` in ? and `name` = 'IDAS'", id).Count(&idasCount).Error; err != nil {
+		return 0, err
+	}
+	if idasCount > 0 {
+		return 0, errors.NewServerError(400, "can't delete the idas app", errors.CodeAppCannotBeDelete)
+	}
 	deleted := s.Session(ctx).Model(&models.App{}).Where("`id` in ? and `name` != 'IDAS'", id).Update("delete_time", time.Now().UTC())
 	if err = deleted.Error; err != nil {
 		return deleted.RowsAffected, err
@@ -208,7 +215,7 @@ func (s UserAndAppService) PatchApp(ctx context.Context, fields map[string]inter
 //	@param id 	string
 //	@return err	error
 func (s UserAndAppService) DeleteApp(ctx context.Context, id string) (err error) {
-	_, err = s.DeleteApps(ctx, []string{id})
+	_, err = s.DeleteApps(ctx, id)
 	return err
 }
 
@@ -224,22 +231,26 @@ func (s UserAndAppService) DeleteApp(ctx context.Context, id string) (err error)
 //	@return apps     []*models.App
 //	@return err      error
 func (s UserAndAppService) GetApps(ctx context.Context, keywords string, filters map[string]interface{}, current, pageSize int64) (total int64, apps []*models.App, err error) {
-	query := s.Session(ctx).Model(&models.App{}).Where("delete_time IS NULL")
+	query := s.Session(ctx).Model(&models.App{})
 	if len(keywords) > 0 {
 		keywords = fmt.Sprintf("%%%s%%", keywords)
-		query = query.Where("name like ? or description like ? or display_name like ?", keywords, keywords, keywords)
+		query = query.Where("`t_app`.name like ? or `t_app`.description like ? or `t_app`.display_name like ?", keywords, keywords, keywords)
 	}
 	for name, val := range filters {
-		if name == "url" && val == "*" {
-			query = query.Where("url <> '' and url IS NOT NULL")
-		} else {
-			query = query.Where(clause.Eq{Column: name, Value: val})
+		switch name {
+		case "user_id":
+			query = query.Joins("LEFT JOIN `t_app_user` ON `t_app`.`id` = `t_app_user`.`app_id`").Where("`t_app_user`.`user_id` = ? AND `t_app_user`.`delete_time` IS NULL", val)
+		case "url":
+			if val == "*" {
+				query = query.Where("`t_app`.url <> '' and `t_app`.url IS NOT NULL")
+			}
 		}
+		query = query.Where(clause.Eq{Column: name, Value: val})
 	}
 	if err = query.Count(&total).Error; err != nil {
 		return 0, nil, err
 	} else if total > 0 {
-		if err = query.Order("name,id").Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).Find(&apps).Error; err != nil {
+		if err = query.Select("t_app.*").Order("`t_app`.name,`t_app`.id").Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).Find(&apps).Error; err != nil {
 			return 0, nil, err
 		}
 	}

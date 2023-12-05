@@ -50,7 +50,15 @@ func init() {
 	})
 }
 
-func NewSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *Client, err error) {
+func NewSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *SQLiteClient, err error) {
+	client, err := NewGormSQLiteClient(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+	return &SQLiteClient{Client: client, options: options}, nil
+}
+
+func NewGormSQLiteClient(ctx context.Context, options *SQLiteOptions) (clt *Client, err error) {
 	clt = new(Client)
 	logger := log.GetContextLogger(ctx)
 	if options.SlowThreshold != nil {
@@ -154,7 +162,7 @@ func (c *SQLiteClient) Unmarshal(data []byte) (err error) {
 	if err = proto.Unmarshal(data, c.options); err != nil {
 		return err
 	}
-	if c.Client, err = NewSQLiteClient(context.Background(), c.options); err != nil {
+	if c.Client, err = NewGormSQLiteClient(context.Background(), c.options); err != nil {
 		return err
 	}
 	return
@@ -173,7 +181,7 @@ func (c *SQLiteClient) UnmarshalJSON(data []byte) (err error) {
 	if err = json.Unmarshal(data, c.options); err != nil {
 		return err
 	}
-	if c.Client, err = NewSQLiteClient(context.Background(), c.options); err != nil {
+	if c.Client, err = NewGormSQLiteClient(context.Background(), c.options); err != nil {
 		return err
 	}
 	return

@@ -116,3 +116,12 @@ type EventLog struct {
 	EventId string        `json:"eventId" gorm:"type:varchar(36);column:event_id"`
 	Log     CompressField `json:"log"`
 }
+
+type I18nTranslate struct {
+	Id       int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	Source   string `gorm:"type:varchar(20)"`
+	SourceId string `gorm:"type:varchar(36)"`
+	Field    string `gorm:"type:varchar(50)"`
+	Lang     string `gorm:"type:varchar(10)"`
+	Value    string `gorm:"type:varchar(5000)"`
+}
