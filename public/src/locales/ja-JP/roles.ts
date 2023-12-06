@@ -1,0 +1,18 @@
+export default {
+  'pages.roles.title.name': 'ロール名',
+  'pages.roles.title.describe': '説明',
+  'pages.roles.title.createTime': '作成時間',
+  'pages.roles.title.operate': '操作',
+  'pages.roles.button.create': '作成＃サクセイ＃',
+  'pages.roles.form.basicConfig': '基本情報',
+  'pages.roles.form.name.label': 'の名前をあげる',
+  'pages.roles.form.name.required': 'ロール名を入力してください！',
+  'pages.roles.form.description.label': '説明',
+  'pages.roles.form.permission.title': 'アクセス権',
+  'pages.roles.form.title.roleCreate': 'ロールの作成',
+  'pages.roles.button.change': '変更',
+  'pages.roles.delete.popconfirm': '{name}という名前のロールを削除してもよろしいですか？',
+  'pages.roles.button.delete': '削除＃サクジョ＃',
+  'pages.roles.form.title.roleUpdate': 'ロールの変更',
+  'pages.roles.form.cancel?': '編集をキャンセルしますか？',
+};

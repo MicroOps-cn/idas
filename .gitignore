@@ -6,5 +6,5 @@
 !/docker/.dockerignore
 !/docker/Dockerfile
 /docker
-/public
 /test
+/scripts/build.sh

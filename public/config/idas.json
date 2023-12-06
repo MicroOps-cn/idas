@@ -1,0 +1,5239 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "IDAS Service",
+    "title": "IDAS Service",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/apps": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["apps"],
+        "summary": "Get the application list.",
+        "operationId": "getApps",
+        "parameters": [
+          {
+            "type": "int64",
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "type": "int64",
+            "name": "current",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "keywords",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetAppsResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0,
+                "current": 0,
+                "pageSize": 0
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["apps"],
+        "summary": "Create an application.",
+        "operationId": "createApp",
+        "parameters": [
+          {
+            "example": {
+              "name": "",
+              "url": ""
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.CreateAppRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["apps"],
+        "summary": "Batch delete applications.",
+        "operationId": "deleteApps",
+        "parameters": [
+          {
+            "example": [],
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/endpoint.DeleteAppRequest"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseTotalResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["apps"],
+        "summary": "Batch update of application information (incremental).",
+        "operationId": "patchApps",
+        "parameters": [
+          {
+            "example": [],
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/endpoint.PatchAppRequest"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseTotalResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{appId}/key": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["apps"],
+        "summary": "Get a app key-pairs.",
+        "operationId": "getAppKeys",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the app",
+            "name": "appId",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetAppKeysResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["apps"],
+        "summary": "Create a app key pair.",
+        "operationId": "createAppKey",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the app",
+            "name": "appId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "example": {
+              "appId": "",
+              "name": ""
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.CreateAppKeyRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.CreateAppKeyResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["apps"],
+        "summary": "Delete a app key pairs.",
+        "operationId": "deleteAppKeys",
+        "parameters": [
+          {
+            "example": {
+              "id": null,
+              "appId": ""
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.DeleteAppKeysRequest"
+            }
+          },
+          {
+            "type": "string",
+            "description": "identifier of the app",
+            "name": "appId",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{id}": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["apps"],
+        "summary": "Get Application info.",
+        "operationId": "getAppInfo",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the app",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetAppResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["apps"],
+        "summary": "更新应用信息（全量）",
+        "operationId": "updateApp",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the app",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "example": {
+              "id": "",
+              "name": "",
+              "status": 0,
+              "url": ""
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.UpdateAppRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["apps"],
+        "summary": "Delete app.",
+        "operationId": "deleteApp",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the app",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["apps"],
+        "summary": "Update application information (full).",
+        "operationId": "patchApp",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the app",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "example": {
+              "id": ""
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.PatchAppRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/config/security": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["config"],
+        "summary": "Obtain Security Configuration.",
+        "operationId": "getSecurityConfig",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetSecurityConfigResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["config"],
+        "summary": "Update Security Configuration (Incremental).",
+        "operationId": "patchSecurityConfig",
+        "parameters": [
+          {
+            "example": {},
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.PatchSecurityConfigRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["events"],
+        "summary": "Get events.",
+        "operationId": "getEvents",
+        "parameters": [
+          {
+            "type": "int64",
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "type": "int64",
+            "name": "current",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "keywords",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "username",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "action",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "startTime",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "endTime",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetEventsResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0,
+                "current": 0,
+                "pageSize": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/logs": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["events"],
+        "summary": "Get event logs.",
+        "operationId": "getEventLogs",
+        "parameters": [
+          {
+            "type": "int64",
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "type": "int64",
+            "name": "current",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "keywords",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "eventId",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetEventLogsResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0,
+                "current": 0,
+                "pageSize": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files": {
+      "post": {
+        "consumes": ["multipart/form-data"],
+        "produces": ["application/json"],
+        "tags": ["files"],
+        "summary": "Upload file",
+        "operationId": "uploadFile",
+        "parameters": [
+          {
+            "type": "array",
+            "items": {
+              "type": "file"
+            },
+            "description": "files",
+            "name": "files"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.FileUploadResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0,
+                "data": null
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/files/{id}": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["files"],
+        "summary": "Download/View File",
+        "operationId": "downloadFile",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the file",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/global/config": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["global"],
+        "summary": "Get global config.",
+        "operationId": "getGlobalConfig",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GlobalConfigResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/oauth/authorize": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["oauth"],
+        "summary": "Application authorization.",
+        "operationId": "oAuthAuthorize",
+        "parameters": [
+          {
+            "type": "string",
+            "format": "string",
+            "name": "response_type",
+            "in": "query",
+            "schema": {
+              "$ref": "#/definitions/idas.oauth2.OAuthAuthorizeRequest_ResponseType"
+            }
+          },
+          {
+            "type": "string",
+            "name": "client_id",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "redirect_uri",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "state",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "scope",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "access_type",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["oauth"],
+        "summary": "Application authorization.",
+        "operationId": "oAuthAuthorize",
+        "parameters": [
+          {
+            "example": {},
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.OAuthAuthorizeRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/oauth/token": {
+      "post": {
+        "consumes": ["application/x-www-form-urlencoded", "application/json"],
+        "produces": ["application/json"],
+        "tags": ["oauth"],
+        "summary": "Get token.",
+        "operationId": "oAuthTokens",
+        "parameters": [
+          {
+            "example": {},
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.OAuthTokenRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.OAuthTokenResponse"
+            },
+            "examples": {
+              "application/json": {
+                "expires_in": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/oauth/userinfo": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["oauth"],
+        "summary": "Get user info.",
+        "operationId": "oAuthUserInfo",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pages": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["pages"],
+        "summary": "Get page list",
+        "operationId": "getPages",
+        "parameters": [
+          {
+            "type": "int64",
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "type": "int64",
+            "name": "current",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "keywords",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "string",
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "$ref": "#/definitions/idas.service.models.PageStatus"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetPagesResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0,
+                "current": 0,
+                "pageSize": 0
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["pages"],
+        "summary": "Create page.",
+        "operationId": "createPage",
+        "parameters": [
+          {
+            "example": {
+              "name": ""
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.CreatePageRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "patch": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["pages"],
+        "summary": "Batch patch page config(Incremental).",
+        "operationId": "patchPages",
+        "parameters": [
+          {
+            "example": [],
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/endpoint.PatchPageRequest"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseTotalResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pages/{id}": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["pages"],
+        "summary": "Get a page configs.",
+        "operationId": "getPage",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the page",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetPageResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["pages"],
+        "summary": "Update page (full).",
+        "operationId": "updatePage",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the page",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "example": {
+              "id": "",
+              "name": "",
+              "isDisable": false
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.UpdatePageRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["pages"],
+        "summary": "Delete a page.",
+        "operationId": "deletePage",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the page",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pages/{pageId}/data": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["pages"],
+        "summary": "Get data list of page",
+        "operationId": "getPageDatas",
+        "parameters": [
+          {
+            "type": "int64",
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "type": "int64",
+            "name": "current",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "keywords",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "pageId",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "map[string]string",
+            "name": "filters",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "identifier of the page",
+            "name": "pageId",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetPageDatasResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0,
+                "current": 0,
+                "pageSize": 0
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["pages"],
+        "summary": "Create a data of a page.",
+        "operationId": "createPageData",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the page",
+            "name": "pageId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "example": {
+              "pageId": ""
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.CreatePageDataRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "patch": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["pages"],
+        "summary": "Batch patch data of a page(Incremental).",
+        "operationId": "patchPageDatas",
+        "parameters": [
+          {
+            "example": [],
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/endpoint.PatchPageDataRequest"
+              }
+            }
+          },
+          {
+            "type": "string",
+            "description": "identifier of the page",
+            "name": "pageId",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseTotalResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pages/{pageId}/data/{id}": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["pages"],
+        "summary": "Get the specified data of a page.",
+        "operationId": "getPageData",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the page",
+            "name": "pageId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "data id of the page",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetPageDataResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["pages"],
+        "summary": "Update data of a page. (full).",
+        "operationId": "updatePageData",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the page",
+            "name": "pageId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "data id of the page",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "example": {
+              "pageId": "",
+              "id": ""
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.UpdatePageDataRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["pages"],
+        "summary": "Delete data of a page.",
+        "operationId": "deletePageData",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the page",
+            "name": "pageId",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "data id of the page",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/permissions": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["permissions"],
+        "summary": "Get permission list.",
+        "operationId": "getPermissions",
+        "parameters": [
+          {
+            "type": "int64",
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "type": "int64",
+            "name": "current",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "keywords",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetPermissionsResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0,
+                "current": 0,
+                "pageSize": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roles": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["roles"],
+        "summary": "Get role list.",
+        "operationId": "getRoles",
+        "parameters": [
+          {
+            "type": "int64",
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "type": "int64",
+            "name": "current",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "keywords",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetRolesResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0,
+                "current": 0,
+                "pageSize": 0
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["roles"],
+        "summary": "Create role.",
+        "operationId": "createRole",
+        "parameters": [
+          {
+            "example": {
+              "name": ""
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.CreateRoleRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["roles"],
+        "summary": "Batch delete roles.",
+        "operationId": "deleteRoles",
+        "parameters": [
+          {
+            "example": [],
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/endpoint.DeleteRoleRequest"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseTotalResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roles/{id}": {
+      "put": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["roles"],
+        "summary": "Update role information (full).",
+        "operationId": "updateRole",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the role",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "example": {
+              "id": "",
+              "name": ""
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.UpdateRoleRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["roles"],
+        "summary": "删除角色",
+        "operationId": "deleteRole",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the role",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["sessions"],
+        "summary": "Get session list.",
+        "operationId": "getSessions",
+        "parameters": [
+          {
+            "type": "int64",
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "type": "int64",
+            "name": "current",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "keywords",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "userId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetSessionsResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0,
+                "current": 0,
+                "pageSize": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/{id}": {
+      "delete": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["sessions"],
+        "summary": "Expire a session.",
+        "operationId": "deleteSession",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the session",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "Get current login user information.",
+        "operationId": "currentUser",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetUserResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "Update current login user information (full).",
+        "operationId": "updateCurrentUser",
+        "parameters": [
+          {
+            "example": {
+              "id": "",
+              "username": ""
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.UpdateUserRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "Update current login user information (increment).",
+        "operationId": "patchCurrentUser",
+        "parameters": [
+          {
+            "example": {},
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.PatchCurrentUserRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/activateAccount": {
+      "post": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "Activate the user.",
+        "operationId": "activateAccount",
+        "parameters": [
+          {
+            "example": {
+              "userId": "",
+              "newPassword": null
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.ActivateAccountRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/apps": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "Get current login user's apps.",
+        "operationId": "currentUserApps",
+        "parameters": [
+          {
+            "type": "int64",
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "type": "int64",
+            "name": "current",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "keywords",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetAppsResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0,
+                "current": 0,
+                "pageSize": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/eventLogs": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "Get current login user's event logs.",
+        "operationId": "currentUserEventLogs",
+        "parameters": [
+          {
+            "type": "int64",
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "type": "int64",
+            "name": "current",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "keywords",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "eventId",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetCurrentUserEventLogsResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0,
+                "current": 0,
+                "pageSize": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/events": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "Get current login user's events.",
+        "operationId": "currentUserEvents",
+        "parameters": [
+          {
+            "type": "int64",
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "type": "int64",
+            "name": "current",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "keywords",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "action",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "startTime",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "endTime",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetCurrentUserEventsResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0,
+                "current": 0,
+                "pageSize": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/forgotPassword": {
+      "post": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "Forgot the user password.",
+        "operationId": "forgotPassword",
+        "parameters": [
+          {
+            "example": {
+              "username": "",
+              "email": ""
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.ForgotUserPasswordRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/login": {
+      "post": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "User login.",
+        "operationId": "userLogin",
+        "parameters": [
+          {
+            "example": {},
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.UserLoginRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.UserLoginResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/logout": {
+      "post": {
+        "consumes": ["*/*"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "User logout.",
+        "operationId": "userLogout",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/oauth/{id}": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "OAuth login.",
+        "operationId": "userOAuthLogin",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the oauth",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.UserLoginResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/resetPassword": {
+      "post": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "Reset the user password.",
+        "operationId": "resetPassword",
+        "parameters": [
+          {
+            "example": {
+              "userId": "",
+              "newPassword": null
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.ResetUserPasswordRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/sendLoginCaptcha": {
+      "post": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "Send login code.",
+        "operationId": "sendLoginCaptcha",
+        "parameters": [
+          {
+            "example": {
+              "type": 0
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.SendLoginCaptchaRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.SendLoginCaptchaResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/sessions": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "Get current user session list.",
+        "operationId": "getCurrentUserSessions",
+        "parameters": [
+          {
+            "type": "int64",
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "type": "int64",
+            "name": "current",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "keywords",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "userId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetSessionsResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0,
+                "current": 0,
+                "pageSize": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/sessions/{id}": {
+      "delete": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "Delete current user a session.",
+        "operationId": "deleteCurrentUserSession",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the session",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/totp": {
+      "post": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "binding TOTP Secret",
+        "operationId": "bindingTOTP",
+        "parameters": [
+          {
+            "example": {
+              "token": null,
+              "firstCode": "",
+              "secondCode": ""
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.CreateTOTPRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user/totp/secret": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["user"],
+        "summary": "get TOTP Secret",
+        "operationId": "getTOTPSecret",
+        "parameters": [
+          {
+            "type": "*models.Secret",
+            "name": "token",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.CreateTOTPSecretResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["users"],
+        "summary": "Get user list.",
+        "operationId": "getUsers",
+        "parameters": [
+          {
+            "type": "int64",
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "type": "int64",
+            "name": "current",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "keywords",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "app",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "string",
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "$ref": "#/definitions/idas.service.models.UserMeta_UserStatus"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetUsersResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0,
+                "current": 0,
+                "pageSize": 0
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["users"],
+        "summary": "Create a user.",
+        "operationId": "createUser",
+        "parameters": [
+          {
+            "example": {
+              "username": ""
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.CreateUserRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["users"],
+        "summary": "Delete users in batch.",
+        "operationId": "deleteUsers",
+        "parameters": [
+          {
+            "example": [],
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/endpoint.DeleteUserRequest"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseTotalResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["users"],
+        "summary": "Batch update user information(Incremental).",
+        "operationId": "patchUsers",
+        "parameters": [
+          {
+            "example": [],
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/endpoint.PatchUserRequest"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseTotalResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false,
+                "total": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/sendActivateMail": {
+      "post": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["users"],
+        "summary": "Send account activation email.",
+        "operationId": "sendActivateMail",
+        "parameters": [
+          {
+            "example": {
+              "userId": ""
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.SendActivationMailRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}": {
+      "get": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["users"],
+        "summary": "Get user information.",
+        "operationId": "getUserInfo",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the user",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.GetUserResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["users"],
+        "summary": "Update user information(full).",
+        "operationId": "updateUser",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the user",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "example": {
+              "id": "",
+              "username": ""
+            },
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.UpdateUserRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.UpdateUserRequest"
+            },
+            "examples": {
+              "application/json": {
+                "id": "",
+                "username": ""
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["users"],
+        "summary": "Delete user.",
+        "operationId": "deleteUser",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the user",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.BaseResponse"
+            },
+            "examples": {
+              "application/json": {
+                "traceId": "",
+                "success": false
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["users"],
+        "summary": "Update user information(Incremental).",
+        "operationId": "patchUser",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "identifier of the user",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "example": {},
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/endpoint.PatchUserRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/endpoint.PatchUserResponse"
+            },
+            "examples": {
+              "application/json": {
+                "User": null
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "config.RuntimeSecurityConfig": {
+      "required": [
+        "forceEnableMfa",
+        "passwordComplexity",
+        "passwordMinLength",
+        "passwordExpireTime",
+        "passwordFailedLockThreshold",
+        "passwordFailedLockDuration",
+        "passwordHistory",
+        "accountInactiveLock",
+        "loginSessionInactivityTime",
+        "loginSessionMaxTime"
+      ],
+      "properties": {
+        "accountInactiveLock": {
+          "type": "integer",
+          "format": "integer"
+        },
+        "forceEnableMfa": {
+          "type": "boolean"
+        },
+        "loginSessionInactivityTime": {
+          "type": "integer",
+          "format": "integer"
+        },
+        "loginSessionMaxTime": {
+          "type": "integer",
+          "format": "integer"
+        },
+        "passwordComplexity": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.config.PasswordComplexity"
+        },
+        "passwordExpireTime": {
+          "type": "integer",
+          "format": "integer"
+        },
+        "passwordFailedLockDuration": {
+          "type": "integer",
+          "format": "integer"
+        },
+        "passwordFailedLockThreshold": {
+          "type": "integer",
+          "format": "integer"
+        },
+        "passwordHistory": {
+          "type": "integer",
+          "format": "integer"
+        },
+        "passwordMinLength": {
+          "type": "integer",
+          "format": "integer"
+        }
+      }
+    },
+    "endpoint.ActivateAccountRequest": {
+      "required": ["userId", "newPassword"],
+      "properties": {
+        "newPassword": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.AppInfo": {
+      "required": [
+        "id",
+        "name",
+        "grantType",
+        "grantMode",
+        "status",
+        "url",
+        "updateTime",
+        "createTime",
+        "isDelete"
+      ],
+      "properties": {
+        "avatar": {
+          "type": "string"
+        },
+        "createTime": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "grantMode": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.service.models.AppMeta_GrantMode"
+        },
+        "grantType": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/idas.service.models.AppMeta_GrantType"
+          }
+        },
+        "i18n": {
+          "$ref": "#/definitions/models.AppI18NOptions"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isDelete": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "proxy": {
+          "$ref": "#/definitions/endpoint.AppProxyInfo"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.AppRoleInfo"
+          }
+        },
+        "status": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.service.models.AppMeta_Status"
+        },
+        "updateTime": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "users": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.UserInfo"
+          }
+        }
+      }
+    },
+    "endpoint.AppKeyInfo": {
+      "required": [
+        "id",
+        "updateTime",
+        "createTime",
+        "name",
+        "appId",
+        "key",
+        "secret",
+        "privateKey"
+      ],
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "createTime": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "privateKey": {
+          "type": "string"
+        },
+        "secret": {
+          "type": "string"
+        },
+        "updateTime": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.AppProxyInfo": {
+      "required": [
+        "domain",
+        "upstream",
+        "urls",
+        "insecureSkipVerify",
+        "transparentServerName",
+        "jwtProvider",
+        "jwtCookieName",
+        "jwtSecret",
+        "hstsOffload"
+      ],
+      "properties": {
+        "domain": {
+          "type": "string"
+        },
+        "hstsOffload": {
+          "type": "boolean"
+        },
+        "insecureSkipVerify": {
+          "type": "boolean"
+        },
+        "jwtCookieName": {
+          "type": "string"
+        },
+        "jwtProvider": {
+          "type": "boolean"
+        },
+        "jwtSecret": {
+          "type": "string"
+        },
+        "transparentServerName": {
+          "type": "boolean"
+        },
+        "upstream": {
+          "type": "string"
+        },
+        "urls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.AppProxyUrlInfo"
+          }
+        }
+      }
+    },
+    "endpoint.AppProxyUrlInfo": {
+      "required": ["id", "name", "method", "url"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "upstream": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.AppRoleInfo": {
+      "required": ["id", "name"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "isDefault": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "urls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "endpoint.AppUser": {
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "roleId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.BaseListResponse": {
+      "required": ["success", "total", "traceId", "current", "pageSize"],
+      "properties": {
+        "current": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.BaseResponse": {
+      "required": ["traceId", "success"],
+      "properties": {
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.BaseTotalResponse": {
+      "required": ["traceId", "success", "total"],
+      "properties": {
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.CreateAppKeyRequest": {
+      "required": ["appId", "name"],
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.CreateAppKeyResponse": {
+      "required": ["traceId", "success"],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/endpoint.AppKeyInfo"
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.CreateAppRequest": {
+      "required": ["name", "url"],
+      "properties": {
+        "avatar": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "grantMode": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.service.models.AppMeta_GrantMode"
+        },
+        "grantType": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/idas.service.models.AppMeta_GrantType"
+          }
+        },
+        "i18n": {
+          "$ref": "#/definitions/models.AppI18NOptions"
+        },
+        "name": {
+          "type": "string"
+        },
+        "proxy": {
+          "$ref": "#/definitions/endpoint.AppProxyInfo"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.AppRoleInfo"
+          }
+        },
+        "url": {
+          "type": "string"
+        },
+        "users": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.AppUser"
+          }
+        }
+      }
+    },
+    "endpoint.CreatePageDataRequest": {
+      "required": ["pageId"],
+      "properties": {
+        "data": {
+          "type": "object"
+        },
+        "pageId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.CreatePageRequest": {
+      "required": ["name"],
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/models.FieldConfig"
+          }
+        },
+        "icon": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.CreateRoleRequest": {
+      "required": ["name"],
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "permission": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "endpoint.CreateTOTPRequest": {
+      "required": ["token", "firstCode", "secondCode"],
+      "properties": {
+        "firstCode": {
+          "type": "string"
+        },
+        "secondCode": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.CreateTOTPSecretResponse": {
+      "required": ["traceId", "success"],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/endpoint.CreateTOTPSecretResponseData"
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.CreateTOTPSecretResponseData": {
+      "required": ["secret", "token"],
+      "properties": {
+        "secret": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.CreateUserRequest": {
+      "required": ["username"],
+      "properties": {
+        "apps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.UserApp"
+          }
+        },
+        "avatar": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "fullName": {
+          "type": "string"
+        },
+        "isDelete": {
+          "type": "boolean"
+        },
+        "phoneNumber": {
+          "type": "string"
+        },
+        "status": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.service.models.UserMeta_UserStatus"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.DeleteAppKeysRequest": {
+      "required": ["id", "appId"],
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.DeleteAppRequest": {
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.DeleteRoleRequest": {
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.DeleteUserRequest": {
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.Event": {
+      "required": [
+        "id",
+        "updateTime",
+        "createTime",
+        "userId",
+        "username",
+        "action",
+        "client_ip",
+        "status",
+        "took",
+        "message",
+        "location"
+      ],
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "client_ip": {
+          "type": "string"
+        },
+        "createTime": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "took": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "updateTime": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.EventLog": {
+      "required": ["id", "updateTime", "createTime", "userId", "log"],
+      "properties": {
+        "createTime": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "log": {
+          "type": "string"
+        },
+        "updateTime": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.FileUploadResponse": {
+      "required": ["traceId", "success", "total", "data"],
+      "properties": {
+        "data": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.ForgotUserPasswordRequest": {
+      "required": ["username", "email"],
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetAppKeysResponse": {
+      "required": ["traceId", "success"],
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.SimpleAppKeyInfo"
+          }
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetAppResponse": {
+      "required": ["traceId", "success"],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/endpoint.AppInfo"
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetAppsResponse": {
+      "required": ["traceId", "current", "pageSize", "success", "total"],
+      "properties": {
+        "current": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.AppInfo"
+          }
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetCurrentUserEventLogsResponse": {
+      "required": ["total", "traceId", "current", "pageSize", "success"],
+      "properties": {
+        "current": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.EventLog"
+          }
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetCurrentUserEventsResponse": {
+      "required": ["total", "traceId", "current", "pageSize", "success"],
+      "properties": {
+        "current": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.Event"
+          }
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetEventLogsResponse": {
+      "required": ["pageSize", "success", "total", "traceId", "current"],
+      "properties": {
+        "current": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.EventLog"
+          }
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetEventsResponse": {
+      "required": ["success", "total", "traceId", "current", "pageSize"],
+      "properties": {
+        "current": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.Event"
+          }
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetPageDataResponse": {
+      "required": ["traceId", "success"],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/endpoint.PageData"
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetPageDatasResponse": {
+      "required": ["total", "traceId", "current", "pageSize", "success"],
+      "properties": {
+        "current": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.PageData"
+          }
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetPageResponse": {
+      "required": ["success", "traceId"],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/endpoint.PageConfig"
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetPagesResponse": {
+      "required": ["success", "total", "traceId", "current", "pageSize"],
+      "properties": {
+        "current": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.PageConfig"
+          }
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetPermissionsResponse": {
+      "required": ["pageSize", "traceId", "success", "total", "current"],
+      "properties": {
+        "current": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.PermissionInfo"
+          }
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetRolesResponse": {
+      "required": ["total", "traceId", "success", "current", "pageSize"],
+      "properties": {
+        "current": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.RoleInfo"
+          }
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetSecurityConfigResponse": {
+      "required": ["traceId", "success"],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/config.RuntimeSecurityConfig"
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetSessionsResponse": {
+      "required": ["total", "traceId", "current", "pageSize", "success"],
+      "properties": {
+        "current": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.SessionInfo"
+          }
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetUserResponse": {
+      "required": ["traceId", "success"],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/endpoint.UserInfo"
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GetUsersResponse": {
+      "required": ["pageSize", "traceId", "success", "total", "current"],
+      "properties": {
+        "current": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.UserInfo"
+          }
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GlobalConfig": {
+      "required": ["loginType", "defaultLoginType"],
+      "properties": {
+        "copyright": {
+          "type": "string"
+        },
+        "defaultLoginType": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.endpoint.LoginType"
+        },
+        "loginType": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.GlobalLoginType"
+          }
+        },
+        "logo": {
+          "type": "string"
+        },
+        "subTitle": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GlobalConfigResponse": {
+      "required": ["traceId", "success"],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/endpoint.GlobalConfig"
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.GlobalLoginType": {
+      "required": ["type"],
+      "properties": {
+        "autoLogin": {
+          "type": "boolean"
+        },
+        "autoRedirect": {
+          "type": "boolean"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.endpoint.LoginType"
+        }
+      }
+    },
+    "endpoint.OAuthAuthorizeRequest": {
+      "properties": {
+        "access_type": {
+          "type": "string"
+        },
+        "client_id": {
+          "type": "string"
+        },
+        "redirect_uri": {
+          "type": "string"
+        },
+        "response_type": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.oauth2.OAuthAuthorizeRequest_ResponseType"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.OAuthTokenRequest": {
+      "properties": {
+        "client_id": {
+          "type": "string"
+        },
+        "client_secret": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "disable_refresh_token": {
+          "type": "boolean"
+        },
+        "grant_type": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.oauth2.OAuthGrantType"
+        },
+        "password": {
+          "type": "string"
+        },
+        "redirect_uri": {
+          "type": "string"
+        },
+        "refresh_token": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "token_type": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.oauth2.OAuthTokenType"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.OAuthTokenResponse": {
+      "required": ["expires_in"],
+      "properties": {
+        "access_token": {
+          "type": "string"
+        },
+        "cookies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "error": {
+          "type": "string"
+        },
+        "expires_in": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "id_token": {
+          "type": "string"
+        },
+        "refresh_token": {
+          "type": "string"
+        },
+        "token_type": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.oauth2.OAuthTokenType"
+        }
+      }
+    },
+    "endpoint.PageConfig": {
+      "required": ["id", "updateTime", "createTime", "name", "isDisable"],
+      "properties": {
+        "createTime": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/models.FieldConfig"
+          }
+        },
+        "icon": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isDisable": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "updateTime": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.PageData": {
+      "required": ["id", "pageId", "updateTime", "createTime"],
+      "properties": {
+        "createTime": {
+          "type": "string"
+        },
+        "data": {
+          "type": "object"
+        },
+        "id": {
+          "type": "string"
+        },
+        "pageId": {
+          "type": "string"
+        },
+        "updateTime": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.PatchAppRequest": {
+      "required": ["id"],
+      "properties": {
+        "avatar": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "grantMode": {
+          "type": "string",
+          "$ref": "#/definitions/idas.service.models.AppMeta_GrantMode"
+        },
+        "grantType": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/idas.service.models.AppMeta_GrantType"
+          }
+        },
+        "i18n": {
+          "$ref": "#/definitions/models.AppI18NOptions"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isDelete": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "proxy": {
+          "$ref": "#/definitions/endpoint.AppProxyInfo"
+        },
+        "status": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.service.models.AppMeta_Status"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.PatchCurrentUserRequest": {
+      "properties": {
+        "email_as_mfa": {
+          "type": "boolean"
+        },
+        "sms_as_mfa": {
+          "type": "boolean"
+        },
+        "totp_as_mfa": {
+          "type": "boolean"
+        }
+      }
+    },
+    "endpoint.PatchPageDataRequest": {
+      "required": ["pageId", "id"],
+      "properties": {
+        "data": {
+          "type": "object"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isDelete": {
+          "type": "boolean"
+        },
+        "pageId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.PatchPageRequest": {
+      "required": ["id"],
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/models.FieldConfig"
+          }
+        },
+        "icon": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isDelete": {
+          "type": "boolean"
+        },
+        "isDisable": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.PatchSecurityConfigRequest": {
+      "properties": {
+        "accountInactiveLock": {
+          "type": "integer",
+          "format": "integer"
+        },
+        "forceEnableMfa": {
+          "type": "boolean"
+        },
+        "loginSessionInactivityTime": {
+          "type": "integer",
+          "format": "integer"
+        },
+        "loginSessionMaxTime": {
+          "type": "integer",
+          "format": "integer"
+        },
+        "passwordComplexity": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.config.PasswordComplexity"
+        },
+        "passwordExpireTime": {
+          "type": "integer",
+          "format": "integer"
+        },
+        "passwordFailedLockDuration": {
+          "type": "integer",
+          "format": "integer"
+        },
+        "passwordFailedLockThreshold": {
+          "type": "integer",
+          "format": "integer"
+        },
+        "passwordHistory": {
+          "type": "integer",
+          "format": "integer"
+        },
+        "passwordMinLength": {
+          "type": "integer",
+          "format": "integer"
+        }
+      }
+    },
+    "endpoint.PatchUserRequest": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "isDelete": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.service.models.UserMeta_UserStatus"
+        }
+      }
+    },
+    "endpoint.PatchUserResponse": {
+      "required": ["User"],
+      "properties": {
+        "User": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.PermissionInfo": {
+      "required": ["id", "updateTime", "createTime"],
+      "properties": {
+        "createTime": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "enableAuth": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "parentId": {
+          "type": "string"
+        },
+        "updateTime": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.ResetUserPasswordRequest": {
+      "required": ["userId", "newPassword"],
+      "properties": {
+        "newPassword": {
+          "type": "string"
+        },
+        "oldPassword": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.RoleInfo": {
+      "required": ["id", "updateTime", "createTime", "name"],
+      "properties": {
+        "createTime": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "permission": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.PermissionInfo"
+          }
+        },
+        "updateTime": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.SendActivationMailRequest": {
+      "required": ["userId"],
+      "properties": {
+        "userId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.SendLoginCaptchaRequest": {
+      "required": ["type"],
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "type": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.endpoint.LoginType"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.SendLoginCaptchaResponse": {
+      "required": ["traceId", "success"],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/endpoint.SendLoginCaptchaResponseData"
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.SendLoginCaptchaResponseData": {
+      "properties": {
+        "token": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.SessionInfo": {
+      "required": ["id", "createTime", "expiry"],
+      "properties": {
+        "createTime": {
+          "type": "string"
+        },
+        "expiry": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "lastSeen": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.SimpleAppKeyInfo": {
+      "required": ["id", "updateTime", "createTime", "name", "appId", "key"],
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "createTime": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "updateTime": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.UpdateAppRequest": {
+      "required": ["id", "name", "status", "url"],
+      "properties": {
+        "avatar": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "grantMode": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.service.models.AppMeta_GrantMode"
+        },
+        "grantType": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/idas.service.models.AppMeta_GrantType"
+          }
+        },
+        "i18n": {
+          "$ref": "#/definitions/models.AppI18NOptions"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isDelete": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "proxy": {
+          "$ref": "#/definitions/endpoint.AppProxyInfo"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.AppRoleInfo"
+          }
+        },
+        "status": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.service.models.AppMeta_Status"
+        },
+        "url": {
+          "type": "string"
+        },
+        "users": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.AppUser"
+          }
+        }
+      }
+    },
+    "endpoint.UpdatePageDataRequest": {
+      "required": ["pageId", "id"],
+      "properties": {
+        "data": {
+          "type": "object"
+        },
+        "id": {
+          "type": "string"
+        },
+        "pageId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.UpdatePageRequest": {
+      "required": ["id", "name", "isDisable"],
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/models.FieldConfig"
+          }
+        },
+        "icon": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isDisable": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.UpdateRoleRequest": {
+      "required": ["id", "name"],
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "permission": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "endpoint.UpdateUserRequest": {
+      "required": ["id", "username"],
+      "properties": {
+        "apps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.UserApp"
+          }
+        },
+        "avatar": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "fullName": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isDelete": {
+          "type": "boolean"
+        },
+        "phoneNumber": {
+          "type": "string"
+        },
+        "status": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.service.models.UserMeta_UserStatus"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.UserApp": {
+      "required": ["id"],
+      "properties": {
+        "avatar": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "roleId": {
+          "type": "string"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/models.AppRole"
+          }
+        }
+      }
+    },
+    "endpoint.UserInfo": {
+      "required": ["id", "username", "status", "updateTime", "createTime", "isDelete"],
+      "properties": {
+        "apps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/endpoint.UserApp"
+          }
+        },
+        "avatar": {
+          "type": "string"
+        },
+        "createTime": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "extendedData": {
+          "$ref": "#/definitions/models.UserExt"
+        },
+        "fullName": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isDelete": {
+          "type": "boolean"
+        },
+        "loginTime": {
+          "type": "string"
+        },
+        "phoneNumber": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "roleId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.service.models.UserMeta_UserStatus"
+        },
+        "updateTime": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.UserLoginRequest": {
+      "properties": {
+        "autoLogin": {
+          "type": "boolean"
+        },
+        "code": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "firstCode": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "secondCode": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string"
+        },
+        "type": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.endpoint.LoginType"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.UserLoginResponse": {
+      "required": ["traceId", "success"],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/endpoint.UserLoginResponseData"
+        },
+        "errorCode": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        },
+        "traceId": {
+          "type": "string"
+        }
+      }
+    },
+    "endpoint.UserLoginResponseData": {
+      "required": ["nextMethod"],
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "nextMethod": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/idas.endpoint.LoginType"
+          }
+        },
+        "phone_number": {
+          "type": "string"
+        },
+        "token": {
+          "type": "string"
+        }
+      }
+    },
+    "idas.config.PasswordComplexity": {
+      "enum": ["unsafe", 0, "general", 1, "safe", 2, "very_safe", 3]
+    },
+    "idas.endpoint.LoginType": {
+      "enum": [
+        "mfa_sms",
+        3,
+        "email",
+        4,
+        "sms",
+        5,
+        "oauth2",
+        6,
+        "enable_mfa_totp",
+        10,
+        "enable_mfa_sms",
+        12,
+        "mfa_totp",
+        1,
+        "mfa_email",
+        2,
+        "enable_mfa_email",
+        11,
+        "normal",
+        0
+      ]
+    },
+    "idas.oauth2.OAuthAuthorizeRequest_ResponseType": {
+      "enum": ["code", 1, "token", 2, "default", 0]
+    },
+    "idas.oauth2.OAuthGrantType": {
+      "enum": ["client_credentials", 3, "refresh_token", 0, "authorization_code", 1, "password", 2]
+    },
+    "idas.oauth2.OAuthTokenType": {
+      "enum": ["Mac", 1, "Cookie", 2, "Bearer", 0]
+    },
+    "idas.service.models.AppMeta_GrantMode": {
+      "enum": ["full", 1, "manual", 0]
+    },
+    "idas.service.models.AppMeta_GrantType": {
+      "enum": [
+        "none",
+        0,
+        "authorization_code",
+        1,
+        "implicit",
+        2,
+        "password",
+        4,
+        "client_credentials",
+        8,
+        "proxy",
+        16,
+        "oidc",
+        32,
+        "radius",
+        64
+      ]
+    },
+    "idas.service.models.AppMeta_Status": {
+      "enum": ["unknown", 0, "normal", 1, "disable", 2]
+    },
+    "idas.service.models.FieldType": {
+      "enum": [
+        "digit",
+        3,
+        "timeRange",
+        10,
+        "dateTimeRange",
+        14,
+        "text",
+        0,
+        "radio",
+        6,
+        "select",
+        8,
+        "multiSelect",
+        9,
+        "dateTime",
+        13,
+        "textarea",
+        2,
+        "digitRange",
+        4,
+        "checkbox",
+        5,
+        "switch",
+        7,
+        "date",
+        11,
+        "dateRange",
+        12
+      ]
+    },
+    "idas.service.models.PageStatus": {
+      "enum": ["all", "disabled", "enabled"]
+    },
+    "idas.service.models.UserMeta_UserStatus": {
+      "enum": ["normal", 0, "disabled", 1, "user_inactive", 2, "password_expired", 4]
+    },
+    "models.App": {
+      "required": [
+        "id",
+        "name",
+        "description",
+        "avatar",
+        "grantType",
+        "grantMode",
+        "status",
+        "url"
+      ],
+      "properties": {
+        "avatar": {
+          "type": "string"
+        },
+        "createTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "grantMode": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.service.models.AppMeta_GrantMode"
+        },
+        "grantType": {
+          "type": "string",
+          "format": "int32",
+          "$ref": "#/definitions/idas.service.models.AppMeta_GrantType"
+        },
+        "i18n": {
+          "$ref": "#/definitions/models.AppI18NOptions"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isDelete": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "proxy": {
+          "$ref": "#/definitions/models.AppProxy"
+        },
+        "role": {
+          "type": "string"
+        },
+        "roleId": {
+          "type": "string"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/models.AppRole"
+          }
+        },
+        "status": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.service.models.AppMeta_Status"
+        },
+        "updateTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "url": {
+          "type": "string"
+        },
+        "users": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/models.User"
+          }
+        }
+      }
+    },
+    "models.AppI18NOptions": {
+      "properties": {
+        "description": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "displayName": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "models.AppProxy": {
+      "required": [
+        "id",
+        "appId",
+        "domain",
+        "upstream",
+        "urls",
+        "insecureSkipVerify",
+        "transparentServerName",
+        "jwtProvider",
+        "jwtCookieName",
+        "jwt_secret",
+        "jwt_secret_salt",
+        "hstsOffload"
+      ],
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "createTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "domain": {
+          "type": "string"
+        },
+        "hstsOffload": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "insecureSkipVerify": {
+          "type": "boolean"
+        },
+        "isDelete": {
+          "type": "boolean"
+        },
+        "jwtCookieName": {
+          "type": "string"
+        },
+        "jwtProvider": {
+          "type": "boolean"
+        },
+        "jwt_secret": {
+          "type": "string"
+        },
+        "jwt_secret_salt": {
+          "type": "string"
+        },
+        "transparentServerName": {
+          "type": "boolean"
+        },
+        "updateTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "upstream": {
+          "type": "string"
+        },
+        "urls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/models.AppProxyUrl"
+          }
+        }
+      }
+    },
+    "models.AppProxyUrl": {
+      "required": ["id", "name", "method", "url"],
+      "properties": {
+        "createTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "id": {
+          "type": "string"
+        },
+        "index": {
+          "type": "integer",
+          "format": "integer"
+        },
+        "isDelete": {
+          "type": "boolean"
+        },
+        "method": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "updateTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "upstream": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "models.AppRole": {
+      "required": ["id", "appId", "name", "urls", "users"],
+      "properties": {
+        "appId": {
+          "type": "string"
+        },
+        "createTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isDefault": {
+          "type": "boolean"
+        },
+        "isDelete": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "updateTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "urls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "users": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/models.User"
+          }
+        }
+      }
+    },
+    "models.FieldConfig": {
+      "required": ["name", "valueType"],
+      "properties": {
+        "defaultValue": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "max": {
+          "type": "number",
+          "format": "float"
+        },
+        "maxWidth": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "min": {
+          "type": "number",
+          "format": "float"
+        },
+        "minWidth": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "name": {
+          "type": "string"
+        },
+        "tooltip": {
+          "type": "string"
+        },
+        "valueEnum": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "valueType": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.service.models.FieldType"
+        }
+      }
+    },
+    "models.Model": {
+      "required": ["id"],
+      "properties": {
+        "createTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isDelete": {
+          "type": "boolean"
+        },
+        "updateTime": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "models.User": {
+      "required": [
+        "id",
+        "username",
+        "email",
+        "phoneNumber",
+        "fullName",
+        "avatar",
+        "status",
+        "loginTime"
+      ],
+      "properties": {
+        "apps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/models.App"
+          }
+        },
+        "avatar": {
+          "type": "string"
+        },
+        "createTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "email": {
+          "type": "string"
+        },
+        "extendedData": {
+          "$ref": "#/definitions/models.UserExt"
+        },
+        "fullName": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isDelete": {
+          "type": "boolean"
+        },
+        "loginTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "password": {
+          "type": "string"
+        },
+        "phoneNumber": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "roleId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "integer",
+          "format": "int32",
+          "$ref": "#/definitions/idas.service.models.UserMeta_UserStatus"
+        },
+        "updateTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "username": {
+          "type": "string"
+        }
+      }
+    },
+    "models.UserExt": {
+      "required": [
+        "userId",
+        "ForceMFA",
+        "emailAsMFA",
+        "smsAsMFA",
+        "totpAsMFA",
+        "passwordModifyTime",
+        "loginTime",
+        "activationTime"
+      ],
+      "properties": {
+        "ForceMFA": {
+          "type": "boolean"
+        },
+        "activationTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "emailAsMFA": {
+          "type": "boolean"
+        },
+        "loginTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "passwordModifyTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "smsAsMFA": {
+          "type": "boolean"
+        },
+        "totpAsMFA": {
+          "type": "boolean"
+        },
+        "userId": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Managing users",
+      "name": "users"
+    },
+    {
+      "description": "Application manager",
+      "name": "apps"
+    },
+    {
+      "description": "Managing files",
+      "name": "files"
+    },
+    {
+      "description": "Managing sessions",
+      "name": "sessions"
+    },
+    {
+      "description": "OAuth2.0 Support",
+      "name": "oauth"
+    },
+    {
+      "description": "Current user service",
+      "name": "user"
+    },
+    {
+      "description": "permissions service",
+      "name": "permissions"
+    },
+    {
+      "description": "role service",
+      "name": "roles"
+    },
+    {
+      "description": "Managing pages",
+      "name": "pages"
+    },
+    {
+      "description": "config service",
+      "name": "config"
+    },
+    {
+      "description": "event service",
+      "name": "events"
+    },
+    {
+      "description": "Global service",
+      "name": "global"
+    }
+  ]
+}
