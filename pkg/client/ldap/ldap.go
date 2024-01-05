@@ -201,7 +201,12 @@ func (l *Client) Session(ctx context.Context) ldap.Client {
 		s.err = errors.WithMessage(s.err, "failed to get ldap connection")
 		return s
 	}
-	s.err = s.c.Bind(l.options.ManagerDn, l.options.ManagerPassword)
+	passwd, err := l.options.ManagerPassword.UnsafeString()
+	if err != nil {
+		s.err = err
+		return s
+	}
+	s.err = s.c.Bind(l.options.ManagerDn, passwd)
 	if s.err != nil {
 		s.c.Close()
 		s.err = errors.WithMessage(s.err, "failed to connect to LDAP server")

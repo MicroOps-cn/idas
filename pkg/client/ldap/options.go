@@ -105,7 +105,11 @@ func (x *LdapOptions) Valid() error {
 	if govalidator.IsNull(x.ManagerDn) {
 		return errors.New("ldap manager_dn option is null")
 	}
-	if govalidator.IsNull(x.ManagerPassword) {
+	passwd, err := x.ManagerPassword.UnsafeString()
+	if err != nil {
+		return err
+	}
+	if govalidator.IsNull(passwd) {
 		return errors.New("ldap manager_password option is null")
 	}
 	if govalidator.IsNull(x.UserSearchBase) {

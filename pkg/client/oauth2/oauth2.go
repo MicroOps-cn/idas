@@ -69,11 +69,15 @@ type TokenResponse struct {
 }
 
 func (c *Client) GetToken(ctx context.Context, code string, redirectURI string) (*TokenResponse, error) {
+	secret, err := c.o.ClientSecret.UnsafeString()
+	if err != nil {
+		return nil, err
+	}
 	redirectURL, err := c.o.GetRedirectURL(ctx, redirectURI)
 	if err != nil {
 		return nil, err
 	}
-	reqData, err := json.Marshal(&TokenRequest{Code: code, GrantType: "authorization_code", ClientId: c.o.ClientId, ClientSecret: c.o.ClientSecret, RedirectURI: redirectURL.String()})
+	reqData, err := json.Marshal(&TokenRequest{Code: code, GrantType: "authorization_code", ClientId: c.o.ClientId, ClientSecret: secret, RedirectURI: redirectURL.String()})
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +85,7 @@ func (c *Client) GetToken(ctx context.Context, code string, redirectURI string) 
 	if err != nil {
 		return nil, errors.WithServerError(500, err, "failed to create token request")
 	}
-	req.SetBasicAuth(c.o.ClientId, c.o.ClientSecret)
+	req.SetBasicAuth(c.o.ClientId, secret)
 	req.Header.Set("content-type", restful.MIME_JSON)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil || resp.StatusCode != 200 {
@@ -89,14 +93,14 @@ func (c *Client) GetToken(ctx context.Context, code string, redirectURI string) 
 		req, err = http.NewRequest("POST", c.o.TokenUrl, bytes.NewBuffer([]byte(url.Values{
 			"grant_type":    []string{"authorization_code"},
 			"client_id":     []string{c.o.ClientId},
-			"client_secret": []string{c.o.ClientSecret},
+			"client_secret": []string{secret},
 			"code":          []string{code},
 			"redirect_uri":  []string{redirectURL.String()},
 		}.Encode())))
 		if err != nil {
 			return nil, errors.WithServerError(500, err, "failed to create token request")
 		}
-		req.SetBasicAuth(c.o.ClientId, c.o.ClientSecret)
+		req.SetBasicAuth(c.o.ClientId, secret)
 		req.Header.Set("content-type", restful.MIME_JSON)
 		resp, err = http.DefaultClient.Do(req)
 		if err != nil {

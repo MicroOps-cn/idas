@@ -85,10 +85,14 @@ func NewSMTPClient(_ context.Context, options *SmtpOptions) (*SMTPClient, error)
 	if options == nil {
 		return nil, errors.NewServerError(500, "smtp options is null")
 	}
-	if options.Host == "" || options.Username == "" || options.Password == "" {
+	passwd, err := options.Password.UnsafeString()
+	if err != nil {
+		return nil, errors.WithServerError(500, err, "smtp password is invalid")
+	}
+	if options.Host == "" || options.Username == "" || passwd == "" {
 		return nil, errors.NewServerError(500, "smtp host/username/password is null")
 	}
-	dialer := gomail.NewDialer(options.Host, int(options.Port), options.Username, options.Password)
+	dialer := gomail.NewDialer(options.Host, int(options.Port), options.Username, passwd)
 	clt, err := dialer.Dial()
 	if err != nil {
 		return nil, errors.WithServerError(500, err, "failed to connect mail server")

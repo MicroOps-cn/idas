@@ -25,6 +25,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/clients/gorm"
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/stretchr/testify/require"
@@ -49,7 +50,7 @@ func TestConfig(t *testing.T) {
 			mysqlOptions := gorm.NewMySQLOptions()
 			mysqlOptions.Host = host
 			mysqlOptions.Username = "root"
-			mysqlOptions.Password = rootPassword
+			mysqlOptions.Password = safe.String{Value: rootPassword}
 			mysqlOptions.TablePrefix = tablePrefix
 			mysqlOptions.Schema = schema
 			marshaler := jsonpb.Marshaler{
