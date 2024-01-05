@@ -20,5 +20,5 @@ message LdapOptions{
   string attr_user_phone_no = 12;
   bool is_tls = 13[(gogoproto.customname)="IsTLS"];
   bool start_tls = 14[(gogoproto.customname)="StartTLS"];
-  idas.client.tls.TLSOptions tls =15[(gogoproto.customname)="TLS"];
+  idas.client.tls.TLSOptions tls =15[(gogoproto.customtype) ="github.com/MicroOps-cn/fuck/clients/tls.TLSOptions",(gogoproto.customname)="TLS"];
 }

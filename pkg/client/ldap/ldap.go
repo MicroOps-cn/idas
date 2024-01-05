@@ -25,6 +25,7 @@ import (
 	"regexp"
 	"time"
 
+	fuck_tls "github.com/MicroOps-cn/fuck/clients/tls"
 	"github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/go-kit/log/level"
@@ -33,7 +34,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/MicroOps-cn/idas/api"
-	tls2 "github.com/MicroOps-cn/idas/pkg/client/internal/tls"
 	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
@@ -44,7 +44,7 @@ func NewLdapPool(ctx context.Context, options *LdapOptions) (pool Pool, err erro
 	}
 	var tlsConfig *tls.Config
 	if options.StartTLS || options.IsTLS {
-		tlsConfig, err = tls2.NewTLSConfig(options.TLS)
+		tlsConfig, err = fuck_tls.NewTLSConfig(options.TLS)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse ldap tls config: %s", err)
 		}

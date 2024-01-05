@@ -21,11 +21,10 @@ import (
 	"fmt"
 	"strings"
 
+	fuck_tls "github.com/MicroOps-cn/fuck/clients/tls"
 	"github.com/asaskevich/govalidator"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/pkg/errors"
-
-	"github.com/MicroOps-cn/idas/pkg/client/internal/tls"
 )
 
 type pbLdapOptions LdapOptions
@@ -82,7 +81,7 @@ func NewLdapOptions() *LdapOptions {
 		AttrUsername:        "uid",
 		AttrUserDisplayName: "cn",
 		AttrUserPhoneNo:     "telephoneNumber",
-		TLS: &tls.TLSOptions{
+		TLS: &fuck_tls.TLSOptions{
 			MinVersion: "TLS12",
 		},
 	}
@@ -142,7 +141,7 @@ func (x *LdapOptions) Valid() error {
 	if x.StartTLS && x.IsTLS {
 		return errors.New("ldap start_tls and is_tls cannot be both true")
 	}
-	if _, ok := tls.Versions[x.TLS.MinVersion]; ok {
+	if _, ok := fuck_tls.Versions[x.TLS.MinVersion]; ok {
 		return nil
 	}
 	return fmt.Errorf("unknown TLS version: %s", x.TLS.MinVersion)
