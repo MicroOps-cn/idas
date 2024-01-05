@@ -301,8 +301,7 @@ func MakeForgotPasswordEndpoint(s service.Service) endpoint.Endpoint {
 			"adminEmail":      config.Get().GetGlobal().GetAdminEmail(),
 		}, "User:ResetPassword", to)
 		if err != nil {
-			level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to send email")
-			return nil, errors.NewServerError(500, "failed to send email")
+			return nil, errors.WithServerError(500, err, "failed to send email")
 		}
 		return resp, nil
 	}
@@ -494,8 +493,7 @@ func MakeSendActivationMailEndpoint(s service.Service) endpoint.Endpoint {
 			"adminEmail":      config.Get().GetGlobal().GetAdminEmail(),
 		}, "User:ActivateAccount", to)
 		if err != nil {
-			level.Error(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to send email")
-			return nil, errors.NewServerError(500, "failed to send email")
+			return nil, errors.WithServerError(500, err, "failed to send email")
 		}
 		return &resp, nil
 	}

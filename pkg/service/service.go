@@ -234,7 +234,6 @@ func (s Set) SendEmail(ctx context.Context, data map[string]interface{}, topic s
 	}
 	client, err := email.NewSMTPClient(ctx, smtpConfig)
 	if err != nil {
-		level.Error(logs.GetContextLogger(ctx)).Log("err", fmt.Sprintf("failed to create SMTP client: %s", err))
 		return errors.WithServerError(500, err, "failed to create SMTP client")
 	}
 	client.SetSubject(subject)
