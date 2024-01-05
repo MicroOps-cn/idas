@@ -22,11 +22,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/clients/gorm"
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/go-kit/log/level"
 	"k8s.io/apimachinery/pkg/util/json"
 
-	"github.com/MicroOps-cn/idas/pkg/client/gorm"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/utils/httputil"

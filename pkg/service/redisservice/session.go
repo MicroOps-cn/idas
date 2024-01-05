@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/clients/redis"
 	g "github.com/MicroOps-cn/fuck/generator"
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/sets"
@@ -31,7 +32,6 @@ import (
 	"github.com/go-kit/log/level"
 	goredis "github.com/go-redis/redis"
 
-	"github.com/MicroOps-cn/idas/pkg/client/redis"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service/models"

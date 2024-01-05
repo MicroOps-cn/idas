@@ -21,13 +21,13 @@ import (
 	"crypto/md5"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/clients/gorm"
 	logs "github.com/MicroOps-cn/fuck/log"
 	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/go-kit/log/level"
 	uuid "github.com/satori/go.uuid"
 	goorm "gorm.io/gorm"
 
-	"github.com/MicroOps-cn/idas/pkg/client/gorm"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/utils/signals"

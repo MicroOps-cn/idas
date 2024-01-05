@@ -1,7 +1,0 @@
-syntax = "proto3";
-package idas.client.redis;
-option go_package = "github.com/MicroOps-cn/idas/pkg/client/redis;redis";
-
-message RedisOptions{
-  string url = 1;
-}

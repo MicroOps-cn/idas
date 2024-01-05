@@ -3,7 +3,7 @@ module github.com/MicroOps-cn/idas
 go 1.18
 
 require (
-	github.com/MicroOps-cn/fuck v1.1.18
+	github.com/MicroOps-cn/fuck v1.2.3
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/disintegration/letteravatar v0.0.0-20160912210445-1a457b860450
 	github.com/docker/docker v20.10.24+incompatible

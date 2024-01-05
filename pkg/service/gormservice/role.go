@@ -20,9 +20,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/MicroOps-cn/fuck/clients/gorm"
 	gogorm "gorm.io/gorm"
 
-	"github.com/MicroOps-cn/idas/pkg/client/gorm"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 )

@@ -1,6 +1,4 @@
 syntax = "proto3";
-import "types/gorm.proto";
-import "types/redis.proto";
 import "types/ldap.proto";
 import "types/capacity.proto";
 import "types/email.proto";
@@ -17,14 +15,16 @@ message StorageRef{
   string name = 3;
 }
 
+message custom_type {}
+
 message Storage{
   string name = 1;
   oneof source{
     StorageRef ref = 10;
-    idas.client.gorm.MySQLOptions mysql = 11[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/client/gorm.MySQLClient"]; // MySQL Database Config
-    idas.client.redis.RedisOptions redis = 12[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/client/redis.Client"]; // Redis Database Config
+    custom_type mysql = 11[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/clients/gorm.MySQLClient"]; // MySQL Database Config
+    custom_type redis = 12[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/clients/redis.Client"]; // Redis Database Config
     idas.client.ldap.LdapOptions ldap = 13[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/client/ldap.Client"]; // LdapDatabaseConfig
-    idas.client.gorm.SQLiteOptions sqlite = 14[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/client/gorm.SQLiteClient"]; // MySQL Database Config
+    custom_type sqlite = 14[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/clients/gorm.SQLiteClient"]; // MySQL Database Config
   };
 }
 
@@ -65,7 +65,7 @@ message Config {
   GlobalOptions global = 2;
   idas.client.email.SmtpOptions smtp = 3[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/client/email.SmtpOptions"];
   security security = 4;
-  string trace = 5[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/client/tracing.TraceOptions"];
+  string trace = 5[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/clients/tracing.TraceOptions", (gogoproto.nullable) = false];
 }
 
 // @sync-to-public:public/src/services/idas/enums.ts:PasswordComplexity
