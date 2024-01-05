@@ -4,6 +4,8 @@ import public "gogoproto/gogo.proto";
 option go_package = "github.com/MicroOps-cn/idas/pkg/client/oauth2;oauth2";
 option (gogoproto.sizer_all) = true;
 
+message custom_type{}
+
 message Options{
   string name = 1[(gogoproto.moretags)='valid:"required"'];
   string icon = 2;
@@ -11,7 +13,7 @@ message Options{
   string auth_url = 4[(gogoproto.moretags)='valid:"required,url"'];
   string api_url = 5[(gogoproto.moretags)='valid:"required,url"'];
   string client_id = 6[(gogoproto.moretags)='valid:"required"'];
-  string client_secret = 7[(gogoproto.moretags)='valid:"required"'];
+  custom_type client_secret = 7[(gogoproto.moretags)='valid:"required"',(gogoproto.customtype) ="github.com/MicroOps-cn/fuck/safe.String"];
   bool auto_login = 8;
   string id = 9[(gogoproto.moretags)='valid:"required"'];
   string login_id = 10;

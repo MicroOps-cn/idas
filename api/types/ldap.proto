@@ -8,7 +8,7 @@ option go_package = "github.com/MicroOps-cn/idas/pkg/client/ldap;ldap";
 message LdapOptions{
   string host = 1;
   string manager_dn = 2;
-  string manager_password = 3;
+  string manager_password = 3[(gogoproto.customtype) ="github.com/MicroOps-cn/fuck/safe.String"];
   string user_search_base = 4;
   string user_search_filter = 5;
   string app_search_base =6;

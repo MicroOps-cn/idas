@@ -11,9 +11,11 @@ message OriginalTemplate{
   string set = 4;
 }
 
+message custom_type{}
+
 message SmtpOptions {
   string username = 1;
-  string password = 2;
+  custom_type password = 2[(gogoproto.nullable)=true,(gogoproto.customtype) ="github.com/MicroOps-cn/fuck/safe.String"];
   string host = 3;
   int32 port = 4;
   string from = 5;
