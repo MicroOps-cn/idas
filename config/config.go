@@ -33,7 +33,7 @@ import (
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/util/rand"
 
-	"github.com/MicroOps-cn/idas/pkg/client/gorm"
+	"github.com/MicroOps-cn/fuck/clients/gorm"
 	oauth2 "github.com/MicroOps-cn/idas/pkg/client/oauth2"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/utils/capacity"

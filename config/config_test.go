@@ -27,11 +27,11 @@ import (
 
 	"github.com/MicroOps-cn/fuck/clients/gorm"
 	logs "github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/fuck/safe"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/util/rand"
 
-	"github.com/MicroOps-cn/idas/pkg/client/gorm"
 	"github.com/MicroOps-cn/idas/pkg/testutils"
 )
 

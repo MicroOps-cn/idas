@@ -49,8 +49,8 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"gopkg.in/yaml.v3"
 
+	"github.com/MicroOps-cn/fuck/clients/tracing"
 	"github.com/MicroOps-cn/idas/config"
-	"github.com/MicroOps-cn/idas/pkg/client/tracing"
 	"github.com/MicroOps-cn/idas/pkg/endpoint"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
@@ -94,18 +94,16 @@ var rootCmd = &cobra.Command{
 func Run(ctx context.Context, logger kitlog.Logger, stopCh *signals.StopChan) (err error) {
 	var tracer *sdktrace.TracerProvider
 	{
-		if traceOptions := config.Get().Trace; traceOptions != nil {
-			otel.SetLogger(stdr.New(stdlog.New(kitlog.NewStdlibAdapter(level.Info(logger)), "[restful]", stdlog.LstdFlags|stdlog.Lshortfile)))
-			tracer, err = tracing.NewTraceProvider(ctx, config.Get().Trace)
-			if err != nil {
-				return err
-			}
-			otel.SetTracerProvider(tracer)
-			if http.DefaultClient.Transport == nil {
-				http.DefaultClient.Transport = otelhttp.NewTransport(http.DefaultTransport)
-			}
-			tracing.SetTraceOptions(config.Get().Trace)
+		otel.SetLogger(stdr.New(stdlog.New(kitlog.NewStdlibAdapter(level.Info(logger)), "[restful]", stdlog.LstdFlags|stdlog.Lshortfile)))
+		tracer, err = tracing.NewTraceProvider(ctx, &config.Get().Trace)
+		if err != nil {
+			return err
 		}
+		otel.SetTracerProvider(tracer)
+		if http.DefaultClient.Transport == nil {
+			http.DefaultClient.Transport = otelhttp.NewTransport(http.DefaultTransport)
+		}
+		tracing.SetTraceOptions(&config.Get().Trace)
 	}
 
 	// Create the (sparse) metrics we'll use in the service. They, too, are
