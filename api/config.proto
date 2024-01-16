@@ -56,15 +56,23 @@ message GlobalOptions{
   string default_login_type = 15;
 }
 
-message security{
-  repeated string trust_ip = 1[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/sets.IPNet"];
+message RateLimit{
+  string name  = 1[(gogoproto.customtype)="github.com/MicroOps-cn/fuck/wrapper.OneOrMore[string]",(gogoproto.nullable)=false];
+  string allower = 2[(gogoproto.customtype)="Limiter",(gogoproto.nullable)=false,(gogoproto.jsontag)="-"];
+  string limit = 3;
+  int32 burst = 4;
+}
+
+message Security{
+  string trust_ip = 1[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/sets.IPNets",(gogoproto.nullable)=false];
+  repeated RateLimit rate_limit = 2;
 }
 
 message Config {
   Storages storage = 1;
   GlobalOptions global = 2;
   idas.client.email.SmtpOptions smtp = 3[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/client/email.SmtpOptions"];
-  security security = 4;
+  Security security = 4;
   string trace = 5[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/clients/tracing.TraceOptions", (gogoproto.nullable) = false];
 }
 

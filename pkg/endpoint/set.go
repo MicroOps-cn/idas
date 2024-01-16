@@ -18,17 +18,22 @@ package endpoint
 
 import (
 	"context"
+	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
+	"github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/go-kit/kit/circuitbreaker"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/ratelimit"
+	"github.com/go-kit/log/level"
 	"github.com/sony/gobreaker"
 	"golang.org/x/time/rate"
 
+	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 )
@@ -80,8 +85,8 @@ type SessionEndpoints struct {
 	UserLogin                endpoint.Endpoint `auth:"false" audit:"true"`
 	UserOAuthLogin           endpoint.Endpoint `auth:"false" audit:"false"`
 	UserLogout               endpoint.Endpoint `auth:"false" audit:"true"`
-	GetSessionByToken        endpoint.Endpoint `auth:"false" audit:"false"`
-	GetProxySessionByToken   endpoint.Endpoint `auth:"false" audit:"false"`
+	GetSessionByToken        endpoint.Endpoint `auth:"false" audit:"false" ratelimit:"200"`
+	GetProxySessionByToken   endpoint.Endpoint `auth:"false" audit:"false" ratelimit:"200"`
 	OAuthTokens              endpoint.Endpoint `auth:"false" audit:"false"`
 	OAuthAuthorize           endpoint.Endpoint `auth:"false" audit:"true"`
 	Authentication           endpoint.Endpoint `auth:"false" audit:"false"`
@@ -115,12 +120,12 @@ type PageEndpoints struct {
 
 type FileEndpoints struct {
 	UploadFile   endpoint.Endpoint `name:"" description:"Upload files to the server" auth:"false" audit:"false"`
-	DownloadFile endpoint.Endpoint `auth:"false" audit:"false"`
+	DownloadFile endpoint.Endpoint `auth:"false" audit:"false" ratelimit:"100"`
 }
 
 type ProxyEndpoints struct {
-	ProxyRequest   endpoint.Endpoint `auth:"false" audit:"false"`
-	GetProxyConfig endpoint.Endpoint `auth:"false" audit:"false"`
+	ProxyRequest   endpoint.Endpoint `auth:"false" audit:"false" ratelimit:"100"`
+	GetProxyConfig endpoint.Endpoint `auth:"false" audit:"false" ratelimit:"100"`
 }
 
 type ConfigEndpoints struct {
@@ -168,6 +173,23 @@ func GetPermissionsDefine(typeOf reflect.Type) models.Permissions {
 		}
 
 		p.Description = field.Tag.Get("description")
+		if p.RateLimit = config.Get().GetRateLimit(p.Name); p.RateLimit == nil {
+			rl := field.Tag.Get("ratelimit")
+			switch rl {
+			case "0", "false":
+			case "":
+				if p.RateLimit = config.Get().GetRateLimit(""); p.RateLimit == nil {
+					p.RateLimit = config.NewLimiterWrapper(rate.NewLimiter(rate.Limit(10), 100))
+				}
+			default:
+				rateLimit, err := strconv.ParseFloat(rl, 64)
+				if err != nil {
+					panic(fmt.Errorf("failed to parse rate limit config of endpoint %s ", p.Name))
+				}
+				p.RateLimit = config.NewLimiterWrapper(rate.NewLimiter(rate.Limit(rateLimit), 100))
+			}
+		}
+
 		if field.Type.Kind() == reflect.Struct {
 			if auth := field.Tag.Get("auth"); len(auth) == 0 || auth == "true" {
 				p.EnableAuth = true
@@ -198,7 +220,8 @@ func GetPermissionsDefine(typeOf reflect.Type) models.Permissions {
 
 // New returns a Set that wraps the provided server, and wires in all of the
 // expected endpoint middlewares via the various parameters.
-func New(_ context.Context, svc service.Service, duration metrics.Histogram) Set {
+func New(ctx context.Context, svc service.Service, duration metrics.Histogram) Set {
+	logger := log.GetContextLogger(ctx)
 	ps := Set{}.GetPermissionsDefine()
 	eps := sets.New[string]()
 	injectEndpoint := func(name string, ep endpoint.Endpoint) endpoint.Endpoint {
@@ -212,7 +235,10 @@ func New(_ context.Context, svc service.Service, duration metrics.Histogram) Set
 			panic("duplicate endpoint define: " + name)
 		}
 		eps.Insert(name)
-		ep = ratelimit.NewErroringLimiter(rate.NewLimiter(rate.Limit(1), 100))(ep)
+		if psd[0].RateLimit != nil {
+			level.Debug(logger).Log("msg", "Injection rate limited to endpoints", "endpoint", name, "limit", psd[0].RateLimit)
+			ep = ratelimit.NewErroringLimiter(psd[0].RateLimit)(ep)
+		}
 		ep = circuitbreaker.Gobreaker(gobreaker.NewCircuitBreaker(gobreaker.Settings{}))(ep)
 		ep = LoggingMiddleware(svc, name, ps)(ep)
 		if duration != nil {
