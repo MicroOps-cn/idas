@@ -143,7 +143,7 @@ func newJSONWebToken(_ context.Context, loginTime time.Time, tokenId string) (*t
 		expiry = maxExpire
 	}
 
-	jwtSecret := config.Get().Global.GetJwtSecret()
+	jwtSecret := config.Get().Security.GetJwtSecret()
 	signedString, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
 		Id:        tokenId,
 		ExpiresAt: expiry.Unix(),
@@ -532,7 +532,7 @@ func MakeUserLogoutEndpoint(s service.Service) endpoint.Endpoint {
 				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 					return nil, fmt.Errorf("unexpected login method %v", token.Header["alg"])
 				}
-				return []byte(config.Get().Global.GetJwtSecret()), nil
+				return []byte(config.Get().Security.GetJwtSecret()), nil
 			})
 			if err == nil && token.Valid {
 				if err = s.DeleteLoginSession(ctx, claims.Id); err != nil {
@@ -608,7 +608,7 @@ func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 					return nil, fmt.Errorf("unexpected login method %v", token.Header["alg"])
 				}
-				return []byte(config.Get().Global.GetJwtSecret()), nil
+				return []byte(config.Get().Security.GetJwtSecret()), nil
 			})
 			if err != nil {
 				logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))

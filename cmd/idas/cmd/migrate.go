@@ -30,8 +30,8 @@ import (
 // migrateCmd represents the migrate command
 var migrateCmd = &cobra.Command{
 	Use:   "migrate",
-	Short: "自动迁移工具",
-	Long:  `自动迁移仅仅会创建表，缺少列和索引，并且不会改变现有列的类型或删除未使用的列以保护数据。`,
+	Short: "Automatic migration tool",
+	Long:  `Automatic migration only creates tables, lacks columns and indexes, and does not change the type of existing columns or delete unused columns to protect data.`,
 	PreRun: func(cmd *cobra.Command, args []string) {
 		initConfig()
 	},

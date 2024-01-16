@@ -156,6 +156,20 @@ func (x *Config) Init(_ log.Logger) error {
 			}
 		}
 	}
+	if x.Global.Secret != nil && x.Security.Secret == "" {
+		x.Security.Secret = *x.Global.Secret
+	}
+	if x.Global.JwtSecret != nil && x.Security.JwtSecret == "" {
+		x.Security.JwtSecret = *x.Global.JwtSecret
+	}
+	if len(x.Security.JwtSecret) == 0 {
+		x.Security.JwtSecret = rand.String(128)
+	}
+	x.Global.JwtSecret = nil
+	x.Global.Secret = nil
+	if len(globalSecret) > 0 && len(x.Security.Secret) == 0 {
+		x.Security.Secret = globalSecret
+	}
 	return nil
 }
 
@@ -193,19 +207,12 @@ func (x *GlobalOptions) UnmarshalJSONPB(unmarshaller *jsonpb.Unmarshaler, b []by
 	options := NewGlobalOptions()
 	x.MaxBodySize = options.MaxBodySize
 	x.MaxUploadSize = options.MaxUploadSize
-	x.JwtSecret = options.JwtSecret
 	x.AppName = options.AppName
 	x.UploadPath = options.UploadPath
 	x.Title = options.Title
 	err := unmarshaller.Unmarshal(bytes.NewReader(b), (*pbGlobalOptions)(x))
 	if err != nil {
 		return err
-	}
-	if len(x.JwtSecret) == 0 {
-		return fmt.Errorf("`global.jwt_secret` cannot be empty")
-	}
-	if len(x.Secret) == 0 {
-		return fmt.Errorf("`global.secret` cannot be empty")
 	}
 	return nil
 }
@@ -219,7 +226,6 @@ func NewGlobalOptions() *GlobalOptions {
 	return &GlobalOptions{
 		MaxUploadSize: capacity.NewCapacity(defaultMaxUploadSize),
 		MaxBodySize:   capacity.NewCapacity(defaultMaxBodySize),
-		JwtSecret:     rand.String(128),
 		AppName:       global.AppName,
 		Title:         "IDAS",
 		UploadPath:    "uploads",

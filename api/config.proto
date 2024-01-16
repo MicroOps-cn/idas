@@ -43,8 +43,10 @@ message GlobalOptions{
   idas.pkg.utils.Capacity max_body_size = 2;
   string upload_path = 3;
   string workspace = 4;
-  string secret = 5;
-  string jwt_secret = 6;
+  // Deprecated: use security.secret
+  string secret = 5 [(gogoproto.customtype)="string"];
+  // Deprecated: use security.jwt_secret
+  string jwt_secret = 6 [(gogoproto.customtype)="string"];
   string app_name = 7;
   repeated idas.client.oauth2.Options oauth2 = 8;
   bool disable_login_form = 9;
@@ -66,6 +68,8 @@ message RateLimit{
 message Security{
   string trust_ip = 1[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/sets.IPNets",(gogoproto.nullable)=false];
   repeated RateLimit rate_limit = 2;
+  string secret = 3;
+  string jwt_secret = 4;
 }
 
 message Config {

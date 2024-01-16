@@ -78,8 +78,12 @@ var rootCmd = &cobra.Command{
 	Use:   "gateway",
 	Short: "The idas gateway server.",
 	Long:  `The idas gateway server.`,
-	PreRun: func(cmd *cobra.Command, args []string) {
+	PreRunE: func(cmd *cobra.Command, args []string) error {
 		initConfig()
+		if len(config.Get().Security.Secret) == 0 {
+			return fmt.Errorf("`security.secret` cannot be empty")
+		}
+		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		logger := log.GetContextLogger(cmd.Context())
@@ -258,12 +262,12 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "./idas.yaml", "config file")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default \"./idas.yaml\" if file is exists)")
 	rootCmd.PersistentFlags().BoolVar(&configDisplay, "config.display", false, "display config")
 
 	// log level and format
 	flag.AddFlags(rootCmd.PersistentFlags(), nil)
-
+	config.AddFlags(rootCmd.Flags())
 	rootCmd.Flags().StringVar(&radiusAddr, "radius.listen-address", "", "Radius listen address")
 	rootCmd.Flags().StringVar(&debugAddr, "debug.listen-address", ":8080", "Debug and metrics listen address")
 	rootCmd.Flags().StringVar(&proxyHTTPAddr, "proxy.listen-address", ":8082", "HTTP proxy listen address")
@@ -330,10 +334,22 @@ func initParameter() {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+	logger := log.NewTraceLogger()
 	if cfgFile == "" {
+		if _, err := os.Stat("./idas.yaml"); err != nil {
+			if os.IsNotExist(err) {
+				if err = config.ReloadConfigFromYamlReader(logger, config.NewConverter("<default>", bytes.NewReader([]byte("{}")))); err != nil {
+					level.Error(logger).Log("msg", "failed to load config", "err", err)
+					os.Exit(1)
+				}
+				return
+			} else {
+				level.Error(logger).Log("msg", "failed to load config", "err", err)
+				os.Exit(1)
+			}
+		}
 		cfgFile = "./idas.yaml"
 	}
-	logger := log.NewTraceLogger()
 	if err := config.ReloadConfigFromFile(logger, cfgFile); err != nil {
 		level.Error(logger).Log("msg", "failed to load config", "err", err)
 		os.Exit(1)

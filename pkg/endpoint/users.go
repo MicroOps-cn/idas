@@ -547,7 +547,7 @@ type TOTPSecret struct {
 }
 
 func (s *TOTPSecret) SetSecret(secret string) (err error) {
-	globalSecret := config.Get().GetGlobal().GetSecret()
+	globalSecret := config.Get().GetSecurity().GetSecret()
 	if globalSecret == "" {
 		return errors.NewServerError(500, "global secret is not set")
 	}
@@ -562,7 +562,7 @@ func (s TOTPSecret) GetSecret() (secret string, err error) {
 	if len(s.Secret) == 0 || len(s.Salt) == 0 {
 		return "", nil
 	}
-	globalSecret := config.Get().GetGlobal().GetSecret()
+	globalSecret := config.Get().GetSecurity().GetSecret()
 	if globalSecret == "" {
 		return "", errors.NewServerError(500, "global secret is not set")
 	}

@@ -1,5 +1,5 @@
 /*
- Copyright © 2022 MicroOps-cn.
+ Copyright © 2024 MicroOps-cn.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -14,23 +14,16 @@
  limitations under the License.
 */
 
-package capacity
+package config
 
 import (
-	"encoding/json"
-
-	"github.com/MicroOps-cn/fuck/capacity"
-	"github.com/gogo/protobuf/jsonpb"
+	"github.com/spf13/pflag"
 )
 
-func (m *Capacity) UnmarshalJSONPB(_ *jsonpb.Unmarshaler, b []byte) error {
-	return json.Unmarshal(b, (*capacity.Capacities)(&m.Capacity))
-}
+var (
+	globalSecret string
+)
 
-func (m *Capacity) MarshalJSONPB(_ *jsonpb.Marshaler) ([]byte, error) {
-	return json.Marshal((*capacity.Capacities)(&m.Capacity))
-}
-
-func NewCapacity(c int64) *Capacity {
-	return &Capacity{Capacity: c}
+func AddFlags(flags *pflag.FlagSet) {
+	flags.StringVar(&globalSecret, "security.secret", "", "security key, used for encryption and decryption of sensitive data in the program.")
 }

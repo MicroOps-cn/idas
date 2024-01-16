@@ -52,7 +52,7 @@ func (c *ProxySession) GetId() string {
 }
 
 func (c *AppProxy) SetJwtSecret(secret string) (err error) {
-	globalSecret := config.Get().GetGlobal().GetSecret()
+	globalSecret := config.Get().GetSecurity().GetSecret()
 	if globalSecret == "" {
 		return errors.NewServerError(500, "global secret is not set")
 	}
@@ -66,7 +66,7 @@ func (c *AppProxy) GetJwtSecret() (string, error) {
 	if len(c.JwtSecret) == 0 || len(c.JwtSecretSalt) == 0 {
 		return "", nil
 	}
-	globalSecret := config.Get().GetGlobal().GetSecret()
+	globalSecret := config.Get().GetSecurity().GetSecret()
 	if globalSecret == "" {
 		return "", errors.NewServerError(500, "global secret is not set")
 	}

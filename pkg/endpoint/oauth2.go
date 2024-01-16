@@ -141,7 +141,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					}
 					resp.ExpiresIn = int(global.TokenExpiration / time.Minute)
 					if proxyConfig.JwtProvider && len(proxyConfig.JwtCookieName) > 0 {
-						jwtSecret := []byte(config.Get().Global.GetJwtSecret())
+						jwtSecret := []byte(config.Get().Security.GetJwtSecret())
 						if len(proxyConfig.JwtSecret) > 0 {
 							secret, err := proxyConfig.GetJwtSecret()
 							if err != nil {
@@ -201,7 +201,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 						user.RoleId = role.Id
 						user.Role = role.Name
 					}
-					jwtSecret := config.Get().Global.GetJwtSecret()
+					jwtSecret := config.Get().Security.GetJwtSecret()
 
 					at, err := s.CreateToken(ctx, tokenType, user)
 					if err != nil {
