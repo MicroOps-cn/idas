@@ -48,7 +48,7 @@ func (s UserAndAppService) ResetPassword(ctx context.Context, ids string, passwo
 	conn := s.Session(ctx).Begin()
 	defer conn.Callback()
 	for _, id := range strings.Split(ids, ",") {
-		u := models.User{Model: models.Model{Id: id}, Salt: uuid.NewV4().Bytes(), Status: models.UserMeta_normal}
+		u := models.User{Model: models.Model{Id: id}, Salt: w.M(uuid.NewV4()).Bytes(), Status: models.UserMeta_normal}
 		u.Password = u.GenSecret(password)
 		if err := conn.Select("password", "salt", "status").Where("status not in ?", []models.UserMeta_UserStatus{
 			models.UserMeta_disabled,
@@ -374,7 +374,7 @@ func (s UserAndAppService) GetUsersById(ctx context.Context, id []string) (users
 func (s UserAndAppService) CreateUser(ctx context.Context, user *models.User) (err error) {
 	conn := s.Session(ctx)
 	if len(user.Password) != 0 {
-		user.Salt = uuid.NewV4().Bytes()
+		user.Salt = w.M(uuid.NewV4()).Bytes()
 		user.Password = user.GenSecret()
 	}
 	return conn.Omit("role", "role_id").Create(user).Error

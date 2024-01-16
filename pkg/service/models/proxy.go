@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 
 	"github.com/MicroOps-cn/fuck/crypto"
+	w "github.com/MicroOps-cn/fuck/wrapper"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/MicroOps-cn/idas/config"
@@ -55,7 +56,7 @@ func (c *AppProxy) SetJwtSecret(secret string) (err error) {
 	if globalSecret == "" {
 		return errors.NewServerError(500, "global secret is not set")
 	}
-	c.JwtSecretSalt = uuid.NewV4().Bytes()
+	c.JwtSecretSalt = w.M(uuid.NewV4()).Bytes()
 	key := sha256.Sum256([]byte(string(c.JwtSecretSalt) + (globalSecret)))
 	c.JwtSecret, err = crypto.NewAESCipher(key[:]).CBCEncrypt([]byte(secret))
 	return err

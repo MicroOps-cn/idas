@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/MicroOps-cn/fuck/crypto"
+	w "github.com/MicroOps-cn/fuck/wrapper"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/MicroOps-cn/idas/config"
@@ -133,7 +134,7 @@ func (u *UserExt) SetSecret(secret string) (err error) {
 	if globalSecret == "" {
 		return errors.NewServerError(500, "global secret is not set")
 	}
-	u.TOTPSalt = uuid.NewV4().Bytes()
+	u.TOTPSalt = w.M(uuid.NewV4()).Bytes()
 	key := sha256.Sum256([]byte(string(u.TOTPSalt) + (globalSecret)))
 	u.TOTPSecret, err = crypto.NewAESCipher(key[:]).CBCEncrypt([]byte(secret))
 	return err

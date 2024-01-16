@@ -108,6 +108,11 @@ func LoggingMiddleware(svc service.Service, method string, ps models.Permissions
 				"Type": "call_endpoint",
 			}
 			if e := svc.PostEventLog(ctx, log.GetTraceId(ctx), userId, username, remoteAddr, method, msg, status, took, l); e != nil {
+			eventId := log.GetTraceId(ctx)
+			if u, e := uuid.FromString(eventId); e == nil {
+				eventId = u.String()
+			}
+			if e := svc.PostEventLog(ctx, eventId, userId, username, remoteAddr, method, msg, status, took, l); e != nil {
 				level.Error(logger).Log("failed to post event log", "err", e)
 			}
 		}

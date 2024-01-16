@@ -90,7 +90,7 @@ func MakeSendLoginCaptchaEndpoint(s service.Service) endpoint.Endpoint {
 				}
 			}
 			if user.Status.Is(models.UserMeta_normal) {
-				loginCode := LoginCode{UserId: user.Id, Type: req.Type, Code: strings.ToUpper(uuid.NewV4().String()[:6])}
+				loginCode := LoginCode{UserId: user.Id, Type: req.Type, Code: strings.ToUpper(w.M(uuid.NewV4()).String()[:6])}
 				token, err := s.CreateToken(ctx, models.TokenTypeLoginCode, &loginCode)
 				if err != nil {
 					return nil, errors.NewServerError(http.StatusInternalServerError, "Failed to create token")

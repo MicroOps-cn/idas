@@ -50,7 +50,7 @@ const UserStatusName = "status"
 //	@return error
 func hash(password []byte) (string, error) {
 	c := sha256_crypt.New()
-	salt := base64.StdEncoding.EncodeToString(uuid.NewV4().Bytes())
+	salt := base64.StdEncoding.EncodeToString(w.M(uuid.NewV4()).Bytes())
 	return c.Generate(password, []byte("$5$"+salt))
 }
 

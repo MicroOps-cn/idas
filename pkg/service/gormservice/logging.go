@@ -47,8 +47,10 @@ type EventBuffers struct {
 
 func (b *EventBuffers) PutEvent(ctx context.Context, eventId, userId, username, clientIP, loc, action, message string, status bool, took time.Duration, logItems ...interface{}) error {
 	if len(eventId) == 0 {
-		if eventId = logs.GetTraceId(ctx); len(eventId) == 0 {
+		if eId, e := uuid.FromString(logs.GetTraceId(ctx)); e != nil {
 			eventId = logs.NewTraceId()
+		} else {
+			eventId = eId.String()
 		}
 	}
 

@@ -238,7 +238,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					if app.GrantType&models.AppMeta_oidc == models.AppMeta_oidc {
 						resp.IdToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, &UserToken{
 							StandardClaims: jwt.StandardClaims{
-								Id:        uuid.NewV4().String(),
+								Id:        w.M(uuid.NewV4()).String(),
 								Audience:  app.Name,
 								ExpiresAt: time.Now().UTC().Add(time.Minute * 10).Unix(),
 								Issuer:    config.Get().GetGlobal().GetAppName(),

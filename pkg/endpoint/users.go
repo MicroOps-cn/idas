@@ -551,7 +551,7 @@ func (s *TOTPSecret) SetSecret(secret string) (err error) {
 	if globalSecret == "" {
 		return errors.NewServerError(500, "global secret is not set")
 	}
-	s.Salt = uuid.NewV4().String()
+	s.Salt = w.M(uuid.NewV4()).String()
 	key := sha256.Sum256([]byte(s.Salt + (globalSecret)))
 	sec, err := crypto.NewAESCipher(key[:]).CBCEncrypt([]byte(secret))
 	s.Secret = base64.StdEncoding.EncodeToString(sec)

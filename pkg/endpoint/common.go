@@ -97,7 +97,7 @@ func MakeDownloadFileEndpoint(s service.Service) endpoint.Endpoint {
 
 func GetEventMeta(ctx context.Context, action string, beginTime time.Time, err error, resp interface{}) (eventId, message string, status bool, took time.Duration) {
 	eventId = log.GetTraceId(ctx)
-	if u, err := uuid.FromString(eventId); err == nil {
+	if u, e := uuid.FromString(eventId); e == nil {
 		eventId = u.String()
 	}
 	if err != nil {

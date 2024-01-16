@@ -215,6 +215,9 @@ func (s Set) RegisterPermission(ctx context.Context, permissions models.Permissi
 
 func GetEventMeta(ctx context.Context, action string, beginTime time.Time, err error) (eventId, message string, status bool, took time.Duration) {
 	eventId = logs.GetTraceId(ctx)
+	if u, e := uuid.FromString(eventId); e == nil {
+		eventId = u.String()
+	}
 	if err != nil {
 		return eventId, fmt.Sprintf("Calling the %s method failed, err: %s", action, err), false, time.Since(beginTime)
 	}
