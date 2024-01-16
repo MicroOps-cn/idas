@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	"github.com/MicroOps-cn/fuck/log"
-	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/MicroOps-cn/fuck/signals"
 	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/proto"
@@ -42,7 +41,7 @@ type Client struct {
 
 func (c Client) City(ip net.IP) (string, error) {
 	for _, options := range c.o.Custom {
-		if sets.IPNets(options.Subnets).Contains(ip) {
+		if options.Subnets.Contains(ip) {
 			return options.Name, nil
 		}
 	}

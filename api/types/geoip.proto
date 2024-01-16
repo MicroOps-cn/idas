@@ -6,7 +6,7 @@ option go_package = "github.com/MicroOps-cn/idas/pkg/client/geoip;geoip";
 
 message CustomGeoOptions{
   string name = 1;
-  repeated string subnets = 2[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/sets.IPNet"];
+  string subnets = 2[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/sets.IPNets",(gogoproto.nullable)=false];
 }
 
 message GeoIPOptions{
