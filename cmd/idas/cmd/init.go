@@ -37,6 +37,9 @@ var initDataCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Data initialization tool",
 	Long:  `The data initialization tool will create a table with missing columns and indexes. And create the required user and application data.`,
+	PreRun: func(cmd *cobra.Command, args []string) {
+		initConfig()
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := logs.GetDefaultLogger()
 		ctx := context.WithValue(cmd.Context(), "command", cmd.Use)

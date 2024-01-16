@@ -41,6 +41,9 @@ var userCmd = &cobra.Command{
 	Use:   "user",
 	Short: "User manager",
 	Long:  `User manager tools.`,
+	PreRun: func(cmd *cobra.Command, args []string) {
+		initConfig()
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return cmd.Help()
 	},

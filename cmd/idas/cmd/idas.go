@@ -78,6 +78,9 @@ var rootCmd = &cobra.Command{
 	Use:   "gateway",
 	Short: "The idas gateway server.",
 	Long:  `The idas gateway server.`,
+	PreRun: func(cmd *cobra.Command, args []string) {
+		initConfig()
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		logger := log.GetContextLogger(cmd.Context())
 		ch := signals.SetupSignalHandler(logger)
@@ -250,7 +253,7 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initParameter, initConfig)
+	cobra.OnInitialize(initParameter)
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.

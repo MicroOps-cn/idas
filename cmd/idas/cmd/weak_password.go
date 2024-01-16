@@ -40,6 +40,9 @@ var weakPasswordCmd = &cobra.Command{
 	Use:   "weak-password",
 	Short: "Weak password management tooll",
 	Long:  `The data initialization tool will create a table with missing columns and indexes. And create the required user and application data.`,
+	PreRun: func(cmd *cobra.Command, args []string) {
+		initConfig()
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return cmd.Help()
 	},
