@@ -16,17 +16,22 @@
 
 package models
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/MicroOps-cn/idas/config"
+)
 
 type Permission struct {
 	Model
-	Name        string      `gorm:"type:varchar(100);uniqueIndex:idx_t_permission_name" json:"name"`
-	Description string      `gorm:"type:varchar(100);" json:"description" `
-	ParentId    string      `gorm:"type:char(36)" json:"parentId"`
-	EnableAuth  bool        `json:"enableAuth"`
-	Children    Permissions `gorm:"-" json:"children,omitempty"`
-	Role        []string    `gorm:"-" json:"role,omitempty"`
-	EnableAudit bool        `gorm:"-" json:"enableAudit,omitempty"`
+	Name        string         `gorm:"type:varchar(100);uniqueIndex:idx_t_permission_name" json:"name"`
+	Description string         `gorm:"type:varchar(100);" json:"description" `
+	ParentId    string         `gorm:"type:char(36)" json:"parentId"`
+	EnableAuth  bool           `json:"enableAuth"`
+	Children    Permissions    `gorm:"-" json:"children,omitempty"`
+	Role        []string       `gorm:"-" json:"role,omitempty"`
+	EnableAudit bool           `gorm:"-" json:"enableAudit,omitempty"`
+	RateLimit   config.Allower `gorm:"-" json:"rateLimit,omitempty"`
 }
 
 type Permissions []*Permission

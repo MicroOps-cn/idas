@@ -107,7 +107,14 @@ func LoggingMiddleware(svc service.Service, method string, ps models.Permissions
 				//"Request":         w.JSONStringer(reqData).String(),
 				"Type": "call_endpoint",
 			}
-			if e := svc.PostEventLog(ctx, log.GetTraceId(ctx), userId, username, remoteAddr, method, msg, status, took, l); e != nil {
+			if method == "OAuthAuthorize" {
+				reqURL := *stdReq.URL
+				reqURL.User = nil
+				reqQuery := reqURL.Query()
+				reqQuery.Set("state", "<state>")
+				reqURL.RawQuery = reqQuery.Encode()
+				l["RequestLine"] = reqURL.String()
+			}
 			eventId := log.GetTraceId(ctx)
 			if u, e := uuid.FromString(eventId); e == nil {
 				eventId = u.String()
