@@ -34,6 +34,7 @@ import (
 
 	"github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/log/flag"
+	"github.com/MicroOps-cn/fuck/signals"
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/metrics/prometheus"
 	kitlog "github.com/go-kit/log"
@@ -56,7 +57,6 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/transport"
 	"github.com/MicroOps-cn/idas/pkg/utils/httputil"
-	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
 var (

@@ -26,13 +26,13 @@ import (
 
 	"github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/sets"
+	"github.com/MicroOps-cn/fuck/signals"
 	"github.com/go-kit/log/level"
 	"github.com/gogo/protobuf/proto"
 	"github.com/oschwald/geoip2-golang"
 
 	"github.com/MicroOps-cn/idas/api"
 	"github.com/MicroOps-cn/idas/pkg/errors"
-	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
 type Client struct {

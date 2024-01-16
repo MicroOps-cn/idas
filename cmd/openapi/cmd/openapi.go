@@ -24,12 +24,12 @@ import (
 	"os"
 
 	logs "github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/fuck/signals"
 	"github.com/spf13/cobra"
 
 	"github.com/MicroOps-cn/idas/pkg/endpoint"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/transport"
-	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
 var outputFile string

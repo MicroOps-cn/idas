@@ -28,13 +28,13 @@ import (
 	fuck_tls "github.com/MicroOps-cn/fuck/clients/tls"
 	"github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/sets"
+	"github.com/MicroOps-cn/fuck/signals"
 	"github.com/go-kit/log/level"
 	"github.com/go-ldap/ldap/v3"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 
 	"github.com/MicroOps-cn/idas/api"
-	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
 func NewLdapPool(ctx context.Context, options *LdapOptions) (pool Pool, err error) {

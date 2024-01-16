@@ -21,13 +21,13 @@ import (
 	"fmt"
 
 	logs "github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/fuck/signals"
 	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/go-kit/log/level"
 	"github.com/spf13/cobra"
 
 	"github.com/MicroOps-cn/idas/pkg/endpoint"
 	"github.com/MicroOps-cn/idas/pkg/service"
-	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
 var adminUsername string

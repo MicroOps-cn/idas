@@ -35,6 +35,7 @@ import (
 	"github.com/MicroOps-cn/fuck/buffer"
 	http2 "github.com/MicroOps-cn/fuck/http"
 	"github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/fuck/signals"
 	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/MicroOps-cn/idas/config"
 	"github.com/emicklei/go-restful/v3"

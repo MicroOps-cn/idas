@@ -24,13 +24,13 @@ import (
 
 	"github.com/MicroOps-cn/fuck/clients/gorm"
 	logs "github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/fuck/signals"
 	"github.com/go-kit/log/level"
 	"k8s.io/apimachinery/pkg/util/json"
 
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/utils/httputil"
-	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
 func NewLoggingService(ctx context.Context, name string, client *gorm.Client) *LoggingService {

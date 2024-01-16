@@ -23,11 +23,11 @@ import (
 	"os"
 
 	logs "github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/fuck/signals"
 	progressbar "github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
 
 	"github.com/MicroOps-cn/idas/pkg/service"
-	"github.com/MicroOps-cn/idas/pkg/utils/signals"
 )
 
 var (
