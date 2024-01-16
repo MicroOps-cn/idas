@@ -114,6 +114,7 @@ type Service interface {
 	AppAuthentication(ctx context.Context, username string, password string) (*models.App, error)
 	CreateAppKey(ctx context.Context, appId string, name string) (appKey *models.AppKey, err error)
 	GetAppKeys(ctx context.Context, appId string, current int64, pageSize int64) (count int64, keys []*models.AppKey, err error)
+	GetAppIcons(ctx context.Context, current int64, pageSize int64) (count int64, keys []*models.Model, err error)
 	DeleteAppKey(ctx context.Context, appId string, id []string) (affected int64, err error)
 	GetAppKeyFromKey(ctx context.Context, key string) (appKey *models.AppKey, err error)
 

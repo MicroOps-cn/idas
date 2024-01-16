@@ -25,6 +25,7 @@ import (
 	"time"
 
 	logs "github.com/MicroOps-cn/fuck/log"
+	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/go-kit/log/level"
 	uuid "github.com/satori/go.uuid"
 	gogorm "gorm.io/gorm"

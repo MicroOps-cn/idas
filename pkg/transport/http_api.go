@@ -137,6 +137,15 @@ func AppService(ctx context.Context, options []httptransport.ServerOption, endpo
 	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
+	v1ws.Route(v1ws.GET("/icons").
+		To(NewKitHTTPServer[endpoint.BaseListRequest](ctx, endpoints.GetAppIcons, options)).
+		Operation("getAppIcons").
+		Doc("Get a app Icons.").
+		Params(StructToQueryParams(endpoint.BaseListRequest{})...).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.GetAppIconsResponse{}),
+	)
+
 	v1ws.Route(v1ws.GET("").
 		To(NewKitHTTPServer[endpoint.GetAppsRequest](ctx, endpoints.GetApps, options)).
 		Operation("getApps").

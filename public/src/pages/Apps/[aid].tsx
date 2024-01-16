@@ -5,6 +5,7 @@ import type { Tab } from 'rc-tabs/lib/interface';
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 
+import Avatar from '@/components/Avatar';
 import { deleteAppKeys, getAppInfo, getAppKeys, updateApp } from '@/services/idas/apps';
 import { GrantMode, GrantType } from '@/services/idas/enums';
 import { enumToMap } from '@/utils/enum';
@@ -274,12 +275,17 @@ const AppDetail: React.FC = ({}) => {
       key: 'basic',
       children: (
         <>
-          <ProDescriptions<API.AppInfo>
-            column={{ xs: 1, sm: 2, md: 3 }}
-            actionRef={descripterRef}
-            request={fetchAppInfo}
-            columns={detailColumns}
-          />
+          <div style={{ display: 'flex' }}>
+            <div style={{ width: appInfo?.avatar ? 'calc(100% - 80px)' : '100%' }}>
+              <ProDescriptions<API.AppInfo>
+                column={{ xs: 1, sm: 2, md: 3 }}
+                actionRef={descripterRef}
+                request={fetchAppInfo}
+                columns={detailColumns}
+              />
+            </div>
+            {appInfo?.avatar ? <Avatar size={64} src={appInfo?.avatar} /> : null}
+          </div>
           <Card
             bodyStyle={{ padding: 0 }}
             headStyle={{ padding: 0 }}

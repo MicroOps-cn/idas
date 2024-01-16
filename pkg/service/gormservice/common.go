@@ -77,6 +77,27 @@ func (c CommonService) RecordUploadFile(ctx context.Context, name string, path s
 	return file.Id, err
 }
 
+func (c CommonService) UpdateFileOwner(ctx context.Context, fileId string, owner string) (err error) {
+	return c.Session(ctx).Model(&models.File{}).Where("id = ?", fileId).Update("owner", owner).Error
+}
+
+func (c CommonService) GetFilesByOwner(ctx context.Context, owner string, current int64, pageSize int64) (count int64, files []*models.Model, err error) {
+	tb := c.Session(ctx).Model(&models.File{})
+	if len(owner) > 0 {
+		tb.Where("`owner` = ?", owner)
+	}
+	if err = tb.Count(&count).Error; err != nil {
+		return 0, nil, err
+	} else if count == 0 {
+		return 0, nil, nil
+	}
+
+	if err = tb.Limit(int(pageSize)).Offset(int((current - 1) * pageSize)).Find(&files).Error; err != nil {
+		return 0, nil, err
+	}
+	return
+}
+
 func (c CommonService) GetFileInfoFromId(ctx context.Context, id string) (fileName, mimiType, filePath string, err error) {
 	file := &models.File{Model: models.Model{Id: id}}
 	if err = c.Session(ctx).First(file).Error; err != nil {

@@ -1,17 +1,23 @@
 import type { AvatarProps as AntdAvatarProps } from 'antd';
-import { Modal } from 'antd';
+import { Divider, List, Modal, Popover, Skeleton } from 'antd';
 import { Upload } from 'antd';
 import { Avatar as AntdAvatar } from 'antd';
 import ImgCrop from 'antd-img-crop';
 import type { RcFile, UploadFile } from 'antd/lib/upload';
 import { isString } from 'lodash';
 import { useEffect, useState } from 'react';
+import InfiniteScroll from 'react-infinite-scroll-component';
 
 import { uploadFile as postFile } from '@/services/idas/files';
+import type { RequestError } from '@/utils/request';
 import { UploadOutlined } from '@ant-design/icons';
 import { ProField } from '@ant-design/pro-components';
-import type { ProFormFieldProps as ProFormFieldItemProps } from '@ant-design/pro-components';
+import type {
+  ProFormFieldProps as ProFormFieldItemProps,
+  RequestData,
+} from '@ant-design/pro-components';
 import { createField } from '@ant-design/pro-form/es/BaseForm/createField';
+import { ClassNames } from '@emotion/react';
 
 export type AvatarProps = {
   src?: string;
@@ -158,15 +164,25 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
   );
 };
 
-interface ProAvatarUploadProps {
+interface ProAvatarUploadProps extends ProFormFieldItemProps {
   onError?: (error: any) => void;
+  optionsRequest?: (
+    params: {
+      pageSize?: number;
+      current?: number;
+      keywords?: string;
+    },
+    props: any,
+  ) => Promise<RequestData<{ id: string }>>;
 }
 
 export const ProAvatarUpload: React.FC<ProFormFieldItemProps<ProAvatarUploadProps>> = ({
   fieldProps: { onError, ...fieldProps } = { onError: undefined },
   proFieldProps,
-}: ProFormFieldItemProps<ProAvatarUploadProps>) => {
+  optionsRequest,
+}: ProAvatarUploadProps) => {
   const [avatar, setAvatar] = useState<UploadFile>();
+  console.log(optionsRequest);
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
@@ -179,6 +195,46 @@ export const ProAvatarUpload: React.FC<ProFormFieldItemProps<ProAvatarUploadProp
     setPreviewImage(file.url || (file.preview as string));
     setPreviewOpen(true);
   };
+  const [iconList, setIconList] = useState<{ id: string }[]>([]);
+
+  const [iconListHasMore, setIconListHasMore] = useState<boolean>(true);
+  const [iconListPageNumber, setIconListPageNumber] = useState<number>(0);
+  const [loadingIconList, setLoadingIconList] = useState<boolean>(false);
+  const [popupVisible, setPopupVisible] = useState<boolean>(false);
+  const loadMoreIconList = async (params?: API.getAppIconsParams) => {
+    if (optionsRequest) {
+      console.log('loading');
+      try {
+        setLoadingIconList(true);
+        const resp = await optionsRequest(
+          {
+            current: iconListPageNumber + 1,
+            pageSize: 40,
+            ...params,
+          },
+          {},
+        );
+        if (resp && resp.data) {
+          const { data: newData, current, pageSize, total } = resp;
+          setIconList((oldData) => {
+            return [...oldData, ...newData];
+          });
+          setIconListPageNumber(current);
+          if (total && total < current * pageSize) {
+            setIconListHasMore(false);
+          }
+        } else {
+          setIconListHasMore(false);
+        }
+      } catch (error) {
+        if (!(error as RequestError).handled) {
+          console.error(`failed to get user list: ${error}`);
+        }
+      } finally {
+        setLoadingIconList(false);
+      }
+    }
+  };
 
   return (
     <>
@@ -187,65 +243,141 @@ export const ProAvatarUpload: React.FC<ProFormFieldItemProps<ProAvatarUploadProp
         fieldProps={fieldProps}
         renderFormItem={(text, { onChange, mode, value, ...props }) => {
           const avatarList = text ? [{ uid: value, name: 'img', url: getAvatarSrc(text) }] : [];
+          console.log([...avatarList]);
           return mode === 'edit' ? (
-            <ImgCrop
-              beforeCrop={async (file: RcFile): Promise<boolean> => {
-                if (file.type === 'image/svg+xml') {
-                  const fileId = await handleUploadFile(file.name, file, onError);
-                  if (fileId) {
-                    setAvatar({
-                      uid: fileId,
-                      name: file.name,
-                      url: getAvatarSrc(fileId),
-                    });
-                    onChange?.(fileId);
-                  }
-                  return false;
-                }
-                return true;
-              }}
-            >
-              <Upload
-                accept="image/png, image/jpeg, image/svg+xml"
-                fileList={avatarList}
-                maxCount={1}
-                listType="picture-card"
-                onDrop={() => {
-                  setAvatar(undefined);
-                  onChange?.();
-                }}
-                onPreview={handlePreview}
-                onRemove={() => {
-                  setAvatar(undefined);
-                  onChange?.();
-                }}
-                customRequest={async (options) => {
-                  try {
-                    let { filename } = options;
-                    const { file } = options;
-                    if (!isString(file) && file) {
-                      filename = (file as RcFile).name ?? filename;
-                    }
-                    filename = filename ?? new Date().getTime().toString();
-                    filename = filename.substring(0, filename.lastIndexOf('.')) + '.png';
-                    const fileId = await handleUploadFile(filename, file, onError);
+            <>
+              <ImgCrop
+                beforeCrop={async (file: RcFile): Promise<boolean> => {
+                  if (file.type === 'image/svg+xml') {
+                    const fileId = await handleUploadFile(file.name, file, onError);
                     if (fileId) {
                       setAvatar({
                         uid: fileId,
-                        name: filename,
+                        name: file.name,
                         url: getAvatarSrc(fileId),
                       });
                       onChange?.(fileId);
                     }
-                  } catch (error) {
-                    onError?.(error);
+                    return false;
                   }
+                  return true;
                 }}
-                {...props}
               >
-                {text ? null : <UploadOutlined />}
-              </Upload>
-            </ImgCrop>
+                <Popover
+                  onOpenChange={(v) => {
+                    if (!text && optionsRequest) {
+                      setPopupVisible(v);
+                      if (v) {
+                        loadMoreIconList();
+                      } else {
+                        setIconListHasMore(true);
+                        setIconListPageNumber(0);
+                      }
+                    }
+                  }}
+                  open={popupVisible}
+                  content={
+                    <div style={{ width: 360, height: 200 }}>
+                      <div
+                        id="iconsScrollableDiv"
+                        style={{
+                          height: '100%',
+                          overflow: 'auto',
+                        }}
+                      >
+                        <InfiniteScroll
+                          dataLength={iconList.length}
+                          next={loadMoreIconList}
+                          hasMore={iconListHasMore}
+                          loader={<Skeleton avatar paragraph={{ rows: 1 }} active />}
+                          endMessage={<Divider plain>End</Divider>}
+                          scrollableTarget="iconsScrollableDiv"
+                        >
+                          <List<{ id: string }>
+                            grid={{ gutter: 16, column: 8 }}
+                            dataSource={iconList}
+                            style={{ margin: '0 8px' }}
+                            loading={loadingIconList}
+                            renderItem={({ id }) => {
+                              return (
+                                <ClassNames>
+                                  {({ css }) => (
+                                    <div
+                                      className={css`
+                                        :hover {
+                                          background: rgba(0, 0, 0, 0.12);
+                                        }
+                                        padding: 5px;
+                                      `}
+                                      onClick={() => {
+                                        setAvatar({
+                                          uid: id,
+                                          name: id,
+                                          url: getAvatarSrc(id),
+                                        });
+                                        onChange?.(id);
+                                        setPopupVisible(false);
+                                      }}
+                                    >
+                                      <Avatar src={id} />
+                                    </div>
+                                  )}
+                                </ClassNames>
+                              );
+                            }}
+                          />
+                        </InfiniteScroll>
+                      </div>
+                    </div>
+                  }
+                  placement="bottom"
+                  trigger="hover"
+                >
+                  <div style={{ height: 112, width: 112 }}>
+                    <Upload
+                      accept="image/png, image/jpeg, image/svg+xml"
+                      fileList={avatarList}
+                      maxCount={1}
+                      listType="picture-card"
+                      onDrop={() => {
+                        setAvatar(undefined);
+                        onChange?.();
+                      }}
+                      onPreview={handlePreview}
+                      onRemove={() => {
+                        setAvatar(undefined);
+                        onChange?.();
+                      }}
+                      customRequest={async (options) => {
+                        try {
+                          let { filename } = options;
+                          const { file } = options;
+                          if (!isString(file) && file) {
+                            filename = (file as RcFile).name ?? filename;
+                          }
+                          filename = filename ?? new Date().getTime().toString();
+                          filename = filename.substring(0, filename.lastIndexOf('.')) + '.png';
+                          const fileId = await handleUploadFile(filename, file, onError);
+                          if (fileId) {
+                            setAvatar({
+                              uid: fileId,
+                              name: filename,
+                              url: getAvatarSrc(fileId),
+                            });
+                            onChange?.(fileId);
+                          }
+                        } catch (error) {
+                          onError?.(error);
+                        }
+                      }}
+                      {...props}
+                    >
+                      {text ? null : <UploadOutlined />}
+                    </Upload>
+                  </div>
+                </Popover>
+              </ImgCrop>
+            </>
           ) : (
             <Avatar src={avatar?.url ?? text} />
           );
@@ -258,6 +390,5 @@ export const ProAvatarUpload: React.FC<ProFormFieldItemProps<ProAvatarUploadProp
     </>
   );
 };
-export const AvatarUploadField =
-  createField<ProFormFieldItemProps<ProAvatarUploadProps>>(ProAvatarUpload);
+export const AvatarUploadField = createField<ProAvatarUploadProps>(ProAvatarUpload);
 export default Avatar;

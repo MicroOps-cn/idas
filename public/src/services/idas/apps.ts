@@ -171,3 +171,18 @@ export async function deleteAppKeys(
     ...(options || {}),
   });
 }
+
+/** Get a app Icons. GET /api/v1/apps/icons */
+export async function getAppIcons(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.getAppIconsParams,
+  options?: { [key: string]: any },
+) {
+  return request<API.GetAppIconsResponse>('/api/v1/apps/icons', {
+    method: 'GET',
+    params: {
+      ...params,
+    },
+    ...(options || {}),
+  });
+}

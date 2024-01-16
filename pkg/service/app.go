@@ -23,6 +23,7 @@ import (
 	"github.com/MicroOps-cn/fuck/sets"
 	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/go-kit/log/level"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
@@ -210,6 +211,14 @@ func (s Set) UpdateApp(ctx context.Context, app *models.App, updateColumns ...st
 	if err != nil {
 		return err
 	}
+	if len(app.Avatar) > 0 {
+		if keyUUID, err := uuid.FromString(app.Avatar); err == nil {
+			if err := s.commonService.UpdateFileOwner(ctx, keyUUID.String(), "app:icon:public"); err != nil {
+				logger := logs.GetContextLogger(ctx)
+				level.Error(logger).Log("err", err, "msg", "failed to update file owner")
+			}
+		}
+	}
 	return s.PatchAppI18n(ctx, app.Id, app.I18N)
 }
 
@@ -292,15 +301,24 @@ func (s Set) CreateApp(ctx context.Context, app *models.App) (err error) {
 	}
 	logger := logs.GetContextLogger(ctx)
 	service := s.GetUserAndAppService()
-
-	if avatar, err := image.GenerateAvatar(ctx, app.Name); err != nil {
-		level.Error(logger).Log("err", err, "msg", "failed to generate avatar")
-	} else if fileKey, err := s.UploadFile(ctx, app.Name+".png", "image/png", avatar); err != nil {
-		level.Error(logger).Log("err", err, "msg", "failed to save avatar")
+	if len(app.Avatar) == 0 {
+		if avatar, err := image.GenerateAvatar(ctx, app.Name); err != nil {
+			level.Error(logger).Log("err", err, "msg", "failed to generate avatar")
+		} else if fileKey, err := s.UploadFile(ctx, app.Name+".png", "image/png", avatar); err != nil {
+			level.Error(logger).Log("err", err, "msg", "failed to save avatar")
+		} else {
+			app.Avatar = fileKey
+			if err := s.commonService.UpdateFileOwner(ctx, fileKey, "app:icon:public"); err != nil {
+				level.Error(logger).Log("err", err, "msg", "failed to update file owner")
+			}
+		}
 	} else {
-		app.Avatar = fileKey
+		if keyUUID, err := uuid.FromString(app.Avatar); err == nil {
+			if err := s.commonService.UpdateFileOwner(ctx, keyUUID.String(), "app:icon:public"); err != nil {
+				level.Error(logger).Log("err", err, "msg", "failed to update file owner")
+			}
+		}
 	}
-
 	if err = service.CreateApp(ctx, app); err != nil {
 		return err
 	}
@@ -345,6 +363,10 @@ func (s Set) CreateAppKey(ctx context.Context, appId string, name string) (appKe
 
 func (s Set) GetAppKeys(ctx context.Context, appId string, current int64, pageSize int64) (count int64, keys []*models.AppKey, err error) {
 	return s.commonService.GetAppKeys(ctx, appId, current, pageSize)
+}
+
+func (s Set) GetAppIcons(ctx context.Context, current int64, pageSize int64) (count int64, keys []*models.Model, err error) {
+	return s.commonService.GetFilesByOwner(ctx, "app:icon:public", current, pageSize)
 }
 
 func (s Set) DeleteAppKey(ctx context.Context, appId string, id []string) (affected int64, err error) {

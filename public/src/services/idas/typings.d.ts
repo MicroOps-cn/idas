@@ -61,11 +61,9 @@ declare namespace API {
     updateTime: string;
   };
 
-  type AppMetaGrantMode = 'full' | 1 | 'manual' | 0;
+  type AppMetaGrantMode = 'manual' | 0 | 'full' | 1;
 
   type AppMetaGrantType =
-    | 'none'
-    | 0
     | 'authorization_code'
     | 1
     | 'implicit'
@@ -79,9 +77,11 @@ declare namespace API {
     | 'oidc'
     | 32
     | 'radius'
-    | 64;
+    | 64
+    | 'none'
+    | 0;
 
-  type AppMetaStatus = 'unknown' | 0 | 'normal' | 1 | 'disable' | 2;
+  type AppMetaStatus = 'disable' | 2 | 'unknown' | 0 | 'normal' | 1;
 
   type AppProxy = {
     appId: string;
@@ -390,34 +390,34 @@ declare namespace API {
   };
 
   type FieldType =
-    | 'digit'
-    | 3
-    | 'timeRange'
-    | 10
-    | 'dateTimeRange'
-    | 14
     | 'text'
     | 0
-    | 'radio'
-    | 6
-    | 'select'
-    | 8
-    | 'multiSelect'
-    | 9
-    | 'dateTime'
-    | 13
     | 'textarea'
     | 2
-    | 'digitRange'
-    | 4
     | 'checkbox'
     | 5
+    | 'dateTime'
+    | 13
+    | 'radio'
+    | 6
+    | 'timeRange'
+    | 10
+    | 'dateRange'
+    | 12
+    | 'dateTimeRange'
+    | 14
+    | 'digit'
+    | 3
     | 'switch'
     | 7
+    | 'multiSelect'
+    | 9
+    | 'digitRange'
+    | 4
+    | 'select'
+    | 8
     | 'date'
-    | 11
-    | 'dateRange'
-    | 12;
+    | 11;
 
   type FileUploadResponse = {
     data: Record<string, any>;
@@ -431,6 +431,23 @@ declare namespace API {
   type ForgotUserPasswordRequest = {
     email: string;
     username: string;
+  };
+
+  type getAppIconsParams = {
+    pageSize?: number;
+    current?: number;
+    keywords?: string;
+  };
+
+  type GetAppIconsResponse = {
+    current: number;
+    data?: Model[];
+    errorCode?: string;
+    errorMessage?: string;
+    pageSize: number;
+    success: boolean;
+    total: number;
+    traceId: string;
   };
 
   type getAppInfoParams = {
@@ -734,26 +751,26 @@ declare namespace API {
   };
 
   type LoginType =
-    | 'mfa_sms'
-    | 3
+    | 'normal'
+    | 0
+    | 'mfa_totp'
+    | 1
     | 'email'
     | 4
     | 'sms'
     | 5
-    | 'oauth2'
-    | 6
     | 'enable_mfa_totp'
     | 10
-    | 'enable_mfa_sms'
-    | 12
-    | 'mfa_totp'
-    | 1
     | 'mfa_email'
     | 2
+    | 'mfa_sms'
+    | 3
+    | 'oauth2'
+    | 6
     | 'enable_mfa_email'
     | 11
-    | 'normal'
-    | 0;
+    | 'enable_mfa_sms'
+    | 12;
 
   type Model = {
     createTime?: string;
@@ -780,17 +797,17 @@ declare namespace API {
     state?: string;
   };
 
-  type OAuthAuthorizeRequestResponseType = 'code' | 1 | 'token' | 2 | 'default' | 0;
+  type OAuthAuthorizeRequestResponseType = 'default' | 0 | 'code' | 1 | 'token' | 2;
 
   type OAuthGrantType =
-    | 'client_credentials'
-    | 3
     | 'refresh_token'
     | 0
     | 'authorization_code'
     | 1
     | 'password'
-    | 2;
+    | 2
+    | 'client_credentials'
+    | 3;
 
   type OAuthTokenRequest = {
     client_id?: string;
@@ -817,7 +834,7 @@ declare namespace API {
     token_type?: OAuthTokenType;
   };
 
-  type OAuthTokenType = 'Mac' | 1 | 'Cookie' | 2 | 'Bearer' | 0;
+  type OAuthTokenType = 'Bearer' | 0 | 'Mac' | 1 | 'Cookie' | 2;
 
   type PageConfig = {
     createTime: string;
@@ -840,7 +857,7 @@ declare namespace API {
 
   type PageStatus = 'all' | 'disabled' | 'enabled';
 
-  type PasswordComplexity = 'unsafe' | 0 | 'general' | 1 | 'safe' | 2 | 'very_safe' | 3;
+  type PasswordComplexity = 'general' | 1 | 'safe' | 2 | 'very_safe' | 3 | 'unsafe' | 0;
 
   type patchAppParams = {
     /** identifier of the app */
@@ -1168,14 +1185,14 @@ declare namespace API {
   };
 
   type UserMetaUserStatus =
+    | 'password_expired'
+    | 4
     | 'normal'
     | 0
     | 'disabled'
     | 1
     | 'user_inactive'
-    | 2
-    | 'password_expired'
-    | 4;
+    | 2;
 
   type userOAuthLoginParams = {
     /** identifier of the oauth */

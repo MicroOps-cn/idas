@@ -73,6 +73,7 @@ type AppEndpoints struct {
 	CreateAppKey          endpoint.Endpoint `description:"Create a app key-pair" role:"admin" audit:"true"`
 	DeleteAppKey          endpoint.Endpoint `description:"Delete a app key-pair" role:"admin" audit:"true"`
 	GetAppKeys            endpoint.Endpoint `description:"Get a app key-pairs" role:"admin" audit:"false"`
+	GetAppIcons           endpoint.Endpoint `description:"Get app icons" role:"admin" audit:"false"`
 	GetCurrentUserApps    endpoint.Endpoint `auth:"false" audit:"false"`
 	GetAppAndKeyFromKeyId endpoint.Endpoint `auth:"false" audit:"false"`
 }
@@ -302,6 +303,7 @@ func New(ctx context.Context, svc service.Service, duration metrics.Histogram) S
 			CreateAppKey:          injectEndpoint("CreateAppKey", MakeCreateAppKeyEndpoint(svc)),
 			DeleteAppKey:          injectEndpoint("DeleteAppKey", MakeDeleteAppKeyEndpoint(svc)),
 			GetAppKeys:            injectEndpoint("GetAppKeys", MakeGetAppKeysEndpoint(svc)),
+			GetAppIcons:           injectEndpoint("GetAppIcons", MakeGetAppIconsEndpoint(svc)),
 			GetCurrentUserApps:    injectEndpoint("GetCurrentUserApps", MakeGetCurrentUserAppsEndpoint(svc)),
 			GetAppAndKeyFromKeyId: injectEndpoint("GetAppAndKeyFromKeyId", MakeGetAppAndKeyFromKeyIdEndpoint(svc)),
 		},

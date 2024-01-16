@@ -66,6 +66,11 @@ message GetAppsResponse {
   repeated AppInfo data = 2;
 }
 
+message GetAppIconsResponse {
+  idas.endpoint.BaseListResponse base_list_response = 1 [(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
+  repeated idas.service.models.Model data = 2;
+}
+
 message GetAppResponse {
   idas.endpoint.BaseResponse base_response = 1 [(gogoproto.embed) = true, (gogoproto.nullable) = false, (gogoproto.jsontag) = ",omitempty"];
   AppInfo data = 2;

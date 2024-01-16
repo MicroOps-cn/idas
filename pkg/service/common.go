@@ -29,6 +29,7 @@ import (
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/sets"
 	"github.com/go-kit/log/level"
+	uuid "github.com/satori/go.uuid"
 
 	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/errors"
@@ -40,6 +41,8 @@ import (
 type CommonService interface {
 	baseService
 	RecordUploadFile(ctx context.Context, name string, path string, contentType string, size int64) (id string, err error)
+	UpdateFileOwner(ctx context.Context, fileId string, owner string) (err error)
+	GetFilesByOwner(ctx context.Context, owner string, current int64, pageSize int64) (count int64, files []*models.Model, err error)
 	GetFileInfoFromId(ctx context.Context, id string) (fileName, mimiType, filePath string, err error)
 	CreateRole(ctx context.Context, role *models.Role) (err error)
 	UpdateRole(ctx context.Context, role *models.Role) (err error)

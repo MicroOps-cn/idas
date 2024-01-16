@@ -29,6 +29,7 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/log/level"
+	uuid "github.com/satori/go.uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 

@@ -26,6 +26,7 @@ import (
 	logs "github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/signals"
 	"github.com/go-kit/log/level"
+	uuid "github.com/satori/go.uuid"
 	"k8s.io/apimachinery/pkg/util/json"
 
 	"github.com/MicroOps-cn/idas/pkg/errors"

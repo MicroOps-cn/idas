@@ -6,6 +6,7 @@ import React, { useEffect, useRef, useState } from 'react';
 
 import { AvatarUploadField } from '@/components/Avatar';
 import { allLocales } from '@/components/SelectLang';
+import { getAppIcons } from '@/services/idas/apps';
 import { AppStatus, GrantMode, GrantType } from '@/services/idas/enums';
 import type { LabelValue } from '@/utils/enum';
 import { enumToOptions } from '@/utils/enum';
@@ -231,6 +232,9 @@ const CreateOrUpdateForm: React.FC<UpdateFormProps> = (props) => {
           colProps={{ span: 8, sm: 8, xs: 14 }}
           label={intl.t('avatar.label', 'Avatar')}
           name={'avatar'}
+          optionsRequest={async (params) => {
+            return getAppIcons(params);
+          }}
         />
         <ProFormGroup grid colProps={{ span: 16, xs: 14 }}>
           <ProFormText
