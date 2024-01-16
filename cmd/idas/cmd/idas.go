@@ -91,7 +91,7 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func Run(ctx context.Context, logger kitlog.Logger, stopCh *signals.StopChan) (err error) {
+func Run(ctx context.Context, logger kitlog.Logger, stopCh *signals.Handler) (err error) {
 	var tracer *sdktrace.TracerProvider
 	{
 		otel.SetLogger(stdr.New(stdlog.New(kitlog.NewStdlibAdapter(level.Info(logger)), "[restful]", stdlog.LstdFlags|stdlog.Lshortfile)))

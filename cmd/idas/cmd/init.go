@@ -44,7 +44,7 @@ var initDataCmd = &cobra.Command{
 	},
 }
 
-func InitData(ctx context.Context, _ *signals.StopChan) {
+func InitData(ctx context.Context, _ *signals.Handler) {
 	svc := service.New(ctx)
 	if err := svc.AutoMigrate(ctx); err != nil {
 		panic(err)

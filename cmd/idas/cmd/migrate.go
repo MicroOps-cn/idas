@@ -39,7 +39,7 @@ var migrateCmd = &cobra.Command{
 	},
 }
 
-func Migrate(ctx context.Context, _ *signals.StopChan) {
+func Migrate(ctx context.Context, _ *signals.Handler) {
 	svc := service.New(ctx)
 	if err := svc.AutoMigrate(ctx); err != nil {
 		panic(err)
