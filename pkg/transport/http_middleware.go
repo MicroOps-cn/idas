@@ -38,8 +38,10 @@ import (
 	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/MicroOps-cn/idas/config"
 	"github.com/emicklei/go-restful/v3"
+	"github.com/go-kit/kit/metrics/prometheus"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/sony/gobreaker"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
@@ -396,13 +398,41 @@ func getSafeHeader(req *http.Request) fmt.Stringer {
 	})
 }
 
+var (
+	requestsTotal = prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Name: "http_requests_total",
+		Help: "Tracks the number of HTTP requests.",
+	}, []string{"method", "code", "api"})
+	requestDuration = prometheus.NewHistogramFrom(
+		stdprometheus.HistogramOpts{
+			Name:    "http_request_duration_seconds",
+			Help:    "Tracks the latencies for HTTP requests.",
+			Buckets: stdprometheus.ExponentialBuckets(0.1, 3, 5),
+		},
+		[]string{"method", "code", "api"},
+	)
+)
+
 func HTTPContextFilter(pctx context.Context) restful.FilterFunction {
 	return func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+		ch := signals.SignalHandler()
+		ch.AddRequest(1)
+		defer ch.DoneRequest()
+
+		var route restful.RouteReader
+		start := time.Now()
+		defer func() {
+			if route != nil {
+				requestsTotal.With("method", route.Method(), "code", strconv.Itoa(resp.StatusCode()), "api", route.Path()).Add(1)
+				requestDuration.With("method", route.Method(), "code", strconv.Itoa(resp.StatusCode()), "api", route.Path()).
+					Observe(float64(time.Since(start) / time.Second))
+			}
+		}()
 		ctx := req.Request.Context()
 		if ctx == nil {
 			ctx = pctx
 		}
-		if req.SelectedRoute() != nil && req.SelectedRoute().Metadata() != nil {
+		if route = req.SelectedRoute(); route != nil && route.Metadata() != nil {
 			metadata := req.SelectedRoute().Metadata()
 			for key, val := range metadata {
 				ctx = context.WithValue(ctx, key, val)

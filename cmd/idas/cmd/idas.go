@@ -114,10 +114,8 @@ func Run(ctx context.Context, logger kitlog.Logger, stopCh *signals.StopChan) (e
 	{
 		// Endpoint-level metrics.
 		duration = prometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-			Namespace: "idas",
-			Subsystem: "idas",
-			Name:      "request_duration_seconds",
-			Help:      "Request duration in seconds.",
+			Name: "endpoint_invoke_duration_seconds",
+			Help: "Tracks the latencies for Invoke endpoints.",
 		}, []string{"method", "success"})
 	}
 	httpLoginURL := httpExternalURL
