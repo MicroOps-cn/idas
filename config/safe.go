@@ -31,6 +31,7 @@ import (
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/yaml.v3"
+	"k8s.io/apimachinery/pkg/util/rand"
 
 	"github.com/MicroOps-cn/idas/pkg/global"
 )
@@ -172,13 +173,18 @@ func (sc *safeConfig) ReloadConfigFromJSONReader(logger log.Logger, reader Reade
 	c := Config{
 		Global:  NewGlobalOptions(),
 		Storage: &Storages{},
+		Security: &Security{
+			JwtSecret: rand.String(128),
+		},
 	}
 
 	var unmarshaler jsonpb.Unmarshaler
 	if err = unmarshaler.Unmarshal(reader, &c); err != nil {
 		return fmt.Errorf("error unmarshal config: %s", err)
-	} else if err = c.Init(logger); err != nil {
-		return fmt.Errorf("error init config: %s", err)
+	} else {
+		if err = c.Init(logger); err != nil {
+			return fmt.Errorf("error init config: %s", err)
+		}
 	}
 	if c.GetWorkspace() == nil {
 		if absPath, err := filepath.Abs(path.Dir(reader.Name())); err != nil {
