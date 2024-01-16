@@ -1,0 +1,16 @@
+Constants:
+	const (
+		FirstName_Type radius.Type = 200
+	)
+Functions:
+		func FirstName_Add(p *radius.Packet, value []byte) (err error)
+		func FirstName_AddString(p *radius.Packet, value string) (err error)
+		func FirstName_Del(p *radius.Packet)
+		func FirstName_Get(p *radius.Packet) (value []byte)
+		func FirstName_GetString(p *radius.Packet) (value string)
+		func FirstName_GetStrings(p *radius.Packet) (values []string, err error)
+		func FirstName_Gets(p *radius.Packet) (values [][]byte, err error)
+		func FirstName_Lookup(p *radius.Packet) (value []byte, err error)
+		func FirstName_LookupString(p *radius.Packet) (value string, err error)
+		func FirstName_Set(p *radius.Packet, value []byte) (err error)
+		func FirstName_SetString(p *radius.Packet, value string) (err error)
