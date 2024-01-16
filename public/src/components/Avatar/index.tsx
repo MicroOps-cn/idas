@@ -182,7 +182,6 @@ export const ProAvatarUpload: React.FC<ProFormFieldItemProps<ProAvatarUploadProp
   optionsRequest,
 }: ProAvatarUploadProps) => {
   const [avatar, setAvatar] = useState<UploadFile>();
-  console.log(optionsRequest);
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
@@ -203,7 +202,6 @@ export const ProAvatarUpload: React.FC<ProFormFieldItemProps<ProAvatarUploadProp
   const [popupVisible, setPopupVisible] = useState<boolean>(false);
   const loadMoreIconList = async (params?: API.getAppIconsParams) => {
     if (optionsRequest) {
-      console.log('loading');
       try {
         setLoadingIconList(true);
         const resp = await optionsRequest(
@@ -243,7 +241,6 @@ export const ProAvatarUpload: React.FC<ProFormFieldItemProps<ProAvatarUploadProp
         fieldProps={fieldProps}
         renderFormItem={(text, { onChange, mode, value, ...props }) => {
           const avatarList = text ? [{ uid: value, name: 'img', url: getAvatarSrc(text) }] : [];
-          console.log([...avatarList]);
           return mode === 'edit' ? (
             <>
               <ImgCrop
@@ -265,7 +262,7 @@ export const ProAvatarUpload: React.FC<ProFormFieldItemProps<ProAvatarUploadProp
               >
                 <Popover
                   onOpenChange={(v) => {
-                    if (!text && optionsRequest) {
+                    if (!v || (!text && optionsRequest)) {
                       setPopupVisible(v);
                       if (v) {
                         loadMoreIconList();
