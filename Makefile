@@ -154,19 +154,3 @@ ui:
 	cd public && yarn install && yarn run build --basePath='$(BASE_PATH)/admin/' --apiPath='$(BASE_PATH)/'
 	rm -rf pkg/transport/static && cp -r public/dist pkg/transport/static
 
-
-.PHONY: ui-vpn
-ui-vpn:
-	rm -rf public/src/.umi-production/
-	cd public && yarn install && yarn run build --basePath='/vpn/idas/admin/' --apiPath='/vpn/idas/'
-	rm -rf pkg/transport/static && cp -r public/dist pkg/transport/static
-
-.PHONY: idas-vpn
-idas-vpn:
-	CGO_ENABLED=0 go build -ldflags="-s -w $(LDFlags)" -o dist/idas-vpn ./cmd/idas
-
-.PHONY: docker-image
-docker-image:
-	cp dist/idas docker/
-	if [ ! -f docker/GeoLite2-City.mmdb ];then wget -O docker/GeoLite2-City.mmdb.gz -c "https://cdn.jsdelivr.net/npm/geolite2-city@1.0.0/GeoLite2-City.mmdb.gz";gunzip docker/GeoLite2-City.mmdb.gz; fi
-	cd docker && docker build -t wiseasy/idas:v$(Version).$(GitCommit)$(IMAGE_SUFFIX) .
