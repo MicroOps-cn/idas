@@ -1,0 +1,40 @@
+storage:
+  user:
+    name: "LDAP"
+    ldap:
+      host: "10.1.2.3"
+      manager_dn: "cn=admin,dc=example,dc=com"
+      manager_password: "xxxxxxxxxxxxxxxxxx"
+      user_search_base: "ou=users,dc=example,dc=com"
+      app_search_base: "ou=groups,dc=example,dc=com"
+      app_search_filter: (&(|(objectclass=groupOfNames)(objectclass=groupOfUniqueNames))(cn={}))
+      attr_email: email
+      attr_user_display_name: cn
+      attr_username: uid
+  default:
+    sqlite:
+      path: 'file:idas.db'
+    name: "sqlite"
+  geoip:
+    path: GeoLite2-City.mmdb
+global:
+  max_upload_size: 10m
+  upload_path: /opt/idas/uploads
+  app_name: "IDAS"
+  logo: https://example.log/images/logo.png
+  title: "IDAS SSO"
+  copyright: "IDAS Team"
+
+smtp:
+  host: "smtp.example.com"
+  port: 465
+  username: "noreplay@example.com"
+  password: "xxxxxxxxxxxxxxx"
+  from: "noreplay@example.com"
+
+security:
+  jwt_secret: "dEfxoZ17XR;m%mQ#F?y$Uv1g|f^*QndrJ%4J':;GKDd$Px2O3uaf%MAj$iSnW7"
+  secret: "F9Kr02VcAwPve8b#5hC%;gP;"
+trace:
+  http:
+    endpoint: 10.2.3.4:4318

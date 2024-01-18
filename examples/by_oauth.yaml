@@ -1,0 +1,39 @@
+storage:
+  default:
+    sqlite:
+      path: 'file:idas.db'
+    name: "sqlite"
+  geoip:
+    path: GeoLite2-City.mmdb
+global:
+  max_upload_size: 10m
+  upload_path: /opt/idas/uploads
+  app_name: "IDAS"
+  logo: https://example.log/images/logo.png
+  title: "IDAS SSO"
+  sub_title: "IDAS Single Sign On System"
+  disable_login_form: true
+  default_login_type: oauth2
+  oauth2:
+    - client_id: xxxxxxxxxxxxxxxxxx
+      client_secret: xxxxxxxxxxxxxxxxxxxxxxx
+      name: AWS OAuth System
+      id: aws-oauth-system
+      icon: https://example.log/images/aws.png
+      token_url: "https://auth.aws.com/oauth/token"
+      auth_url: "https://auth.aws.com/oauth/authorize"
+      api_url: "https://auth.aws.com/oauth/userinfo"
+      login_id: "email,phoneNumber"
+      email_attribute_path: "email"
+      phone_number_attribute_path: "mobile"
+      avatar_attribute_path: "avatar_url"
+smtp:
+  host: "smtp.example.com"
+  port: 465
+  username: "noreplay@example.com"
+  password: "xxxxxxxxxxxxxxx"
+  from: "noreplay@example.com"
+
+security:
+  jwt_secret: "dEfxoZ17XR;m%mQ#F?y$Uv1g|f^*QndrJ%4J':;GKDd$Px2O3uaf%MAj$iSnW7"
+  secret: "F9Kr02VcAwPve8b#5hC%;gP;"

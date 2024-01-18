@@ -36,7 +36,7 @@ PROTOC_OPTS := $(PROTOC_OPTS) -I./api
 PROTOC_OPTS := $(PROTOC_OPTS) --gogo_out=plugins=grpc,module=${GOMODULENAME}:gogo_out
 PROTOC_OPTS := $(PROTOC_OPTS) --grpc-gateway_out=${GOGO_OPT}:gogo_out
 
-BASE_PATH = /idas
+BASE_PATH =
 
 IMAGE_SUFFIX :=
 
