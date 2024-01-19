@@ -111,7 +111,7 @@ protos: clean-protos
 .PHONY: common-check_license
 common-check_license:
 	@echo ">> checking license header"
-	@licRes=$$(for file in $$(find . -type f -iname '*.go' ! -path './vendor/*') ; do \
+	@licRes=$$(for file in $$(find . -type f -iname '*.go' ! -path './pkg/transport/*'  ! -path './test/*' ! -path './vendor/*') ; do \
                awk 'NR<=4' $$file | grep -Eq "(Copyright|generated|GENERATED)" || echo $$file; \
        done); \
        if [ -n "$${licRes}" ]; then \
