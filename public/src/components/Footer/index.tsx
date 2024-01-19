@@ -12,7 +12,7 @@ const Footer: React.FC<FooterProps> = (props) => {
     initialState?.globalConfig?.copyright ??
     intl.formatMessage({
       id: 'app.copyright.produced',
-      defaultMessage: 'Wiseasy',
+      defaultMessage: 'MicroOps',
     });
   return <DefaultFooter {...props} copyright={`${currentYear} ${copyright}`} />;
 };

@@ -8,3 +8,5 @@
 /docker
 /test
 /scripts/build.sh
+local/
+./local.Makefile
