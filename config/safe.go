@@ -181,10 +181,9 @@ func (sc *safeConfig) ReloadConfigFromJSONReader(logger log.Logger, reader Reade
 	var unmarshaler jsonpb.Unmarshaler
 	if err = unmarshaler.Unmarshal(reader, &c); err != nil {
 		return fmt.Errorf("error unmarshal config: %s", err)
-	} else {
-		if err = c.Init(logger); err != nil {
-			return fmt.Errorf("error init config: %s", err)
-		}
+	}
+	if err = c.Init(logger); err != nil {
+		return fmt.Errorf("error init config: %s", err)
 	}
 	if c.GetWorkspace() == nil {
 		if absPath, err := filepath.Abs(path.Dir(reader.Name())); err != nil {

@@ -378,6 +378,7 @@ func MakeGetAppKeysEndpoint(s service.Service) endpoint.Endpoint {
 		return &resp, nil
 	}
 }
+
 func MakeGetAppIconsEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*BaseListRequest)

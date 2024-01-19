@@ -342,17 +342,22 @@ func initConfig() {
 					level.Error(logger).Log("msg", "failed to load config", "err", err)
 					os.Exit(1)
 				}
-				return
 			} else {
 				level.Error(logger).Log("msg", "failed to load config", "err", err)
 				os.Exit(1)
 			}
+		} else {
+			cfgFile = "./idas.yaml"
+			if err = config.ReloadConfigFromFile(logger, cfgFile); err != nil {
+				level.Error(logger).Log("msg", "failed to load config", "err", err)
+				os.Exit(1)
+			}
 		}
-		cfgFile = "./idas.yaml"
-	}
-	if err := config.ReloadConfigFromFile(logger, cfgFile); err != nil {
-		level.Error(logger).Log("msg", "failed to load config", "err", err)
-		os.Exit(1)
+	} else {
+		if err := config.ReloadConfigFromFile(logger, cfgFile); err != nil {
+			level.Error(logger).Log("msg", "failed to load config", "err", err)
+			os.Exit(1)
+		}
 	}
 	if configDisplay {
 		var buf bytes.Buffer

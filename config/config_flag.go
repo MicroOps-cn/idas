@@ -20,9 +20,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-var (
-	globalSecret string
-)
+var globalSecret string
 
 func AddFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&globalSecret, "security.secret", "", "security key, used for encryption and decryption of sensitive data in the program.")
