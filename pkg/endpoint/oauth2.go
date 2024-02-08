@@ -203,6 +203,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					}
 					jwtSecret := config.Get().Security.GetJwtSecret()
 
+					user.ExtendedData = nil
 					at, err := s.CreateToken(ctx, tokenType, user)
 					if err != nil {
 						return "", errors.NewServerError(500, err.Error())
