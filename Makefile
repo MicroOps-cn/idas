@@ -154,3 +154,15 @@ ui:
 	cd public && yarn install && yarn run build --basePath='$(BASE_PATH)/admin/' --apiPath='$(BASE_PATH)/'
 	rm -rf pkg/transport/static && cp -r public/dist pkg/transport/static
 
+.PHONY: swagger
+swagger:
+	@echo ">> generate swagger ui"
+	@mkdir -p dist/swagger-ui/;
+	@if [ -d "public/node_modules/swagger-ui-dist/" ] && [ -f "public/node_modules/swagger-ui-dist/swagger-ui-bundle.js" ];then \
+    	cp public/node_modules/swagger-ui-dist/swagger-ui-bundle.js dist/swagger-ui/ ;\
+        cp public/node_modules/swagger-ui-dist/swagger-ui-standalone-preset.js dist/swagger-ui/ ;\
+    	cp public/node_modules/swagger-ui-dist/favicon-32x32.png dist/swagger-ui/ ;\
+    	cp public/node_modules/swagger-ui-dist/favicon-16x16.png dist/swagger-ui/ ;\
+    	cp public/node_modules/swagger-ui-dist/swagger-ui.css dist/swagger-ui/ ;\
+    	cp swagger-ui/index.html dist/swagger-ui/ ;\
+    fi
