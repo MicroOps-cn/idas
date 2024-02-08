@@ -147,7 +147,7 @@ func Run(ctx context.Context, logger kitlog.Logger, stopCh *signals.Handler) (er
 			level.Error(logger).Log("err", err, "msg", "Failed to get swagger UI directory status, so disable that.")
 		} else if stat.IsDir() {
 			httpServer.Handle(swaggerPath, http.StripPrefix(swaggerPath, http.FileServer(http.Dir(swaggerFilePath))))
-			level.Info(logger).Log("msg", fmt.Sprintf("enable Swagger UI on `%s`", swaggerPath))
+			level.Info(logger).Log("msg", fmt.Sprintf("enable Swagger UI on `%s` => %s", swaggerPath, swaggerFilePath))
 		} else {
 			level.Error(logger).Log("msg", " swagger UI local path is not directory, so disable that.")
 		}
