@@ -127,7 +127,7 @@ const defaultGetType = (schemaObject, namespace = '') => {
     }
     if (type === 'enum') {
         return Array.isArray(schemaObject.enum)
-            ? Array.from(new Set(schemaObject.enum.map((v) => typeof v === 'string' ? `"${v.replace(/"/g, '"')}"` : defaultGetType(v)))).join(' | ')
+            ? Array.from(new Set(schemaObject.enum.map((v) => typeof v === 'string' ? `"${v.replace(/"/g, '\\"')}"` : defaultGetType(v)))).join(' | ')
             : 'string';
     }
     if (schemaObject.oneOf && schemaObject.oneOf.length) {
@@ -758,7 +758,7 @@ class ServiceGenerator {
                 enumStr = `{${enumArray.map((v) => `${v}="${v}"`).join(',')}}`;
                 break;
             case 'string-literal':
-                enumStr = Array.from(new Set(enumArray.map((v) => typeof v === 'string' ? `"${v.replace(/"/g, '"')}"` : this.getType(v)))).join(' | ');
+                enumStr = Array.from(new Set(enumArray.map((v) => typeof v === 'string' ? `"${v.replace(/"/g, '\\"')}"` : this.getType(v)))).join(' | ');
                 break;
             default:
                 break;
