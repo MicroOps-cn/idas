@@ -151,7 +151,7 @@ openapi:
 .PHONY: ui
 ui:
 	rm -rf public/src/.umi-production/
-	cd public && yarn install && yarn run build --basePath='$(BASE_PATH)/admin/' --apiPath='$(BASE_PATH)/'
+	cd public && yarn install && yarn run build --basePath='$(BASE_PATH)/admin/' --apiPath='$(BASE_PATH)/' --buildVersion='$(Version).$(GitCommit)'
 	rm -rf pkg/transport/static && cp -r public/dist pkg/transport/static
 
 .PHONY: swagger
