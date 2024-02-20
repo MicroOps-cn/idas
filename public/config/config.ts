@@ -22,10 +22,6 @@ const { apiPath, basePath, publicPath = basePath } = commandArgs;
 
 const { REACT_APP_ENV = 'dev' } = process.env;
 
-console.log('basePath: ', basePath);
-console.log('apiPath: ', apiPath);
-console.log('publicPath: ', publicPath);
-
 export default defineConfig({
   /**
    * @name 开启 hash 模式
