@@ -5,6 +5,7 @@ import { IntlContext } from '@/utils/intl';
 import { GridContent } from '@ant-design/pro-components';
 import { useIntl } from '@umijs/max';
 
+import BaseView from './components/BaseView';
 import SecurityView from './components/SecurityView';
 import styles from './style.less';
 
@@ -17,11 +18,13 @@ const UserSetting: React.FC = ({}) => {
     security: intl.t('menuMap.security', 'Security Settings'),
   };
 
-  const [selectKey, setSelectKey] = useState<keyof typeof menuMap>('security');
+  const [selectKey, setSelectKey] = useState<keyof typeof menuMap>('base');
   const renderChildren = () => {
     switch (selectKey) {
       case 'security':
         return <SecurityView parentIntl={intl} />;
+      case 'base':
+        return <BaseView parentIntl={intl} />;
       default:
         break;
     }

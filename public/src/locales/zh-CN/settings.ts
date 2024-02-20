@@ -127,4 +127,7 @@ export default {
   'user.settings.security.mfa-device.refresh': '刷新',
   'user.settings.security.mfa-device.first-code': '第一个密码',
   'user.settings.security.mfa-device.second-code': '第二个密码',
+  'settings.base.version': '当前版本',
+  'settings.base.server-version': '后端',
+  'settings.base.front-end-version': '前端',
 };

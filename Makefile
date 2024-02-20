@@ -61,11 +61,11 @@ BuildDate   = $(shell date +%Y-%m-%dT%H:%M:%S%Z)
 GoVersion   = $(shell go version|awk '{print $$3}')
 Platform    = $(shell go version|awk '{print $$4}')
 Version     ?= $(shell cat version)
-LDFlags     := -w -s -X 'lampao/pkg/utils/version.GitCommit=$(GitCommit)'
-LDFlags     += -X 'lampao/pkg/utils/version.BuildDate=$(BuildDate)'
-LDFlags     += -X 'lampao/pkg/utils/version.GoVersion=$(GoVersion)'
-LDFlags     += -X 'lampao/pkg/utils/version.Platform=$(Platform)'
-LDFlags     += -X 'lampao/pkg/utils/version.Version=$(Version).$(GitCommit)'
+LDFlags     := -w -s -X 'github.com/MicroOps-cn/idas/pkg/utils/version.GitCommit=$(GitCommit)'
+LDFlags     += -X 'github.com/MicroOps-cn/idas/pkg/utils/version.BuildDate=$(BuildDate)'
+LDFlags     += -X 'github.com/MicroOps-cn/idas/pkg/utils/version.GoVersion=$(GoVersion)'
+LDFlags     += -X 'github.com/MicroOps-cn/idas/pkg/utils/version.Platform=$(Platform)'
+LDFlags     += -X 'github.com/MicroOps-cn/idas/pkg/utils/version.Version=$(Version).$(GitCommit)'
 
 info:
 	@echo "Version: $(Version)"

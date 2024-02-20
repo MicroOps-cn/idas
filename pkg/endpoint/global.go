@@ -23,6 +23,7 @@ import (
 
 	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/service"
+	"github.com/MicroOps-cn/idas/pkg/utils/version"
 )
 
 func MakeGetGlobalConfigEndpoint(_ service.Service) endpoint.Endpoint {
@@ -34,6 +35,7 @@ func MakeGetGlobalConfigEndpoint(_ service.Service) endpoint.Endpoint {
 			Logo:             globalConfig.Logo,
 			Copyright:        globalConfig.Copyright,
 			DefaultLoginType: LoginType(LoginType_value[globalConfig.DefaultLoginType]),
+			Version:          version.Version,
 		}
 
 		oauth2 := globalConfig.Oauth2

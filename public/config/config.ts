@@ -13,12 +13,14 @@ interface CommandArgs {
   basePath: string;
   apiPath: string;
   publicPath?: string;
+  buildVersion: string;
 }
 const commandArgs: CommandArgs = defaults(minimist(process.argv.slice(2)), {
   basePath: '/',
   apiPath: '/',
+  buildVersion: '0.0.0'
 });
-const { apiPath, basePath, publicPath = basePath } = commandArgs;
+const { apiPath, basePath, publicPath = basePath, buildVersion } = commandArgs;
 
 const { REACT_APP_ENV = 'dev' } = process.env;
 
@@ -173,6 +175,7 @@ export default defineConfig({
     apiPath,
     publicPath: publicPath ?? basePath,
     basePath: basePath,
+    buildVersion: buildVersion
   },
   plugins: ['./src/plugins/translate', './src/plugins/envInject'],
   // exportStatic: {},

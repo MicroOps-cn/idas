@@ -32,6 +32,7 @@ import (
 	//revive:disable:blank-imports
 	_ "net/http/pprof"
 
+	"github.com/MicroOps-cn/fuck/clients/tracing"
 	"github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/log/flag"
 	"github.com/MicroOps-cn/fuck/signals"
@@ -50,13 +51,13 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"gopkg.in/yaml.v3"
 
-	"github.com/MicroOps-cn/fuck/clients/tracing"
 	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/endpoint"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/transport"
 	"github.com/MicroOps-cn/idas/pkg/utils/httputil"
+	"github.com/MicroOps-cn/idas/pkg/utils/version"
 )
 
 var (
@@ -267,6 +268,7 @@ func init() {
 
 	// log level and format
 	flag.AddFlags(rootCmd.PersistentFlags(), nil)
+	version.AddFlags(rootCmd)
 	config.AddFlags(rootCmd.Flags())
 	rootCmd.Flags().StringVar(&radiusAddr, "radius.listen-address", "", "Radius listen address")
 	rootCmd.Flags().StringVar(&debugAddr, "debug.listen-address", ":8080", "Debug and metrics listen address")

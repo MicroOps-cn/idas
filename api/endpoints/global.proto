@@ -21,6 +21,7 @@ message GlobalConfig{
   string logo =4;
   string copyright =5;
   LoginType DefaultLoginType = 6[(gogoproto.jsontag) = "defaultLoginType"];
+  string version = 7;
 }
 
 message GlobalConfigResponse{
