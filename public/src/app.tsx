@@ -1,3 +1,5 @@
+import { Inspector } from 'react-dev-inspector';
+
 import Footer from '@/components/Footer';
 import { getActions } from '@/components/RightContent';
 import type { ResponseStructure } from '@/utils/request';
@@ -133,29 +135,33 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     // 自定义 403 页面
     unAccessible: <ForbiddenPage />,
     noFound: <NoFoundPage />,
+
     // 增加一个 loading 的状态
     childrenRender: (children, props) => {
       // if (initialState?.loading) return <PageLoading />;
-      return (
-        <>
-          {children}
-          {isDev && !props.location?.pathname?.includes('/login') && (
-            <SettingDrawer
-              enableDarkTheme
-              settings={initialState?.settings}
-              onSettingChange={(settings) => {
-                setInitialState((preInitialState) => ({
-                  ...preInitialState,
-                  settings: {
-                    ...initialState?.settings,
-                    ...settings,
-                  },
-                }));
-              }}
-            />
-          )}
-        </>
-      );
+      if (isDev) {
+        return (
+          <Inspector>
+            {children}
+            {!props.location?.pathname?.includes('/login') && (
+              <SettingDrawer
+                enableDarkTheme
+                settings={initialState?.settings}
+                onSettingChange={(settings) => {
+                  setInitialState((preInitialState) => ({
+                    ...preInitialState,
+                    settings: {
+                      ...initialState?.settings,
+                      ...settings,
+                    },
+                  }));
+                }}
+              />
+            )}
+          </Inspector>
+        );
+      }
+      return children;
     },
     ...initialState?.settings,
   };
