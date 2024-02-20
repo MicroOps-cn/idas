@@ -234,6 +234,17 @@ export const ProAvatarUpload: React.FC<ProFormFieldItemProps<ProAvatarUploadProp
     }
   };
 
+  // const setPopupVisible = (v: boolean) => {
+  //   if (!v || optionsRequest) {
+  //     if (v) {
+  //       loadMoreIconList();
+  //     } else {
+  //       setIconListHasMore(true);
+  //       setIconListPageNumber(0);
+  //     }
+  //   }
+  //   _setPopupVisible(v);
+  // };
   return (
     <>
       <ProField
@@ -243,137 +254,143 @@ export const ProAvatarUpload: React.FC<ProFormFieldItemProps<ProAvatarUploadProp
           const avatarList = text ? [{ uid: value, name: 'img', url: getAvatarSrc(text) }] : [];
           return mode === 'edit' ? (
             <>
-              <ImgCrop
-                beforeCrop={async (file: RcFile): Promise<boolean> => {
-                  if (file.type === 'image/svg+xml') {
-                    const fileId = await handleUploadFile(file.name, file, onError);
-                    if (fileId) {
-                      setAvatar({
-                        uid: fileId,
-                        name: file.name,
-                        url: getAvatarSrc(fileId),
-                      });
-                      onChange?.(fileId);
-                    }
-                    return false;
-                  }
-                  return true;
-                }}
-              >
-                <Popover
-                  onOpenChange={(v) => {
-                    if (!v || (!text && optionsRequest)) {
-                      setPopupVisible(v);
-                      if (v) {
-                        loadMoreIconList();
-                      } else {
-                        setIconListHasMore(true);
-                        setIconListPageNumber(0);
+              <div style={{ height: 112, width: 112 }}>
+                <ImgCrop
+                  beforeCrop={async (file: RcFile): Promise<boolean> => {
+                    if (file.type === 'image/svg+xml') {
+                      const fileId = await handleUploadFile(file.name, file, onError);
+                      if (fileId) {
+                        setAvatar({
+                          uid: fileId,
+                          name: file.name,
+                          url: getAvatarSrc(fileId),
+                        });
+                        onChange?.(fileId);
                       }
+                      return false;
                     }
+                    return true;
                   }}
-                  open={popupVisible}
-                  content={
-                    <div style={{ width: 360, height: 200 }}>
-                      <div
-                        id="iconsScrollableDiv"
-                        style={{
-                          height: '100%',
-                          overflow: 'auto',
-                        }}
-                      >
-                        <InfiniteScroll
-                          dataLength={iconList.length}
-                          next={loadMoreIconList}
-                          hasMore={iconListHasMore}
-                          loader={<Skeleton avatar paragraph={{ rows: 1 }} active />}
-                          endMessage={<Divider plain>End</Divider>}
-                          scrollableTarget="iconsScrollableDiv"
-                        >
-                          <List<{ id: string }>
-                            grid={{ gutter: 16, column: 8 }}
-                            dataSource={iconList}
-                            style={{ margin: '0 8px' }}
-                            loading={loadingIconList}
-                            renderItem={({ id }) => {
-                              return (
-                                <ClassNames>
-                                  {({ css }) => (
-                                    <div
-                                      className={css`
-                                        :hover {
-                                          background: rgba(0, 0, 0, 0.12);
-                                        }
-                                        padding: 5px;
-                                      `}
-                                      onClick={() => {
-                                        setAvatar({
-                                          uid: id,
-                                          name: id,
-                                          url: getAvatarSrc(id),
-                                        });
-                                        onChange?.(id);
-                                        setPopupVisible(false);
-                                      }}
-                                    >
-                                      <Avatar src={id} />
-                                    </div>
-                                  )}
-                                </ClassNames>
-                              );
-                            }}
-                          />
-                        </InfiniteScroll>
-                      </div>
-                    </div>
-                  }
-                  placement="bottom"
-                  trigger="hover"
                 >
-                  <div style={{ height: 112, width: 112 }}>
-                    <Upload
-                      accept="image/png, image/jpeg, image/svg+xml"
-                      fileList={avatarList}
-                      maxCount={1}
-                      listType="picture-card"
-                      onDrop={() => {
-                        setAvatar(undefined);
-                        onChange?.();
-                      }}
-                      onPreview={handlePreview}
-                      onRemove={() => {
-                        setAvatar(undefined);
-                        onChange?.();
-                      }}
-                      customRequest={async (options) => {
-                        try {
-                          let { filename } = options;
-                          const { file } = options;
-                          if (!isString(file) && file) {
-                            filename = (file as RcFile).name ?? filename;
-                          }
-                          filename = filename ?? new Date().getTime().toString();
-                          filename = filename.substring(0, filename.lastIndexOf('.')) + '.png';
-                          const fileId = await handleUploadFile(filename, file, onError);
-                          if (fileId) {
-                            setAvatar({
-                              uid: fileId,
-                              name: filename,
-                              url: getAvatarSrc(fileId),
-                            });
-                            onChange?.(fileId);
-                          }
-                        } catch (error) {
-                          onError?.(error);
+                  <Upload
+                    accept="image/png, image/jpeg, image/svg+xml"
+                    fileList={avatarList}
+                    maxCount={1}
+                    listType="picture-card"
+                    onDrop={() => {
+                      setAvatar(undefined);
+                      onChange?.();
+                    }}
+                    style={{}}
+                    onPreview={handlePreview}
+                    onRemove={() => {
+                      setAvatar(undefined);
+                      onChange?.();
+                    }}
+                    customRequest={async (options) => {
+                      try {
+                        let { filename } = options;
+                        const { file } = options;
+                        if (!isString(file) && file) {
+                          filename = (file as RcFile).name ?? filename;
                         }
-                      }}
-                      {...props}
-                    >
-                      {text ? null : <UploadOutlined />}
-                    </Upload>
-                  </div>
-                </Popover>
-              </ImgCrop>
+                        filename = filename ?? new Date().getTime().toString();
+                        filename = filename.substring(0, filename.lastIndexOf('.')) + '.png';
+                        const fileId = await handleUploadFile(filename, file, onError);
+                        if (fileId) {
+                          setAvatar({
+                            uid: fileId,
+                            name: filename,
+                            url: getAvatarSrc(fileId),
+                          });
+                          onChange?.(fileId);
+                        }
+                      } catch (error) {
+                        onError?.(error);
+                      }
+                    }}
+                    {...props}
+                  >
+                    {text ? null : (
+                      <Popover
+                        onOpenChange={(v) => {
+                          if (!v || (!text && optionsRequest)) {
+                            setPopupVisible(v);
+                            if (v) {
+                              loadMoreIconList();
+                            } else {
+                              setIconListHasMore(true);
+                              setIconListPageNumber(0);
+                            }
+                          }
+                        }}
+                        open={popupVisible}
+                        content={
+                          <div style={{ width: 360, height: 200 }}>
+                            <div
+                              id="iconsScrollableDiv"
+                              style={{
+                                height: '100%',
+                                overflow: 'auto',
+                              }}
+                            >
+                              <InfiniteScroll
+                                dataLength={iconList.length}
+                                next={loadMoreIconList}
+                                hasMore={iconListHasMore}
+                                loader={<Skeleton avatar paragraph={{ rows: 1 }} active />}
+                                endMessage={<Divider plain>End</Divider>}
+                                scrollableTarget="iconsScrollableDiv"
+                              >
+                                <List<{ id: string }>
+                                  grid={{ gutter: 16, column: 8 }}
+                                  dataSource={iconList}
+                                  style={{ margin: '0 8px' }}
+                                  loading={loadingIconList}
+                                  renderItem={({ id }) => {
+                                    return (
+                                      <ClassNames>
+                                        {({ css }) => (
+                                          <div
+                                            className={css`
+                                              :hover {
+                                                background: rgba(0, 0, 0, 0.12);
+                                              }
+                                              padding: 5px;
+                                            `}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setAvatar({
+                                                uid: id,
+                                                name: id,
+                                                url: getAvatarSrc(id),
+                                              });
+                                              onChange?.(id);
+                                              setPopupVisible(false);
+                                            }}
+                                          >
+                                            <Avatar src={id} />
+                                          </div>
+                                        )}
+                                      </ClassNames>
+                                    );
+                                  }}
+                                />
+                              </InfiniteScroll>
+                            </div>
+                          </div>
+                        }
+                        placement="bottom"
+                        trigger="hover"
+                      >
+                        <UploadOutlined
+                          style={{ width: 112, height: 112, placeContent: 'center' }}
+                        />
+                      </Popover>
+                    )}
+                  </Upload>
+                </ImgCrop>
+              </div>
             </>
           ) : (
             <Avatar src={avatar?.url ?? text} />
