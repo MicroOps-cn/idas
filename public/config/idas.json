@@ -3330,9 +3330,9 @@
   },
   "endpoint.BaseListResponse": {
    "required": [
+    "total",
     "traceId",
     "success",
-    "total",
     "current",
     "pageSize"
    ],
@@ -3571,8 +3571,8 @@
   },
   "endpoint.CreateTOTPSecretResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -3811,8 +3811,8 @@
   },
   "endpoint.GetAppIconsResponse": {
    "required": [
-    "total",
     "traceId",
+    "total",
     "current",
     "pageSize",
     "success"
@@ -3942,11 +3942,11 @@
   },
   "endpoint.GetCurrentUserEventLogsResponse": {
    "required": [
-    "traceId",
     "success",
     "total",
     "current",
-    "pageSize"
+    "pageSize",
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -3983,11 +3983,11 @@
   },
   "endpoint.GetCurrentUserEventsResponse": {
    "required": [
+    "traceId",
     "success",
     "total",
     "current",
-    "pageSize",
-    "traceId"
+    "pageSize"
    ],
    "properties": {
     "current": {
@@ -4024,11 +4024,11 @@
   },
   "endpoint.GetEventLogsResponse": {
    "required": [
-    "total",
+    "traceId",
+    "success",
     "current",
     "pageSize",
-    "traceId",
-    "success"
+    "total"
    ],
    "properties": {
     "current": {
@@ -4066,10 +4066,10 @@
   "endpoint.GetEventsResponse": {
    "required": [
     "total",
-    "current",
-    "pageSize",
     "traceId",
-    "success"
+    "success",
+    "current",
+    "pageSize"
    ],
    "properties": {
     "current": {
@@ -4129,11 +4129,11 @@
   },
   "endpoint.GetPageDatasResponse": {
    "required": [
-    "traceId",
-    "success",
+    "total",
     "current",
     "pageSize",
-    "total"
+    "traceId",
+    "success"
    ],
    "properties": {
     "current": {
@@ -4193,11 +4193,11 @@
   },
   "endpoint.GetPagesResponse": {
    "required": [
-    "current",
     "pageSize",
-    "total",
     "traceId",
-    "success"
+    "success",
+    "total",
+    "current"
    ],
    "properties": {
     "current": {
@@ -4234,9 +4234,9 @@
   },
   "endpoint.GetPermissionsResponse": {
    "required": [
+    "total",
     "traceId",
     "success",
-    "total",
     "current",
     "pageSize"
    ],
@@ -4275,11 +4275,11 @@
   },
   "endpoint.GetRolesResponse": {
    "required": [
-    "success",
-    "current",
     "pageSize",
+    "traceId",
+    "success",
     "total",
-    "traceId"
+    "current"
    ],
    "properties": {
     "current": {
@@ -4316,8 +4316,8 @@
   },
   "endpoint.GetSecurityConfigResponse": {
    "required": [
-    "success",
-    "traceId"
+    "traceId",
+    "success"
    ],
    "properties": {
     "data": {
@@ -4403,9 +4403,9 @@
   },
   "endpoint.GetUsersResponse": {
    "required": [
+    "total",
     "traceId",
     "success",
-    "total",
     "current",
     "pageSize"
    ],
@@ -4469,6 +4469,9 @@
      "type": "string"
     },
     "title": {
+     "type": "string"
+    },
+    "version": {
      "type": "string"
     }
    }
@@ -5423,38 +5426,38 @@
   },
   "idas.config.PasswordComplexity": {
    "enum": [
-    "general",
-    1,
-    "safe",
-    2,
     "very_safe",
     3,
     "unsafe",
-    0
+    0,
+    "general",
+    1,
+    "safe",
+    2
    ]
   },
   "idas.endpoint.LoginType": {
    "enum": [
+    "oauth2",
+    6,
+    "enable_mfa_totp",
+    10,
+    "enable_mfa_email",
+    11,
+    "mfa_sms",
+    3,
+    "email",
+    4,
+    "mfa_email",
+    2,
+    "sms",
+    5,
+    "enable_mfa_sms",
+    12,
     "normal",
     0,
     "mfa_totp",
-    1,
-    "email",
-    4,
-    "sms",
-    5,
-    "enable_mfa_totp",
-    10,
-    "mfa_email",
-    2,
-    "mfa_sms",
-    3,
-    "oauth2",
-    6,
-    "enable_mfa_email",
-    11,
-    "enable_mfa_sms",
-    12
+    1
    ]
   },
   "idas.oauth2.OAuthAuthorizeRequest_ResponseType": {
@@ -5519,44 +5522,44 @@
   },
   "idas.service.models.AppMeta_Status": {
    "enum": [
-    "disable",
-    2,
     "unknown",
     0,
     "normal",
-    1
+    1,
+    "disable",
+    2
    ]
   },
   "idas.service.models.FieldType": {
    "enum": [
+    "checkbox",
+    5,
+    "select",
+    8,
+    "timeRange",
+    10,
+    "dateTime",
+    13,
+    "multiSelect",
+    9,
     "text",
     0,
     "textarea",
     2,
-    "checkbox",
-    5,
-    "dateTime",
-    13,
     "radio",
     6,
-    "timeRange",
-    10,
-    "dateRange",
-    12,
+    "date",
+    11,
     "dateTimeRange",
     14,
     "digit",
     3,
-    "switch",
-    7,
-    "multiSelect",
-    9,
     "digitRange",
     4,
-    "select",
-    8,
-    "date",
-    11
+    "switch",
+    7,
+    "dateRange",
+    12
    ]
   },
   "idas.service.models.PageStatus": {
@@ -5568,14 +5571,14 @@
   },
   "idas.service.models.UserMeta_UserStatus": {
    "enum": [
-    "password_expired",
-    4,
     "normal",
     0,
     "disabled",
     1,
     "user_inactive",
-    2
+    2,
+    "password_expired",
+    4
    ]
   },
   "models.App": {
