@@ -64,6 +64,8 @@ declare namespace API {
   type AppMetaGrantMode = 'manual' | 0 | 'full' | 1;
 
   type AppMetaGrantType =
+    | 'none'
+    | 0
     | 'authorization_code'
     | 1
     | 'implicit'
@@ -77,11 +79,9 @@ declare namespace API {
     | 'oidc'
     | 32
     | 'radius'
-    | 64
-    | 'none'
-    | 0;
+    | 64;
 
-  type AppMetaStatus = 'disable' | 2 | 'unknown' | 0 | 'normal' | 1;
+  type AppMetaStatus = 'unknown' | 0 | 'normal' | 1 | 'disable' | 2;
 
   type AppProxy = {
     appId: string;
@@ -394,30 +394,30 @@ declare namespace API {
     | 0
     | 'textarea'
     | 2
-    | 'checkbox'
-    | 5
-    | 'dateTime'
-    | 13
-    | 'radio'
-    | 6
-    | 'timeRange'
-    | 10
-    | 'dateRange'
-    | 12
-    | 'dateTimeRange'
-    | 14
     | 'digit'
     | 3
-    | 'switch'
-    | 7
-    | 'multiSelect'
-    | 9
     | 'digitRange'
     | 4
+    | 'checkbox'
+    | 5
+    | 'radio'
+    | 6
+    | 'switch'
+    | 7
     | 'select'
     | 8
+    | 'multiSelect'
+    | 9
+    | 'timeRange'
+    | 10
     | 'date'
-    | 11;
+    | 11
+    | 'dateRange'
+    | 12
+    | 'dateTime'
+    | 13
+    | 'dateTimeRange'
+    | 14;
 
   type FileUploadResponse = {
     data: Record<string, any>;
@@ -731,6 +731,7 @@ declare namespace API {
     logo?: string;
     subTitle?: string;
     title?: string;
+    version?: string;
   };
 
   type GlobalConfigResponse = {
@@ -755,18 +756,18 @@ declare namespace API {
     | 0
     | 'mfa_totp'
     | 1
-    | 'email'
-    | 4
-    | 'sms'
-    | 5
-    | 'enable_mfa_totp'
-    | 10
     | 'mfa_email'
     | 2
     | 'mfa_sms'
     | 3
+    | 'email'
+    | 4
+    | 'sms'
+    | 5
     | 'oauth2'
     | 6
+    | 'enable_mfa_totp'
+    | 10
     | 'enable_mfa_email'
     | 11
     | 'enable_mfa_sms'
@@ -857,7 +858,7 @@ declare namespace API {
 
   type PageStatus = 'all' | 'disabled' | 'enabled';
 
-  type PasswordComplexity = 'general' | 1 | 'safe' | 2 | 'very_safe' | 3 | 'unsafe' | 0;
+  type PasswordComplexity = 'unsafe' | 0 | 'general' | 1 | 'safe' | 2 | 'very_safe' | 3;
 
   type patchAppParams = {
     /** identifier of the app */
@@ -1185,14 +1186,14 @@ declare namespace API {
   };
 
   type UserMetaUserStatus =
-    | 'password_expired'
-    | 4
     | 'normal'
     | 0
     | 'disabled'
     | 1
     | 'user_inactive'
-    | 2;
+    | 2
+    | 'password_expired'
+    | 4;
 
   type userOAuthLoginParams = {
     /** identifier of the oauth */

@@ -7,7 +7,7 @@ require (
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/disintegration/letteravatar v0.0.0-20160912210445-1a457b860450
 	github.com/docker/docker v20.10.24+incompatible
-	github.com/emicklei/go-restful-openapi/v2 v2.9.1
+	github.com/emicklei/go-restful-openapi/v2 v2.9.1-rc1
 	github.com/emicklei/go-restful/v3 v3.8.1
 	github.com/emicklei/proto v1.11.1
 	github.com/go-kit/kit v0.12.0

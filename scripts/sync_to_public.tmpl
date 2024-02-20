@@ -5,11 +5,32 @@ import (
 {{- range .modules }}
 	{{ .Name }} "github.com/MicroOps-cn/idas/{{ .Path }}"
 {{- end }}
+	"sort"
 	"os"
 )
 func init(){
     fmt.Println(os.Getwd())
 }
+
+type EnumItem struct {
+	name  string
+	value int32
+}
+
+type EnumItems []EnumItem
+
+func (e EnumItems) Len() int {
+	return len(e)
+}
+
+func (e EnumItems) Less(i, j int) bool {
+	return e[i].value < e[j].value
+}
+
+func (e EnumItems) Swap(i, j int) {
+	e[i], e[j] = e[j], e[i]
+}
+
 func main() {
 	filename := "{{ .filename }}"
 	f, err := os.OpenFile(filename, os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
@@ -19,21 +40,29 @@ func main() {
 	defer f.Close()
 {{- range $m := .modules }}
 {{ range $t := .Types  }}
-	f.WriteString("export enum {{ .DstType }}{\n")
-	for name, value := range {{ $m.Name }}.{{ $t.SourceType }}_value {
-		f.WriteString(fmt.Sprintf("  %s = %d,\n", name, value))
+	{
+		var enumItems EnumItems
+			for name,value := range {{ $m.Name }}.{{ $t.SourceType }}_value {
+			enumItems = append(enumItems, EnumItem{value: value, name: name})
+		}
+		f.WriteString("export enum {{ .DstType }}{\n")
+		for _, item := range enumItems {
+			f.WriteString(fmt.Sprintf("  %s = %d,\n", item.name, item.value))
+		}
+		f.WriteString("}\n\n")
+		f.WriteString("export type {{ .DstType }}Name =")
+
+		sort.Sort(enumItems)
+		for _, item := range enumItems{
+			f.WriteString(fmt.Sprintf("\n  | '%s'", item.name))
+		}
+		f.WriteString(";\n\n")
+		f.WriteString("export type {{ .DstType }}Value =")
+		for _, item := range enumItems {
+			f.WriteString(fmt.Sprintf("\n  | %d", item.value))
+		}
+		f.WriteString(";\n\n")
 	}
-	f.WriteString("}\n\n")
-	f.WriteString("export type {{ .DstType }}Name =")
-	for name := range {{ $m.Name }}.{{ $t.SourceType }}_value {
-		f.WriteString(fmt.Sprintf("\n    | '%s'", name))
-	}
-	f.WriteString(";\n\n")
-	f.WriteString("export type {{ .DstType }}Value =")
-	for _, value := range {{ $m.Name }}.{{ $t.SourceType }}_value {
-		f.WriteString(fmt.Sprintf("\n    | %d", value))
-	}
-	f.WriteString(";\n\n")
 {{- end }}
 {{- end }}
 }

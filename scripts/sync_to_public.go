@@ -178,10 +178,12 @@ func main() {
 			command := exec.Command("go", "run", filename)
 			err = command.Start()
 			if err != nil {
+				fmt.Printf(">> go run %s\n", filename)
 				panic(err)
 			}
 			err = command.Wait()
 			if err != nil {
+				fmt.Printf(">> go run %s\n", filename)
 				panic(err)
 			}
 		}()
