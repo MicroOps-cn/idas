@@ -91,9 +91,9 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 				if username, password, ok := restfulReq.Request.BasicAuth(); ok {
 					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByPassword(ctx, req.GetRefreshToken(), username, password)
 				} else if len(req.Username) != 0 && len(req.Password) != 0 {
-					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByPassword(ctx, req.GetRefreshToken(), req.Username, req.Password)
+					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByPassword(ctx, req.GetRefreshToken(), req.Username, string(req.Password))
 				} else {
-					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByAuthorizationCode(ctx, req.GetRefreshToken(), req.ClientId, req.ClientSecret)
+					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByAuthorizationCode(ctx, req.GetRefreshToken(), req.ClientId, string(req.ClientSecret))
 				}
 			} else {
 				tokenType := models.TokenTypeToken
@@ -181,7 +181,13 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					if app.GrantType&models.AppMeta_password == 0 {
 						return nil, errors.NewServerError(500, "Unsupported authorization type.")
 					}
-					user, err = s.VerifyPassword(ctx, req.Username, req.Password, false)
+					user, err = s.VerifyPassword(ctx, req.Username, string(req.Password), false)
+					if user.IsForceMfa() {
+						err = user.VerifyTOTP(req.Code)
+						if err != nil {
+							return nil, err
+						}
+					}
 				case OAuthGrantType_client_credentials:
 					if app.GrantType&models.AppMeta_client_credentials == 0 {
 						return nil, errors.NewServerError(500, "Unsupported authorization type.")

@@ -21,7 +21,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -43,6 +42,7 @@ import (
 	"github.com/go-kit/kit/metrics/prometheus"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/gogo/protobuf/jsonpb"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/sony/gobreaker"
 	"go.opentelemetry.io/otel"
@@ -275,8 +275,9 @@ func HTTPApplicationAuthenticationFilter(endpoints endpoint.Set) restful.FilterF
 				var err error
 				contentType := httputil.GetContentType(req.Request.Header)
 				if contentType == restful.MIME_JSON {
-					req.Request.Body = io.NopCloser(io.TeeReader(req.Request.Body, &buf))
-					err = json.NewDecoder(&buf).Decode(&oauthReq)
+					err = jsonpb.Unmarshal(io.TeeReader(req.Request.Body, &buf), &oauthReq)
+					req.Request.Body.Close()
+					req.Request.Body = io.NopCloser(&buf)
 				} else if contentType == "application/x-www-form-urlencoded" {
 					if err = req.Request.ParseForm(); err == nil {
 						err = httputil.UnmarshalURLValues(req.Request.Form, &oauthReq)
@@ -285,7 +286,7 @@ func HTTPApplicationAuthenticationFilter(endpoints endpoint.Set) restful.FilterF
 				if (err == nil || err == io.EOF) && len(oauthReq.ClientId) != 0 && len(oauthReq.ClientSecret) != 0 {
 					authReq = &endpoint.AuthenticationRequest{
 						AuthKey:    oauthReq.ClientId,
-						AuthSecret: oauthReq.ClientSecret,
+						AuthSecret: string(oauthReq.ClientSecret),
 					}
 				}
 			}

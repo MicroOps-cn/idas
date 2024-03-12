@@ -48,9 +48,9 @@ message OAuthTokenRequest {
   string code = 2;
   string redirect_uri = 3;
   string client_id = 4;
-  string client_secret = 5;
+  string client_secret = 5[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.Secret",(gogoproto.nullable)=false];
   string username = 6;
-  string password = 7;
+  string password = 7[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.Secret",(gogoproto.nullable)=false];
   string refresh_token = 8[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.Secret"];
   string state = 9;
   bool disable_refresh_token = 10;

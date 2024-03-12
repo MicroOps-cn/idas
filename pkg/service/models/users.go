@@ -22,6 +22,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strings"
 	"time"
@@ -29,6 +30,7 @@ import (
 	"github.com/MicroOps-cn/fuck/crypto"
 	w "github.com/MicroOps-cn/fuck/wrapper"
 	uuid "github.com/satori/go.uuid"
+	"github.com/xlzd/gotp"
 
 	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/errors"
@@ -78,6 +80,25 @@ func (u User) GetAttr(name string) string {
 
 func (u User) IsForceMfa() bool {
 	return config.GetRuntimeConfig().Security.ForceEnableMfa || (u.ExtendedData != nil && u.ExtendedData.ForceMFA)
+}
+
+func (u User) VerifyTOTP(code string) error {
+	secret, err := u.ExtendedData.GetSecret()
+	if err != nil {
+		return errors.NewServerError(500, "failed to get totp settings")
+	} else if len(secret) == 0 {
+		return errors.NewServerError(500, "can't get totp settings")
+	}
+	nowTime := time.Now()
+	ts := nowTime.Add(time.Second * time.Duration(-(nowTime.Second() % 30))).Unix()
+
+	totp := gotp.NewDefaultTOTP(secret)
+	if !totp.Verify(code, ts) {
+		if !totp.Verify(code, ts-30) {
+			return errors.NewServerError(http.StatusBadRequest, "The verification code is invalid or expired")
+		}
+	}
+	return nil
 }
 
 type Users []*User

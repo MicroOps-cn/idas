@@ -3330,8 +3330,8 @@
   },
   "endpoint.BaseListResponse": {
    "required": [
-    "success",
     "traceId",
+    "success",
     "total",
     "current",
     "pageSize"
@@ -3385,8 +3385,8 @@
   },
   "endpoint.BaseTotalResponse": {
    "required": [
-    "success",
     "traceId",
+    "success",
     "total"
    ],
    "properties": {
@@ -3765,9 +3765,9 @@
   },
   "endpoint.FileUploadResponse": {
    "required": [
+    "total",
     "traceId",
     "success",
-    "total",
     "data"
    ],
    "properties": {
@@ -3811,11 +3811,11 @@
   },
   "endpoint.GetAppIconsResponse": {
    "required": [
+    "traceId",
     "success",
-    "current",
-    "pageSize",
     "total",
-    "traceId"
+    "current",
+    "pageSize"
    ],
    "properties": {
     "current": {
@@ -3901,11 +3901,11 @@
   },
   "endpoint.GetAppsResponse": {
    "required": [
-    "current",
-    "pageSize",
-    "total",
     "traceId",
-    "success"
+    "success",
+    "total",
+    "current",
+    "pageSize"
    ],
    "properties": {
     "current": {
@@ -3942,11 +3942,11 @@
   },
   "endpoint.GetCurrentUserEventLogsResponse": {
    "required": [
-    "current",
-    "pageSize",
-    "total",
     "traceId",
-    "success"
+    "success",
+    "total",
+    "current",
+    "pageSize"
    ],
    "properties": {
     "current": {
@@ -3983,11 +3983,11 @@
   },
   "endpoint.GetCurrentUserEventsResponse": {
    "required": [
-    "total",
+    "pageSize",
     "traceId",
     "success",
-    "current",
-    "pageSize"
+    "total",
+    "current"
    ],
    "properties": {
     "current": {
@@ -4024,11 +4024,11 @@
   },
   "endpoint.GetEventLogsResponse": {
    "required": [
-    "pageSize",
-    "success",
-    "traceId",
     "total",
-    "current"
+    "current",
+    "pageSize",
+    "traceId",
+    "success"
    ],
    "properties": {
     "current": {
@@ -4065,11 +4065,11 @@
   },
   "endpoint.GetEventsResponse": {
    "required": [
-    "success",
-    "traceId",
     "total",
     "current",
-    "pageSize"
+    "pageSize",
+    "traceId",
+    "success"
    ],
    "properties": {
     "current": {
@@ -4129,11 +4129,11 @@
   },
   "endpoint.GetPageDatasResponse": {
    "required": [
-    "traceId",
     "current",
     "pageSize",
-    "success",
-    "total"
+    "total",
+    "traceId",
+    "success"
    ],
    "properties": {
     "current": {
@@ -4193,11 +4193,11 @@
   },
   "endpoint.GetPagesResponse": {
    "required": [
-    "total",
     "traceId",
+    "success",
     "current",
     "pageSize",
-    "success"
+    "total"
    ],
    "properties": {
     "current": {
@@ -4234,11 +4234,11 @@
   },
   "endpoint.GetPermissionsResponse": {
    "required": [
-    "total",
-    "current",
     "pageSize",
     "traceId",
-    "success"
+    "total",
+    "success",
+    "current"
    ],
    "properties": {
     "current": {
@@ -4277,9 +4277,9 @@
    "required": [
     "total",
     "traceId",
+    "success",
     "current",
-    "pageSize",
-    "success"
+    "pageSize"
    ],
    "properties": {
     "current": {
@@ -4339,11 +4339,11 @@
   },
   "endpoint.GetSessionsResponse": {
    "required": [
-    "pageSize",
     "total",
+    "current",
+    "pageSize",
     "traceId",
-    "success",
-    "current"
+    "success"
    ],
    "properties": {
     "current": {
@@ -4403,11 +4403,11 @@
   },
   "endpoint.GetUsersResponse": {
    "required": [
-    "success",
-    "total",
-    "traceId",
     "current",
-    "pageSize"
+    "pageSize",
+    "success",
+    "traceId",
+    "total"
    ],
    "properties": {
     "current": {
