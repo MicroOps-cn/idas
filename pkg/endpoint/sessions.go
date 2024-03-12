@@ -17,8 +17,10 @@
 package endpoint
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"math"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -73,9 +75,9 @@ func MakeSendLoginCaptchaEndpoint(s service.Service) endpoint.Endpoint {
 			}
 		}()
 		switch req.Type {
-		case LoginType_mfa_email, LoginType_email:
+		case LoginType_mfa_email, LoginType_email, LoginType_enable_mfa_email:
 			switch req.Type {
-			case LoginType_mfa_email:
+			case LoginType_mfa_email, LoginType_enable_mfa_email:
 				email, username := req.GetEmail(), req.GetUsername()
 				if user, err = s.GetUserInfoByUsernameAndEmail(ctx, username, email); err != nil {
 					level.Warn(logs.GetContextLogger(ctx)).Log("err", err, "msg", "failed to get user", "username", username, "email", email)
@@ -296,6 +298,34 @@ func MakeUserOAuthLoginEndpoint(s service.Service) endpoint.Endpoint {
 	}
 }
 
+func maskEmail(addr string) string {
+	if name, server, found := bytes.Cut([]byte(addr), []byte("@")); found {
+		var suffix string
+		dotIndex := bytes.LastIndexByte(server, '.')
+		if dotIndex >= 0 {
+			suffix = string(server[dotIndex:])
+			server = server[:dotIndex]
+		}
+		start := len(name) / 2
+		if len(name) > 10 {
+			start = 5
+		}
+		for i := start; i < len(name); i++ {
+			name[i] = '*'
+		}
+		end := int(math.Ceil(float64(len(server)) / 2))
+		if len(server) > 10 {
+			end = len(server) - 5
+		}
+		for i := end - 1; i >= 0; i-- {
+			server[i] = '*'
+		}
+		return fmt.Sprintf("%s@%s%s", string(name), string(server), suffix)
+	}
+
+	return "***"
+}
+
 func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		begin := time.Now()
@@ -378,6 +408,9 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 				default:
 					if method.Len() != 0 {
 						resp.Data = &UserLoginResponseData{NextMethod: method.List()}
+						if method.Has(LoginType_mfa_email) {
+							resp.Data.Email = maskEmail(user.Email)
+						}
 					} else {
 						token, err := s.CreateToken(ctx, models.TokenTypeEnableMFA, user)
 						if err != nil {
@@ -448,15 +481,35 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 				resp.Error = errors.ParameterError("token")
 				return resp, nil
 			}
+			var code LoginCode
+			if !s.VerifyToken(ctx, req.BindingToken, models.TokenTypeLoginCode, &code) {
+				resp.Error = errors.ParameterError("bindingToken")
+				return resp, nil
+			} else if code.UserId != user.Id {
+				resp.Error = errors.NewServerError(500, "user id")
+				return resp, nil
+			}
+			if code.Code != req.Code {
+				resp.Error = errors.NewServerError(http.StatusBadRequest, "The code is invalid or expired")
+				return resp, nil
+			}
 			if resp.Error = s.PatchUserExtData(ctx, user.Id, map[string]interface{}{
 				"email_as_mfa": true,
 			}); resp.Error != nil {
 				return resp, nil
 			}
 		case LoginType_enable_mfa_totp:
-			var secret TOTPSecret
-			if !s.VerifyToken(ctx, req.Token, models.TokenTypeTotpSecret, &secret) {
+			user = new(models.User)
+			if !s.VerifyToken(ctx, req.GetToken(), models.TokenTypeEnableMFA, user) {
 				resp.Error = errors.ParameterError("token")
+				return resp, nil
+			}
+			var secret TOTPSecret
+			if !s.VerifyToken(ctx, req.BindingToken, models.TokenTypeTotpSecret, &secret) {
+				resp.Error = errors.ParameterError("bindingToken")
+				return resp, nil
+			} else if secret.User.Id != user.Id {
+				resp.Error = errors.NewServerError(500, "user id")
 				return resp, nil
 			}
 

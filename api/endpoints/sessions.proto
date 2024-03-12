@@ -62,6 +62,7 @@ message UserLoginRequest{
   string token = 8;
   string first_code = 9[(gogoproto.jsontag) = "firstCode,omitempty"];
   string second_code = 10[(gogoproto.jsontag) = "secondCode,omitempty"];
+  string binding_token = 11[(gogoproto.jsontag) = "bindingToken,omitempty"];
 }
 message UserLoginResponseData{
   string  token = 1;

@@ -1159,6 +1159,7 @@ declare namespace API {
 
   type UserLoginRequest = {
     autoLogin?: boolean;
+    bindingToken?: string;
     code?: string;
     email?: string;
     firstCode?: string;

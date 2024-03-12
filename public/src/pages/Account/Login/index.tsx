@@ -2,7 +2,7 @@ import { Alert, Button, Divider, message, Space, Tabs } from 'antd';
 import 'antd/es/form/style/index.less';
 import { useForm } from 'antd/lib/form/Form';
 import classNames from 'classnames';
-import { isArray, isNumber } from 'lodash';
+import { isArray, isNumber, unset } from 'lodash';
 import { parse } from 'query-string';
 import React, { useEffect, useState } from 'react';
 import { useIntl, history, useModel, Link } from 'umi';
@@ -72,6 +72,8 @@ const Login: React.FC = ({}) => {
   });
   const [loginType, setLoginType] = useState<LoginTypeName>('normal');
   const [token, setToken] = useState<string>();
+  const [email, setEmail] = useState<string>();
+  const [bindingToken, setBindingToken] = useState<string>();
   const { initialState, setInitialState } = useModel('@@initialState');
   /**
    * @en-US International configuration
@@ -111,12 +113,16 @@ const Login: React.FC = ({}) => {
     ...values
   }: API.UserLoginRequest & { phone?: string; email?: string }) => {
     try {
-      const msg = await login({ ...values, type: loginType, token }, { skipErrorHandler: true });
+      const msg = await login(
+        { ...values, type: loginType, token, bindingToken },
+        { skipErrorHandler: true },
+      );
       if (msg.data?.nextMethod && msg.data.nextMethod.length > 0) {
         setAllowLoginTypes(msg.data.nextMethod);
         handleSetLoginType(msg.data.nextMethod[0] as LoginType);
         setHiddenNormal(true);
         setToken(msg.data.token);
+        setEmail(msg.data.email);
       } else if (msg.success) {
         const defaultLoginSuccessMessage = intl.t('success', 'Login succeeded!');
         message.success(defaultLoginSuccessMessage);
@@ -216,6 +222,7 @@ const Login: React.FC = ({}) => {
             initialValues={{
               autoLogin: true,
             }}
+            contentStyle={{ width: 'unset' }}
             form={form}
             actions={
               oauthLoginTypes.length > 0 ? (
@@ -348,7 +355,9 @@ const Login: React.FC = ({}) => {
                   prefix: <MailOutlined className={styles.prefixIcon} />,
                 }}
                 name="email"
-                placeholder={intl.t('email.placeholder', 'Please enter your email')}
+                placeholder={`${intl.t('email.placeholder', 'Please enter your email')} ${
+                  email ? `: ${email}` : ''
+                }`}
                 rules={[
                   {
                     required: true,
@@ -384,7 +393,82 @@ const Login: React.FC = ({}) => {
 
             <LoginFormComponent
               loginType={loginType}
-              allows={['sms', 'mfa_sms', 'mfa_email', 'email', 'mfa_totp']}
+              allows={['enable_mfa_email', 'enable_mfa_sms', 'enable_mfa_totp']}
+              style={{ width: 550, display: 'block' }}
+            >
+              <Alert
+                style={{ marginBottom: 24 }}
+                message={intl.t(
+                  'mfa.errorMessage',
+                  'Because your user is set to enable multiple factor authentication (MFA), you need to enable at least one MFA authentication method.',
+                )}
+                type="info"
+                showIcon
+              />
+            </LoginFormComponent>
+
+            <LoginFormComponent
+              loginType={loginType}
+              allows={['enable_mfa_sms']}
+              style={{ width: 550, display: 'block' }}
+            >
+              <Alert
+                style={{ marginBottom: 24 }}
+                message={intl.t(
+                  'enableMfa.smsMessage',
+                  'Click Login to automatically enable email as the second authentication factor.',
+                )}
+                type="info"
+                showIcon
+              />
+            </LoginFormComponent>
+
+            <LoginFormComponent
+              loginType={loginType}
+              allows={['enable_mfa_email']}
+              style={{ width: 550, display: 'block' }}
+            >
+              <Alert
+                style={{ marginBottom: 24 }}
+                message={intl.t(
+                  'enableMfa.emailMessage',
+                  'Click Login to automatically enable email as the second authentication factor.',
+                )}
+                type="info"
+                showIcon
+              />
+              <LoginMessage
+                hidden={success}
+                content={intl.t('email.errorMessage', 'Email verification code error')}
+              />
+              <ProFormText
+                fieldProps={{
+                  size: 'large',
+                  prefix: <MailOutlined className={styles.prefixIcon} />,
+                }}
+                name="email"
+                initialValue={email}
+                placeholder={intl.t('email.placeholder', 'Please enter your email')}
+                rules={[
+                  {
+                    required: true,
+                    message: intl.t('email.required', 'Please enter your email!'),
+                  },
+                ]}
+              />
+            </LoginFormComponent>
+
+            <LoginFormComponent
+              loginType={loginType}
+              allows={[
+                'sms',
+                'mfa_sms',
+                'mfa_email',
+                'email',
+                'mfa_totp',
+                'enable_mfa_email',
+                'enable_mfa_sms',
+              ]}
             >
               <ProFormCaptcha
                 fieldProps={{
@@ -412,6 +496,7 @@ const Login: React.FC = ({}) => {
                 onGetCaptcha={async () => {
                   const req: API.SendLoginCaptchaRequest = { type: loginType };
                   switch (loginType) {
+                    case 'enable_mfa_email':
                     case 'mfa_email':
                       form.validateFields(['username']);
                       req.username = form.getFieldValue('username');
@@ -419,6 +504,7 @@ const Login: React.FC = ({}) => {
                       form.validateFields(['email']);
                       req.email = form.getFieldValue('email');
                       break;
+                    case 'enable_mfa_sms':
                     case 'mfa_sms':
                       form.validateFields(['username']);
                       req.username = form.getFieldValue('username');
@@ -432,66 +518,27 @@ const Login: React.FC = ({}) => {
                   if (!result.success) {
                     return;
                   }
-                  setToken(result.data?.token);
+                  console.log(loginType);
+                  switch (loginType) {
+                    case 'enable_mfa_email':
+                    case 'enable_mfa_sms':
+                      setBindingToken(result.data?.token);
+                      break;
+                    default:
+                      setToken(result.data?.token);
+                      break;
+                  }
                   message.success(intl.t('captcha.sent', 'Verification code sent successfully.'));
                 }}
               />
             </LoginFormComponent>
 
             <LoginFormComponent
-              loginType={loginType}
-              allows={['enable_mfa_email', 'enable_mfa_sms', 'enable_mfa_totp']}
-              style={{ width: 550, display: 'block', transform: 'translate(-75px)' }}
-            >
-              <Alert
-                style={{ marginBottom: 24 }}
-                message={intl.t(
-                  'mfa.errorMessage',
-                  'Because your user is set to enable multiple factor authentication (MFA), you need to enable at least one MFA authentication method.',
-                )}
-                type="info"
-                showIcon
-              />
-            </LoginFormComponent>
-
-            <LoginFormComponent
-              loginType={loginType}
-              allows={['enable_mfa_sms']}
-              style={{ width: 550, display: 'block', transform: 'translate(-75px)' }}
-            >
-              <Alert
-                style={{ marginBottom: 24 }}
-                message={intl.t(
-                  'enableMfa.smsMessage',
-                  'Click Login to automatically enable email as the second authentication factor.',
-                )}
-                type="info"
-                showIcon
-              />
-            </LoginFormComponent>
-
-            <LoginFormComponent
-              loginType={loginType}
-              allows={['enable_mfa_email']}
-              style={{ width: 550, display: 'block', transform: 'translate(-75px)' }}
-            >
-              <Alert
-                style={{ marginBottom: 24 }}
-                message={intl.t(
-                  'enableMfa.emailMessage',
-                  'Click Login to automatically enable email as the second authentication factor.',
-                )}
-                type="info"
-                showIcon
-              />
-            </LoginFormComponent>
-
-            <LoginFormComponent
-              style={{ width: 550, display: 'block', transform: 'translate(-75px)' }}
+              style={{ width: 550, display: 'block' }}
               loginType={loginType}
               allows={['enable_mfa_totp']}
             >
-              <VirtualMFADeviceBinding token={token} />
+              <VirtualMFADeviceBinding token={token} setBindingToken={setBindingToken} />
             </LoginFormComponent>
             <div
               style={{

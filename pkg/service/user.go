@@ -290,6 +290,12 @@ func (s Set) VerifyPassword(ctx context.Context, username string, password strin
 		}
 		return nil, errors.NewServerError(http.StatusOK, "Wrong user name or password. ", errors.CodeInvalidCredentials)
 	}
+	if user.ExtendedData == nil {
+		user.ExtendedData, err = s.commonService.GetUserExtendedData(ctx, user.Id)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return user, nil
 }
 

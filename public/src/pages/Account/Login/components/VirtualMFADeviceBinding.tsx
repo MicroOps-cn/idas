@@ -12,21 +12,26 @@ import { GridContent } from '@ant-design/pro-components';
 interface VirtualMFABindingProps {
   parentIntl?: IntlContext;
   token?: string;
+  setBindingToken?: (token: string) => void;
 }
 
 export default ({
   parentIntl = new IntlContext('user.settings.security', useIntl()),
   token: fetchToken,
+  setBindingToken,
 }: VirtualMFABindingProps) => {
-  const intl = new IntlContext('mfa', parentIntl);
+  const intl = new IntlContext('mfa-device', parentIntl);
   const [secret, setSecret] = useState<API.CreateTOTPSecretResponseData>();
   const [tokenLoading, setTokenLoading] = useState<boolean>(false);
   const fetchTOTPToken = async (token: string) => {
     setSecret(undefined);
     setTokenLoading(true);
     getTOTPSecret({ token })
-      .then((resp) => {
-        setSecret(resp.data);
+      .then(({ data }) => {
+        setSecret(data);
+        if (data?.token) {
+          setBindingToken?.(data.token);
+        }
       })
       .finally(() => {
         setTokenLoading(false);
@@ -44,6 +49,7 @@ export default ({
             'code-description',
             'Please obtain two consecutive one-time passwords after scanning and adding MFA and enter them into the input box below.',
           )}
+          className="mfa-code-description"
           type="info"
           showIcon
         />
