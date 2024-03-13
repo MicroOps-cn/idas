@@ -183,9 +183,14 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					}
 					user, err = s.VerifyPassword(ctx, req.Username, string(req.Password), false)
 					if user.IsForceMfa() {
-						err = user.VerifyTOTP(req.Code)
-						if err != nil {
-							return nil, err
+						if len(req.Code) > 0 {
+							if err = user.VerifyTOTP(req.Code); err != nil {
+								return nil, err
+							}
+						} else {
+							resp.NextMethod = []LoginType{LoginType_mfa_totp}
+							resp.Error = "TOTP code needs to be provided"
+							return resp, nil
 						}
 					}
 				case OAuthGrantType_client_credentials:

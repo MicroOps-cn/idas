@@ -1,6 +1,7 @@
 syntax = "proto3";
 package idas.oauth2;
 import "endpoints/base.proto";
+import "endpoints/sessions.proto";
 option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
 
 message OAuthTokenResponse{
@@ -12,6 +13,7 @@ message OAuthTokenResponse{
   string id_token = 6;
   map<string,string> headers = 7;
   repeated string cookies = 8;
+  repeated idas.endpoint.LoginType next_method= 9;
 }
 
 message OAuthAuthorizeRequest{

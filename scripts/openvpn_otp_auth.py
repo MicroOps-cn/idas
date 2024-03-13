@@ -1,5 +1,4 @@
-# encoding: utf-8
-#  Copyright © 2024 MicroOps-cn.
+#  Copyright @ 2024 MicroOps-cn.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,6 +11,8 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+#!/usr/bin/env python
+# encoding: utf-8
 import base64
 import logging
 import sys, requests
@@ -46,19 +47,21 @@ def auth_from_oauth2_password(auth_payload):
         "client_id": CLIENT_ID,
         "client_secret": CLIENT_SECRET,
         "grant_type": "password",
-        **auth_payload,
     }
+    payload.update(auth_payload)
     headers = {
         'User-Agent': 'OpenVPN Auth Client;',
         'Content-Type': 'application/json'
     }
     response = requests.request("POST", AUTH_SERVER, headers=headers, json=payload)
 
-    r = response.json()
+    r = response.json() # type: dict
     if r.get("success",True) and r.get("access_token",None):
         return
     else:
-        logging.error("auth failed: errorCode={}, errorMessage={}".format(r["errorCode"],r["errorMessage"]))
+        error_code=r.get("errorCode",500)
+        error_message=r.get("errorMessage",r.get("error","Unknown error"))
+        logging.error("auth failed: errorCode={}, errorMessage={}".format(error_code,error_message))
         sys.exit(1)
 
 if __name__ == '__main__':
