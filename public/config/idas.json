@@ -945,7 +945,10 @@
     "operationId": "oAuthTokens",
     "parameters": [
      {
-      "example": {},
+      "example": {
+       "client_secret": "\u003csecret\u003e",
+       "password": "\u003csecret\u003e"
+      },
       "name": "body",
       "in": "body",
       "required": true,
@@ -3765,9 +3768,9 @@
   },
   "endpoint.FileUploadResponse": {
    "required": [
-    "total",
     "traceId",
     "success",
+    "total",
     "data"
    ],
    "properties": {
@@ -3942,11 +3945,11 @@
   },
   "endpoint.GetCurrentUserEventLogsResponse": {
    "required": [
+    "pageSize",
     "traceId",
     "success",
     "total",
-    "current",
-    "pageSize"
+    "current"
    ],
    "properties": {
     "current": {
@@ -3983,11 +3986,11 @@
   },
   "endpoint.GetCurrentUserEventsResponse": {
    "required": [
+    "total",
+    "current",
     "pageSize",
     "traceId",
-    "success",
-    "total",
-    "current"
+    "success"
    ],
    "properties": {
     "current": {
@@ -4024,11 +4027,11 @@
   },
   "endpoint.GetEventLogsResponse": {
    "required": [
-    "total",
     "current",
     "pageSize",
     "traceId",
-    "success"
+    "success",
+    "total"
    ],
    "properties": {
     "current": {
@@ -4065,11 +4068,11 @@
   },
   "endpoint.GetEventsResponse": {
    "required": [
-    "total",
     "current",
     "pageSize",
     "traceId",
-    "success"
+    "success",
+    "total"
    ],
    "properties": {
     "current": {
@@ -4129,11 +4132,11 @@
   },
   "endpoint.GetPageDatasResponse": {
    "required": [
-    "current",
-    "pageSize",
-    "total",
     "traceId",
-    "success"
+    "success",
+    "total",
+    "current",
+    "pageSize"
    ],
    "properties": {
     "current": {
@@ -4193,11 +4196,11 @@
   },
   "endpoint.GetPagesResponse": {
    "required": [
+    "pageSize",
     "traceId",
     "success",
-    "current",
-    "pageSize",
-    "total"
+    "total",
+    "current"
    ],
    "properties": {
     "current": {
@@ -4234,11 +4237,11 @@
   },
   "endpoint.GetPermissionsResponse": {
    "required": [
-    "pageSize",
     "traceId",
-    "total",
     "success",
-    "current"
+    "total",
+    "current",
+    "pageSize"
    ],
    "properties": {
     "current": {
@@ -4316,8 +4319,8 @@
   },
   "endpoint.GetSecurityConfigResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -4339,11 +4342,11 @@
   },
   "endpoint.GetSessionsResponse": {
    "required": [
-    "total",
-    "current",
     "pageSize",
     "traceId",
-    "success"
+    "success",
+    "total",
+    "current"
    ],
    "properties": {
     "current": {
@@ -4403,11 +4406,11 @@
   },
   "endpoint.GetUsersResponse": {
    "required": [
-    "current",
-    "pageSize",
-    "success",
     "traceId",
-    "total"
+    "success",
+    "total",
+    "current",
+    "pageSize"
    ],
    "properties": {
     "current": {
@@ -4551,6 +4554,10 @@
    }
   },
   "endpoint.OAuthTokenRequest": {
+   "required": [
+    "client_secret",
+    "password"
+   ],
    "properties": {
     "client_id": {
      "type": "string"
@@ -4620,6 +4627,12 @@
     },
     "id_token": {
      "type": "string"
+    },
+    "next_method": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/idas.endpoint.LoginType"
+     }
     },
     "refresh_token": {
      "type": "string"
@@ -4993,8 +5006,8 @@
   },
   "endpoint.SendLoginCaptchaResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {

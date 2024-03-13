@@ -812,11 +812,11 @@ declare namespace API {
 
   type OAuthTokenRequest = {
     client_id?: string;
-    client_secret?: string;
+    client_secret: string;
     code?: string;
     disable_refresh_token?: boolean;
     grant_type?: OAuthGrantType;
-    password?: string;
+    password: string;
     redirect_uri?: string;
     refresh_token?: string;
     state?: string;
@@ -831,6 +831,7 @@ declare namespace API {
     expires_in: number;
     headers?: Record<string, any>;
     id_token?: string;
+    next_method?: LoginType[];
     refresh_token?: string;
     token_type?: OAuthTokenType;
   };
