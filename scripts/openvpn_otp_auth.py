@@ -1,3 +1,4 @@
+# encoding: utf-8
 #  Copyright © 2024 MicroOps-cn.
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +22,11 @@ CLIENT_ID = "HkdQYrf8NNaAqmTG7S5BThJAAslstKCJ1uNuRymJs7M"
 CLIENT_SECRET = "vYRssEjBxXZQf95hdFH9Iy6tgUi75RBRnZdiVR46TFM"
 
 def read_auth_file_to_auth_body(path):
+    """
+    Read authentication information from the file.
+    :type path: str
+    :rtype dict[str,str]
+    """
     auth = {}
     with open(path) as f:
         username = f.readline().strip()
@@ -31,12 +37,16 @@ def read_auth_file_to_auth_body(path):
             auth.update({"username":username,"password": base64.b64decode(passwords[1]).decode()})
     return auth
 
-def auth_from_oauth2_password(body: dict):
+def auth_from_oauth2_password(auth_payload):
+    """
+    Use OAuth2.0 password mode for authentication.
+    :type auth_payload: dict[str,str]
+    """
     payload = {
         "client_id": CLIENT_ID,
         "client_secret": CLIENT_SECRET,
         "grant_type": "password",
-        **body,
+        **auth_payload,
     }
     headers = {
         'User-Agent': 'OpenVPN Auth Client;',
@@ -49,6 +59,7 @@ def auth_from_oauth2_password(body: dict):
         return
     else:
         logging.error("auth failed: errorCode={}, errorMessage={}".format(r["errorCode"],r["errorMessage"]))
+        sys.exit(1)
 
 if __name__ == '__main__':
     if len(sys.argv) > 2:
