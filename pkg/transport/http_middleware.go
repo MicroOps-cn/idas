@@ -329,7 +329,7 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 			if user, err := endpoints.GetSessionByToken(ctx, sessionReq); err == nil {
 				if u := user.(*models.User); u != nil {
 					if passwordExpireTime := config.GetRuntimeConfig().Security.PasswordExpireTime; passwordExpireTime > 0 && needLogin {
-						if time.Since(u.ExtendedData.PasswordModifyTime) > time.Duration(passwordExpireTime)*time.Hour*24 {
+						if u.ExtendedData != nil && time.Since(u.ExtendedData.PasswordModifyTime) > time.Duration(passwordExpireTime)*time.Hour*24 {
 							_, _ = endpoints.UserLogout(ctx, HTTPRequest[any]{restfulRequest: req, restfulResponse: resp})
 							errorEncoder(ctx, errors.NewServerError(http.StatusOK, "Your password has expired. Please change the password and log in again.", errors.CodeUserNeedResetPassword), resp)
 							return
@@ -352,7 +352,7 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 			if user, err := endpoints.Authentication(ctx, authReq); err == nil {
 				if u := user.(*models.User); u != nil {
 					if passwordExpireTime := config.GetRuntimeConfig().Security.PasswordExpireTime; passwordExpireTime > 0 && needLogin {
-						if time.Since(u.ExtendedData.PasswordModifyTime) > time.Duration(passwordExpireTime)*time.Hour*24 {
+						if u.ExtendedData != nil && time.Since(u.ExtendedData.PasswordModifyTime) > time.Duration(passwordExpireTime)*time.Hour*24 {
 							errorEncoder(ctx, errors.NewServerError(http.StatusOK, "Your password has expired. Please change the password and log in again.", errors.CodeUserNeedResetPassword), resp)
 							return
 						}
