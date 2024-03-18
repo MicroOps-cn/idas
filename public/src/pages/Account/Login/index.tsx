@@ -115,7 +115,7 @@ const Login: React.FC = ({}) => {
     try {
       const msg = await login(
         { ...values, type: loginType, token, bindingToken },
-        { skipErrorHandler: true },
+        { skipErrorHandler: true, ignoreError: true },
       );
       if (msg.data?.nextMethod && msg.data.nextMethod.length > 0) {
         setAllowLoginTypes(msg.data.nextMethod);

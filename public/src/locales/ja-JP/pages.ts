@@ -103,4 +103,8 @@ export default {
   "pages.login.loginType.enable_mfa_email": "Email",
   "pages.login.loginType.enable_mfa_totp": "TOTP/仮想MFA",
   "pages.login.loginType.enable_mfa_sms": "ショートメッセージ",
+  "pages.resetPassword.forgotPassword": "パスワードを忘れる？",
+  "pages.resetPassword.resetPassword": "パスワードをリセット",
+  "pages.resetPassword.username.placeholder": "ユーザー名を入力してください",
+  "pages.resetPassword.username.required": "ユーザー名を入力してください！",
 }

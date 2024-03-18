@@ -2,7 +2,7 @@ import { Inspector } from 'react-dev-inspector';
 
 import Footer from '@/components/Footer';
 import { getActions } from '@/components/RightContent';
-import type { ResponseStructure } from '@/utils/request';
+import type { ResponseStructure, RequestOptions } from '@/utils/request';
 import { errorHandler, getApiPath, getLocation, getPublicPath } from '@/utils/request';
 import { BookOutlined, LinkOutlined } from '@ant-design/icons';
 import type { MenuDataItem, Settings as LayoutSettings } from '@ant-design/pro-components';
@@ -66,7 +66,7 @@ export async function getInitialState(): Promise<{
       const msg = await queryCurrentUser({ skipErrorHandler: pathname === '/' });
       return msg.data ? { ...msg.data, fetchTime: Number(new Date()) / 1000 } : undefined;
     } catch (error) {
-      history.push(loginPath);
+      if (pathname !== loginPath) history.push(loginPath);
     }
     return undefined;
   };
@@ -101,7 +101,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
       // 如果没有登录，重定向到 login
       const { access } = getRouteAccess(pathname, globalRoutes);
       if (!initialState?.currentUser && access !== 'canAnonymous') {
-        history.push(loginPath);
+        if (pathname !== loginPath) history.push(loginPath);
       }
     },
     links: isDev
@@ -180,9 +180,17 @@ export const request: RequestConfig = {
   ],
   responseInterceptors: [
     (response) => {
+      //@ts-ignore
+      if (response.config?.ignoreError) {
+        return response;
+      }
       const { config, data } = response as AxiosResponse<ResponseStructure>;
 
       const { success, errorMessage, errorCode } = data;
+      if (errorCode === 'E0004') {
+        history.push(`/account/resetPassword`);
+        return response;
+      }
       if (!success) {
         const error: any = new Error(errorMessage);
         error.name = 'BizError';

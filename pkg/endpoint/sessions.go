@@ -536,7 +536,7 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 			resp.Error = errors.ParameterError("type")
 			return resp, nil
 		}
-		if err = s.VerifyUserStatus(ctx, user, true); err != nil {
+		if err = s.VerifyUserStatus(ctx, user, false); err != nil {
 			return nil, err
 		}
 		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithUsers(user.Id), opts.WithAppName(config.Get().GetGlobal().GetAppName()))

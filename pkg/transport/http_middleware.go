@@ -318,13 +318,23 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 			errorEncoder(ctx, errors.NewServerError(http.StatusNotFound, "Not Found: "+req.Request.RequestURI), resp)
 			return
 		}
-
+		needLogin, ok := ctx.Value(global.MetaNeedLogin).(bool)
+		if !ok {
+			needLogin = true
+		}
 		if token := getTokenByRequest(req.Request); token != nil {
 			ctx = context.WithValue(ctx, global.LoginSession, token.Token)
 			req.Request = req.Request.WithContext(ctx)
 			sessionReq := &HTTPRequest[endpoint.GetSessionParams]{restfulRequest: req, restfulResponse: resp, Data: *token}
 			if user, err := endpoints.GetSessionByToken(ctx, sessionReq); err == nil {
 				if u := user.(*models.User); u != nil {
+					if passwordExpireTime := config.GetRuntimeConfig().Security.PasswordExpireTime; passwordExpireTime > 0 && needLogin {
+						if time.Since(u.ExtendedData.PasswordModifyTime) > time.Duration(passwordExpireTime)*time.Hour*24 {
+							_, _ = endpoints.UserLogout(ctx, HTTPRequest[any]{restfulRequest: req, restfulResponse: resp})
+							errorEncoder(ctx, errors.NewServerError(http.StatusOK, "Your password has expired. Please change the password and log in again.", errors.CodeUserNeedResetPassword), resp)
+							return
+						}
+					}
 					ctx = context.WithValue(ctx, global.MetaUser, user)
 					req.Request = req.Request.WithContext(ctx)
 					filterChan.ProcessFilter(req, resp)
@@ -340,7 +350,13 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 			return
 		} else if authReq != nil {
 			if user, err := endpoints.Authentication(ctx, authReq); err == nil {
-				if user.(*models.User) != nil {
+				if u := user.(*models.User); u != nil {
+					if passwordExpireTime := config.GetRuntimeConfig().Security.PasswordExpireTime; passwordExpireTime > 0 && needLogin {
+						if time.Since(u.ExtendedData.PasswordModifyTime) > time.Duration(passwordExpireTime)*time.Hour*24 {
+							errorEncoder(ctx, errors.NewServerError(http.StatusOK, "Your password has expired. Please change the password and log in again.", errors.CodeUserNeedResetPassword), resp)
+							return
+						}
+					}
 					req.Request = req.Request.WithContext(context.WithValue(ctx, global.MetaUser, user))
 					filterChan.ProcessFilter(req, resp)
 					return
@@ -350,11 +366,9 @@ func HTTPAuthenticationFilter(endpoints endpoint.Set) restful.FilterFunction {
 			}
 		}
 
-		if needLogin, ok := ctx.Value(global.MetaNeedLogin).(bool); ok {
-			if !needLogin {
-				filterChan.ProcessFilter(req, resp)
-				return
-			}
+		if !needLogin {
+			filterChan.ProcessFilter(req, resp)
+			return
 		}
 		if autoRedirectToLoginPage, ok := ctx.Value(global.MetaAutoRedirectToLoginPage).(bool); ok && autoRedirectToLoginPage {
 			redirectURI := req.Request.RequestURI

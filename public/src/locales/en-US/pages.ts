@@ -286,4 +286,8 @@ export default {
   "pages.login.loginType.enable_mfa_email": "Email",
   "pages.login.loginType.enable_mfa_totp": "TOTP/Virtual MFA",
   "pages.login.loginType.enable_mfa_sms": "message",
+  "pages.resetPassword.forgotPassword": "Forgot password?",
+  "pages.resetPassword.resetPassword": "reset password ",
+  "pages.resetPassword.username.placeholder": "enter one user name",
+  "pages.resetPassword.username.required": "Please enter your username!",
 }

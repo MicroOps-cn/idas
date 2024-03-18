@@ -103,4 +103,8 @@ export default {
   "pages.login.loginType.enable_mfa_email": "E-mail",
   "pages.login.loginType.enable_mfa_totp": "TOTP/AMF Virtual",
   "pages.login.loginType.enable_mfa_sms": "mensagem",
+  "pages.resetPassword.forgotPassword": "Esqueceste-te da senha?",
+  "pages.resetPassword.resetPassword": "repor a senha",
+  "pages.resetPassword.username.placeholder": "indique um nome de utilizador",
+  "pages.resetPassword.username.required": "Por favor introduza o seu nome de utilizador!",
 }

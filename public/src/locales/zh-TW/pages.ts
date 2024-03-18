@@ -103,4 +103,8 @@ export default {
   "pages.login.loginType.enable_mfa_email": "Email",
   "pages.login.loginType.enable_mfa_totp": "TOTP/虛擬MFA",
   "pages.login.loginType.enable_mfa_sms": "簡訊",
+  "pages.resetPassword.forgotPassword": "忘記密碼？",
+  "pages.resetPassword.resetPassword": "重置密碼",
+  "pages.resetPassword.username.placeholder": "請輸入用戶名",
+  "pages.resetPassword.username.required": "請輸入用戶名！",
 }

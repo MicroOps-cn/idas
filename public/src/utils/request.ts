@@ -60,9 +60,12 @@ const errorAdaptor = (resData: any) => {
 };
 
 const DEFAULT_ERROR_PAGE = '/warning';
-export const errorHandler = (error: RequestError) => {
+export const errorHandler = (error: RequestError, opts: IRequestOptions) => {
   // @ts-ignore
-  if (error?.request?.options?.skipErrorHandler) {
+  if (opts.ignoreError) {
+    return
+  }
+  if (opts.skipErrorHandler) {
     throw error;
   }
   let errorInfo: ResponseStructure | undefined;
@@ -116,7 +119,11 @@ export const errorHandler = (error: RequestError) => {
   throw error;
 };
 
-type RequestOptions = IRequestOptions & { getResponse?: boolean };
+export type RequestOptions = IRequestOptions & {
+  getResponse?: boolean;
+  skipErrorHandler?: boolean;
+  ignoreError?: boolean;
+};
 
 declare const apiPath: string;
 declare const basePath: string;

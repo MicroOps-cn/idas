@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { history, useIntl, useModel } from 'umi';
 
 import defaultSettings from '@/../config/defaultSettings';
-import { loginPath } from '@/../config/env';
+import { loginPath, forgotPasswordPath } from '@/../config/env';
 import Footer from '@/components/Footer';
 import SelectLang from '@/components/SelectLang';
 import { resetPassword } from '@/services/idas/user';
@@ -14,6 +14,7 @@ import { IntlContext } from '@/utils/intl';
 import { getPublicPath } from '@/utils/request';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { ProFormText, LoginForm } from '@ant-design/pro-form';
+import { Link } from '@umijs/max';
 
 import styles from './index.less';
 
@@ -59,7 +60,7 @@ const ResetPassword: React.FC = () => {
             render: (submitProps) => {
               return (
                 <Button loading={loading} onClick={submitProps.submit} block type="primary">
-                  重置密码
+                  {intl.t('resetPassword', 'Reset Password')}
                 </Button>
               );
             },
@@ -84,9 +85,16 @@ const ResetPassword: React.FC = () => {
             fieldProps={{
               value: query.username,
               size: 'large',
-              disabled: true,
+              disabled: Boolean(query.username),
               prefix: <UserOutlined className={styles.prefixIcon} />,
             }}
+            placeholder={intl.t('username.placeholder', 'Please enter your username')}
+            rules={[
+              {
+                required: true,
+                message: intl.t('username.required', 'Please enter your username!'),
+              },
+            ]}
           />
           <ProFormText.Password
             name="oldPassword"
@@ -94,7 +102,7 @@ const ResetPassword: React.FC = () => {
               size: 'large',
               prefix: <LockOutlined className={styles.prefixIcon} />,
             }}
-            hidden={query.token}
+            hidden={Boolean(query.token)}
             placeholder={intl.t('oldPassword.placeholder', 'Please enter current password')}
             rules={[
               {
@@ -141,6 +149,14 @@ const ResetPassword: React.FC = () => {
               }),
             ]}
           />
+          <Link
+            style={{
+              float: 'right',
+            }}
+            to={forgotPasswordPath}
+          >
+            {intl.t('forgotPassword', 'Forgot password')}
+          </Link>
         </LoginForm>
       </div>
       <Footer />
