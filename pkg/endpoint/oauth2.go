@@ -61,6 +61,7 @@ type UserToken struct {
 
 func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		begin := time.Now()
 		req := request.(Requester).GetRequestData().(*OAuthTokenRequest)
 		resp := OAuthTokenResponse{TokenType: req.TokenType}
 		if restfulReq := request.(RestfulRequester).GetRestfulRequest(); restfulReq == nil {
@@ -178,6 +179,28 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 						_ = s.DeleteToken(ctx, models.TokenTypeCode, req.Code)
 					}
 				case OAuthGrantType_password:
+					defer func() {
+						if app == nil {
+							app = new(models.App)
+						}
+						if user == nil {
+							user = new(models.User)
+						}
+						status := true
+						logContent := fmt.Sprintf("[OAuth2] Authorize login password mode to %s application", app.Name)
+						if err != nil {
+							status = false
+							logContent += ":" + err.Error()
+						}
+						eventId := logs.GetTraceId(ctx)
+						if u, e := uuid.FromString(eventId); e == nil {
+							eventId = u.String()
+						}
+						took := time.Since(begin)
+						if e := s.PostEventLog(ctx, eventId, user.Id, user.Username, "", "Authorize", logContent, status, took, logContent); e != nil {
+							level.Error(logs.GetContextLogger(ctx)).Log("failed to post event log", "err", e)
+						}
+					}()
 					if app.GrantType&models.AppMeta_password == 0 {
 						return nil, errors.NewServerError(500, "Unsupported authorization type.")
 					}
@@ -285,18 +308,42 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 
 func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		begin := time.Now()
 		logger := logs.GetContextLogger(ctx)
 		req := request.(Requester).GetRequestData().(*OAuthAuthorizeRequest)
 		resp := SimpleResponseWrapper[interface{}]{}
 
 		stdReq := request.(RestfulRequester).GetRestfulRequest()
 		stdResp := request.(RestfulRequester).GetRestfulResponse()
+		var app *models.App
+		var user *models.User
+		defer func() {
+			if app == nil {
+				app = new(models.App)
+			}
+			if user == nil {
+				user = new(models.User)
+			}
+			status := true
+			if resp.Error != nil || err != nil {
+				status = false
+			}
+			eventId := logs.GetTraceId(ctx)
+			if u, e := uuid.FromString(eventId); e == nil {
+				eventId = u.String()
+			}
+			took := time.Since(begin)
+			logContent := fmt.Sprintf("[OAuth] Authorize login to %s application", app.Name)
+			if e := s.PostEventLog(ctx, eventId, user.Id, user.Username, "", "", "", status, took, logContent); e != nil {
+				level.Error(logs.GetContextLogger(ctx)).Log("failed to post event log", "err", e)
+			}
+		}()
 
 		if len(req.ClientId) == 0 {
 			return nil, errors.ParameterError("client_id")
 		}
-		user, ok := ctx.Value(global.MetaUser).(*models.User)
-		if !ok || user == nil {
+		var ok bool
+		if user, ok = ctx.Value(global.MetaUser).(*models.User); !ok || user == nil {
 			level.Warn(logger).Log("msg", "failed to get user from context")
 			resp.Error = errors.NotLoginError()
 			return resp, nil
@@ -312,7 +359,6 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 			return nil, errors.ParameterError("redirect_uri")
 		}
 		query := uri.Query()
-		var app *models.App
 		if req.AccessType == "proxy" {
 			var proxyConfig models.AppProxyConfig
 			if !s.VerifyToken(ctx, req.State, models.TokenTypeAppProxyLogin, &proxyConfig, req.ClientId) {

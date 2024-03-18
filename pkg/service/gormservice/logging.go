@@ -67,6 +67,7 @@ func (b *EventBuffers) PutEvent(ctx context.Context, eventId, userId, username, 
 		event.Status = status
 		event.Took = took
 		event.CreateTime = time.Now().UTC()
+
 	} else {
 		b.event[eventId] = &models.Event{UserId: userId, Username: username, ClientIP: clientIP, Location: loc, Action: action, Message: message, Status: status, Took: took}
 		b.event[eventId].Id = eventId
