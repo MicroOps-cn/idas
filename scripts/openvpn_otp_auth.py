@@ -21,6 +21,7 @@ import sys, requests
 AUTH_SERVER = "http://127.0.0.1:8081/api/v1/oauth/token"
 CLIENT_ID = "HkdQYrf8NNaAqmTG7S5BThJAAslstKCJ1uNuRymJs7M"
 CLIENT_SECRET = "vYRssEjBxXZQf95hdFH9Iy6tgUi75RBRnZdiVR46TFM"
+FORCE_MFA = True
 
 def read_auth_file_to_auth_body(path):
     """
@@ -36,6 +37,10 @@ def read_auth_file_to_auth_body(path):
             auth.update({"username":username,"code": base64.b64decode(passwords[2]).decode(),"password": base64.b64decode(passwords[1]).decode()})
         else:
             auth.update({"username":username,"password": base64.b64decode(passwords[1]).decode()})
+
+    if FORCE_MFA and not auth.get("code",None):
+        logging.error("auth failed: MFA Code required")
+        sys.exit(1)
     return auth
 
 def auth_from_oauth2_password(auth_payload):
@@ -53,6 +58,7 @@ def auth_from_oauth2_password(auth_payload):
         'User-Agent': 'OpenVPN Auth Client;',
         'Content-Type': 'application/json'
     }
+
     response = requests.request("POST", AUTH_SERVER, headers=headers, json=payload)
 
     r = response.json() # type: dict
