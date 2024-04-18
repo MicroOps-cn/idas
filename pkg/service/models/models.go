@@ -36,6 +36,23 @@ func (x AppMeta_GrantType) MarshalJSON() ([]byte, error) {
 	return []byte("[" + strings.Join(ret, ", ") + "]"), nil
 }
 
+var oauth2GrantType = []AppMeta_GrantType{
+	AppMeta_authorization_code,
+	AppMeta_implicit,
+	AppMeta_password,
+	AppMeta_client_credentials,
+}
+
+func (x AppMeta_GrantType) Name() []string {
+	var ret []string
+	for _, val := range oauth2GrantType {
+		if val != 0 && x&val == val {
+			ret = append(ret, val.String())
+		}
+	}
+	return ret
+}
+
 func NewGrantType(gs ...AppMeta_GrantType) AppMeta_GrantType {
 	var ret AppMeta_GrantType
 	for _, g := range gs {

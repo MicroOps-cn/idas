@@ -18,42 +18,69 @@ package common
 
 import (
 	"context"
-	"net/url"
-
 	http2 "github.com/MicroOps-cn/fuck/http"
-
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"net/url"
 )
 
-type getWebURLOptions struct {
-	subPages []string
-	query    url.Values
+type getURLOptions struct {
+	subPages  []string
+	isWebPage bool
+	query     url.Values
+	gv        *schema.GroupVersion
+	isRoot    bool
 }
 
-type WithGetWebURLOptions func(*getWebURLOptions)
+type WithGetURLOptions func(*getURLOptions)
 
-func WithSubPages(subPages ...string) WithGetWebURLOptions {
-	return func(o *getWebURLOptions) {
+func WithSubPages(subPages ...string) WithGetURLOptions {
+	return func(o *getURLOptions) {
 		o.subPages = subPages
 	}
 }
 
-func WithQuery(query url.Values) WithGetWebURLOptions {
-	return func(o *getWebURLOptions) {
-		o.query = query
+func WithWebPage(o *getURLOptions) {
+	o.isWebPage = true
+}
+
+func WithRoot(o *getURLOptions) {
+	o.isRoot = true
+}
+
+func WithQuery(query url.Values) WithGetURLOptions {
+	return func(o *getURLOptions) {
+		for name, val := range query {
+			o.query[name] = val
+		}
 	}
 }
 
-func GetWebURL(ctx context.Context, o ...WithGetWebURLOptions) (string, error) {
-	var opts getWebURLOptions
+func WithParam(key, value string) WithGetURLOptions {
+	return func(o *getURLOptions) {
+		o.query.Set(key, value)
+	}
+}
+
+func WithAPI(version, group string, subPages ...string) WithGetURLOptions {
+	return func(o *getURLOptions) {
+		o.gv = &schema.GroupVersion{
+			Group:   group,
+			Version: version,
+		}
+		o.subPages = append(o.subPages, subPages...)
+	}
+}
+
+func GetWebURL(ctx context.Context, o ...WithGetURLOptions) (string, error) {
+	return GetURL(ctx, append([]WithGetURLOptions{WithWebPage}, o...)...)
+}
+
+func GetURL(ctx context.Context, o ...WithGetURLOptions) (string, error) {
+	opts := getURLOptions{query: make(url.Values)}
 	for _, options := range o {
 		options(&opts)
-	}
-
-	webPrefix, ok := ctx.Value(global.HTTPWebPrefixKey).(string)
-	if !ok {
-		return "", errors.NewServerError(500, "webPrefix is null")
 	}
 	externalURL, ok := ctx.Value(global.HTTPExternalURLKey).(string)
 	if !ok {
@@ -63,7 +90,21 @@ func GetWebURL(ctx context.Context, o ...WithGetWebURLOptions) (string, error) {
 	if err != nil {
 		return "", errors.NewServerError(500, "")
 	}
-	p := []string{extURL.Path, webPrefix}
+	if opts.isRoot {
+		extURL.Path = ""
+		extURL.RawQuery = ""
+		return extURL.String(), nil
+	}
+	p := []string{extURL.Path}
+	if opts.isWebPage {
+		webPrefix, ok := ctx.Value(global.HTTPWebPrefixKey).(string)
+		if !ok {
+			return "", errors.NewServerError(500, "webPrefix is null")
+		}
+		p = append(p, webPrefix)
+	} else if opts.gv != nil {
+		p = append(p, "/api", opts.gv.Version, opts.gv.Group)
+	}
 	if len(opts.subPages) > 0 {
 		p = append(p, opts.subPages...)
 	}

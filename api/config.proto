@@ -69,7 +69,9 @@ message Security{
   string trust_ip = 1[(gogoproto.customtype) = "github.com/MicroOps-cn/fuck/sets.IPNets",(gogoproto.nullable)=false];
   repeated RateLimit rate_limit = 2;
   string secret = 3;
+  //@deprecated
   string jwt_secret = 4;
+  custom_type jwt= 5[ (gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/utils/jwt.JWTConfig"];
 }
 
 message Config {

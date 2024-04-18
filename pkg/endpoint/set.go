@@ -79,19 +79,21 @@ type AppEndpoints struct {
 }
 
 type SessionEndpoints struct {
-	GetSessions              endpoint.Endpoint `description:"Get the user's session list" role:"admin" audit:"false"`
-	DeleteSession            endpoint.Endpoint `description:"Delete the user's session" role:"admin" audit:"true"`
-	GetCurrentUserSessions   endpoint.Endpoint `description:"Get current user session list" auth:"false" audit:"false"`
-	DeleteCurrentUserSession endpoint.Endpoint `description:"Get current user session list" auth:"false" audit:"false"`
-	UserLogin                endpoint.Endpoint `auth:"false" audit:"true"`
-	UserOAuthLogin           endpoint.Endpoint `auth:"false" audit:"false"`
-	UserLogout               endpoint.Endpoint `auth:"false" audit:"true"`
-	GetSessionByToken        endpoint.Endpoint `auth:"false" audit:"false" ratelimit:"200"`
-	GetProxySessionByToken   endpoint.Endpoint `auth:"false" audit:"false" ratelimit:"200"`
-	OAuthTokens              endpoint.Endpoint `auth:"false" audit:"false"`
-	OAuthAuthorize           endpoint.Endpoint `auth:"false" audit:"true"`
-	Authentication           endpoint.Endpoint `auth:"false" audit:"false"`
-	SessionRenewal           endpoint.Endpoint `auth:"false" audit:"false"`
+	GetSessions                  endpoint.Endpoint `description:"Get the user's session list" role:"admin" audit:"false"`
+	DeleteSession                endpoint.Endpoint `description:"Delete the user's session" role:"admin" audit:"true"`
+	GetCurrentUserSessions       endpoint.Endpoint `description:"Get current user session list" auth:"false" audit:"false"`
+	DeleteCurrentUserSession     endpoint.Endpoint `description:"Get current user session list" auth:"false" audit:"false"`
+	UserLogin                    endpoint.Endpoint `auth:"false" audit:"true"`
+	UserOAuthLogin               endpoint.Endpoint `auth:"false" audit:"false"`
+	UserLogout                   endpoint.Endpoint `auth:"false" audit:"true"`
+	GetSessionByToken            endpoint.Endpoint `auth:"false" audit:"false" ratelimit:"200"`
+	GetProxySessionByToken       endpoint.Endpoint `auth:"false" audit:"false" ratelimit:"200"`
+	OAuthTokens                  endpoint.Endpoint `auth:"false" audit:"false"`
+	OAuthAuthorize               endpoint.Endpoint `auth:"false" audit:"true"`
+	WellknownOpenidConfiguration endpoint.Endpoint `auth:"false" audit:"false"`
+	OAuthJWKS                    endpoint.Endpoint `auth:"false" audit:"false"`
+	Authentication               endpoint.Endpoint `auth:"false" audit:"false"`
+	SessionRenewal               endpoint.Endpoint `auth:"false" audit:"false"`
 }
 
 type RoleEndpoints struct {
@@ -277,18 +279,20 @@ func New(ctx context.Context, svc service.Service, duration metrics.Histogram) S
 			SendActivateMail:  injectEndpoint("SendActivateMail", MakeSendActivationMailEndpoint(svc)),
 		},
 		SessionEndpoints: SessionEndpoints{
-			GetSessions:              injectEndpoint("GetSessions", MakeGetSessionsEndpoint(svc)),
-			GetCurrentUserSessions:   injectEndpoint("GetCurrentUserSessions", MakeGetCurrentUserSessionsEndpoint(svc)),
-			DeleteCurrentUserSession: injectEndpoint("DeleteCurrentUserSession", MakeDeleteCurrentUserSessionEndpoint(svc)),
-			DeleteSession:            injectEndpoint("DeleteSession", MakeDeleteSessionEndpoint(svc)),
-			UserLogin:                injectEndpoint("UserLogin", MakeUserLoginEndpoint(svc)),
-			UserOAuthLogin:           injectEndpoint("UserOAuthLogin", MakeUserOAuthLoginEndpoint(svc)),
-			Authentication:           injectEndpoint("Authentication", MakeAuthenticationEndpoint(svc)),
-			UserLogout:               injectEndpoint("UserLogout", MakeUserLogoutEndpoint(svc)),
-			GetSessionByToken:        injectEndpoint("GetSessionByToken", MakeGetSessionByTokenEndpoint(svc)),
-			GetProxySessionByToken:   injectEndpoint("GetProxySessionByToken", MakeGetProxySessionByTokenEndpoint(svc)),
-			OAuthTokens:              injectEndpoint("OAuthTokens", MakeOAuthTokensEndpoint(svc)),
-			OAuthAuthorize:           injectEndpoint("OAuthAuthorize", MakeOAuthAuthorizeEndpoint(svc)),
+			GetSessions:                  injectEndpoint("GetSessions", MakeGetSessionsEndpoint(svc)),
+			GetCurrentUserSessions:       injectEndpoint("GetCurrentUserSessions", MakeGetCurrentUserSessionsEndpoint(svc)),
+			DeleteCurrentUserSession:     injectEndpoint("DeleteCurrentUserSession", MakeDeleteCurrentUserSessionEndpoint(svc)),
+			DeleteSession:                injectEndpoint("DeleteSession", MakeDeleteSessionEndpoint(svc)),
+			UserLogin:                    injectEndpoint("UserLogin", MakeUserLoginEndpoint(svc)),
+			UserOAuthLogin:               injectEndpoint("UserOAuthLogin", MakeUserOAuthLoginEndpoint(svc)),
+			Authentication:               injectEndpoint("Authentication", MakeAuthenticationEndpoint(svc)),
+			UserLogout:                   injectEndpoint("UserLogout", MakeUserLogoutEndpoint(svc)),
+			GetSessionByToken:            injectEndpoint("GetSessionByToken", MakeGetSessionByTokenEndpoint(svc)),
+			GetProxySessionByToken:       injectEndpoint("GetProxySessionByToken", MakeGetProxySessionByTokenEndpoint(svc)),
+			OAuthTokens:                  injectEndpoint("OAuthTokens", MakeOAuthTokensEndpoint(svc)),
+			OAuthAuthorize:               injectEndpoint("OAuthAuthorize", MakeOAuthAuthorizeEndpoint(svc)),
+			WellknownOpenidConfiguration: injectEndpoint("WellknownOpenidConfiguration", MakeWellknownOpenidConfigurationEndpoint(svc)),
+			OAuthJWKS:                    injectEndpoint("OAuthJWKS", MakeOAuthJWKSEndpoint(svc)),
 		},
 		AppEndpoints: AppEndpoints{
 			GetApps:               injectEndpoint("GetApps", MakeGetAppsEndpoint(svc)),

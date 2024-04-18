@@ -460,6 +460,22 @@ func OAuthService(ctx context.Context, options []httptransport.ServerOption, end
 		Returns(200, "OK", endpoint.BaseResponse{}),
 	)
 
+	v1ws.Route(v1ws.GET("/.well-known/openid-configuration").
+		To(NewSimpleKitHTTPServer[endpoint.OIDCWellKnownResponse](ctx, endpoints.WellknownOpenidConfiguration, decodeHTTPRequest[endpoint.OIDCWellKnownRequest], simpleEncodeHTTPResponse, options)).
+		Operation("openidConfiguration").
+		Doc("Well known openid configuration.").
+		Params(StructToQueryParams(endpoint.OIDCWellKnownRequest{})...).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.OIDCWellKnownResponse{}),
+	)
+	v1ws.Route(v1ws.GET("/jwks").
+		To(NewSimpleKitHTTPServer[endpoint.OIDCWellKnownResponse](ctx, endpoints.OAuthJWKS, decodeHTTPRequest[endpoint.OIDCWellKnownRequest], simpleEncodeHTTPResponse, options)).
+		Operation("openidConfiguration").
+		Doc("Well known openid configuration.").
+		Params(StructToQueryParams(endpoint.OIDCWellKnownRequest{})...).
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(200, "OK", endpoint.OAuthJWKSResponse{}),
+	)
 	return tag, []*restful.WebService{v1ws}
 }
 

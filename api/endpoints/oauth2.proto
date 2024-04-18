@@ -6,29 +6,39 @@ option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
 
 message OAuthTokenResponse{
   string access_token = 1;
-  OAuthTokenType token_type = 2;
+  OAuthTokenType token_type = 2[(gogoproto.jsontag) = "token_type"];
   int32 expires_in = 3[(gogoproto.customtype) = "int", (gogoproto.nullable) = false];
   string refresh_token = 4;
   string error = 5;
   string id_token = 6;
-  map<string,string> headers = 7;
+  map<string, string> headers = 7;
   repeated string cookies = 8;
-  repeated idas.endpoint.LoginType next_method= 9;
+  repeated idas.endpoint.LoginType next_method = 9;
 }
 
 message OAuthAuthorizeRequest{
   // @sync-to-public:public/src/services/idas/enums.ts:ResponseType
   enum ResponseType {
-    default = 0;
+    none = 0;
     code = 1;
     token = 2;
+    id_token = 3;
   }
-  ResponseType response_type = 1;
+  enum CodeChallengeMethod {
+    plain = 0;
+    S256 = 1;
+  }
+  message ResponseTypes {
+    repeated ResponseType types = 1;
+  }
+  ResponseTypes response_type = 1;
   string client_id = 2;
   string redirect_uri = 3;
   string state = 4;
   string scope = 5;
   string access_type = 6;
+  string code_challenge = 7;
+  CodeChallengeMethod code_challenge_method = 8;
 }
 
 // @sync-to-public:public/src/services/idas/enums.ts:OAuthGrantType
@@ -50,11 +60,51 @@ message OAuthTokenRequest {
   string code = 2;
   string redirect_uri = 3;
   string client_id = 4;
-  string client_secret = 5[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.Secret",(gogoproto.nullable)=false];
+  string client_secret = 5[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.Secret", (gogoproto.nullable) = false];
   string username = 6;
-  string password = 7[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.Secret",(gogoproto.nullable)=false];
+  string password = 7[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.Secret", (gogoproto.nullable) = false];
   string refresh_token = 8[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.Secret"];
   string state = 9;
   bool disable_refresh_token = 10;
   OAuthTokenType token_type = 11;
+}
+
+message OIDCWellKnownResponse{
+  string issuer = 1;
+  string authorization_endpoint = 2;
+  string device_authorization_endpoint = 3;
+  string token_endpoint = 4;
+  string userinfo_endpoint = 5;
+  string revocation_endpoint = 6;
+  string jwks_uri = 7;
+  repeated string response_types_supported = 8;
+  repeated string subject_types_supported = 9;
+  repeated string id_token_signing_alg_values_supported = 10;
+  repeated string scopes_supported = 11;
+  repeated string token_endpoint_auth_methods_supported = 12;
+  repeated string claims_supported = 13;
+  repeated string code_challenge_methods_supported = 14;
+  repeated string grant_types_supported = 15;
+}
+
+message OIDCWellKnownRequest{
+  string client_id = 1[(gogoproto.moretags) = 'valid:"required,uuid"'];
+}
+
+message OAuthJWKSRequest{
+  string client_id = 1[(gogoproto.moretags) = 'valid:"required,uuid"'];
+}
+
+message OAuthJWKSResponse {
+
+  message Key {
+    string kid = 1;
+    string alg = 2;
+    string use = 3;
+    string e = 4;
+    string n = 5;
+    string kty = 6;
+  }
+
+  repeated Key keys = 1;
 }

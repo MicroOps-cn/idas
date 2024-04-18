@@ -145,13 +145,14 @@ func newJSONWebToken(_ context.Context, loginTime time.Time, tokenId string) (*t
 		expiry = maxExpire
 	}
 
-	jwtSecret := config.Get().Security.GetJwtSecret()
-	signedString, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
+	jwtIssuer := config.Get().GetJwtIssuer()
+
+	signedString, err := jwtIssuer.SignedString(jwt.StandardClaims{
 		Id:        tokenId,
 		ExpiresAt: expiry.Unix(),
 		IssuedAt:  time.Now().UTC().Unix(),
 		NotBefore: time.Now().UTC().Unix(),
-	}).SignedString([]byte(jwtSecret))
+	})
 	if err != nil {
 		return nil, "", err
 	}
@@ -581,12 +582,8 @@ func MakeUserLogoutEndpoint(s service.Service) endpoint.Endpoint {
 			resp.Error = errors.BadRequestError()
 		} else if len(loginCookie.Value) > 0 {
 			var claims jwt.StandardClaims
-			token, err := jwt.ParseWithClaims(loginCookie.Value, &claims, func(token *jwt.Token) (interface{}, error) {
-				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, fmt.Errorf("unexpected login method %v", token.Header["alg"])
-				}
-				return []byte(config.Get().Security.GetJwtSecret()), nil
-			})
+			jwtIssuer := config.Get().GetJwtIssuer()
+			token, err := jwtIssuer.ParseWithClaims(loginCookie.Value, &claims)
 			if err == nil && token.Valid {
 				if err = s.DeleteLoginSession(ctx, claims.Id); err != nil {
 					resp.Error = errors.InternalServerError()
@@ -657,12 +654,8 @@ func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 		if len(params.Token) > 0 {
 			var claims jwt.StandardClaims
 			var token *jwt.Token
-			token, err = jwt.ParseWithClaims(params.Token, &claims, func(token *jwt.Token) (interface{}, error) {
-				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, fmt.Errorf("unexpected login method %v", token.Header["alg"])
-				}
-				return []byte(config.Get().Security.GetJwtSecret()), nil
-			})
+			jwtIssuer := config.Get().GetJwtIssuer()
+			token, err := jwtIssuer.ParseWithClaims(params.Token, &claims)
 			if err != nil {
 				logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))
 				level.Error(logger).Log("err", err, "msg", "Invalid token")

@@ -20,10 +20,10 @@ export type PasswordComplexityValue =
   | 3;
 
 export enum OAuthGrantType{
+  client_credentials = 3,
   refresh_token = 0,
   authorization_code = 1,
   password = 2,
-  client_credentials = 3,
 }
 
 export type OAuthGrantTypeName =
@@ -39,9 +39,9 @@ export type OAuthGrantTypeValue =
   | 3;
 
 export enum ResponseType{
+  default = 0,
   code = 1,
   token = 2,
-  default = 0,
 }
 
 export type ResponseTypeName =
@@ -55,16 +55,16 @@ export type ResponseTypeValue =
   | 2;
 
 export enum LoginType{
-  sms = 5,
-  mfa_sms = 3,
-  mfa_totp = 1,
-  mfa_email = 2,
-  email = 4,
-  oauth2 = 6,
-  enable_mfa_totp = 10,
-  enable_mfa_email = 11,
-  enable_mfa_sms = 12,
   normal = 0,
+  mfa_totp = 1,
+  enable_mfa_totp = 10,
+  enable_mfa_sms = 12,
+  mfa_email = 2,
+  mfa_sms = 3,
+  email = 4,
+  sms = 5,
+  oauth2 = 6,
+  enable_mfa_email = 11,
 }
 
 export type LoginTypeName =
@@ -127,14 +127,14 @@ export type AppStatusValue =
   | 2;
 
 export enum GrantType{
-  proxy = 16,
-  oidc = 32,
   radius = 64,
   none = 0,
   authorization_code = 1,
   implicit = 2,
   password = 4,
   client_credentials = 8,
+  proxy = 16,
+  oidc = 32,
 }
 
 export type GrantTypeName =
@@ -203,20 +203,20 @@ export type UserStatusValue =
   | 4;
 
 export enum PageFieldType{
-  checkbox = 5,
   select = 8,
   multiSelect = 9,
-  timeRange = 10,
-  digit = 3,
-  digitRange = 4,
-  radio = 6,
-  text = 0,
-  date = 11,
-  dateTime = 13,
   textarea = 2,
-  switch = 7,
-  dateRange = 12,
+  checkbox = 5,
+  digitRange = 4,
   dateTimeRange = 14,
+  digit = 3,
+  timeRange = 10,
+  switch = 7,
+  date = 11,
+  dateRange = 12,
+  dateTime = 13,
+  text = 0,
+  radio = 6,
 }
 
 export type PageFieldTypeName =

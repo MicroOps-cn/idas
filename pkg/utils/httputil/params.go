@@ -200,10 +200,34 @@ loop:
 		case reflect.Slice:
 
 		default:
+			if unmarshallerFunc, ok := registeredTypes[sv.Type()]; ok {
+				dv, err := unmarshallerFunc(uv)
+				if err != nil {
+					return err
+				}
+				sv.Set(reflect.ValueOf(dv))
+				continue
+			}
 			return fmt.Errorf("unsupported type: %v ,val: %v ,query key: %v", sv.Type(), uv, jsonName)
 		}
 	}
 	return nil
+}
+
+type UnmarshallerFunc func(string) (interface{}, error)
+
+var registeredTypes = map[reflect.Type]UnmarshallerFunc{}
+
+func RegisterTypes(v interface{}, unmarshallerFunc UnmarshallerFunc) {
+	vt := reflect.TypeOf(v)
+	for {
+		if vt.Kind() == reflect.Ptr {
+			vt = vt.Elem()
+		} else {
+			break
+		}
+	}
+	registeredTypes[vt] = unmarshallerFunc
 }
 
 func GetContentType(header http.Header) string {

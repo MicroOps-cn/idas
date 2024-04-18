@@ -83,7 +83,7 @@ const List = <T extends ListItem>({
       }).then((resp) => {
         if (resp.total === undefined || resp.pageSize === undefined || resp.current === undefined) {
           setSignalPage(true);
-        } else if (resp.total < resp.current * resp.pageSize) {
+        } else if (resp.current <= 1 && resp.total < resp.current * resp.pageSize) {
           setSignalPage(false);
         } else {
           setSignalPage(true);

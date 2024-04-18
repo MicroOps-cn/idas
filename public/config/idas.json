@@ -3333,9 +3333,9 @@
   },
   "endpoint.BaseListResponse": {
    "required": [
+    "total",
     "traceId",
     "success",
-    "total",
     "current",
     "pageSize"
    ],
@@ -3814,11 +3814,11 @@
   },
   "endpoint.GetAppIconsResponse": {
    "required": [
-    "traceId",
-    "success",
     "total",
     "current",
-    "pageSize"
+    "pageSize",
+    "traceId",
+    "success"
    ],
    "properties": {
     "current": {
@@ -3881,8 +3881,8 @@
   },
   "endpoint.GetAppResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -3904,11 +3904,11 @@
   },
   "endpoint.GetAppsResponse": {
    "required": [
-    "traceId",
     "success",
     "total",
     "current",
-    "pageSize"
+    "pageSize",
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -3945,11 +3945,11 @@
   },
   "endpoint.GetCurrentUserEventLogsResponse": {
    "required": [
-    "pageSize",
     "traceId",
     "success",
     "total",
-    "current"
+    "current",
+    "pageSize"
    ],
    "properties": {
     "current": {
@@ -4027,11 +4027,11 @@
   },
   "endpoint.GetEventLogsResponse": {
    "required": [
+    "success",
     "current",
     "pageSize",
-    "traceId",
-    "success",
-    "total"
+    "total",
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -4068,10 +4068,10 @@
   },
   "endpoint.GetEventsResponse": {
    "required": [
-    "current",
-    "pageSize",
     "traceId",
     "success",
+    "current",
+    "pageSize",
     "total"
    ],
    "properties": {
@@ -4173,8 +4173,8 @@
   },
   "endpoint.GetPageResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -4196,11 +4196,11 @@
   },
   "endpoint.GetPagesResponse": {
    "required": [
+    "current",
     "pageSize",
     "traceId",
     "success",
-    "total",
-    "current"
+    "total"
    ],
    "properties": {
     "current": {
@@ -4237,9 +4237,9 @@
   },
   "endpoint.GetPermissionsResponse": {
    "required": [
+    "total",
     "traceId",
     "success",
-    "total",
     "current",
     "pageSize"
    ],
@@ -4278,11 +4278,11 @@
   },
   "endpoint.GetRolesResponse": {
    "required": [
-    "total",
-    "traceId",
     "success",
+    "total",
     "current",
-    "pageSize"
+    "pageSize",
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -4319,8 +4319,8 @@
   },
   "endpoint.GetSecurityConfigResponse": {
    "required": [
-    "success",
-    "traceId"
+    "traceId",
+    "success"
    ],
    "properties": {
     "data": {
@@ -4406,11 +4406,11 @@
   },
   "endpoint.GetUsersResponse": {
    "required": [
+    "pageSize",
     "traceId",
     "success",
     "total",
-    "current",
-    "pageSize"
+    "current"
    ],
    "properties": {
     "current": {
@@ -5006,8 +5006,8 @@
   },
   "endpoint.SendLoginCaptchaResponse": {
    "required": [
-    "success",
-    "traceId"
+    "traceId",
+    "success"
    ],
    "properties": {
     "data": {

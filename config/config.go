@@ -26,17 +26,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/MicroOps-cn/fuck/clients/gorm"
 	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/go-kit/log"
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
 	"github.com/spf13/afero"
-	"k8s.io/apimachinery/pkg/util/rand"
 
-	"github.com/MicroOps-cn/fuck/clients/gorm"
-	oauth2 "github.com/MicroOps-cn/idas/pkg/client/oauth2"
+	"github.com/MicroOps-cn/idas/pkg/client/oauth2"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/utils/capacity"
+	"github.com/MicroOps-cn/idas/pkg/utils/jwt"
 )
 
 func ref(path string, val reflect.Value) interface{} {
@@ -161,9 +161,6 @@ func (x *Config) Init(_ log.Logger) error {
 	}
 	if x.Global.JwtSecret != nil && x.Security.JwtSecret == "" {
 		x.Security.JwtSecret = *x.Global.JwtSecret
-	}
-	if len(x.Security.JwtSecret) == 0 {
-		x.Security.JwtSecret = rand.String(128)
 	}
 	x.Global.JwtSecret = nil
 	x.Global.Secret = nil
@@ -331,4 +328,11 @@ func (c *RuntimeConfig) GetLoginSessionMaxTime() uint32 {
 		return maxTime
 	}
 	return 30 * 24 // 30天
+}
+
+func (x *Config) GetJwtIssuer() jwt.JWTIssuer {
+	if x.Security == nil {
+		return nil
+	}
+	return x.Security.Jwt
 }

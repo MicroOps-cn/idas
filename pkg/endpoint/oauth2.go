@@ -18,11 +18,15 @@ package endpoint
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	gohttp "net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/MicroOps-cn/fuck/http"
@@ -40,6 +44,8 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/service/opts"
+	"github.com/MicroOps-cn/idas/pkg/utils/httputil"
+	jwtutils "github.com/MicroOps-cn/idas/pkg/utils/jwt"
 )
 
 //nolint:revive
@@ -50,6 +56,10 @@ func (r *OAuthTokenRequest) GetRefreshToken() string {
 		return string(*r.RefreshToken)
 	}
 	return ""
+}
+
+func (m OAuthTokenType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m.String())
 }
 
 type UserToken struct {
@@ -142,24 +152,29 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					}
 					resp.ExpiresIn = int(global.TokenExpiration / time.Minute)
 					if proxyConfig.JwtProvider && len(proxyConfig.JwtCookieName) > 0 {
-						jwtSecret := []byte(config.Get().Security.GetJwtSecret())
+						jwtIssuer := config.Get().GetJwtIssuer()
 						if len(proxyConfig.JwtSecret) > 0 {
 							secret, err := proxyConfig.GetJwtSecret()
 							if err != nil {
 								return nil, errors.WithServerError(500, err, "failed to get jwt token")
 							}
-							jwtSecret, err = base64.StdEncoding.DecodeString(secret)
+							jwtSecret, err := base64.StdEncoding.DecodeString(secret)
+							if err != nil {
+								return nil, errors.WithServerError(500, err, "failed to get jwt token")
+							}
+							jwtIssuer, err = jwtutils.NewJWTConfigBySecret(string(jwtSecret))
 							if err != nil {
 								return nil, errors.WithServerError(500, err, "failed to get jwt token")
 							}
 						}
-						token, err := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.StandardClaims{
+
+						token, err := jwtIssuer.SignedString(jwt.StandardClaims{
 							Id:        at.Id,
 							ExpiresAt: at.Expiry.Unix(),
 							IssuedAt:  time.Now().UTC().Unix(),
 							NotBefore: time.Now().UTC().Unix(),
 							Subject:   user.Username,
-						}).SignedString(jwtSecret)
+						})
 						if err != nil {
 							return "", errors.NewServerError(500, err.Error())
 						}
@@ -235,7 +250,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 						user.RoleId = role.Id
 						user.Role = role.Name
 					}
-					jwtSecret := config.Get().Security.GetJwtSecret()
+					jwtIssuer := config.Get().GetJwtIssuer()
 
 					user.ExtendedData = nil
 					at, err := s.CreateToken(ctx, tokenType, user)
@@ -243,13 +258,13 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 						return "", errors.NewServerError(500, err.Error())
 					}
 					resp.ExpiresIn = int(time.Until(at.Expiry) / time.Minute)
-					resp.AccessToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
+					resp.AccessToken, err = jwtIssuer.SignedString(jwt.StandardClaims{
 						Id:        at.Id,
 						ExpiresAt: at.Expiry.Unix(),
 						IssuedAt:  time.Now().UTC().Unix(),
 						NotBefore: time.Now().UTC().Unix(),
 						Subject:   user.Username,
-					}).SignedString([]byte(jwtSecret))
+					})
 					if err != nil {
 						return "", errors.NewServerError(500, err.Error())
 					}
@@ -259,19 +274,19 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 						if err != nil {
 							return "", errors.NewServerError(500, err.Error())
 						}
-						resp.RefreshToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
+						resp.RefreshToken, err = jwtIssuer.SignedString(jwt.StandardClaims{
 							Id:        rt.Id,
 							ExpiresAt: rt.Expiry.Unix(),
 							IssuedAt:  time.Now().UTC().Unix(),
 							NotBefore: time.Now().UTC().Unix(),
-						}).SignedString([]byte(jwtSecret))
+						})
 						if err != nil {
 							return "", errors.NewServerError(500, err.Error())
 						}
 					}
 
 					if app.GrantType&models.AppMeta_oidc == models.AppMeta_oidc {
-						resp.IdToken, err = jwt.NewWithClaims(jwt.SigningMethodHS256, &UserToken{
+						resp.IdToken, err = jwtIssuer.SignedString(&UserToken{
 							StandardClaims: jwt.StandardClaims{
 								Id:        w.M(uuid.NewV4()).String(),
 								Audience:  app.Name,
@@ -284,7 +299,8 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 							Username: user.Username,
 							Email:    user.Email,
 							FullName: user.FullName,
-						}).SignedString([]byte(jwtSecret))
+						})
+
 						if err != nil {
 							return "", errors.NewServerError(500, err.Error())
 						}
@@ -304,6 +320,24 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 		}
 		return &resp, nil
 	}
+}
+
+func init() {
+	httputil.RegisterTypes(&OAuthAuthorizeRequest_ResponseTypes{}, func(v string) (interface{}, error) {
+		rt := OAuthAuthorizeRequest_ResponseTypes{}
+		for _, name := range strings.Split(string(v), " ") {
+			if len(name) > 0 {
+				val, ok := OAuthAuthorizeRequest_ResponseType_value[name]
+				if ok {
+					rt.Types = append(rt.Types, OAuthAuthorizeRequest_ResponseType(val))
+				}
+			}
+		}
+		if len(rt.Types) == 0 {
+			rt.Types = append(rt.Types, OAuthAuthorizeRequest_none)
+		}
+		return rt, nil
+	})
 }
 
 func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
@@ -420,26 +454,141 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 			if err == nil && appURL.User != nil {
 				uri.User = appURL.User
 			}
-			switch req.ResponseType {
-			case OAuthAuthorizeRequest_code, OAuthAuthorizeRequest_default:
-				query.Add("code", token.Id)
-				query.Add("state", req.State)
-				uri.RawQuery = query.Encode()
-				stdResp.AddHeader("Location", uri.String())
-				stdResp.WriteHeader(302)
-			case OAuthAuthorizeRequest_token:
-				accessToken, refreshToken, expiresIn, err := s.GetOAuthTokenByAuthorizationCode(ctx, token.Id, req.ClientId)
-				if err != nil {
-					return nil, err
+
+			for _, rType := range req.ResponseType.Types {
+				fmt.Println(">>", rType.String())
+				switch rType {
+				case OAuthAuthorizeRequest_code, OAuthAuthorizeRequest_none:
+					query.Add("code", token.Id)
+					query.Add("state", req.State)
+					if len(req.CodeChallenge) > 0 {
+						codeVerifier := req.CodeChallenge
+						if req.CodeChallengeMethod == OAuthAuthorizeRequest_S256 {
+							hash := sha256.Sum256([]byte(req.CodeChallenge))
+							codeVerifier = base64.URLEncoding.EncodeToString(hash[:])
+						}
+						query.Add("code_verifier", codeVerifier)
+					}
+				case OAuthAuthorizeRequest_token:
+					accessToken, refreshToken, expiresIn, err := s.GetOAuthTokenByAuthorizationCode(ctx, token.Id, req.ClientId)
+					if err != nil {
+						return nil, err
+					}
+					query.Add("access_token", accessToken)
+					query.Add("refresh_token", refreshToken)
+					query.Add("expires_in", strconv.Itoa(expiresIn))
+				case OAuthAuthorizeRequest_id_token:
+					jwtIssuer := config.Get().GetJwtIssuer()
+					idToken, err := jwtIssuer.SignedString(&UserToken{
+						StandardClaims: jwt.StandardClaims{
+							Id:        w.M(uuid.NewV4()).String(),
+							Audience:  app.Name,
+							ExpiresAt: time.Now().UTC().Add(time.Minute * 10).Unix(),
+							Issuer:    config.Get().GetGlobal().GetAppName(),
+							IssuedAt:  time.Now().UTC().Unix(),
+							NotBefore: time.Now().UTC().Unix(),
+							Subject:   user.Username,
+						},
+						Username: user.Username,
+						Email:    user.Email,
+						FullName: user.FullName,
+					})
+					if err != nil {
+						return nil, err
+					}
+					query.Add("id_token", idToken)
 				}
-				query.Add("access_token", accessToken)
-				query.Add("refresh_token", refreshToken)
-				query.Add("expires_in", strconv.Itoa(expiresIn))
-				uri.RawQuery = query.Encode()
-				stdResp.AddHeader("Location", uri.String())
-				stdResp.WriteHeader(302)
 			}
+			uri.RawQuery = query.Encode()
+			stdResp.AddHeader("Location", uri.String())
+			stdResp.WriteHeader(302)
 		}
 		return &resp, nil
+	}
+}
+
+func MakeWellknownOpenidConfigurationEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		logger := logs.GetContextLogger(ctx)
+		req := request.(Requester).GetRequestData().(*OIDCWellKnownRequest)
+		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithAppId(req.ClientId))
+		if err != nil {
+			level.Error(logger).Log("msg", "failed to get app info", "err", err)
+			return nil, err
+		}
+		return &OIDCWellKnownResponse{
+			Issuer:                w.M(common.GetURL(ctx, common.WithRoot)),
+			JwksUri:               w.M(common.GetURL(ctx, common.WithAPI("v1", "oauth", "jwks"), common.WithParam("client_id", req.ClientId))),
+			TokenEndpoint:         w.M(common.GetURL(ctx, common.WithAPI("v1", "oauth", "token"))),
+			AuthorizationEndpoint: w.M(common.GetURL(ctx, common.WithAPI("v1", "oauth", "authorize"))),
+			UserinfoEndpoint:      w.M(common.GetURL(ctx, common.WithAPI("v1", "oauth", "userinfo"))),
+			RevocationEndpoint:    w.M(common.GetURL(ctx, common.WithAPI("v1", "oauth", "revoke"))),
+			CodeChallengeMethodsSupported: []string{
+				"plain",
+				"S256",
+			},
+			GrantTypesSupported: app.GrantType.Name(),
+			ResponseTypesSupported: []string{
+				"code",
+				"token",
+				"id_token",
+				"code token",
+				"code id_token",
+				"token id_token",
+				"code token id_token",
+				"none",
+			},
+			SubjectTypesSupported: []string{
+				"public",
+			},
+			ScopesSupported: []string{
+				"openid",
+				"profile",
+				"email",
+			},
+			IdTokenSigningAlgValuesSupported: []string{
+				"RS256",
+				"HS256",
+			},
+			TokenEndpointAuthMethodsSupported: []string{
+				"client_secret_basic",
+				"client_secret_post",
+			},
+			ClaimsSupported: []string{
+				"aud",
+				"exp",
+				"jti",
+				"iat",
+				"iss",
+				"nbf",
+				"sub",
+				"username",
+				"email",
+				"fullName",
+			},
+		}, nil
+	}
+}
+
+func MakeOAuthJWKSEndpoint(s service.Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		//logger := logs.GetContextLogger(ctx)
+		jwtIssuer := config.Get().GetJwtIssuer()
+		pk := jwtIssuer.GetPublicKey()
+		e := make([]byte, 4)
+		binary.BigEndian.PutUint32(e, uint32(pk.E))
+		fmt.Println(pk.Size())
+
+		return &OAuthJWKSResponse{
+			Keys: []*OAuthJWKSResponse_Key{
+				{
+					Kty: "RSA",
+					Alg: "RS" + strconv.Itoa(pk.Size()),
+					Use: "sig",
+					N:   base64.URLEncoding.EncodeToString(pk.N.Bytes()),
+					E:   base64.URLEncoding.EncodeToString(e[1:]),
+				},
+			},
+		}, nil
 	}
 }

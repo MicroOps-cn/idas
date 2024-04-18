@@ -31,9 +31,9 @@ import (
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/yaml.v3"
-	"k8s.io/apimachinery/pkg/util/rand"
 
 	"github.com/MicroOps-cn/idas/pkg/global"
+	jwtutils "github.com/MicroOps-cn/idas/pkg/utils/jwt"
 )
 
 var (
@@ -171,11 +171,9 @@ func (sc *safeConfig) ReloadConfigFromJSONReader(logger log.Logger, reader Reade
 	}()
 
 	c := Config{
-		Global:  NewGlobalOptions(),
-		Storage: &Storages{},
-		Security: &Security{
-			JwtSecret: rand.String(128),
-		},
+		Global:   NewGlobalOptions(),
+		Storage:  &Storages{},
+		Security: &Security{},
 	}
 
 	var unmarshaler jsonpb.Unmarshaler
@@ -192,6 +190,25 @@ func (sc *safeConfig) ReloadConfigFromJSONReader(logger log.Logger, reader Reade
 		} else {
 			c.SetWorkspace(absPath)
 			level.Debug(logger).Log("msg", "set workspace", "workspace", absPath)
+		}
+	}
+	if c.Security == nil {
+		c.Security = &Security{}
+	}
+	if c.Security.Jwt == nil {
+		fmt.Println(">>>", c.Security.Jwt, c.Security.JwtSecret)
+		if len(c.Security.JwtSecret) > 0 {
+			c.Security.Jwt, err = jwtutils.NewJWTConfigBySecret(c.Security.JwtSecret)
+			if err != nil {
+				return fmt.Errorf("failed to generate jwt config: %s", err)
+			}
+		} else if sc.C != nil && sc.C.Security != nil && sc.C.Security.Jwt != nil {
+			c.Security.Jwt = sc.C.Security.Jwt
+		} else {
+			c.Security.Jwt, err = jwtutils.NewJWTConfig()
+			if err != nil {
+				return fmt.Errorf("failed to generate jwt config: %s", err)
+			}
 		}
 	}
 	sc.SetConfig(&c)
