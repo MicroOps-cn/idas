@@ -8,8 +8,8 @@ import type { RequestError } from '@/utils/request';
 import { ExclamationCircleOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { ProListMetas, ProListProps } from '@ant-design/pro-list';
 import ProList from '@ant-design/pro-list';
-import type { ActionType } from '@ant-design/pro-list/node_modules/@ant-design/pro-table/lib/typing';
 import type { RequestData } from '@ant-design/pro-table';
+import type { ActionType } from '@ant-design/pro-table/lib/typing';
 import { getLocale } from '@umijs/max';
 
 import styles from './index.less';
@@ -68,6 +68,7 @@ const List = <T extends ListItem>({
   onClick,
   ...proListProps
 }: ListProps<T>) => {
+  const defaultPageSize = 20;
   const actionRef = useRef<ActionType>();
   const [keywords, setKeywords] = useState<string>();
   const [isSignalPage, setSignalPage] = useState<boolean>();
@@ -78,6 +79,7 @@ const List = <T extends ListItem>({
       keyword?: string;
     }): Promise<Partial<RequestData<T>>> => {
       return (isFunction(request) ? request : request.list)({
+        pageSize: defaultPageSize,
         ...params,
         keywords: keywords ?? undefined,
       }).then((resp) => {
@@ -180,8 +182,9 @@ const List = <T extends ListItem>({
       pagination={
         isSignalPage
           ? {
-              defaultPageSize: 20,
+              defaultPageSize: defaultPageSize,
               showSizeChanger: true,
+              pageSizeOptions: Array.from(new Set([defaultPageSize, 10, 20, 50, 100])),
             }
           : false
       }
