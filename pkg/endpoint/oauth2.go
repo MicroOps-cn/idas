@@ -527,7 +527,7 @@ func MakeWellknownOpenidConfigurationEndpoint(s service.Service) endpoint.Endpoi
 				"plain",
 				"S256",
 			},
-			GrantTypesSupported: app.GrantType.Name(),
+			GrantTypesSupported: append([]string{"refresh_token", "urn:ietf:params:oauth:grant-type:jwt-bearer"}, app.GrantType.Name()...),
 			ResponseTypesSupported: []string{
 				"code",
 				"token",
