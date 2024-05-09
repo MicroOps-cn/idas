@@ -48,12 +48,12 @@ var findAppSql = `
 SELECT DISTINCT
         (app_id)
     FROM
-        idas.t_app_key AS t1
+        t_app_key AS t1
     WHERE
         t1.key LIKE ? UNION SELECT DISTINCT
         (source_id) AS app_id
     FROM
-        idas.t_i18n_translate AS t2
+        t_i18n_translate AS t2
     WHERE
         t2.source = 'app'
             AND t2.value LIKE ?
