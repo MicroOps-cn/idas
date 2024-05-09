@@ -156,7 +156,7 @@ func NewRandomRSAJWTConfig() (*JWTConfig, error) {
 }
 
 func NewJWTConfigBySecret(secret string) (*JWTConfig, error) {
-	return &JWTConfig{PrivateKey: secret, Algorithm: jwt.SigningMethodHS256}, nil
+	return &JWTConfig{PrivateKey: []byte(secret), Algorithm: jwt.SigningMethodHS256}, nil
 }
 
 var tokenAlgorithmMap = map[string]jwt.SigningMethod{

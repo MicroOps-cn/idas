@@ -204,6 +204,7 @@ func (sc *safeConfig) ReloadConfigFromJSONReader(logger log.Logger, reader Reade
 		} else if sc.C != nil && sc.C.Security != nil && sc.C.Security.Jwt != nil {
 			c.Security.Jwt = sc.C.Security.Jwt
 		} else {
+			level.Warn(logger).Log("msg", "JWT key not set, will be automatically generated soon.")
 			c.Security.Jwt, err = jwtutils.NewRandomRSAJWTConfig()
 			if err != nil {
 				return fmt.Errorf("failed to generate jwt config: %s", err)
