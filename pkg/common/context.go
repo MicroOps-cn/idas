@@ -18,11 +18,13 @@ package common
 
 import (
 	"context"
+	"net/url"
+
 	http2 "github.com/MicroOps-cn/fuck/http"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"net/url"
 )
 
 type getURLOptions struct {

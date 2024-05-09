@@ -57,7 +57,7 @@ export default {
   'settings.security.password-failed-lock.input.0.suffix': '次失败',
   'settings.security.password-failed-lock.input.1.tooltip': '统计周期',
   'settings.security.password-failed-lock.input.1.suffix': '分钟',
-  'settings.security.password-history.input.suffix': '天',
+  'settings.security.password-history.input.suffix': '次',
   'settings.security.account-inactive-lock.input.suffix': '天',
   'settings.security.login-session-expiration-time.input.suffix': '小时',
   'user.settings.menuMap.basic': '基本设置',

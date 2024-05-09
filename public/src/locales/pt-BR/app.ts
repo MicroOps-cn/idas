@@ -121,4 +121,13 @@ export default {
     'Indique por favor uma codificação Base64 válida.',
   'pages.apps.form.proxy.jwtSecret.describe':
     'Esta chave pode ser usada para emitir tokens. (Codificação Base64)',
+  'pages.apps.jwtSignatureMethod.value.HS256': 'HMAC-SHA256',
+  'pages.apps.jwtSignatureMethod.value.HS384': 'HMAC-SHA384',
+  'pages.apps.jwtSignatureMethod.value.HS512': 'HMAC-SHA512',
+  'pages.apps.jwtSignatureMethod.value.RS256': 'RSA-SHA256',
+  'pages.apps.jwtSignatureMethod.value.RS384': 'RSA-SHA384',
+  'pages.apps.jwtSignatureMethod.value.RS512': 'RSA-SHA512',
+  'pages.apps.jwtSignatureMethod.value.ES256': 'ECDSA-SHA256',
+  'pages.apps.jwtSignatureMethod.value.ES384': 'ECDSA-SHA384',
+  'pages.apps.jwtSignatureMethod.value.ES512': 'ECDSA-SHA512',
 };

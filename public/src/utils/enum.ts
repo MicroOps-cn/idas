@@ -66,9 +66,9 @@ type IValueEnum = Record<
   string,
   | React.ReactNode
   | {
-      text: React.ReactNode;
-      status: Status;
-    }
+    text: React.ReactNode;
+    status: Status;
+  }
 >;
 
 export const enumToStatusEnum = (

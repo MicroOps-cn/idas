@@ -122,4 +122,13 @@ export default {
     '有効なBase 64エンコーディングを入力してください。',
   'pages.apps.form.proxy.jwtSecret.describe':
     'この鍵を使用してトークンを発行します。（Base 64エンコーディング）',
+  'pages.apps.jwtSignatureMethod.value.HS256': 'HMAC-SHA256',
+  'pages.apps.jwtSignatureMethod.value.HS384': 'HMAC-SHA384',
+  'pages.apps.jwtSignatureMethod.value.HS512': 'HMAC-SHA512',
+  'pages.apps.jwtSignatureMethod.value.RS256': 'RSA-SHA256',
+  'pages.apps.jwtSignatureMethod.value.RS384': 'RSA-SHA384',
+  'pages.apps.jwtSignatureMethod.value.RS512': 'RSA-SHA512',
+  'pages.apps.jwtSignatureMethod.value.ES256': 'ECDSA-SHA256',
+  'pages.apps.jwtSignatureMethod.value.ES384': 'ECDSA-SHA384',
+  'pages.apps.jwtSignatureMethod.value.ES512': 'ECDSA-SHA512',
 };

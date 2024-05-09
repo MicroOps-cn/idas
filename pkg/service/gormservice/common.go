@@ -24,11 +24,14 @@ import (
 	"time"
 
 	"github.com/MicroOps-cn/fuck/clients/gorm"
+	"github.com/MicroOps-cn/fuck/safe"
 	gogorm "gorm.io/gorm"
 
+	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/service/opts"
+	"github.com/MicroOps-cn/idas/pkg/utils/jwt"
 	"github.com/MicroOps-cn/idas/pkg/utils/sign"
 )
 
@@ -39,6 +42,39 @@ func NewCommonService(name string, client *gorm.Client) *CommonService {
 type CommonService struct {
 	*gorm.Client
 	name string
+}
+
+var findAppSql = `
+SELECT DISTINCT
+        (app_id)
+    FROM
+        idas.t_app_key AS t1
+    WHERE
+        t1.key LIKE ? UNION SELECT DISTINCT
+        (source_id) AS app_id
+    FROM
+        idas.t_i18n_translate AS t2
+    WHERE
+        t2.source = 'app'
+            AND t2.value LIKE ?
+`
+
+func (c CommonService) FindAppByKeywords(ctx context.Context, keywords string, skip int64, limit int64) (ids []string, count int64) {
+	err := c.Session(ctx).Raw(fmt.Sprintf("SELECT count(1) from (%s) t", findAppSql), fmt.Sprintf("%%%s%%", keywords), fmt.Sprintf("%%%s%%", keywords)).Scan(&count).Error
+	if err != nil {
+		return nil, 0
+	}
+	if skip < 0 {
+		skip = 0
+	}
+	if limit < 0 {
+		return nil, count
+	}
+	err = c.Session(ctx).Raw(fmt.Sprintf("SELECT app_id from (%s) t limit %d,%d", findAppSql, skip, limit), fmt.Sprintf("%%%s%%", keywords), fmt.Sprintf("%%%s%%", keywords)).Scan(&ids).Error
+	if err != nil {
+		return nil, count
+	}
+	return ids, count
 }
 
 func (c CommonService) Name() string {
@@ -62,6 +98,7 @@ func (c CommonService) AutoMigrate(ctx context.Context) error {
 		&models.UserPasswordHistory{},
 		&models.WeakPassword{},
 		&models.I18nTranslate{},
+		&models.AppOAuth2{},
 	)
 	if err != nil {
 		return err
@@ -598,8 +635,14 @@ func (c CommonService) GetSystemConfig(ctx context.Context, prefix string) (map[
 func (c CommonService) BatchPatchI18n(ctx context.Context, i18ns []models.I18nTranslate) (err error) {
 	conn := c.Session(ctx)
 	for _, i18n := range i18ns {
-		if err = conn.Where(i18n).FirstOrCreate(&i18n).Error; err != nil {
+		oriI18n := i18n
+		if err = conn.Where(models.I18nTranslate{Source: i18n.Source, Field: i18n.Field, SourceId: i18n.SourceId, Lang: i18n.Lang}).Order("id desc").FirstOrCreate(&oriI18n).Error; err != nil {
 			return err
+		}
+		if oriI18n.Value != i18n.Value {
+			if err = conn.Model(&models.I18nTranslate{}).Where("id = ?", oriI18n.Id).Updates(&models.I18nTranslate{Value: i18n.Value}).Error; err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -656,4 +699,51 @@ func (c *CommonService) GetI18n(ctx context.Context, source string, sourceId str
 		ret[i18n.Lang] = i18n.Value
 	}
 	return ret, nil
+}
+
+func (c CommonService) PatchAppOAuthConfig(ctx context.Context, auth2 *models.AppOAuth2) error {
+	query := c.Session(ctx).Model(&models.AppOAuth2{}).Where("app_id = ?", auth2.AppId)
+	var oriOAuthConfig models.AppOAuth2
+	if err := query.First(&oriOAuthConfig).Error; err != nil {
+		query.Error = nil
+		if errors.Is(err, gogorm.ErrRecordNotFound) {
+			return query.Create(&auth2).Error
+		}
+		return err
+	}
+	if auth2.JwtSignatureMethod == models.AppMeta_default {
+		auth2.JwtSignatureKey = &safe.String{}
+	} else if oriOAuthConfig.JwtSignatureMethod != auth2.JwtSignatureMethod && (auth2.JwtSignatureKey == nil || auth2.JwtSignatureKey.String() == "") {
+		auth2.JwtSignatureKey = safe.NewEncryptedString("", config.Get().GetSecurity().GetSecret())
+		if oriOAuthConfig.JwtSignatureKey != nil && oriOAuthConfig.JwtSignatureKey.String() != "" {
+			if privKey, err := oriOAuthConfig.JwtSignatureKey.UnsafeString(); err == nil {
+				if _, err = jwt.NewJWTIssuer(auth2.AppId, auth2.JwtSignatureMethod.String(), privKey); err == nil {
+					auth2.JwtSignatureKey = nil
+				}
+			}
+		}
+		if auth2.JwtSignatureKey != nil {
+			key, err := jwt.NewRandomKey(auth2.JwtSignatureMethod.String())
+			if err != nil {
+				return err
+			}
+			if err := auth2.JwtSignatureKey.SetValue(key); err != nil {
+				return err
+			}
+		}
+	} else if oriOAuthConfig.JwtSignatureMethod == auth2.JwtSignatureMethod && (auth2.JwtSignatureKey == nil || auth2.JwtSignatureKey.String() == "") {
+		auth2.JwtSignatureKey = nil
+	}
+	return query.Omit("app_id").Updates(auth2).Error
+}
+
+func (c CommonService) GetAppOAuthConfig(ctx context.Context, id string) (*models.AppOAuth2, error) {
+	var auth2 models.AppOAuth2
+	if err := c.Session(ctx).Model(&models.AppOAuth2{}).Where("app_id = ?", id).First(&auth2).Error; err != nil && !errors.Is(err, gogorm.ErrRecordNotFound) {
+		return nil, err
+	}
+	if auth2.JwtSignatureKey != nil {
+		auth2.JwtSignatureKey.SetSecret(config.Get().GetSecurity().GetSecret())
+	}
+	return &auth2, nil
 }

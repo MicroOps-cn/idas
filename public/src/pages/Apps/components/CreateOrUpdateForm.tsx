@@ -1,17 +1,21 @@
 import type { FormInstance } from 'antd';
-import { Input, Tabs, message } from 'antd';
+import { Input, Space, Tabs, message } from 'antd';
 import 'antd/dist/antd.css';
 import type { DefaultOptionType } from 'antd/lib/select';
-import React, { useEffect, useRef, useState } from 'react';
+import { isArray, isFunction, isNumber, isString, toInteger } from 'lodash';
+import React, { useEffect, useState } from 'react';
 
 import { AvatarUploadField } from '@/components/Avatar';
 import { allLocales } from '@/components/SelectLang';
 import { getAppIcons } from '@/services/idas/apps';
-import { AppStatus, GrantMode, GrantType } from '@/services/idas/enums';
+import type { GrantTypeName, GrantTypeValue, JWTSignatureMethodValue } from '@/services/idas/enums';
+import { AppStatus, GrantMode, GrantType, JWTSignatureMethod } from '@/services/idas/enums';
 import type { LabelValue } from '@/utils/enum';
 import { enumToOptions } from '@/utils/enum';
 import { IntlContext } from '@/utils/intl';
 import { newId } from '@/utils/uuid';
+import { PageLoading, isUrl } from '@ant-design/pro-components';
+import type { StepFormProps } from '@ant-design/pro-form';
 import {
   ProFormGroup,
   ProFormItem,
@@ -20,6 +24,7 @@ import {
   ProFormTextArea,
   StepsForm,
 } from '@ant-design/pro-form';
+import { history } from '@umijs/max';
 
 import GrantView from './GrantView';
 import ProxySetting from './ProxySetting';
@@ -27,7 +32,20 @@ import { RoleView } from './RoleView';
 
 const TextArea = Input.TextArea;
 
-export type FormValueType = API.UpdateAppRequest;
+export type PartialByKeys<T, K = keyof T> = {
+  [Q in keyof T as Q extends K ? Q : never]?: T[Q];
+} & {
+  [Q in keyof T as Q extends K ? never : Q]: T[Q];
+};
+
+type RequiredByKeys<T, K extends keyof T> = {
+  [P in K]-?: T[P];
+} & Pick<T, Exclude<keyof T, K>>;
+export type FormValueType = PartialByKeys<
+  RequiredByKeys<API.UpdateAppRequest, 'grantType' | 'roles'>,
+  'id'
+>;
+
 export type UpdateFormProps = {
   onSubmit: (values: FormValueType) => Promise<boolean>;
   values?: Partial<API.AppInfo>;
@@ -37,30 +55,118 @@ export type UpdateFormProps = {
   disabled: boolean;
 };
 
-const CreateOrUpdateForm: React.FC<UpdateFormProps> = (props) => {
-  const { values: initialValues, onSubmit, parentIntl, loading, disabled } = props;
+type EditorAppInfo = PartialByKeys<
+  RequiredByKeys<
+    Omit<API.AppInfo, 'createTime' | 'updateTime' | 'isDelete'>,
+    'proxy' | 'roles' | 'users' | 'status' | 'oAuth2'
+  >,
+  'id'
+>;
+
+const CreateOrUpdateForm: React.FC<UpdateFormProps> = ({
+  values: initialValues,
+  onSubmit,
+  parentIntl,
+  loading,
+  disabled,
+}) => {
+  const [appInfo, _setAppInfo] = useState<EditorAppInfo>({
+    i18n: {
+      displayName: {},
+      description: {},
+    },
+    id: undefined,
+    status: 'normal',
+    proxy: {
+      domain: '',
+      upstream: '',
+      transparentServerName: true,
+      insecureSkipVerify: false,
+      hstsOffload: false,
+      jwtProvider: false,
+      jwtCookieName: '',
+      jwtSecret: '',
+      urls: [{ id: newId(), method: '*', name: 'default', url: '/' }],
+    },
+    users: [],
+    roles: [],
+    grantType: [],
+    url: '',
+    name: '',
+    oAuth2: {
+      authorizedRedirectUrl: [],
+      jwtSignatureKey: '',
+      jwtSignatureMethod: JWTSignatureMethod.default,
+    },
+    grantMode: GrantMode.manual,
+  });
+  const mergeAppInfo = (info: Partial<EditorAppInfo>, oriAppInfo: EditorAppInfo): EditorAppInfo => {
+    if (Object.keys(info).length === 0) {
+      return oriAppInfo;
+    }
+    return {
+      ...(oriAppInfo ?? {}),
+      ...info,
+      i18n: {
+        ...(info.i18n ?? oriAppInfo.i18n),
+      },
+      proxy: {
+        ...(info.proxy ?? oriAppInfo.proxy),
+        urls: (info.proxy ?? oriAppInfo.proxy)?.urls ?? [],
+      },
+      users: info.users ?? oriAppInfo.users,
+      roles: info.roles?.map((role) => ({ ...role, urls: role.urls ?? [] })) ?? oriAppInfo.roles,
+    };
+  };
+
+  const setAppInfo = (
+    info: Partial<EditorAppInfo> | ((prevState: EditorAppInfo) => Partial<EditorAppInfo>),
+  ) => {
+    _setAppInfo((oriAppInfo) => {
+      if (isFunction(info)) {
+        return mergeAppInfo(info(oriAppInfo), oriAppInfo);
+      }
+      return mergeAppInfo(info, oriAppInfo);
+    });
+  };
   const intl = new IntlContext('form', parentIntl);
-  // const [avatar, setAvatar] = useState<UploadFile>();
-  const [currentGrantType, setCurrentGrantType] = useState<API.AppMetaGrantType[]>([]);
-  const actionRef = useRef<FormInstance<any>>();
-  const [grantedUserList, setGrantedUserList] = useState<API.UserInfo[]>([]);
-  const [appRoles, setAppRoles] = useState<API.AppRoleInfo[]>([]);
-  const [i18n, setI18n] = useState<Required<API.AppI18NOptions>>({
-    description: {},
-    displayName: {},
-  });
-  const [proxyConfig, setProxyConfig] = useState<API.AppProxyInfo>({
-    domain: '',
-    upstream: '',
-    urls: [{ id: newId(), method: '*', name: 'default', url: '/' }],
-    insecureSkipVerify: false,
-    transparentServerName: true,
-    hstsOffload: false,
-    jwtProvider: false,
-    jwtCookieName: '',
-    jwtSecret: '',
-  });
-  const [currentStep, setCurrentStep] = useState<number>(0);
+
+  const fixOIDC = (value: GrantTypeValue[], prevState: GrantTypeValue[]): GrantTypeValue[] => {
+    const ret = [...value];
+    if (
+      prevState.includes(GrantType.authorization_code) &&
+      !ret.includes(GrantType.authorization_code)
+    ) {
+      return ret.filter((val) => val !== GrantType.oidc);
+    }
+    if (ret.includes(GrantType.oidc)) {
+      if (!ret.includes(GrantType.authorization_code)) {
+        ret.push(GrantType.authorization_code);
+      }
+    }
+    return ret;
+  };
+  const getGrantTypeValue = (val: API.AppMetaGrantType): GrantTypeValue => {
+    if (isString(val)) {
+      return GrantType[val as GrantTypeName];
+    }
+    return val as GrantTypeValue;
+  };
+  const setCurrentGrantType = (value: React.SetStateAction<API.AppMetaGrantType[]>) => {
+    setAppInfo((prevState) => {
+      const prevGranType = prevState.grantType?.map(getGrantTypeValue) ?? [];
+      if (isArray(value)) {
+        return {
+          grantType: fixOIDC(value.map(getGrantTypeValue), prevGranType),
+        };
+      } else {
+        return {
+          grantType: fixOIDC(value(prevGranType).map(getGrantTypeValue), prevGranType),
+        };
+      }
+    });
+  };
+
   const groupGrantType: (x: LabelValue[]) => DefaultOptionType[] = (options: LabelValue[]) => {
     const newOptions: (DefaultOptionType & { key: string })[] = [
       {
@@ -109,168 +215,113 @@ const CreateOrUpdateForm: React.FC<UpdateFormProps> = (props) => {
     });
     return newOptions;
   };
-  useEffect(() => {
-    setCurrentStep(0);
-    setAppRoles(
-      initialValues?.roles?.map((r) => ({
-        id: r.id,
-        urls: r.urls ?? [],
-        name: r.name,
-        isDefault: r.isDefault,
-      })) ?? [],
-    );
-    setGrantedUserList(initialValues?.users ?? []);
-    setProxyConfig({
-      domain: '',
-      upstream: '',
-      transparentServerName: true,
-      insecureSkipVerify: false,
-      hstsOffload: false,
-      jwtProvider: false,
-      jwtCookieName: '',
-      jwtSecret: '',
-      ...(initialValues?.proxy ?? {}),
-      urls: initialValues?.proxy?.urls ?? [{ id: newId(), method: '*', name: 'default', url: '/' }],
-    });
-    setCurrentGrantType(initialValues?.grantType ?? []);
-    setI18n({
-      displayName: {},
-      description: {},
-      ...(initialValues?.i18n ?? {}),
-    });
-  }, [initialValues]);
 
   const hasProxy = (type?: API.AppMetaGrantType[]) => {
     return (type ?? ([] as any)).includes(GrantType.proxy);
   };
   const locales = allLocales();
-  return (
-    <StepsForm<FormValueType & { _roles: any }>
-      stepsProps={{
-        size: 'small',
-      }}
-      formProps={{
-        preserve: false,
-        disabled: disabled,
-        loading: loading,
-      }}
-      onCurrentChange={async (current) => {
-        if (current == 1 && !hasProxy(actionRef.current?.getFieldValue('grantType'))) {
-          setCurrentStep(current + (currentStep === 0 ? 1 : -1));
-        } else {
-          setCurrentStep(current);
+  const steps: (StepFormProps & { name: string; allows?: GrantTypeValue[] })[] = [
+    {
+      layout: 'vertical',
+      style: { maxWidth: 650 },
+      grid: true,
+      title: intl.t('basicConfig.title', 'Basic'),
+      name: 'basic',
+      onFinish: async ({ grantType: _, ...values }) => {
+        if (initialValues?.name && !values.id) {
+          message.error(intl.t('app-id.empty', 'System error, application ID is empty'));
+          return false;
         }
-      }}
-      current={currentStep}
-      onFinish={async ({ _roles: _, ...values }) => {
-        const { manual } = GrantMode;
-        const { grantMode, grantType, status } = values;
-        const {
-          domain,
-          upstream,
-          urls: rawUrls,
-          transparentServerName,
-          insecureSkipVerify,
-          hstsOffload,
-          jwtProvider,
-          jwtSecret,
-          jwtCookieName,
-        } = proxyConfig;
-        const urls = rawUrls.map(({ id, method, name, url, upstream: urlUpstream }) => ({
-          id,
-          method,
-          name,
-          url,
-          upstream: urlUpstream,
-        }));
-        return onSubmit({
-          ...values,
-          users: grantedUserList.map((user) => ({
-            id: user.id,
-            roleId: user.roleId,
-          })),
-          status: status !== AppStatus.unknown ? status : AppStatus.normal,
-          roles: appRoles.map((role) =>
-            hasProxy(grantType) ? role : { ...role, urls: undefined },
-          ),
-          grantMode: grantMode ?? manual,
-          grantType: grantType ?? [GrantType.none as any],
-          proxy: hasProxy(grantType)
-            ? {
-                domain,
-                upstream,
-                urls,
-                insecureSkipVerify,
-                transparentServerName,
-                hstsOffload,
-                jwtProvider,
-                jwtSecret,
-                jwtCookieName,
-              }
-            : undefined,
-          i18n,
-        });
-      }}
-    >
-      <StepsForm.StepForm
-        initialValues={initialValues}
-        formRef={actionRef}
-        layout={'vertical'}
-        style={{ maxWidth: 650 }}
-        grid={true}
-        title={intl.t('basicConfig.title', 'Basic')}
-        onFinish={async () => {
-          if (initialValues && !initialValues.id) {
-            message.error(intl.t('app-id.empty', 'System error, application ID is empty'));
-            return false;
-          }
-          return true;
-        }}
-      >
-        <ProFormText hidden={true} name="id" />
-        <AvatarUploadField
-          colProps={{ span: 8, sm: 8, xs: 14 }}
-          label={intl.t('avatar.label', 'Avatar')}
-          name={'avatar'}
-          optionsRequest={async (params) => {
-            return getAppIcons(params);
-          }}
-        />
-        <ProFormGroup grid colProps={{ span: 16, xs: 14 }}>
-          <ProFormText
-            name="name"
-            label={intl.t('name.label', 'Name')}
-            width="md"
-            rules={[
-              {
-                required: true,
-                message: intl.t('name.required', 'Please input app name!'),
-              },
-              {
-                pattern: /^[-_A-Za-z0-9]+$/,
-                message: intl.t('name.invalid', 'App name format error!'),
-              },
-            ]}
-            disabled={initialValues?.name ? true : false}
+        setAppInfo(values);
+        return true;
+      },
+
+      children: (
+        <>
+          <ProFormText hidden={true} name="id" />
+          <AvatarUploadField
+            colProps={{ span: 8, sm: 8, xs: 14 }}
+            label={intl.t('avatar.label', 'Avatar')}
+            name={'avatar'}
+            optionsRequest={async (params) => {
+              const resp = await getAppIcons(params);
+              return { ...resp, data: resp.data ?? undefined };
+            }}
           />
+          <ProFormGroup grid colProps={{ span: 16, xs: 14 }}>
+            <ProFormText
+              name="name"
+              label={intl.t('name.label', 'Name')}
+              width="md"
+              rules={[
+                {
+                  required: true,
+                  message: intl.t('name.required', 'Please input app name!'),
+                },
+                {
+                  pattern: /^[-_A-Za-z0-9]+$/,
+                  message: intl.t('name.invalid', 'App name format error!'),
+                },
+              ]}
+              disabled={initialValues?.name ? true : false}
+            />
+
+            <Tabs
+              style={{ width: '100%' }}
+              items={[
+                {
+                  label: intl.t('displayName.label', 'Display Name'),
+                  children: <ProFormText name="displayName" width="md" />,
+                  key: 'displayName',
+                },
+                ...locales.map((lang) => ({
+                  label: intl.t(`displayName.label.${lang}`, lang),
+                  children: (
+                    <Input
+                      defaultValue={appInfo.i18n?.displayName?.[lang] ?? ''}
+                      onChange={(e) => {
+                        setAppInfo(({ i18n: { displayName, ...i18n } = {}, ...oriAppInfo }) => {
+                          return {
+                            ...oriAppInfo,
+                            i18n: {
+                              ...i18n,
+                              displayName: { ...displayName, [lang]: e.target.value },
+                            },
+                          };
+                        });
+                      }}
+                    />
+                  ),
+                  key: `description-${lang}`,
+                })),
+              ]}
+            />
+          </ProFormGroup>
 
           <Tabs
             style={{ width: '100%' }}
             items={[
               {
-                label: intl.t('displayName.label', 'Display Name'),
-                children: <ProFormText name="displayName" width="md" />,
-                key: 'displayName',
+                label: intl.t('description.label', 'Description'),
+                children: (
+                  <ProFormTextArea colProps={{ span: 24, sm: 24, xs: 14 }} name="description" />
+                ),
+                key: 'description',
               },
               ...locales.map((lang) => ({
-                label: intl.t(`displayName.label.${lang}`, lang),
+                label: intl.t(`description.label.${lang}`, lang),
                 children: (
-                  <Input
-                    value={i18n?.displayName?.[lang] ?? ''}
+                  <TextArea
+                    defaultValue={appInfo.i18n?.description?.[lang] ?? ''}
                     onChange={(e) => {
-                      setI18n({
-                        displayName: { ...i18n.displayName, [lang]: e.target.value },
-                        description: i18n.description,
+                      setAppInfo(({ i18n: { description, ...i18n } = {}, ...oriAppInfo }) => {
+                        return {
+                          ...oriAppInfo,
+                          i18n: {
+                            ...i18n,
+                            description: { ...description, [lang]: e.target.value },
+                          },
+                        };
                       });
                     }}
                   />
@@ -279,145 +330,132 @@ const CreateOrUpdateForm: React.FC<UpdateFormProps> = (props) => {
               })),
             ]}
           />
-        </ProFormGroup>
-
-        <Tabs
-          style={{ width: '100%' }}
-          items={[
-            {
-              label: intl.t('description.label', 'Description'),
-              children: (
-                <ProFormTextArea colProps={{ span: 24, sm: 24, xs: 14 }} name="description" />
-              ),
-              key: 'description',
-            },
-            ...locales.map((lang) => ({
-              label: intl.t(`description.label.${lang}`, lang),
-              children: (
-                <TextArea
-                  value={i18n?.description?.[lang] ?? ''}
-                  onChange={(e) => {
-                    setI18n({
-                      description: { ...i18n.description, [lang]: e.target.value },
-                      displayName: i18n.displayName,
-                    });
-                  }}
-                />
-              ),
-              key: `description-${lang}`,
-            })),
-          ]}
-        />
-        <ProFormText
-          name="url"
-          colProps={{ span: 24, sm: 24, xs: 14 }}
-          label={intl.t('url.label', 'URL')}
-        />
-        <ProFormSelect<API.AppMetaGrantType[]>
-          colProps={{ span: 12, sm: 12, xs: 14 }}
-          name="grantType"
-          label={intl.t('grantType.label', 'Grant Type')}
-          width="md"
-          mode={'tags'}
-          options={groupGrantType(enumToOptions(GrantType, parentIntl, 'grantType.value'))}
-          fieldProps={{
-            onChange: setCurrentGrantType,
-          }}
-        />
-        <ProFormSelect
-          colProps={{ span: 12, sm: 12, xs: 14 }}
-          name="grantMode"
-          label={intl.t('grantMode.label', 'Grant Mode')}
-          width="md"
-          tooltip={intl.t(
-            'grantMode.tooltip',
-            'Automatic authorization is only supported when using OAuth2.0 and RADIUS protocols, otherwise manual authorization is only possible.',
-          )}
-          options={enumToOptions(GrantMode, parentIntl, 'grantMode.value')}
-          rules={[
-            {
-              required: true,
-              message: intl.t('grantMode.required', 'Please select Grant Mode!'),
-            },
-          ]}
-        />
-      </StepsForm.StepForm>
-
-      <StepsForm.StepForm
-        initialValues={{}}
-        // labelCol={{ span: 5 }}
-        // wrapperCol={{ span: 19 }}
-        layout={'vertical'}
-        grid={true}
-        title={intl.t('proxy.title', 'Proxy')}
-        onFinish={async (formVals) => {
-          const {
-            domain,
-            upstream,
-            transparentServerName,
-            insecureSkipVerify,
-            jwtProvider,
-            jwtSecret,
-            jwtCookieName,
-            hstsOffload,
-          } = formVals.proxy ?? {};
-          setProxyConfig({
-            ...proxyConfig,
-            domain,
-            upstream,
-            transparentServerName,
-            insecureSkipVerify,
-            jwtProvider,
-            jwtSecret,
-            jwtCookieName,
-            hstsOffload,
-          });
-          const { urls } = proxyConfig;
-          // if (!domain) {
-          //   message.error(intl.t('proxy.domain.required', 'domain cannot be empty!'));
-          //   return false;
-          // }
-          for (const url of urls) {
-            if (!url.name || !url.name.trim()) {
-              message.error(intl.t('name.required', 'name cannot be empty!'));
-              return false;
-            }
-            if (!url.method || !url.method.trim()) {
-              message.error(intl.t('proxy.method.required', 'method cannot be empty!'));
-              return false;
-            }
-            if (!url.url || !url.url.trim()) {
-              message.error(intl.t('proxy.url.required', 'URL cannot be empty!'));
-              return false;
-            }
-          }
-          return true;
-        }}
-      >
-        {currentStep === 1 && (
-          <ProxySetting dataSource={proxyConfig} setDataSource={setProxyConfig} parentIntl={intl} />
-        )}
-      </StepsForm.StepForm>
-      <StepsForm.StepForm
-        initialValues={{}}
-        layout={'vertical'}
-        title={intl.t('role.title', 'Role')}
-      >
-        {currentStep === 2 && (
-          <ProFormItem
-            name={'_roles'}
+          <ProFormText
+            name="url"
+            colProps={{ span: 24, sm: 24, xs: 14 }}
+            label={intl.t('url.label', 'URL')}
             rules={[
               {
-                validator: () => {
-                  if (appRoles.length > 0) {
-                    if (appRoles.filter((role) => role.isDefault).length != 1) {
-                      return Promise.reject(new Error('No default role specified!'));
-                    } else {
-                      const appNames = appRoles.map((val) => val.name);
-                      if (appNames.some((val, idx) => appNames.includes(val, idx + 1))) {
-                        return Promise.reject(new Error('Contains duplicate role names!'));
-                      } else if (appNames.some((val) => !Boolean(val))) {
-                        return Promise.reject(new Error('Contains empty role names!'));
+                validator: (__, value) => {
+                  if (value && isString(value)) {
+                    if (!isUrl(value)) {
+                      return Promise.reject(
+                        new Error(`${intl.t('invalidURL', 'The value is invalid url')}: ${value}`),
+                      );
+                    }
+                  }
+                  return Promise.resolve();
+                },
+              },
+            ]}
+          />
+          <ProFormSelect<GrantTypeValue[]>
+            colProps={{ span: 24, sm: 24, xs: 14 }}
+            name="grantType"
+            label={intl.t('grantType.label', 'Grant Type')}
+            mode={'tags'}
+            options={groupGrantType(enumToOptions(GrantType, parentIntl, 'grantType.value'))}
+            fieldProps={{
+              onChange: setCurrentGrantType,
+              value: appInfo.grantType?.map(getGrantTypeValue) ?? [],
+            }}
+          />
+          <ProFormSelect
+            colProps={{ span: 12, sm: 12, xs: 14 }}
+            name="grantMode"
+            label={intl.t('grantMode.label', 'Grant Mode')}
+            width="md"
+            tooltip={intl.t(
+              'grantMode.tooltip',
+              'Automatic authorization is only supported when using OAuth2.0 and RADIUS protocols, otherwise manual authorization is only possible.',
+            )}
+            options={enumToOptions(GrantMode, parentIntl, 'grantMode.value')}
+            rules={[
+              {
+                required: true,
+                message: intl.t('grantMode.required', 'Please select Grant Mode!'),
+              },
+            ]}
+          />
+        </>
+      ),
+    },
+    {
+      name: 'proxy',
+      allows: [GrantType.proxy],
+      layout: 'vertical',
+      grid: true,
+      title: intl.t('proxy.title', 'Proxy'),
+      onFinish: async (formVals) => {
+        setAppInfo((oriInfo) => {
+          return {
+            ...oriInfo,
+            proxy: {
+              ...(formVals.proxy ?? {}),
+              urls: formVals.proxy.urls ?? oriInfo.proxy.urls,
+            },
+          };
+        });
+        for (const url of formVals.proxy.urls ?? appInfo.proxy.urls) {
+          if (!url.name || !url.name.trim()) {
+            message.error(intl.t('name.required', 'name cannot be empty!'));
+            return false;
+          }
+          if (!url.method || !url.method.trim()) {
+            message.error(intl.t('proxy.method.required', 'method cannot be empty!'));
+            return false;
+          }
+          if (!url.url || !url.url.trim()) {
+            message.error(intl.t('proxy.url.required', 'URL cannot be empty!'));
+            return false;
+          }
+        }
+        return true;
+      },
+      children: (
+        <ProxySetting
+          dataSource={appInfo.proxy ?? {}}
+          setDataSource={(values) => {
+            setAppInfo((oriInfo) => {
+              if (isFunction(values)) {
+                return { ...oriInfo, proxy: { ...oriInfo.proxy, ...values(oriInfo.proxy ?? []) } };
+              }
+              return { ...oriInfo, proxy: { ...oriInfo.proxy, ...values } };
+            });
+          }}
+          parentIntl={intl}
+        />
+      ),
+    },
+    {
+      name: 'oAuth2',
+      allows: [GrantType.oidc, GrantType.authorization_code],
+      title: intl.t('oAuth2.title', 'OAuth2'),
+      onFinish: async (values) => {
+        setAppInfo(values);
+        return true;
+      },
+      children: (
+        <>
+          <ProFormTextArea
+            name={['oAuth2', 'authorizedRedirectUrl']}
+            colProps={{ span: 24, sm: 24, xs: 18 }}
+            label={intl.t('authorizedRedirectUrl.label', 'Authorized redirect URLs')}
+            hidden={!appInfo.grantType.includes(GrantType.authorization_code)}
+            rules={[
+              {
+                validator: (_, value) => {
+                  if (isString(value)) {
+                    const values = value
+                      .split('\n')
+                      .map((val) => val.trim())
+                      .filter((val) => val);
+                    for (let index = 0; index < values.length; index++) {
+                      const val = values[index];
+                      if (!isUrl(value)) {
+                        return Promise.reject(
+                          new Error(`${intl.t('invalidURL', 'The value is invalid url')}: ${val}`),
+                        );
                       }
                     }
                   }
@@ -425,36 +463,219 @@ const CreateOrUpdateForm: React.FC<UpdateFormProps> = (props) => {
                 },
               },
             ]}
-          >
-            <RoleView
-              value={appRoles}
-              urls={hasProxy(currentGrantType) ? proxyConfig.urls : []}
-              onChange={setAppRoles}
-            />
-          </ProFormItem>
-        )}
-      </StepsForm.StepForm>
-      <StepsForm.StepForm
-        initialValues={{}}
-        layout={'vertical'}
-        title={intl.t('user.title', 'User')}
-      >
-        {currentStep === 3 && (
-          <div
-            style={{
-              height: 'calc( 100vh - 400px )',
+            convertValue={(value) => {
+              if (isArray(value)) {
+                return value.join('\n');
+              }
+              return value;
             }}
-          >
-            <GrantView
-              users={grantedUserList}
-              roles={appRoles}
-              onChange={setGrantedUserList}
-              granting={true}
-              parentIntl={parentIntl}
-            />
+            transform={(value, name) => {
+              return {
+                oAuth2: {
+                  [name]: isString(value)
+                    ? value
+                        .split('\n')
+                        .map((val) => val.trim())
+                        .filter((val) => val)
+                    : value,
+                },
+              };
+            }}
+          />
+          <ProFormSelect<JWTSignatureMethodValue>
+            label={intl.t('jwtSignatureMethod.label', 'Custom JWT signature method')}
+            colProps={{ span: 4 }}
+            name={['oAuth2', 'jwtSignatureMethod']}
+            tooltip={intl.t(
+              'jwtSignatureMethod.describe',
+              'Customize the method and key (pair) used for issuing JWT',
+            )}
+            options={enumToOptions(JWTSignatureMethod, parentIntl, 'jwtSignatureMethod.value').sort(
+              (item) => toInteger(item.value),
+            )}
+            onChange={(e) => {
+              setAppInfo((oriAppInfo) => {
+                return { oAuth2: { ...(oriAppInfo.oAuth2 ?? {}), jwtSignatureMethod: e } };
+              });
+            }}
+          />
+          <ProFormTextArea
+            label={intl.t('jwtSignatureKey.label', 'JWT signature key')}
+            colProps={{ span: 24, sm: 24, xs: 18 }}
+            name={['oAuth2', 'jwtSignatureKey']}
+            hidden={
+              JWTSignatureMethod.default === appInfo.oAuth2?.jwtSignatureMethod ??
+              JWTSignatureMethod.default
+            }
+            placeholder={
+              initialValues?.id
+                ? intl.t('jwtSignatureKey.placeholder-noChange', '------- No change -------')
+                : ''
+            }
+            tooltip={intl.t('jwtSignatureKey.describe', 'For RSA, this value is the private key')}
+          />
+        </>
+      ),
+    },
+    {
+      name: 'role',
+      title: intl.t('role.title', 'Role'),
+      children: (
+        <ProFormItem
+          name={'_roles'}
+          rules={[
+            {
+              validator: () => {
+                const roles = appInfo.roles;
+                if ((roles.length ?? 0) > 0) {
+                  if (roles.filter((role) => role.isDefault).length != 1) {
+                    return Promise.reject(new Error('No default role specified!'));
+                  } else {
+                    const appNames = roles.map((val) => val.name);
+                    if (appNames.some((val, idx) => appNames.includes(val, idx + 1))) {
+                      return Promise.reject(new Error('Contains duplicate role names!'));
+                    } else if (appNames.some((val) => !Boolean(val))) {
+                      return Promise.reject(new Error('Contains empty role names!'));
+                    }
+                  }
+                }
+                return Promise.resolve();
+              },
+            },
+          ]}
+        >
+          <RoleView
+            value={appInfo.roles}
+            urls={hasProxy(appInfo.grantType) ? appInfo.proxy.urls : []}
+            onChange={(roles) => setAppInfo({ roles })}
+          />
+        </ProFormItem>
+      ),
+    },
+    {
+      name: 'user',
+      title: intl.t('user.title', 'User'),
+      style: { width: 600 },
+      children: (
+        <div
+          style={{
+            height: 'calc( 100vh - 400px )',
+          }}
+        >
+          <GrantView
+            users={appInfo.users}
+            roles={appInfo.roles}
+            onChange={(users) => {
+              return setAppInfo({ users });
+            }}
+            granting={true}
+            parentIntl={parentIntl}
+          />
+        </div>
+      ),
+    },
+  ];
+
+  const [currentStep, _setCurrentStep] = useState<number>(0);
+
+  const setCurrentStep = (idx: number) => {
+    const fixAllowStep = (newIdx: number, oriStep: number): number => {
+      if (newIdx < 0) {
+        return fixAllowStep(0, oriStep);
+      }
+      const step = steps[newIdx];
+      if (
+        step.allows &&
+        step.allows.length > 0 &&
+        step.allows.findIndex((allow) => appInfo.grantType.includes(allow)) < 0
+      ) {
+        return fixAllowStep(newIdx + (oriStep < newIdx ? 1 : -1), oriStep);
+      }
+      return newIdx;
+    };
+    _setCurrentStep((oriStep: number) => {
+      const stepIdx = fixAllowStep(idx, oriStep);
+      const step = steps[stepIdx];
+      if (history.location.hash !== `#${step.name}`) {
+        history.push({ hash: step.name });
+      }
+      return stepIdx;
+    });
+  };
+  useEffect(() => {
+    if (appInfo.grantType && appInfo.grantType.length > 0) {
+      const { hash } = history.location;
+      setCurrentStep(steps.map((step) => `#${step.name}`).findIndex((step) => step === hash));
+    }
+  }, [appInfo]);
+  useEffect(() => {
+    setAppInfo(
+      {
+        ...initialValues,
+        oAuth2: {
+          ...(initialValues?.oAuth2 ?? {
+            authorizedRedirectUrl: [],
+            jwtSignatureMethod: JWTSignatureMethod.default,
+          }),
+          jwtSignatureKey: '',
+        },
+      } ?? {},
+    );
+  }, [initialValues]);
+  if (loading || !initialValues || initialValues?.id !== appInfo.id) {
+    return <PageLoading />;
+  }
+  return (
+    <StepsForm<FormValueType & { _roles: any }>
+      stepsProps={{
+        size: 'small',
+      }}
+      containerStyle={{ height: '100%' }}
+      formProps={{
+        preserve: false,
+        disabled: disabled,
+        loading: loading,
+      }}
+      stepsFormRender={(dom, submitter) => {
+        return (
+          <div>
+            {dom}
+            <Space
+              style={{ position: 'absolute', bottom: 10, justifyContent: 'center', width: '100%' }}
+            >
+              {submitter}
+            </Space>
           </div>
-        )}
-      </StepsForm.StepForm>
+        );
+      }}
+      onCurrentChange={setCurrentStep}
+      current={currentStep}
+      onFinish={async () => {
+        return onSubmit({
+          ...appInfo,
+          users: appInfo.users.map(({ id, roleId }) => ({ id, roleId })),
+          status: appInfo.status !== AppStatus.unknown ? appInfo.status : AppStatus.normal,
+          roles: appInfo.roles.map(({ id, name, isDefault, urls }) =>
+            hasProxy(appInfo.grantType)
+              ? { id, name, isDefault, urls }
+              : { id, name, isDefault, urls: undefined },
+          ),
+          proxy: hasProxy(appInfo.grantType) ? appInfo.proxy : undefined,
+        });
+      }}
+    >
+      {steps.map(({ name, children, ...props }, idx) => {
+        return (
+          <StepsForm.StepForm
+            key={`step-${name}`}
+            initialValues={appInfo}
+            syncToInitialValues={false}
+            {...props}
+          >
+            {idx === currentStep ? children : null}
+          </StepsForm.StepForm>
+        );
+      })}
     </StepsForm>
   );
 };

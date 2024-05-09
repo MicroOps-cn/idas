@@ -34,6 +34,7 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log/level"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang/groupcache/lru"
 	uuid "github.com/satori/go.uuid"
 	"github.com/xlzd/gotp"
 
@@ -45,6 +46,7 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/service"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/service/opts"
+	jwtutils "github.com/MicroOps-cn/idas/pkg/utils/jwt"
 )
 
 type LoginCode struct {
@@ -147,7 +149,7 @@ func newJSONWebToken(_ context.Context, loginTime time.Time, tokenId string) (*t
 
 	jwtIssuer := config.Get().GetJwtIssuer()
 
-	signedString, err := jwtIssuer.SignedString(jwt.StandardClaims{
+	signedString, err := jwtIssuer.SignedString(&jwtutils.StandardClaims{
 		Id:        tokenId,
 		ExpiresAt: expiry.Unix(),
 		IssuedAt:  time.Now().UTC().Unix(),
@@ -556,7 +558,7 @@ func MakeUserLoginEndpoint(s service.Service) endpoint.Endpoint {
 			user.ExtendedData = &models.UserExt{}
 		}
 		user.ExtendedData.LoginTime = time.Now().UTC()
-
+		user.LoginTime = &user.ExtendedData.LoginTime
 		stdResp := request.(RestfulRequester).GetRestfulResponse().ResponseWriter
 		sess, err := s.CreateToken(ctx, models.TokenTypeLoginSession, user)
 		if err != nil {
@@ -647,6 +649,8 @@ type GetSessionParams struct {
 	TokenType models.TokenType
 }
 
+var issuerCache = lru.New(1024)
+
 func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		params := request.(Requester).GetRequestData().(*GetSessionParams)
@@ -654,8 +658,35 @@ func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 		if len(params.Token) > 0 {
 			var claims jwt.StandardClaims
 			var token *jwt.Token
-			jwtIssuer := config.Get().GetJwtIssuer()
-			token, err := jwtIssuer.ParseWithClaims(params.Token, &claims)
+
+			token, err := jwtutils.ParseWithClaims(params.Token, &claims, func(token *jwt.Token) (jwtutils.JWTIssuer, error) {
+				payload := token.Claims.(*jwt.StandardClaims)
+				if len(strings.TrimSpace(payload.Issuer)) == 0 {
+					return config.Get().GetJwtIssuer(), nil
+				}
+				aid, err := uuid.FromString(payload.Issuer)
+				if err != nil {
+					return config.Get().GetJwtIssuer(), nil
+				}
+				if value, ok := issuerCache.Get(aid); ok {
+					if issuer, ok := value.(jwtutils.JWTIssuer); ok {
+						return issuer, nil
+					}
+				}
+				authConfig, err := s.GetAppOAuthConfig(ctx, aid.String())
+				if err != nil {
+					return config.Get().GetJwtIssuer(), nil
+				}
+				sk, err := authConfig.JwtSignatureKey.UnsafeString()
+				if err != nil {
+					return config.Get().GetJwtIssuer(), nil
+				}
+				issuer, err := jwtutils.NewJWTIssuer(aid.String(), authConfig.JwtSignatureMethod.String(), sk)
+				if err != nil {
+					return config.Get().GetJwtIssuer(), nil
+				}
+				return issuer, nil
+			})
 			if err != nil {
 				logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))
 				level.Error(logger).Log("err", err, "msg", "Invalid token")

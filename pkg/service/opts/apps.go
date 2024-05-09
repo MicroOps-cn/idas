@@ -17,6 +17,7 @@
 package opts
 
 type GetAppOptions struct {
+	DisableGetOAuth2,
 	DisableGetUsers,
 	DisableGetAccessController,
 	DisableGetI18n,
@@ -52,6 +53,14 @@ func WithoutI18n(o *GetAppOptions) {
 	o.DisableGetI18n = true
 }
 
+func WithoutOAuth2(o *GetAppOptions) {
+	o.DisableGetOAuth2 = true
+}
+
+func WithOAuth2(o *GetAppOptions) {
+	o.DisableGetOAuth2 = false
+}
+
 func WithUsers(id ...string) func(o *GetAppOptions) {
 	return func(o *GetAppOptions) {
 		o.DisableGetUsers = false
@@ -64,6 +73,7 @@ func WithBasic(o *GetAppOptions) {
 	WithoutProxy(o)
 	WithoutUsers(o)
 	WithoutI18n(o)
+	WithoutOAuth2(o)
 	o.DisableGetAccessController = true
 }
 

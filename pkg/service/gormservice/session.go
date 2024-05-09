@@ -77,7 +77,6 @@ func getCounterKey(seed string) string {
 	if err != nil {
 		panic("system error")
 	}
-
 	return u.String()
 }
 

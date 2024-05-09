@@ -70,7 +70,8 @@
      {
       "example": {
        "name": "",
-       "url": ""
+       "url": "",
+       "oAuth2": null
       },
       "name": "body",
       "in": "body",
@@ -416,7 +417,11 @@
        "id": "",
        "name": "",
        "status": 0,
-       "url": ""
+       "url": "",
+       "oAuth2": {
+        "authorizedRedirectUrl": null,
+        "jwtSignatureMethod": 0
+       }
       },
       "name": "body",
       "in": "body",
@@ -826,6 +831,39 @@
     }
    }
   },
+  "/api/v1/oauth/.well-known/openid-configuration": {
+   "get": {
+    "consumes": [
+     "application/json"
+    ],
+    "produces": [
+     "application/json"
+    ],
+    "tags": [
+     "oauth"
+    ],
+    "summary": "Well known openid configuration.",
+    "operationId": "openidConfiguration",
+    "parameters": [
+     {
+      "type": "string",
+      "name": "client_id",
+      "in": "query"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "schema": {
+       "$ref": "#/definitions/endpoint.OIDCWellKnownResponse"
+      },
+      "examples": {
+       "application/json": {}
+      }
+     }
+    }
+   }
+  },
   "/api/v1/oauth/authorize": {
    "get": {
     "consumes": [
@@ -841,13 +879,9 @@
     "operationId": "oAuthAuthorize",
     "parameters": [
      {
-      "type": "string",
-      "format": "string",
+      "type": "*endpoint.OAuthAuthorizeRequest_ResponseTypes",
       "name": "response_type",
-      "in": "query",
-      "schema": {
-       "$ref": "#/definitions/idas.oauth2.OAuthAuthorizeRequest_ResponseType"
-      }
+      "in": "query"
      },
      {
       "type": "string",
@@ -873,6 +907,20 @@
       "type": "string",
       "name": "access_type",
       "in": "query"
+     },
+     {
+      "type": "string",
+      "name": "code_challenge",
+      "in": "query"
+     },
+     {
+      "type": "string",
+      "format": "string",
+      "name": "code_challenge_method",
+      "in": "query",
+      "schema": {
+       "$ref": "#/definitions/idas.oauth2.OAuthAuthorizeRequest_CodeChallengeMethod"
+      }
      }
     ],
     "responses": {
@@ -929,6 +977,39 @@
     }
    }
   },
+  "/api/v1/oauth/jwks": {
+   "get": {
+    "consumes": [
+     "application/json"
+    ],
+    "produces": [
+     "application/json"
+    ],
+    "tags": [
+     "oauth"
+    ],
+    "summary": "Well known openid configuration.",
+    "operationId": "openidConfiguration",
+    "parameters": [
+     {
+      "type": "string",
+      "name": "client_id",
+      "in": "query"
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "schema": {
+       "$ref": "#/definitions/endpoint.OAuthJWKSResponse"
+      },
+      "examples": {
+       "application/json": {}
+      }
+     }
+    }
+   }
+  },
   "/api/v1/oauth/token": {
    "post": {
     "consumes": [
@@ -965,6 +1046,7 @@
       },
       "examples": {
        "application/json": {
+        "token_type": "Bearer",
         "expires_in": 0
        }
       }
@@ -3156,6 +3238,9 @@
     "name": {
      "type": "string"
     },
+    "oAuth2": {
+     "$ref": "#/definitions/endpoint.AppOAuth2Info"
+    },
     "proxy": {
      "$ref": "#/definitions/endpoint.AppProxyInfo"
     },
@@ -3219,6 +3304,28 @@
     },
     "updateTime": {
      "type": "string"
+    }
+   }
+  },
+  "endpoint.AppOAuth2Info": {
+   "required": [
+    "authorizedRedirectUrl",
+    "jwtSignatureMethod"
+   ],
+   "properties": {
+    "authorizedRedirectUrl": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "jwtSignatureKey": {
+     "type": "string"
+    },
+    "jwtSignatureMethod": {
+     "type": "integer",
+     "format": "int32",
+     "$ref": "#/definitions/idas.service.models.AppMeta_JWTSignatureMethod"
     }
    }
   },
@@ -3333,9 +3440,9 @@
   },
   "endpoint.BaseListResponse": {
    "required": [
-    "total",
     "traceId",
     "success",
+    "total",
     "current",
     "pageSize"
    ],
@@ -3427,8 +3534,8 @@
   },
   "endpoint.CreateAppKeyResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -3451,7 +3558,8 @@
   "endpoint.CreateAppRequest": {
    "required": [
     "name",
-    "url"
+    "url",
+    "oAuth2"
    ],
    "properties": {
     "avatar": {
@@ -3479,6 +3587,9 @@
     },
     "name": {
      "type": "string"
+    },
+    "oAuth2": {
+     "$ref": "#/definitions/endpoint.AppOAuth2Info"
     },
     "proxy": {
      "$ref": "#/definitions/endpoint.AppProxyInfo"
@@ -3768,9 +3879,9 @@
   },
   "endpoint.FileUploadResponse": {
    "required": [
+    "total",
     "traceId",
     "success",
-    "total",
     "data"
    ],
    "properties": {
@@ -3814,11 +3925,11 @@
   },
   "endpoint.GetAppIconsResponse": {
    "required": [
-    "total",
+    "traceId",
     "current",
     "pageSize",
-    "traceId",
-    "success"
+    "success",
+    "total"
    ],
    "properties": {
     "current": {
@@ -3881,8 +3992,8 @@
   },
   "endpoint.GetAppResponse": {
    "required": [
-    "success",
-    "traceId"
+    "traceId",
+    "success"
    ],
    "properties": {
     "data": {
@@ -3904,11 +4015,11 @@
   },
   "endpoint.GetAppsResponse": {
    "required": [
-    "success",
     "total",
+    "traceId",
     "current",
     "pageSize",
-    "traceId"
+    "success"
    ],
    "properties": {
     "current": {
@@ -3945,11 +4056,11 @@
   },
   "endpoint.GetCurrentUserEventLogsResponse": {
    "required": [
-    "traceId",
-    "success",
     "total",
+    "traceId",
     "current",
-    "pageSize"
+    "pageSize",
+    "success"
    ],
    "properties": {
     "current": {
@@ -3987,9 +4098,9 @@
   "endpoint.GetCurrentUserEventsResponse": {
    "required": [
     "total",
+    "traceId",
     "current",
     "pageSize",
-    "traceId",
     "success"
    ],
    "properties": {
@@ -4027,11 +4138,11 @@
   },
   "endpoint.GetEventLogsResponse": {
    "required": [
-    "success",
-    "current",
     "pageSize",
+    "traceId",
+    "success",
     "total",
-    "traceId"
+    "current"
    ],
    "properties": {
     "current": {
@@ -4068,11 +4179,11 @@
   },
   "endpoint.GetEventsResponse": {
    "required": [
-    "traceId",
     "success",
+    "total",
     "current",
     "pageSize",
-    "total"
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -4132,11 +4243,11 @@
   },
   "endpoint.GetPageDatasResponse": {
    "required": [
+    "pageSize",
     "traceId",
     "success",
     "total",
-    "current",
-    "pageSize"
+    "current"
    ],
    "properties": {
     "current": {
@@ -4173,8 +4284,8 @@
   },
   "endpoint.GetPageResponse": {
    "required": [
-    "success",
-    "traceId"
+    "traceId",
+    "success"
    ],
    "properties": {
     "data": {
@@ -4196,11 +4307,11 @@
   },
   "endpoint.GetPagesResponse": {
    "required": [
-    "current",
-    "pageSize",
     "traceId",
     "success",
-    "total"
+    "total",
+    "current",
+    "pageSize"
    ],
    "properties": {
     "current": {
@@ -4237,11 +4348,11 @@
   },
   "endpoint.GetPermissionsResponse": {
    "required": [
-    "total",
+    "pageSize",
     "traceId",
     "success",
-    "current",
-    "pageSize"
+    "total",
+    "current"
    ],
    "properties": {
     "current": {
@@ -4278,11 +4389,11 @@
   },
   "endpoint.GetRolesResponse": {
    "required": [
-    "success",
     "total",
+    "traceId",
+    "success",
     "current",
-    "pageSize",
-    "traceId"
+    "pageSize"
    ],
    "properties": {
     "current": {
@@ -4342,11 +4453,11 @@
   },
   "endpoint.GetSessionsResponse": {
    "required": [
+    "current",
     "pageSize",
-    "traceId",
     "success",
     "total",
-    "current"
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -4406,11 +4517,11 @@
   },
   "endpoint.GetUsersResponse": {
    "required": [
+    "current",
     "pageSize",
-    "traceId",
-    "success",
     "total",
-    "current"
+    "traceId",
+    "success"
    ],
    "properties": {
     "current": {
@@ -4537,18 +4648,75 @@
     "client_id": {
      "type": "string"
     },
+    "code_challenge": {
+     "type": "string"
+    },
+    "code_challenge_method": {
+     "type": "integer",
+     "format": "int32",
+     "$ref": "#/definitions/idas.oauth2.OAuthAuthorizeRequest_CodeChallengeMethod"
+    },
     "redirect_uri": {
      "type": "string"
     },
     "response_type": {
-     "type": "integer",
-     "format": "int32",
-     "$ref": "#/definitions/idas.oauth2.OAuthAuthorizeRequest_ResponseType"
+     "$ref": "#/definitions/endpoint.OAuthAuthorizeRequest_ResponseTypes"
     },
     "scope": {
      "type": "string"
     },
     "state": {
+     "type": "string"
+    }
+   }
+  },
+  "endpoint.OAuthAuthorizeRequest_ResponseTypes": {
+   "properties": {
+    "types": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/idas.oauth2.OAuthAuthorizeRequest_ResponseType"
+     }
+    }
+   }
+  },
+  "endpoint.OAuthJWKSResponse": {
+   "properties": {
+    "keys": {
+     "type": "array",
+     "items": {
+      "$ref": "#/definitions/endpoint.OAuthJWKSResponse_Key"
+     }
+    }
+   }
+  },
+  "endpoint.OAuthJWKSResponse_Key": {
+   "properties": {
+    "alg": {
+     "type": "string"
+    },
+    "crv": {
+     "type": "string"
+    },
+    "e": {
+     "type": "string"
+    },
+    "kid": {
+     "type": "string"
+    },
+    "kty": {
+     "type": "string"
+    },
+    "n": {
+     "type": "string"
+    },
+    "use": {
+     "type": "string"
+    },
+    "x": {
+     "type": "string"
+    },
+    "y": {
      "type": "string"
     }
    }
@@ -4589,7 +4757,7 @@
      "type": "string"
     },
     "token_type": {
-     "type": "integer",
+     "type": "string",
      "format": "int32",
      "$ref": "#/definitions/idas.oauth2.OAuthTokenType"
     },
@@ -4600,6 +4768,7 @@
   },
   "endpoint.OAuthTokenResponse": {
    "required": [
+    "token_type",
     "expires_in"
    ],
    "properties": {
@@ -4638,9 +4807,82 @@
      "type": "string"
     },
     "token_type": {
-     "type": "integer",
+     "type": "string",
      "format": "int32",
      "$ref": "#/definitions/idas.oauth2.OAuthTokenType"
+    }
+   }
+  },
+  "endpoint.OIDCWellKnownResponse": {
+   "properties": {
+    "authorization_endpoint": {
+     "type": "string"
+    },
+    "claims_supported": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "code_challenge_methods_supported": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "device_authorization_endpoint": {
+     "type": "string"
+    },
+    "grant_types_supported": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "id_token_signing_alg_values_supported": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "issuer": {
+     "type": "string"
+    },
+    "jwks_uri": {
+     "type": "string"
+    },
+    "response_types_supported": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "revocation_endpoint": {
+     "type": "string"
+    },
+    "scopes_supported": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "subject_types_supported": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "token_endpoint": {
+     "type": "string"
+    },
+    "token_endpoint_auth_methods_supported": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "userinfo_endpoint": {
+     "type": "string"
     }
    }
   },
@@ -4742,9 +4984,6 @@
     },
     "name": {
      "type": "string"
-    },
-    "proxy": {
-     "$ref": "#/definitions/endpoint.AppProxyInfo"
     },
     "status": {
      "type": "integer",
@@ -5006,8 +5245,8 @@
   },
   "endpoint.SendLoginCaptchaResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -5090,7 +5329,8 @@
     "id",
     "name",
     "status",
-    "url"
+    "url",
+    "oAuth2"
    ],
    "properties": {
     "avatar": {
@@ -5124,6 +5364,9 @@
     },
     "name": {
      "type": "string"
+    },
+    "oAuth2": {
+     "$ref": "#/definitions/endpoint.AppOAuth2Info"
     },
     "proxy": {
      "$ref": "#/definitions/endpoint.AppProxyInfo"
@@ -5476,14 +5719,24 @@
     12
    ]
   },
+  "idas.oauth2.OAuthAuthorizeRequest_CodeChallengeMethod": {
+   "enum": [
+    "plain",
+    0,
+    "S256",
+    1
+   ]
+  },
   "idas.oauth2.OAuthAuthorizeRequest_ResponseType": {
    "enum": [
-    "default",
+    "none",
     0,
     "code",
     1,
     "token",
-    2
+    2,
+    "id_token",
+    3
    ]
   },
   "idas.oauth2.OAuthGrantType": {
@@ -5534,6 +5787,30 @@
     32,
     "radius",
     64
+   ]
+  },
+  "idas.service.models.AppMeta_JWTSignatureMethod": {
+   "enum": [
+    "default",
+    0,
+    "HS256",
+    1,
+    "HS384",
+    2,
+    "HS512",
+    3,
+    "RS256",
+    4,
+    "RS384",
+    5,
+    "RS512",
+    6,
+    "ES256",
+    7,
+    "ES384",
+    8,
+    "ES512",
+    9
    ]
   },
   "idas.service.models.AppMeta_Status": {
@@ -5606,7 +5883,9 @@
     "grantType",
     "grantMode",
     "status",
-    "url"
+    "url",
+    "i18n",
+    "oAuth2"
    ],
    "properties": {
     "avatar": {
@@ -5643,6 +5922,9 @@
     },
     "name": {
      "type": "string"
+    },
+    "oAuth2": {
+     "$ref": "#/definitions/models.AppOAuth2"
     },
     "proxy": {
      "$ref": "#/definitions/models.AppProxy"
@@ -5692,6 +5974,28 @@
      "additionalProperties": {
       "type": "string"
      }
+    }
+   }
+  },
+  "models.AppOAuth2": {
+   "required": [
+    "authorizedRedirectUrl",
+    "jwtSignatureMethod"
+   ],
+   "properties": {
+    "authorizedRedirectUrl": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "jwtSignatureKey": {
+     "type": "string"
+    },
+    "jwtSignatureMethod": {
+     "type": "integer",
+     "format": "int32",
+     "$ref": "#/definitions/idas.service.models.AppMeta_JWTSignatureMethod"
     }
    }
   },

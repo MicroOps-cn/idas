@@ -18,6 +18,8 @@ package endpoint
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
@@ -34,7 +36,6 @@ import (
 	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log/level"
-	"github.com/golang-jwt/jwt/v4"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/MicroOps-cn/idas/config"
@@ -63,7 +64,7 @@ func (m OAuthTokenType) MarshalJSON() ([]byte, error) {
 }
 
 type UserToken struct {
-	jwt.StandardClaims
+	*jwtutils.StandardClaims
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	FullName string `json:"fullName"`
@@ -88,7 +89,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					if err = s.DeleteToken(ctx, models.TokenTypeAppProxyLogin, req.State); err != nil {
 						level.Warn(logs.GetContextLogger(ctx)).Log("msg", "failed to delete token", "err", err)
 					}
-					app, err = s.GetAppInfo(ctx, opts.WithBasic, opts.WithAppId(proxyConfig.AppId))
+					app, err = s.GetAppInfo(ctx, opts.WithBasic, opts.WithOAuth2, opts.WithAppId(proxyConfig.AppId))
 					if err != nil {
 						return err, nil
 					} else if app == nil {
@@ -168,7 +169,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 							}
 						}
 
-						token, err := jwtIssuer.SignedString(jwt.StandardClaims{
+						token, err := jwtIssuer.SignedString(&jwtutils.StandardClaims{
 							Id:        at.Id,
 							ExpiresAt: at.Expiry.Unix(),
 							IssuedAt:  time.Now().UTC().Unix(),
@@ -252,13 +253,24 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					}
 					jwtIssuer := config.Get().GetJwtIssuer()
 
+					if app.OAuth2.JwtSignatureKey != nil {
+						sigKey, err := app.OAuth2.JwtSignatureKey.UnsafeString()
+						if err != nil {
+							return nil, errors.NewServerError(500, err.Error())
+						}
+						jwtIssuer, err = jwtutils.NewJWTIssuer(app.Id, app.OAuth2.JwtSignatureMethod.String(), sigKey)
+						if err != nil {
+							return nil, errors.NewServerError(500, err.Error())
+						}
+					}
+
 					user.ExtendedData = nil
 					at, err := s.CreateToken(ctx, tokenType, user)
 					if err != nil {
 						return "", errors.NewServerError(500, err.Error())
 					}
 					resp.ExpiresIn = int(time.Until(at.Expiry) / time.Minute)
-					resp.AccessToken, err = jwtIssuer.SignedString(jwt.StandardClaims{
+					resp.AccessToken, err = jwtIssuer.SignedString(&jwtutils.StandardClaims{
 						Id:        at.Id,
 						ExpiresAt: at.Expiry.Unix(),
 						IssuedAt:  time.Now().UTC().Unix(),
@@ -274,7 +286,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 						if err != nil {
 							return "", errors.NewServerError(500, err.Error())
 						}
-						resp.RefreshToken, err = jwtIssuer.SignedString(jwt.StandardClaims{
+						resp.RefreshToken, err = jwtIssuer.SignedString(&jwtutils.StandardClaims{
 							Id:        rt.Id,
 							ExpiresAt: rt.Expiry.Unix(),
 							IssuedAt:  time.Now().UTC().Unix(),
@@ -287,7 +299,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 
 					if app.GrantType&models.AppMeta_oidc == models.AppMeta_oidc {
 						resp.IdToken, err = jwtIssuer.SignedString(&UserToken{
-							StandardClaims: jwt.StandardClaims{
+							StandardClaims: &jwtutils.StandardClaims{
 								Id:        w.M(uuid.NewV4()).String(),
 								Audience:  app.Name,
 								ExpiresAt: time.Now().UTC().Add(time.Minute * 10).Unix(),
@@ -412,7 +424,7 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 				gohttp.Redirect(stdResp.ResponseWriter, stdReq.Request, w.M(common.GetWebURL(ctx, common.WithSubPages("404"))), gohttp.StatusFound)
 				return nil, nil
 			}
-			app, err = s.GetAppInfo(ctx, opts.WithBasic, opts.WithAppId(appKey.AppId), opts.WithUsers(user.Id))
+			app, err = s.GetAppInfo(ctx, opts.WithBasic, opts.WithOAuth2, opts.WithAppId(appKey.AppId), opts.WithUsers(user.Id))
 			if err != nil {
 				return err, nil
 			} else if app == nil {
@@ -424,11 +436,26 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 		//if code, err = s.GetAuthCodeByAppId(ctx, appKey.AppId, user, sessionId); err != nil && !errors.IsNotFount(err) {
 		//	return nil, err
 		//}
+		allowAccess := true
+		if len(app.OAuth2.AuthorizedRedirectUrl) > 0 {
+			if !w.Has(app.OAuth2.AuthorizedRedirectUrl, req.RedirectUri, func(a, b string) bool {
+				if len(a) > 0 && len(b) > 0 {
+					return strings.HasPrefix(b, a)
+				}
+				return false
+			}) {
+				allowAccess = false
+			}
+		} else {
+			if !strings.HasPrefix(req.RedirectUri, app.Url) {
+				allowAccess = false
+			}
+		}
 
 		if app.GrantType&models.AppMeta_authorization_code == 0 {
 			return nil, errors.NewServerError(500, "Unsupported authorization type.")
 		}
-		if len(app.Users) == 0 {
+		if !allowAccess || len(app.Users) == 0 {
 			httpExternalURL, ok := ctx.Value(global.HTTPExternalURLKey).(string)
 			if !ok {
 				return nil, errors.StatusNotFound("Authorize")
@@ -456,7 +483,6 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 			}
 
 			for _, rType := range req.ResponseType.Types {
-				fmt.Println(">>", rType.String())
 				switch rType {
 				case OAuthAuthorizeRequest_code, OAuthAuthorizeRequest_none:
 					query.Add("code", token.Id)
@@ -480,7 +506,7 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 				case OAuthAuthorizeRequest_id_token:
 					jwtIssuer := config.Get().GetJwtIssuer()
 					idToken, err := jwtIssuer.SignedString(&UserToken{
-						StandardClaims: jwt.StandardClaims{
+						StandardClaims: &jwtutils.StandardClaims{
 							Id:        w.M(uuid.NewV4()).String(),
 							Audience:  app.Name,
 							ExpiresAt: time.Now().UTC().Add(time.Minute * 10).Unix(),
@@ -511,7 +537,7 @@ func MakeWellknownOpenidConfigurationEndpoint(s service.Service) endpoint.Endpoi
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		logger := logs.GetContextLogger(ctx)
 		req := request.(Requester).GetRequestData().(*OIDCWellKnownRequest)
-		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithAppId(req.ClientId))
+		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithOAuth2, opts.WithAppId(req.ClientId))
 		if err != nil {
 			level.Error(logger).Log("msg", "failed to get app info", "err", err)
 			return nil, err
@@ -572,23 +598,53 @@ func MakeWellknownOpenidConfigurationEndpoint(s service.Service) endpoint.Endpoi
 
 func MakeOAuthJWKSEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		//logger := logs.GetContextLogger(ctx)
 		jwtIssuer := config.Get().GetJwtIssuer()
 		pk := jwtIssuer.GetPublicKey()
-		e := make([]byte, 4)
-		binary.BigEndian.PutUint32(e, uint32(pk.E))
-		fmt.Println(pk.Size())
-
-		return &OAuthJWKSResponse{
-			Keys: []*OAuthJWKSResponse_Key{
-				{
-					Kty: "RSA",
-					Alg: "RS" + strconv.Itoa(pk.Size()),
-					Use: "sig",
-					N:   base64.URLEncoding.EncodeToString(pk.N.Bytes()),
-					E:   base64.URLEncoding.EncodeToString(e[1:]),
+		var n, e []byte
+		var pkSize int
+		switch pubKey := pk.(type) {
+		case *rsa.PublicKey:
+			e = make([]byte, 4)
+			binary.BigEndian.PutUint32(e, uint32(pubKey.E))
+			pkSize = pubKey.Size()
+			n = pubKey.N.Bytes()
+			return &OAuthJWKSResponse{
+				Keys: []*OAuthJWKSResponse_Key{
+					{
+						Kty: "RSA",
+						Alg: "RS" + strconv.Itoa(pkSize),
+						Use: "sig",
+						N:   base64.URLEncoding.EncodeToString(n),
+						E:   base64.URLEncoding.EncodeToString(e[1:]),
+					},
 				},
-			},
-		}, nil
+			}, nil
+
+		case *ecdsa.PublicKey:
+			switch pubKey.Curve.Params().Name {
+			case "P-256":
+				pkSize = 256
+			case "P-384":
+				pkSize = 384
+			case "P-521":
+				pkSize = 521
+			}
+			switch pubKey.Curve.Params().Name {
+			case "P-256":
+				return &OAuthJWKSResponse{
+					Keys: []*OAuthJWKSResponse_Key{
+						{
+							Kty: "EC",
+							Use: "sig",
+							Alg: "ES" + strconv.Itoa(pkSize),
+							Crv: pubKey.Curve.Params().Name,
+							X:   base64.URLEncoding.EncodeToString(pubKey.X.Bytes()),
+							Y:   base64.URLEncoding.EncodeToString(pubKey.Y.Bytes()),
+						},
+					},
+				}, nil
+			}
+		}
+		return nil, nil
 	}
 }

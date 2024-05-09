@@ -104,6 +104,9 @@ message OAuthJWKSResponse {
     string e = 4;
     string n = 5;
     string kty = 6;
+    string crv= 7;
+    string x = 8;
+    string y = 9;
   }
 
   repeated Key keys = 1;

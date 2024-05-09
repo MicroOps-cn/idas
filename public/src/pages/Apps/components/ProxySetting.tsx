@@ -15,7 +15,7 @@ import { SortableContainer, SortableElement, SortableHandle } from 'react-sortab
 import { IntlContext } from '@/utils/intl';
 import { newId } from '@/utils/uuid';
 import { DeleteOutlined, MenuOutlined, PlusOutlined } from '@ant-design/icons';
-import { ProFormCheckbox, ProFormField, ProFormText } from '@ant-design/pro-form';
+import { ProFormCheckbox, ProFormField, ProFormGroup, ProFormText } from '@ant-design/pro-form';
 
 import styles from '../style.less';
 
@@ -391,61 +391,64 @@ const ProxySetting: React.FC<ProxyConfigProps> = ({ parentIntl, dataSource, setD
         initialValue={hstsOffload}
         tooltip={intl.t('hstsOffload.describe', 'Delete HSTS field in response header')}
       />
-      <ProFormCheckbox
-        name={['proxy', 'jwtProvider']}
-        label={intl.t('jwtProvider.label', 'JWT provider')}
-        colProps={{ span: 4 }}
-        initialValue={jwtProvider}
-        fieldProps={{
-          onChange: (e) => {
-            setJwtProvider(e.target.checked);
-          },
-        }}
-        tooltip={intl.t('jwtProvider.describe', 'As a JWT provider, issue tokens to clients.')}
-      />
-      <ProFormText
-        name={['proxy', 'jwtCookieName']}
-        label={intl.t('jwtCookieName.label', 'JWT Cookie Name')}
-        colProps={{ span: 4 }}
-        initialValue={jwtCookieName}
-        disabled={!jwtProvider}
-        rules={[
-          {
-            validator: async (_, value: string) => {
-              if (jwtProvider && !value) {
-                return Promise.reject();
-              }
-              return Promise.resolve();
+      <ProFormGroup colProps={{ span: 24 }}>
+        <ProFormCheckbox
+          name={['proxy', 'jwtProvider']}
+          label={intl.t('jwtProvider.label', 'JWT provider')}
+          colProps={{ span: 4 }}
+          initialValue={jwtProvider}
+          fieldProps={{
+            onChange: (e) => {
+              setJwtProvider(e.target.checked);
             },
-          },
-        ]}
-        tooltip={intl.t('jwtCookieName.describe', 'Store the name of the JWT Cookie.')}
-      />
-      <ProFormText
-        name={['proxy', 'jwtSecret']}
-        label={intl.t('jwtSecret.label', 'JWT secret')}
-        colProps={{ span: 12 }}
-        initialValue={jwtSecret}
-        fieldProps={{ maxLength: 200 }}
-        placeholder={id ? '*******************************' : undefined}
-        rules={[
-          {
-            pattern: /^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$/,
-            message: intl.t('proxy.jwtSecret-message', 'Please enter a valid Base64 encoding.'),
-          },
-          {
-            validator: async (rule, value: StoreValue) => {
-              if (jwtProvider && !value && !id) {
-                return Promise.reject();
-              }
-              return Promise.resolve();
+          }}
+          tooltip={intl.t('jwtProvider.describe', 'As a JWT provider, issue tokens to clients.')}
+        />
+        <ProFormText
+          name={['proxy', 'jwtCookieName']}
+          label={intl.t('jwtCookieName.label', 'JWT Cookie Name')}
+          colProps={{ span: 4 }}
+          initialValue={jwtCookieName}
+          disabled={!jwtProvider}
+          rules={[
+            {
+              validator: async (_, value: string) => {
+                if (jwtProvider && !value) {
+                  return Promise.reject();
+                }
+                return Promise.resolve();
+              },
             },
-            message: intl.t('proxy.jwtSecret-message', 'Please enter a valid Base64 encoding.'),
-          },
-        ]}
-        disabled={!jwtProvider}
-        tooltip={intl.t('jwtSecret.describe', 'Use this key to issue tokens.(Base64 encoding)')}
-      />
+          ]}
+          tooltip={intl.t('jwtCookieName.describe', 'Store the name of the JWT Cookie.')}
+        />
+        <ProFormText
+          name={['proxy', 'jwtSecret']}
+          label={intl.t('jwtSecret.label', 'JWT secret')}
+          colProps={{ span: 12 }}
+          initialValue={jwtSecret}
+          fieldProps={{ maxLength: 200 }}
+          placeholder={id ? '*******************************' : undefined}
+          rules={[
+            {
+              pattern:
+                /^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)$/,
+              message: intl.t('proxy.jwtSecret-message', 'Please enter a valid Base64 encoding.'),
+            },
+            {
+              validator: async (rule, value: StoreValue) => {
+                if (jwtProvider && !value && !id) {
+                  return Promise.reject();
+                }
+                return Promise.resolve();
+              },
+              message: intl.t('proxy.jwtSecret-message', 'Please enter a valid Base64 encoding.'),
+            },
+          ]}
+          disabled={!jwtProvider}
+          tooltip={intl.t('jwtSecret.describe', 'Use this key to issue tokens.(Base64 encoding)')}
+        />
+      </ProFormGroup>
       <ProFormField colProps={{ span: 24 }} label={intl.t('url.label', 'URL')}>
         <Table
           pagination={false}

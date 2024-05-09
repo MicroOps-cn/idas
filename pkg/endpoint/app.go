@@ -21,9 +21,11 @@ import (
 	"database/sql"
 	"net/http"
 
+	"github.com/MicroOps-cn/fuck/safe"
 	"github.com/go-kit/kit/endpoint"
 	"github.com/modern-go/reflect2"
 
+	"github.com/MicroOps-cn/idas/config"
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/global"
 	"github.com/MicroOps-cn/idas/pkg/service"
@@ -122,6 +124,19 @@ func (m UpdateAppRequest) GetRoles() (roles []*models.AppRole) {
 	return roles
 }
 
+func (m UpdateAppRequest) GetOAuth2() *models.AppOAuth2 {
+	var key *safe.String
+	if m.OAuth2.JwtSignatureKey != "" {
+		key = safe.NewEncryptedString(m.OAuth2.JwtSignatureKey, config.Get().GetSecurity().GetSecret())
+	}
+	return &models.AppOAuth2{
+		AppId:                 m.Id,
+		JwtSignatureKey:       key,
+		JwtSignatureMethod:    m.OAuth2.JwtSignatureMethod,
+		AuthorizedRedirectUrl: models.NewAuthorizedRedirectUrls(m.OAuth2.AuthorizedRedirectUrl),
+	}
+}
+
 func MakeUpdateAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*UpdateAppRequest)
@@ -139,6 +154,7 @@ func MakeUpdateAppEndpoint(s service.Service) endpoint.Endpoint {
 			DisplayName: req.DisplayName,
 			Url:         req.Url,
 			I18N:        req.I18N,
+			OAuth2:      req.GetOAuth2(),
 		}); resp.Error != nil {
 			resp.Error = errors.WithServerError(200, resp.Error, "failed to update app")
 		}
@@ -151,9 +167,14 @@ func MakeGetAppInfoEndpoint(s service.Service) endpoint.Endpoint {
 		req := request.(Requester).GetRequestData().(*GetAppRequest)
 		resp := SimpleResponseWrapper[*models.App]{}
 		resp.Data, resp.Error = s.GetAppInfo(ctx, opts.WithAppId(req.Id), opts.WithGetTags)
-		if resp.Data.Proxy != nil {
-			resp.Data.Proxy.JwtSecretSalt = nil
-			resp.Data.Proxy.JwtSecret = nil
+		if resp.Data != nil {
+			if resp.Data.Proxy != nil {
+				resp.Data.Proxy.JwtSecretSalt = nil
+				resp.Data.Proxy.JwtSecret = nil
+			}
+			if resp.Data.OAuth2 != nil {
+				resp.Data.OAuth2.JwtSignatureKey = safe.NewEncryptedString("{CRYPT}", "")
+			}
 		}
 		return &resp, nil
 	}
@@ -211,6 +232,18 @@ func (r CreateAppRequest) GetProxyConfig() *models.AppProxy {
 	return proxy
 }
 
+func (r CreateAppRequest) GetOAuth2() *models.AppOAuth2 {
+	var key *safe.String
+	if r.OAuth2.JwtSignatureKey != "" {
+		key = safe.NewEncryptedString(r.OAuth2.JwtSignatureKey, config.Get().GetSecurity().GetSecret())
+	}
+	return &models.AppOAuth2{
+		JwtSignatureKey:       key,
+		JwtSignatureMethod:    r.OAuth2.JwtSignatureMethod,
+		AuthorizedRedirectUrl: models.NewAuthorizedRedirectUrls(r.OAuth2.AuthorizedRedirectUrl),
+	}
+}
+
 func MakeCreateAppEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(Requester).GetRequestData().(*CreateAppRequest)
@@ -227,6 +260,7 @@ func MakeCreateAppEndpoint(s service.Service) endpoint.Endpoint {
 			Proxy:       req.GetProxyConfig(),
 			Url:         req.Url,
 			I18N:        req.I18N,
+			OAuth2:      req.GetOAuth2(),
 		})
 		if resp.Error != nil {
 			resp.Error = errors.WithMessage(resp.Error, "Failed to create app")

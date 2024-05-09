@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/MicroOps-cn/fuck/clients/gorm"
+	w "github.com/MicroOps-cn/fuck/wrapper"
 	gogorm "gorm.io/gorm"
 
 	"github.com/MicroOps-cn/idas/pkg/errors"
@@ -133,26 +134,45 @@ func (c CommonService) CreateOrUpdateRoleByName(ctx context.Context, role *model
 
 func (c CommonService) RegisterPermission(ctx context.Context, permissions models.Permissions) error {
 	conn := c.Session(ctx)
-	for _, p := range permissions {
-		var op models.Permission
-		if err := conn.Where("name = ?", p.Name).First(&op).Error; err == gogorm.ErrRecordNotFound {
-			if err = conn.Create(p).Error; err != nil {
-				return err
-			}
-		} else if err != nil {
-			return err
+	var existsPermissions models.Permissions
+	for i := 0; i < len(permissions); i += 10 {
+		var names []string
+		if len(permissions)-i < 50 {
+			names = w.Map(permissions[i:], func(item *models.Permission) string { return item.Name })
 		} else {
-			p.Id = op.Id
-			if op.EnableAuth != p.EnableAuth || op.Description != p.Description || op.ParentId != p.ParentId {
-				if err = conn.Select("EnableAuth", "Description", "ParentId").Updates(p).Error; err != nil {
+			names = w.Map(permissions[i:i+50], func(item *models.Permission) string { return item.Name })
+		}
+		if err := conn.Where("name in (?)", names).FindInBatches(&existsPermissions, 100, func(tx *gogorm.DB, batch int) error {
+			var needUpdates models.Permissions
+			for _, name := range names {
+				p := w.Find(permissions, func(item *models.Permission) bool { return item.Name == name })
+				op := w.Find(existsPermissions, func(item *models.Permission) bool { return item.Name == name })
+				if op == nil {
+					if err := conn.Create(p).Error; err != nil {
+						return err
+					}
+				} else {
+					p.Id = op.Id
+					if op.EnableAuth != p.EnableAuth || op.Description != p.Description || op.ParentId != p.ParentId {
+						op.EnableAuth = p.EnableAuth
+						op.Description = p.Description
+						op.ParentId = p.ParentId
+						needUpdates = append(needUpdates, op)
+					}
+				}
+				for _, child := range p.Children {
+					child.ParentId = p.Id
+				}
+
+				if err := c.RegisterPermission(gorm.WithConnContext(ctx, conn), p.Children); err != nil {
 					return err
 				}
 			}
-		}
-		for _, child := range p.Children {
-			child.ParentId = p.Id
-		}
-		if err := c.RegisterPermission(gorm.WithConnContext(ctx, conn), p.Children); err != nil {
+			if len(needUpdates) > 0 {
+				return tx.Save(needUpdates).Error
+			}
+			return nil
+		}).Error; err != nil {
 			return err
 		}
 	}

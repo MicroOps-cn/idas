@@ -8,6 +8,7 @@ import { IntlContext } from '@/utils/intl';
 import type { RequestError } from '@/utils/request';
 import ProCard from '@ant-design/pro-card';
 
+import type { FormValueType, PartialByKeys } from './components/CreateOrUpdateForm';
 import CreateOrUpdateForm from './components/CreateOrUpdateForm';
 
 /**
@@ -15,7 +16,10 @@ import CreateOrUpdateForm from './components/CreateOrUpdateForm';
  * @zh-CN 添加应用
  * @param fields
  */
-const handleAdd = async (fields: API.CreateAppRequest) => {
+const handleAdd = async ({
+  status: _,
+  ...fields
+}: API.CreateAppRequest & { id?: string; status?: API.AppMetaStatus }) => {
   const hide = message.loading('Adding ...');
   try {
     await createApp({ ...fields });
@@ -37,7 +41,7 @@ const handleAdd = async (fields: API.CreateAppRequest) => {
  *
  * @param fields
  */
-const handleUpdate = async (fields: API.UpdateAppRequest) => {
+const handleUpdate = async (fields: PartialByKeys<API.UpdateAppRequest, 'id'>) => {
   const hide = message.loading('Configuring');
   try {
     if (fields.id) {
@@ -57,6 +61,7 @@ const handleUpdate = async (fields: API.UpdateAppRequest) => {
           url: fields.url,
           displayName: fields.displayName,
           i18n: fields.i18n,
+          oAuth2: fields.oAuth2,
         },
       );
       hide();
@@ -77,7 +82,7 @@ const handleUpdate = async (fields: API.UpdateAppRequest) => {
 const AppEditor: React.FC = ({}) => {
   const { aid } = useParams();
   const intl = new IntlContext('pages.apps', useIntl());
-  const [appInfo, setAppInfo] = useState<API.AppInfo | undefined | Record<string, never>>();
+  const [appInfo, setAppInfo] = useState<Partial<API.AppInfo> | undefined>(undefined);
   const [loading, setLoading] = useState<boolean>(false);
   const [disabled, setDisable] = useState<boolean>(false);
   const fetchAppInfo = async (appId: string) => {
@@ -102,27 +107,25 @@ const AppEditor: React.FC = ({}) => {
     if (aid) {
       fetchAppInfo(aid);
     } else {
-      setAppInfo({});
+      setAppInfo(undefined);
     }
   }, [aid]);
   return (
     // <PageContainer title={aid ? appInfo?.name : false}>
-    <ProCard>
-      {appInfo ? (
-        <CreateOrUpdateForm
-          onSubmit={async (value) => {
-            const success = await (appInfo?.id ? handleUpdate : handleAdd)(value);
-            if (success) {
-              history.push(`/apps/${appInfo?.id ?? ''}`);
-            }
-            return success;
-          }}
-          values={appInfo?.id ? appInfo : undefined}
-          parentIntl={intl}
-          loading={loading}
-          disabled={disabled}
-        />
-      ) : null}
+    <ProCard style={{ height: '100%' }}>
+      <CreateOrUpdateForm
+        onSubmit={async (value: FormValueType) => {
+          const success = await (appInfo?.id ? handleUpdate : handleAdd)(value);
+          if (success) {
+            history.push(`/apps/${appInfo?.id ?? ''}`);
+          }
+          return success;
+        }}
+        values={aid ? appInfo : {}}
+        parentIntl={intl}
+        loading={loading}
+        disabled={disabled}
+      />
     </ProCard>
     // </PageContainer>
   );

@@ -3,6 +3,21 @@
 /* eslint-disable */
 import { request } from '@/utils/request';
 
+/** Well known openid configuration. GET /api/v1/oauth/.well-known/openid-configuration */
+export async function openidConfiguration(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.openidConfigurationParams,
+  options?: { [key: string]: any },
+) {
+  return request<API.OIDCWellKnownResponse>('/api/v1/oauth/.well-known/openid-configuration', {
+    method: 'GET',
+    params: {
+      ...params,
+    },
+    ...(options || {}),
+  });
+}
+
 /** Application authorization. GET /api/v1/oauth/authorize */
 export async function oAuthAuthorize(
   // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
@@ -29,6 +44,21 @@ export async function oAuthAuthorize2(
       'Content-Type': 'application/json',
     },
     data: body,
+    ...(options || {}),
+  });
+}
+
+/** Well known openid configuration. GET /api/v1/oauth/jwks */
+export async function openidConfiguration2(
+  // 叠加生成的Param类型 (非body参数swagger默认没有生成对象)
+  params: API.openidConfigurationParams,
+  options?: { [key: string]: any },
+) {
+  return request<API.OAuthJWKSResponse>('/api/v1/oauth/jwks', {
+    method: 'GET',
+    params: {
+      ...params,
+    },
     ...(options || {}),
   });
 }

@@ -96,6 +96,9 @@ type CommonService interface {
 	DeleteAppAccessControl(ctx context.Context, id ...string) error
 	DeleteI18nBySourceId(ctx context.Context, id ...string) error
 	GetI18n(ctx context.Context, source string, sourceId string, field string) (map[string]string, error)
+	PatchAppOAuthConfig(ctx context.Context, auth2 *models.AppOAuth2) error
+	GetAppOAuthConfig(ctx context.Context, id string) (*models.AppOAuth2, error)
+	FindAppByKeywords(ctx context.Context, keywords string, skip int64, limit int64) ([]string, int64)
 }
 
 func NewCommonService(ctx context.Context) CommonService {

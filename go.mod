@@ -3,7 +3,7 @@ module github.com/MicroOps-cn/idas
 go 1.18
 
 require (
-	github.com/MicroOps-cn/fuck v1.2.10
+	github.com/MicroOps-cn/fuck v1.2.11
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/disintegration/letteravatar v0.0.0-20160912210445-1a457b860450
 	github.com/docker/docker v20.10.24+incompatible
@@ -20,6 +20,7 @@ require (
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang-jwt/jwt/v4 v4.0.0
+	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/howeyc/gopass v0.0.0-20210920133722-c8aef6fb66ef
 	github.com/moby/term v0.0.0-20220808134915-39b0c02b01ae
 	github.com/modern-go/reflect2 v1.0.2

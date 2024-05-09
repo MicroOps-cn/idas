@@ -45,6 +45,7 @@ func main() {
 			for name,value := range {{ $m.Name }}.{{ $t.SourceType }}_value {
 			enumItems = append(enumItems, EnumItem{value: value, name: name})
 		}
+		sort.Sort(enumItems)
 		f.WriteString("export enum {{ .DstType }}{\n")
 		for _, item := range enumItems {
 			f.WriteString(fmt.Sprintf("  %s = %d,\n", item.name, item.value))
@@ -52,7 +53,6 @@ func main() {
 		f.WriteString("}\n\n")
 		f.WriteString("export type {{ .DstType }}Name =")
 
-		sort.Sort(enumItems)
 		for _, item := range enumItems{
 			f.WriteString(fmt.Sprintf("\n  | '%s'", item.name))
 		}

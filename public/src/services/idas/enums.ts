@@ -20,10 +20,10 @@ export type PasswordComplexityValue =
   | 3;
 
 export enum OAuthGrantType{
-  client_credentials = 3,
   refresh_token = 0,
   authorization_code = 1,
   password = 2,
+  client_credentials = 3,
 }
 
 export type OAuthGrantTypeName =
@@ -39,32 +39,35 @@ export type OAuthGrantTypeValue =
   | 3;
 
 export enum ResponseType{
-  default = 0,
+  none = 0,
   code = 1,
   token = 2,
+  id_token = 3,
 }
 
 export type ResponseTypeName =
-  | 'default'
+  | 'none'
   | 'code'
-  | 'token';
+  | 'token'
+  | 'id_token';
 
 export type ResponseTypeValue =
   | 0
   | 1
-  | 2;
+  | 2
+  | 3;
 
 export enum LoginType{
   normal = 0,
   mfa_totp = 1,
-  enable_mfa_totp = 10,
-  enable_mfa_sms = 12,
   mfa_email = 2,
   mfa_sms = 3,
   email = 4,
   sms = 5,
   oauth2 = 6,
+  enable_mfa_totp = 10,
   enable_mfa_email = 11,
+  enable_mfa_sms = 12,
 }
 
 export type LoginTypeName =
@@ -127,7 +130,6 @@ export type AppStatusValue =
   | 2;
 
 export enum GrantType{
-  radius = 64,
   none = 0,
   authorization_code = 1,
   implicit = 2,
@@ -135,6 +137,7 @@ export enum GrantType{
   client_credentials = 8,
   proxy = 16,
   oidc = 32,
+  radius = 64,
 }
 
 export type GrantTypeName =
@@ -170,6 +173,43 @@ export type GrantModeValue =
   | 0
   | 1;
 
+export enum JWTSignatureMethod{
+  default = 0,
+  HS256 = 1,
+  HS384 = 2,
+  HS512 = 3,
+  RS256 = 4,
+  RS384 = 5,
+  RS512 = 6,
+  ES256 = 7,
+  ES384 = 8,
+  ES512 = 9,
+}
+
+export type JWTSignatureMethodName =
+  | 'default'
+  | 'HS256'
+  | 'HS384'
+  | 'HS512'
+  | 'RS256'
+  | 'RS384'
+  | 'RS512'
+  | 'ES256'
+  | 'ES384'
+  | 'ES512';
+
+export type JWTSignatureMethodValue =
+  | 0
+  | 1
+  | 2
+  | 3
+  | 4
+  | 5
+  | 6
+  | 7
+  | 8
+  | 9;
+
 export enum RoleType{
   user = 0,
   system = 1,
@@ -203,20 +243,20 @@ export type UserStatusValue =
   | 4;
 
 export enum PageFieldType{
+  text = 0,
+  textarea = 2,
+  digit = 3,
+  digitRange = 4,
+  checkbox = 5,
+  radio = 6,
+  switch = 7,
   select = 8,
   multiSelect = 9,
-  textarea = 2,
-  checkbox = 5,
-  digitRange = 4,
-  dateTimeRange = 14,
-  digit = 3,
   timeRange = 10,
-  switch = 7,
   date = 11,
   dateRange = 12,
   dateTime = 13,
-  text = 0,
-  radio = 6,
+  dateTimeRange = 14,
 }
 
 export type PageFieldTypeName =

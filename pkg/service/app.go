@@ -53,6 +53,26 @@ func (s Set) GetApps(ctx context.Context, keywords string, filter map[string]int
 		}
 		app.I18N.DisplayName = i18n
 	}
+	if len(filter) == 0 {
+		appIds, count2 := s.commonService.FindAppByKeywords(ctx, keywords, (current-1)*pageSize-count, pageSize-int64(len(apps)))
+		if count2 > 0 {
+			count += count2
+		loop:
+			for _, id := range appIds {
+				app, err := s.GetAppInfo(ctx, opts.WithAppId(id), opts.WithBasic)
+				if err != nil {
+					continue
+				}
+				for _, a := range apps {
+					if a.Id == app.Id {
+						continue loop
+					}
+				}
+				apps = append(apps, app)
+			}
+
+		}
+	}
 	return count, apps, err
 }
 
@@ -219,7 +239,18 @@ func (s Set) UpdateApp(ctx context.Context, app *models.App, updateColumns ...st
 			}
 		}
 	}
+	if app.GrantType&models.AppMeta_authorization_code > 0 {
+		app.OAuth2.AppId = app.Id
+		if err = s.commonService.PatchAppOAuthConfig(ctx, app.OAuth2); err != nil {
+			logger := logs.GetContextLogger(ctx)
+			level.Error(logger).Log("err", err, "msg", "failed to update oauth config")
+		}
+	}
 	return s.PatchAppI18n(ctx, app.Id, app.I18N)
+}
+
+func (s Set) GetAppOAuthConfig(ctx context.Context, appId string) (*models.AppOAuth2, error) {
+	return s.commonService.GetAppOAuthConfig(ctx, appId)
 }
 
 func (s Set) GetAppInfo(ctx context.Context, o ...opts.WithGetAppOptions) (app *models.App, err error) {
@@ -253,7 +284,11 @@ func (s Set) GetAppInfo(ctx context.Context, o ...opts.WithGetAppOptions) (app *
 		}
 		app.I18N.DisplayName = i18n
 	}
-
+	if !opts.NewAppOptions(o...).DisableGetOAuth2 {
+		if app.OAuth2, err = s.commonService.GetAppOAuthConfig(ctx, app.Id); err != nil {
+			return nil, err
+		}
+	}
 	return app, nil
 }
 
@@ -332,6 +367,14 @@ func (s Set) CreateApp(ctx context.Context, app *models.App) (err error) {
 	if err = s.commonService.UpdateAppAccessControl(ctx, app); err != nil {
 		return err
 	}
+
+	if app.GrantType&models.AppMeta_authorization_code > 0 {
+		app.OAuth2.AppId = app.Id
+		if err = s.commonService.PatchAppOAuthConfig(ctx, app.OAuth2); err != nil {
+			logger := logs.GetContextLogger(ctx)
+			level.Error(logger).Log("err", err, "msg", "failed to update oauth config")
+		}
+	}
 	return s.PatchAppI18n(ctx, app.Id, app.I18N)
 }
 
@@ -348,7 +391,7 @@ func (s Set) AppAuthentication(ctx context.Context, key string, secret string) (
 	if appId, err := s.commonService.AppAuthorization(ctx, key, secret); err != nil {
 		level.Error(logger).Log("msg", "failed to authorization app", "err", err)
 	} else if len(appId) > 0 {
-		if app, err := s.GetAppInfo(ctx, opts.WithAppId(appId), opts.WithBasic); err != nil {
+		if app, err := s.GetAppInfo(ctx, opts.WithAppId(appId), opts.WithBasic, opts.WithOAuth2); err != nil {
 			level.Error(logger).Log("msg", "failed to get app info", "err", err)
 		} else {
 			return app, nil

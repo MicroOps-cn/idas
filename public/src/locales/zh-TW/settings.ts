@@ -101,7 +101,7 @@ export default {
   "settings.security.password-failed-lock.input.0.suffix": "次失敗",
   "settings.security.password-failed-lock.input.1.tooltip": "統計週期",
   "settings.security.password-failed-lock.input.1.suffix": "分鐘",
-  "settings.security.password-history.input.suffix": "天",
+  "settings.security.password-history.input.suffix": "次",
   "settings.security.account-inactive-lock.input.suffix": "天",
   "settings.security.login-session-expiration-time.input.suffix": "小時",
   "user.settings.basic.fullname": "姓名",

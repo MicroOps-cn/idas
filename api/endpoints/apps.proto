@@ -10,6 +10,11 @@ import "endpoints/base.proto";
 
 option go_package = "github.com/MicroOps-cn/idas/pkg/endpoint;endpoint";
 
+message AppOAuth2Info{
+  repeated string authorized_redirect_url = 1 [(gogoproto.moretags)='valid:"url"', (gogoproto.jsontag) = "authorizedRedirectUrl"];
+  idas.service.models.AppMeta.JWTSignatureMethod  jwt_signature_method = 2[(gogoproto.jsontag) = "jwtSignatureMethod"];
+  string jwt_signature_key = 3[(gogoproto.jsontag) = "jwtSignatureKey,omitempty"];
+}
 
 message AppProxyUrlInfo {
   string id = 1 [(gogoproto.jsontag) = "id", (gogoproto.moretags) = 'valid:"required,uuid"'];
@@ -48,6 +53,7 @@ message AppInfo {
   AppProxyInfo proxy = 17;
   string display_name = 18 [(gogoproto.jsontag) = "displayName,omitempty", (gogoproto.moretags) = 'gorm:"type:varchar(128)"'];
   idas.service.models.AppI18nOptions i18n = 19;
+  AppOAuth2Info oAuth2 = 20[(gogoproto.jsontag) = "oAuth2,omitempty"];
 }
 
 message GetAppRequest {
@@ -91,7 +97,6 @@ message PatchAppRequest {
   idas.service.models.AppMeta.Status status = 8 [(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.AppMeta_Status"];
   string url = 12[(gogoproto.customtype) = "string"];
   bool is_delete = 14 [(gogoproto.customtype) = "bool", (gogoproto.jsontag) = "isDelete,omitempty"];
-  AppProxyInfo proxy = 15 [(gogoproto.jsontag) = "proxy,omitempty"];
   string display_name = 16 [(gogoproto.jsontag) = "displayName,omitempty", (gogoproto.moretags) = 'gorm:"type:varchar(128)"'];
   idas.service.models.AppI18nOptions i18n = 19;
 }
@@ -127,6 +132,7 @@ message CreateAppRequest {
   string display_name = 13 [(gogoproto.jsontag) = "displayName,omitempty", (gogoproto.moretags) = 'gorm:"type:varchar(128)"'];
   AppProxyInfo proxy = 17;
   idas.service.models.AppI18nOptions i18n = 19;
+  AppOAuth2Info oAuth2 = 20[(gogoproto.jsontag) = "oAuth2"];
 }
 
 message UpdateAppRequest {
@@ -149,6 +155,7 @@ message UpdateAppRequest {
   AppProxyInfo proxy = 17;
   string display_name = 13 [(gogoproto.jsontag) = "displayName,omitempty", (gogoproto.moretags) = 'gorm:"type:varchar(128)"'];
   idas.service.models.AppI18nOptions i18n = 19;
+  AppOAuth2Info oAuth2 = 20[(gogoproto.jsontag) = "oAuth2",(gogoproto.nullable)=false];
 }
 
 message AppKeyInfo{

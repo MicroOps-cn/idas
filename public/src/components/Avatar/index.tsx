@@ -215,11 +215,16 @@ export const ProAvatarUpload: React.FC<ProFormFieldItemProps<ProAvatarUploadProp
         if (resp && resp.data) {
           const { data: newData, current, pageSize, total } = resp;
           setIconList((oldData) => {
+            if (current === 1) {
+              return newData;
+            }
             return [...oldData, ...newData];
           });
           setIconListPageNumber(current);
           if (total && total < current * pageSize) {
             setIconListHasMore(false);
+          } else {
+            setIconListHasMore(true);
           }
         } else {
           setIconListHasMore(false);
@@ -233,7 +238,6 @@ export const ProAvatarUpload: React.FC<ProFormFieldItemProps<ProAvatarUploadProp
       }
     }
   };
-
   // const setPopupVisible = (v: boolean) => {
   //   if (!v || optionsRequest) {
   //     if (v) {

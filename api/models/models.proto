@@ -38,6 +38,19 @@ message AppMeta {
     manual = 0;
     full = 1;
   }
+  // @sync-to-public:public/src/services/idas/enums.ts:JWTSignatureMethod
+  enum JWTSignatureMethod{
+    default = 0;
+    HS256 = 1;
+    HS384 = 2;
+    HS512 = 3;
+    RS256 = 4;
+    RS384 = 5;
+    RS512 = 6;
+    ES256 = 7;
+    ES384 = 8;
+    ES512 = 9;
+  }
 }
 message RoleMeta {
   // @sync-to-public:public/src/services/idas/enums.ts:RoleType

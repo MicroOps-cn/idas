@@ -101,7 +101,7 @@ export default {
   "settings.security.password-failed-lock.input.0.suffix": "次の失敗",
   "settings.security.password-failed-lock.input.1.tooltip": "とうけいてきサイクル",
   "settings.security.password-failed-lock.input.1.suffix": "分",
-  "settings.security.password-history.input.suffix": "日",
+  "settings.security.password-history.input.suffix": "次",
   "settings.security.account-inactive-lock.input.suffix": "日",
   "settings.security.login-session-expiration-time.input.suffix": "時間",
   "user.settings.basic.fullname": "名前",

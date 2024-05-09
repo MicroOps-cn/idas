@@ -2,7 +2,7 @@ import { Inspector } from 'react-dev-inspector';
 
 import Footer from '@/components/Footer';
 import { getActions } from '@/components/RightContent';
-import type { ResponseStructure, RequestOptions } from '@/utils/request';
+import type { ResponseStructure } from '@/utils/request';
 import { errorHandler, getApiPath, getLocation, getPublicPath } from '@/utils/request';
 import { BookOutlined, LinkOutlined } from '@ant-design/icons';
 import type { MenuDataItem, Settings as LayoutSettings } from '@ant-design/pro-components';
@@ -97,11 +97,18 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     //   content: initialState?.currentUser?.username,
     // },
     footerRender: () => <Footer />,
-    onPageChange: () => {
+    onPageChange: async () => {
       // 如果没有登录，重定向到 login
       const { access } = getRouteAccess(pathname, globalRoutes);
-      if (!initialState?.currentUser && access !== 'canAnonymous') {
-        if (pathname !== loginPath) history.push(loginPath);
+      if (access !== 'canAnonymous') {
+        if (!initialState?.currentUser) {
+          const currentUser = await initialState?.fetchUserInfo?.();
+          if (currentUser) {
+            setInitialState({ ...initialState, currentUser: currentUser });
+          } else {
+            if (pathname !== loginPath) history.push(loginPath);
+          }
+        }
       }
     },
     links: isDev

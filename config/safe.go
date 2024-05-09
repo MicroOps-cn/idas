@@ -196,7 +196,6 @@ func (sc *safeConfig) ReloadConfigFromJSONReader(logger log.Logger, reader Reade
 		c.Security = &Security{}
 	}
 	if c.Security.Jwt == nil {
-		fmt.Println(">>>", c.Security.Jwt, c.Security.JwtSecret)
 		if len(c.Security.JwtSecret) > 0 {
 			c.Security.Jwt, err = jwtutils.NewJWTConfigBySecret(c.Security.JwtSecret)
 			if err != nil {
@@ -205,7 +204,7 @@ func (sc *safeConfig) ReloadConfigFromJSONReader(logger log.Logger, reader Reade
 		} else if sc.C != nil && sc.C.Security != nil && sc.C.Security.Jwt != nil {
 			c.Security.Jwt = sc.C.Security.Jwt
 		} else {
-			c.Security.Jwt, err = jwtutils.NewJWTConfig()
+			c.Security.Jwt, err = jwtutils.NewRandomRSAJWTConfig()
 			if err != nil {
 				return fmt.Errorf("failed to generate jwt config: %s", err)
 			}

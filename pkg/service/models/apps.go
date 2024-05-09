@@ -16,6 +16,12 @@
 
 package models
 
+import (
+	"database/sql/driver"
+	"fmt"
+	"strings"
+)
+
 type Apps []*App
 
 func (a Apps) Id() []string {
@@ -131,4 +137,38 @@ func (a AppProxyUrls) Id() (ids []string) {
 		ids = append(ids, url.Id)
 	}
 	return
+}
+
+type AuthorizedRedirectUrls []string
+
+func (c *AuthorizedRedirectUrls) GormDataType() string {
+	return "string"
+}
+
+// Scan implements the Scanner interface.
+func (c *AuthorizedRedirectUrls) Scan(value any) error {
+	switch vt := value.(type) {
+	case []uint8:
+		*c = strings.Split(string(vt), "\n")
+	case string:
+		*c = strings.Split(vt, "\n")
+	default:
+		return fmt.Errorf("failed to resolve field, type exception: %T", value)
+	}
+	return nil
+}
+
+// Value implements the driver Valuer interface.
+func (c AuthorizedRedirectUrls) Value() (driver.Value, error) {
+	return strings.Join(c, "\n"), nil
+}
+
+func NewAuthorizedRedirectUrls(urls []string) AuthorizedRedirectUrls {
+	res := make(AuthorizedRedirectUrls, len(urls))
+	copy(res, urls)
+	return res
+}
+
+func (m AppOAuth2) TableName() string {
+	return "t_app_oauth2"
 }

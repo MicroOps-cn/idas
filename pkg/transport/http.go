@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	errors2 "errors"
 	"fmt"
-	http2 "github.com/MicroOps-cn/fuck/http"
 	"html/template"
 	"io"
 	"io/fs"
@@ -36,6 +35,7 @@ import (
 	"time"
 
 	"github.com/MicroOps-cn/fuck/buffer"
+	http2 "github.com/MicroOps-cn/fuck/http"
 	logs "github.com/MicroOps-cn/fuck/log"
 	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/asaskevich/govalidator"
@@ -456,8 +456,7 @@ func NewSimpleKitHTTPServer[RequestType any](
 
 func NewWebService(rootPath string, gv schema.GroupVersion, doc string) *restful.WebService {
 	webservice := restful.WebService{}
-	prefix := rootPath
-	prefix = http2.JoinPath(rootPath, gv.Version, gv.Group)
+	prefix := http2.JoinPath(rootPath, gv.Version, gv.Group)
 	webservice.Path(prefix).
 		Consumes(restful.MIME_JSON).
 		Produces(restful.MIME_JSON).Doc(doc)
