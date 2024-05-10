@@ -21,6 +21,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	jwtutils "github.com/MicroOps-cn/idas/pkg/utils/jwt"
 	"io"
 	"net"
 	gohttp "net/http"
@@ -95,7 +96,7 @@ type Service interface {
 	UpdateApp(ctx context.Context, app *models.App, updateColumns ...string) (err error)
 	GetAppInfo(ctx context.Context, options ...opts.WithGetAppOptions) (app *models.App, err error)
 	GetAppRoleByUserId(ctx context.Context, appId string, userId string) (role *models.AppRole, err error)
-	GetAppOAuthConfig(ctx context.Context, appId string) (config *models.AppOAuth2, err error)
+	GetIssuerByAppId(ctx context.Context, appId string) (issuer jwtutils.JWTIssuer, err error)
 
 	CreateApp(ctx context.Context, app *models.App) (err error)
 	PatchApp(ctx context.Context, fields map[string]interface{}) (err error)

@@ -34,7 +34,6 @@ import (
 	"github.com/go-kit/kit/endpoint"
 	"github.com/go-kit/log/level"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/golang/groupcache/lru"
 	uuid "github.com/satori/go.uuid"
 	"github.com/xlzd/gotp"
 
@@ -649,8 +648,6 @@ type GetSessionParams struct {
 	TokenType models.TokenType
 }
 
-var issuerCache = lru.New(1024)
-
 func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		params := request.(Requester).GetRequestData().(*GetSessionParams)
@@ -668,16 +665,11 @@ func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 				if err != nil {
 					return config.Get().GetJwtIssuer(), nil
 				}
-				if value, ok := issuerCache.Get(aid); ok {
-					if issuer, ok := value.(jwtutils.JWTIssuer); ok {
-						return issuer, nil
-					}
-				}
-				authConfig, err := s.GetAppOAuthConfig(ctx, aid.String())
+				issuer, err := s.GetIssuerByAppId(ctx, aid.String())
 				if err != nil {
 					return config.Get().GetJwtIssuer(), nil
 				}
-				return authConfig.GetJWTIssuer(ctx), nil
+				return issuer, nil
 			})
 			if err != nil {
 				logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))

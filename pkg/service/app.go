@@ -23,12 +23,14 @@ import (
 	"github.com/MicroOps-cn/fuck/sets"
 	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/go-kit/log/level"
+	"github.com/golang/groupcache/lru"
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/MicroOps-cn/idas/pkg/errors"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/service/opts"
 	"github.com/MicroOps-cn/idas/pkg/utils/image"
+	jwtutils "github.com/MicroOps-cn/idas/pkg/utils/jwt"
 )
 
 func (s Set) GetApps(ctx context.Context, keywords string, filter map[string]interface{}, current, pageSize int64) (total int64, apps []*models.App, err error) {
@@ -245,12 +247,24 @@ func (s Set) UpdateApp(ctx context.Context, app *models.App, updateColumns ...st
 			logger := logs.GetContextLogger(ctx)
 			level.Error(logger).Log("err", err, "msg", "failed to update oauth config")
 		}
+		issuerCache.Remove(app.Id)
 	}
 	return s.PatchAppI18n(ctx, app.Id, app.I18N)
 }
 
-func (s Set) GetAppOAuthConfig(ctx context.Context, appId string) (*models.AppOAuth2, error) {
-	return s.commonService.GetAppOAuthConfig(ctx, appId)
+var issuerCache = lru.New(16)
+
+func (s Set) GetIssuerByAppId(ctx context.Context, appId string) (jwtutils.JWTIssuer, error) {
+	if value, ok := issuerCache.Get(appId); ok {
+		if issuer, ok := value.(jwtutils.JWTIssuer); ok {
+			return issuer, nil
+		}
+	}
+	oAuthConfig, err := s.commonService.GetAppOAuthConfig(ctx, appId)
+	if err != nil {
+		return nil, err
+	}
+	return oAuthConfig.GetJWTIssuer(ctx), nil
 }
 
 func (s Set) GetAppInfo(ctx context.Context, o ...opts.WithGetAppOptions) (app *models.App, err error) {
@@ -374,6 +388,7 @@ func (s Set) CreateApp(ctx context.Context, app *models.App) (err error) {
 			logger := logs.GetContextLogger(ctx)
 			level.Error(logger).Log("err", err, "msg", "failed to update oauth config")
 		}
+		issuerCache.Remove(app.Id)
 	}
 	return s.PatchAppI18n(ctx, app.Id, app.I18N)
 }
