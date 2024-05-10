@@ -587,21 +587,26 @@ func MakeWellknownOpenidConfigurationEndpoint(s service.Service) endpoint.Endpoi
 
 func MakeOAuthJWKSEndpoint(s service.Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-		jwtIssuer := config.Get().GetJwtIssuer()
-		pk := jwtIssuer.GetPublicKey()
-		var n, e []byte
-		var pkSize int
+		req := request.(Requester).GetRequestData().(*OIDCWellKnownRequest)
+		logger := logs.GetContextLogger(ctx)
+		app, err := s.GetAppInfo(ctx, opts.WithBasic, opts.WithOAuth2, opts.WithAppId(req.ClientId))
+		if err != nil {
+			level.Error(logger).Log("msg", "failed to get app info", "err", err)
+			return nil, err
+		}
+		issuer := app.GetJWTIssuer(ctx)
+		pk := issuer.GetPublicKey()
 		switch pubKey := pk.(type) {
 		case *rsa.PublicKey:
+			var n, e []byte
 			e = make([]byte, 4)
 			binary.BigEndian.PutUint32(e, uint32(pubKey.E))
-			pkSize = pubKey.Size()
 			n = pubKey.N.Bytes()
 			return &OAuthJWKSResponse{
 				Keys: []*OAuthJWKSResponse_Key{
 					{
 						Kty: "RSA",
-						Alg: "RS" + strconv.Itoa(pkSize),
+						Alg: "RS" + strconv.Itoa(pubKey.Size()),
 						Use: "sig",
 						N:   base64.URLEncoding.EncodeToString(n),
 						E:   base64.URLEncoding.EncodeToString(e[1:]),
@@ -612,20 +617,12 @@ func MakeOAuthJWKSEndpoint(s service.Service) endpoint.Endpoint {
 		case *ecdsa.PublicKey:
 			switch pubKey.Curve.Params().Name {
 			case "P-256":
-				pkSize = 256
-			case "P-384":
-				pkSize = 384
-			case "P-521":
-				pkSize = 521
-			}
-			switch pubKey.Curve.Params().Name {
-			case "P-256":
 				return &OAuthJWKSResponse{
 					Keys: []*OAuthJWKSResponse_Key{
 						{
 							Kty: "EC",
 							Use: "sig",
-							Alg: "ES" + strconv.Itoa(pkSize),
+							Alg: "ES" + strconv.Itoa(pubKey.Curve.Params().BitSize),
 							Crv: pubKey.Curve.Params().Name,
 							X:   base64.URLEncoding.EncodeToString(pubKey.X.Bytes()),
 							Y:   base64.URLEncoding.EncodeToString(pubKey.Y.Bytes()),
