@@ -17,9 +17,16 @@
 package models
 
 import (
+	"context"
 	"database/sql/driver"
 	"fmt"
 	"strings"
+
+	logs "github.com/MicroOps-cn/fuck/log"
+	"github.com/MicroOps-cn/idas/config"
+	"github.com/go-kit/log/level"
+
+	jwtutils "github.com/MicroOps-cn/idas/pkg/utils/jwt"
 )
 
 type Apps []*App
@@ -171,4 +178,33 @@ func NewAuthorizedRedirectUrls(urls []string) AuthorizedRedirectUrls {
 
 func (m AppOAuth2) TableName() string {
 	return "t_app_oauth2"
+}
+
+func (m AppOAuth2) GetJWTIssuer(ctx context.Context) jwtutils.JWTIssuer {
+	logger := logs.GetContextLogger(ctx)
+
+	if m.JwtSignatureMethod != AppMeta_default && m.JwtSignatureKey != nil {
+		signKey, err := m.JwtSignatureKey.UnsafeString()
+		if err != nil {
+			level.Error(logger).Log("msg", "failed to decrypt jwt signature key", "err", err)
+			return config.Get().GetJwtIssuer()
+		}
+		issuer, err := jwtutils.NewJWTIssuer(m.AppId, m.JwtSignatureMethod.String(), signKey)
+		if err != nil {
+			level.Error(logger).Log("msg", "failed to init jwt issuer", "err", err)
+			return config.Get().GetJwtIssuer()
+		}
+		return issuer
+	}
+	return config.Get().GetJwtIssuer()
+}
+
+func (m *App) GetJWTIssuer(ctx context.Context) jwtutils.JWTIssuer {
+	if m.OAuth2 == nil {
+		return config.Get().GetJwtIssuer()
+	}
+	if len(m.OAuth2.AppId) == 0 {
+		m.OAuth2.AppId = m.Id
+	}
+	return m.OAuth2.GetJWTIssuer(ctx)
 }

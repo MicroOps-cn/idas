@@ -677,15 +677,7 @@ func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 				if err != nil {
 					return config.Get().GetJwtIssuer(), nil
 				}
-				sk, err := authConfig.JwtSignatureKey.UnsafeString()
-				if err != nil {
-					return config.Get().GetJwtIssuer(), nil
-				}
-				issuer, err := jwtutils.NewJWTIssuer(aid.String(), authConfig.JwtSignatureMethod.String(), sk)
-				if err != nil {
-					return config.Get().GetJwtIssuer(), nil
-				}
-				return issuer, nil
+				return authConfig.GetJWTIssuer(ctx), nil
 			})
 			if err != nil {
 				logger := logs.WithPrint(fmt.Sprintf("%+v", err))(logs.GetContextLogger(ctx))

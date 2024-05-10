@@ -251,18 +251,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 						user.RoleId = role.Id
 						user.Role = role.Name
 					}
-					jwtIssuer := config.Get().GetJwtIssuer()
-
-					if app.OAuth2.JwtSignatureKey != nil {
-						sigKey, err := app.OAuth2.JwtSignatureKey.UnsafeString()
-						if err != nil {
-							return nil, errors.NewServerError(500, err.Error())
-						}
-						jwtIssuer, err = jwtutils.NewJWTIssuer(app.Id, app.OAuth2.JwtSignatureMethod.String(), sigKey)
-						if err != nil {
-							return nil, errors.NewServerError(500, err.Error())
-						}
-					}
+					jwtIssuer := app.GetJWTIssuer(ctx)
 
 					user.ExtendedData = nil
 					at, err := s.CreateToken(ctx, tokenType, user)
