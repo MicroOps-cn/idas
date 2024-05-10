@@ -112,7 +112,9 @@ const CreateOrUpdateForm: React.FC<UpdateFormProps> = ({
       },
       proxy: {
         ...(info.proxy ?? oriAppInfo.proxy),
-        urls: (info.proxy ?? oriAppInfo.proxy)?.urls ?? [],
+        urls: (((info.proxy ?? oriAppInfo.proxy)?.urls ?? []) as API.AppProxyUrl[]).map(
+          ({ createTime: _, updateTime: __, ...url }) => url,
+        ),
       },
       users: info.users ?? oriAppInfo.users,
       roles: info.roles?.map((role) => ({ ...role, urls: role.urls ?? [] })) ?? oriAppInfo.roles,
