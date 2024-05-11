@@ -17,6 +17,7 @@
 package jwt
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -28,11 +29,12 @@ import (
 	"fmt"
 
 	w "github.com/MicroOps-cn/fuck/wrapper"
+	"github.com/MicroOps-cn/idas/pkg/common"
 	"github.com/golang-jwt/jwt/v4"
 )
 
 type JWTIssuer interface {
-	SignedString(claims Claims) (string, error)
+	SignedString(ctx context.Context, claims Claims) (string, error)
 	ParseWithClaims(tokenString string, claims jwt.Claims) (*jwt.Token, error)
 	GetPublicKey() crypto.PublicKey
 }
@@ -65,8 +67,8 @@ func (j *JWTConfig) ParseWithClaims(tokenString string, claims jwt.Claims) (*jwt
 	})
 }
 
-func (j *JWTConfig) SignedString(claims Claims) (string, error) {
-	claims.SetIssuer(j.Id)
+func (j *JWTConfig) SignedString(ctx context.Context, claims Claims) (string, error) {
+	claims.SetIssuer(ctx, j.Id)
 	return jwt.NewWithClaims(j.Algorithm, claims).SignedString(j.PrivateKey)
 }
 
@@ -230,7 +232,7 @@ func NewJWTIssuer(issuerId string, method, privateKey string) (JWTIssuer, error)
 
 type Claims interface {
 	jwt.Claims
-	SetIssuer(string)
+	SetIssuer(context.Context, string)
 }
 
 func ParseWithClaims(tokenString string, claims jwt.Claims, issuerFunc func(token *jwt.Token) (JWTIssuer, error)) (*jwt.Token, error) {
@@ -254,6 +256,10 @@ func (c StandardClaims) Valid() error {
 	return jwt.StandardClaims(c).Valid()
 }
 
-func (c *StandardClaims) SetIssuer(issuer string) {
-	c.Issuer = issuer
+func (c *StandardClaims) SetIssuer(ctx context.Context, issuerID string) {
+	if len(issuerID) > 0 {
+		c.Issuer = w.M(common.GetURL(ctx, common.WithAPI("v1", "oauth"), common.WithParam("client_id", issuerID)))
+	} else {
+		c.Issuer = w.M(common.GetURL(ctx, common.WithAPI("v1", "oauth")))
+	}
 }

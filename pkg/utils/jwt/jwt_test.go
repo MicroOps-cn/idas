@@ -17,6 +17,7 @@
 package jwt
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -69,7 +70,7 @@ func (m MapClaims) Valid() error {
 	return jwt.MapClaims(m).Valid()
 }
 
-func (m *MapClaims) SetIssuer(s string) {
+func (m *MapClaims) SetIssuer(ctx context.Context, s string) {
 	(*m)["iss"] = s
 }
 
@@ -128,7 +129,7 @@ func TestJWTIssuer(t *testing.T) {
 				return
 			}
 			claims := MapClaims{"test": "test"}
-			signedString, err := got.SignedString(&claims)
+			signedString, err := got.SignedString(context.Background(), &claims)
 			require.NoError(t, err)
 			gotClaims, err := got.ParseWithClaims(signedString, jwt.MapClaims{})
 			require.NoError(t, err)

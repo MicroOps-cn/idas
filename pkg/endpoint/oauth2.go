@@ -68,6 +68,7 @@ type UserToken struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	FullName string `json:"fullName"`
+	Azp      string `json:"azp"`
 }
 
 func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
@@ -169,7 +170,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 							}
 						}
 
-						token, err := jwtIssuer.SignedString(&jwtutils.StandardClaims{
+						token, err := jwtIssuer.SignedString(ctx, &jwtutils.StandardClaims{
 							Id:        at.Id,
 							ExpiresAt: at.Expiry.Unix(),
 							IssuedAt:  time.Now().UTC().Unix(),
@@ -259,7 +260,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 						return "", errors.NewServerError(500, err.Error())
 					}
 					resp.ExpiresIn = int(time.Until(at.Expiry) / time.Minute)
-					resp.AccessToken, err = jwtIssuer.SignedString(&jwtutils.StandardClaims{
+					resp.AccessToken, err = jwtIssuer.SignedString(ctx, &jwtutils.StandardClaims{
 						Id:        at.Id,
 						ExpiresAt: at.Expiry.Unix(),
 						IssuedAt:  time.Now().UTC().Unix(),
@@ -275,7 +276,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 						if err != nil {
 							return "", errors.NewServerError(500, err.Error())
 						}
-						resp.RefreshToken, err = jwtIssuer.SignedString(&jwtutils.StandardClaims{
+						resp.RefreshToken, err = jwtIssuer.SignedString(ctx, &jwtutils.StandardClaims{
 							Id:        rt.Id,
 							ExpiresAt: rt.Expiry.Unix(),
 							IssuedAt:  time.Now().UTC().Unix(),
@@ -287,12 +288,12 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					}
 
 					if app.GrantType&models.AppMeta_oidc == models.AppMeta_oidc {
-						resp.IdToken, err = jwtIssuer.SignedString(&UserToken{
+						resp.IdToken, err = jwtIssuer.SignedString(ctx, &UserToken{
 							StandardClaims: &jwtutils.StandardClaims{
 								Id:        w.M(uuid.NewV4()).String(),
 								Audience:  app.Name,
 								ExpiresAt: time.Now().UTC().Add(time.Minute * 10).Unix(),
-								Issuer:    config.Get().GetGlobal().GetAppName(),
+								Issuer:    w.M(common.GetURL(ctx, common.WithAPI("v1", "oauth"))),
 								IssuedAt:  time.Now().UTC().Unix(),
 								NotBefore: time.Now().UTC().Unix(),
 								Subject:   user.Username,
@@ -300,6 +301,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 							Username: user.Username,
 							Email:    user.Email,
 							FullName: user.FullName,
+							Azp:      req.ClientId,
 						})
 
 						if err != nil {
@@ -494,12 +496,12 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 					query.Add("expires_in", strconv.Itoa(expiresIn))
 				case OAuthAuthorizeRequest_id_token:
 					jwtIssuer := config.Get().GetJwtIssuer()
-					idToken, err := jwtIssuer.SignedString(&UserToken{
+					idToken, err := jwtIssuer.SignedString(ctx, &UserToken{
 						StandardClaims: &jwtutils.StandardClaims{
 							Id:        w.M(uuid.NewV4()).String(),
 							Audience:  app.Name,
 							ExpiresAt: time.Now().UTC().Add(time.Minute * 10).Unix(),
-							Issuer:    config.Get().GetGlobal().GetAppName(),
+							Issuer:    w.M(common.GetURL(ctx, common.WithAPI("v1", "oauth"))),
 							IssuedAt:  time.Now().UTC().Unix(),
 							NotBefore: time.Now().UTC().Unix(),
 							Subject:   user.Username,
@@ -507,6 +509,7 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 						Username: user.Username,
 						Email:    user.Email,
 						FullName: user.FullName,
+						Azp:      req.ClientId,
 					})
 					if err != nil {
 						return nil, err

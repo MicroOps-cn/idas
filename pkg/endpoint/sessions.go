@@ -138,7 +138,7 @@ func getMFAMethod(user *models.User) sets.Set[LoginType] {
 	return method
 }
 
-func newJSONWebToken(_ context.Context, loginTime time.Time, tokenId string) (*time.Time, string, error) {
+func newJSONWebToken(ctx context.Context, loginTime time.Time, tokenId string) (*time.Time, string, error) {
 	rtc := config.GetRuntimeConfig()
 	expiry := time.Now().UTC().Add(time.Hour * time.Duration(rtc.GetLoginSessionInactivityTime()))
 	maxExpire := loginTime.UTC().Add(time.Hour * time.Duration(rtc.GetLoginSessionMaxTime()))
@@ -148,7 +148,7 @@ func newJSONWebToken(_ context.Context, loginTime time.Time, tokenId string) (*t
 
 	jwtIssuer := config.Get().GetJwtIssuer()
 
-	signedString, err := jwtIssuer.SignedString(&jwtutils.StandardClaims{
+	signedString, err := jwtIssuer.SignedString(ctx, &jwtutils.StandardClaims{
 		Id:        tokenId,
 		ExpiresAt: expiry.Unix(),
 		IssuedAt:  time.Now().UTC().Unix(),
@@ -661,7 +661,11 @@ func MakeGetSessionByTokenEndpoint(s service.Service) endpoint.Endpoint {
 				if len(strings.TrimSpace(payload.Issuer)) == 0 {
 					return config.Get().GetJwtIssuer(), nil
 				}
-				aid, err := uuid.FromString(payload.Issuer)
+				issuerURL, err := url.Parse(payload.Issuer)
+				if err != nil {
+					return config.Get().GetJwtIssuer(), nil
+				}
+				aid, err := uuid.FromString(issuerURL.Query().Get("client_id"))
 				if err != nil {
 					return config.Get().GetJwtIssuer(), nil
 				}
