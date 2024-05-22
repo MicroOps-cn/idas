@@ -256,6 +256,7 @@ func HTTPApplicationAuthenticationFilter(endpoints endpoint.Set) restful.FilterF
 		ctx := req.Request.Context()
 		var authReq *endpoint.AuthenticationRequest
 		if username, password, ok := req.Request.BasicAuth(); ok {
+			ctx = context.WithValue(ctx, "TokenClientID", username)
 			authReq = &endpoint.AuthenticationRequest{
 				AuthKey:    username,
 				AuthSecret: password,
@@ -263,6 +264,7 @@ func HTTPApplicationAuthenticationFilter(endpoints endpoint.Set) restful.FilterF
 		} else {
 			query := req.Request.URL.Query()
 			clientId := query.Get("client_id")
+			ctx = context.WithValue(ctx, "TokenClientID", clientId)
 			clientSecret := query.Get("client_secret")
 			if len(clientId) != 0 && len(clientSecret) != 0 {
 				authReq = &endpoint.AuthenticationRequest{

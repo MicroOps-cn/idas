@@ -80,6 +80,7 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 			err = fmt.Errorf("invalid_grant")
 		} else {
 			var proxyConfig *models.AppProxyConfig
+			tokenClientID, ok := ctx.Value("TokenClientID").(string)
 			app, ok := ctx.Value(global.MetaApp).(*models.App)
 			if !ok {
 				if req.GrantType == OAuthGrantType_proxy {
@@ -100,167 +101,84 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					return "", errors.UnauthorizedError()
 				}
 			}
-			if req.GrantType == OAuthGrantType_refresh_token {
-				if username, password, ok := restfulReq.Request.BasicAuth(); ok {
-					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByPassword(ctx, req.GetRefreshToken(), username, password)
-				} else if len(req.Username) != 0 && len(req.Password) != 0 {
-					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByPassword(ctx, req.GetRefreshToken(), req.Username, string(req.Password))
+			tokenType := models.TokenTypeToken
+			if req.TokenType == OAuthTokenType_Cookie {
+				req.DisableRefreshToken = true
+				tokenType = models.TokenTypeLoginSession
+			}
+			user := new(models.User)
+			switch req.GrantType {
+			case OAuthGrantType_refresh_token:
+				if req.RefreshToken == nil || len(*req.RefreshToken) == 0 {
+					return "", errors.LackParameterError("refresh_token")
+				}
+				jwtIssuer := app.GetJWTIssuer(ctx)
+				var cliams jwtutils.StandardClaims
+				_, err := jwtIssuer.ParseWithClaims(string(*req.RefreshToken), &cliams)
+				if err != nil {
+					level.Warn(logs.GetContextLogger(ctx)).Log("msg", "failed to verify refresh_token", "err", err)
+					return "", errors.UnauthorizedError()
+				}
+				if !s.VerifyToken(ctx, cliams.Id, models.TokenTypeRefreshToken, &user) {
+					return "", errors.UnauthorizedError()
+				}
+				resp.RefreshToken = string(*req.RefreshToken)
+				req.DisableRefreshToken = true
+			case OAuthGrantType_proxy:
+				if app.GrantType&models.AppMeta_proxy == 0 {
+					return nil, errors.NewServerError(500, "Unsupported authorization type.")
+				}
+				var session models.ProxySession
+				session.User = user
+				err = s.GetSessionByToken(ctx, req.Code, models.TokenTypeCode, session.User)
+				if err != nil {
+					return nil, errors.WithServerError(gohttp.StatusUnauthorized, err, "Invalid identity information")
+				}
+				if err = s.DeleteToken(ctx, models.TokenTypeCode, req.Code); err != nil {
+					level.Warn(logs.GetContextLogger(ctx)).Log("msg", "failed to delete token", "err", err)
+				}
+				if err = s.VerifyUserStatus(ctx, user, false); err != nil {
+					return nil, err
+				}
+				if role, err := s.GetAppRoleByUserId(ctx, app.Id, user.Id); err != nil {
+					user.Role = ""
+					user.RoleId = ""
 				} else {
-					resp.AccessToken, resp.RefreshToken, resp.ExpiresIn, err = s.RefreshOAuthTokenByAuthorizationCode(ctx, req.GetRefreshToken(), req.ClientId, string(req.ClientSecret))
+					user.Role = role.Name
+					user.RoleId = role.Id
 				}
-			} else {
-				tokenType := models.TokenTypeToken
-				if req.TokenType == OAuthTokenType_Cookie {
-					req.DisableRefreshToken = true
-					tokenType = models.TokenTypeLoginSession
+				session.Proxy = proxyConfig
+				at, err := s.CreateToken(ctx, tokenType, &session)
+				if err != nil {
+					return "", errors.NewServerError(500, err.Error())
 				}
-				user := new(models.User)
-				switch req.GrantType {
-				case OAuthGrantType_proxy:
-					if app.GrantType&models.AppMeta_proxy == 0 {
-						return nil, errors.NewServerError(500, "Unsupported authorization type.")
-					}
-					var session models.ProxySession
-					session.User = user
-					err = s.GetSessionByToken(ctx, req.Code, models.TokenTypeCode, session.User)
-					if err != nil {
-						return nil, errors.WithServerError(gohttp.StatusUnauthorized, err, "Invalid identity information")
-					}
-					if err = s.DeleteToken(ctx, models.TokenTypeCode, req.Code); err != nil {
-						level.Warn(logs.GetContextLogger(ctx)).Log("msg", "failed to delete token", "err", err)
-					}
-					if err = s.VerifyUserStatus(ctx, user, false); err != nil {
-						return nil, err
-					}
-					if role, err := s.GetAppRoleByUserId(ctx, app.Id, user.Id); err != nil {
-						user.Role = ""
-						user.RoleId = ""
-					} else {
-						user.Role = role.Name
-						user.RoleId = role.Id
-					}
-					session.Proxy = proxyConfig
-					at, err := s.CreateToken(ctx, tokenType, &session)
+				resp.AccessToken = at.Id
+				if !req.DisableRefreshToken {
+					rt, err := s.CreateToken(ctx, models.TokenTypeRefreshToken, session)
 					if err != nil {
 						return "", errors.NewServerError(500, err.Error())
 					}
-					resp.AccessToken = at.Id
-					if !req.DisableRefreshToken {
-						rt, err := s.CreateToken(ctx, models.TokenTypeRefreshToken, session)
-						if err != nil {
-							return "", errors.NewServerError(500, err.Error())
-						}
-						resp.RefreshToken = rt.Id
-					}
-					resp.ExpiresIn = int(global.TokenExpiration / time.Minute)
-					if proxyConfig.JwtProvider && len(proxyConfig.JwtCookieName) > 0 {
-						jwtIssuer := config.Get().GetJwtIssuer()
-						if len(proxyConfig.JwtSecret) > 0 {
-							secret, err := proxyConfig.GetJwtSecret()
-							if err != nil {
-								return nil, errors.WithServerError(500, err, "failed to get jwt token")
-							}
-							jwtSecret, err := base64.StdEncoding.DecodeString(secret)
-							if err != nil {
-								return nil, errors.WithServerError(500, err, "failed to get jwt token")
-							}
-							jwtIssuer, err = jwtutils.NewJWTConfigBySecret(string(jwtSecret))
-							if err != nil {
-								return nil, errors.WithServerError(500, err, "failed to get jwt token")
-							}
-						}
-
-						token, err := jwtIssuer.SignedString(ctx, &jwtutils.StandardClaims{
-							Id:        at.Id,
-							ExpiresAt: at.Expiry.Unix(),
-							IssuedAt:  time.Now().UTC().Unix(),
-							NotBefore: time.Now().UTC().Unix(),
-							Subject:   user.Username,
-						})
-						if err != nil {
-							return "", errors.NewServerError(500, err.Error())
-						}
-						resp.Cookies = append(resp.Cookies, (&gohttp.Cookie{
-							Name:  proxyConfig.JwtCookieName,
-							Path:  "/",
-							Value: token,
-						}).String())
-					}
-					return &resp, nil
-				case OAuthGrantType_authorization_code:
-					if app.GrantType&models.AppMeta_authorization_code == 0 {
-						return nil, errors.NewServerError(500, "Unsupported authorization type.")
-					}
-					err = s.GetSessionByToken(ctx, req.Code, models.TokenTypeCode, user)
-					if err == nil {
-						_ = s.DeleteToken(ctx, models.TokenTypeCode, req.Code)
-					}
-				case OAuthGrantType_password:
-					defer func() {
-						if app == nil {
-							app = new(models.App)
-						}
-						if user == nil {
-							user = new(models.User)
-						}
-						status := true
-						logContent := fmt.Sprintf("[OAuth2] Authorize login password mode to %s application", app.Name)
-						if err != nil {
-							status = false
-							logContent += ":" + err.Error()
-						}
-						eventId := logs.GetTraceId(ctx)
-						if u, e := uuid.FromString(eventId); e == nil {
-							eventId = u.String()
-						}
-						took := time.Since(begin)
-						if e := s.PostEventLog(ctx, eventId, user.Id, user.Username, "", "Authorize", logContent, status, took, logContent); e != nil {
-							level.Error(logs.GetContextLogger(ctx)).Log("failed to post event log", "err", e)
-						}
-					}()
-					if app.GrantType&models.AppMeta_password == 0 {
-						return nil, errors.NewServerError(500, "Unsupported authorization type.")
-					}
-					user, err = s.VerifyPassword(ctx, req.Username, string(req.Password), false)
-					if user.IsForceMfa() {
-						if len(req.Code) > 0 {
-							if err = user.VerifyTOTP(req.Code); err != nil {
-								return nil, err
-							}
-						} else {
-							resp.NextMethod = []LoginType{LoginType_mfa_totp}
-							resp.Error = "TOTP code needs to be provided"
-							return resp, nil
-						}
-					}
-				case OAuthGrantType_client_credentials:
-					if app.GrantType&models.AppMeta_client_credentials == 0 {
-						return nil, errors.NewServerError(500, "Unsupported authorization type.")
-					}
-					if username, password, ok := restfulReq.Request.BasicAuth(); ok {
-						user, err = s.VerifyPassword(ctx, username, password, false)
-					}
+					resp.RefreshToken = rt.Id
 				}
-				if err == nil && user != nil && len(user.Id) > 0 {
-					if err = s.VerifyUserStatus(ctx, user, false); err != nil {
-						return nil, err
+				resp.ExpiresIn = int(global.TokenExpiration / time.Minute)
+				if proxyConfig.JwtProvider && len(proxyConfig.JwtCookieName) > 0 {
+					jwtIssuer := config.Get().GetJwtIssuer()
+					if len(proxyConfig.JwtSecret) > 0 {
+						secret, err := proxyConfig.GetJwtSecret()
+						if err != nil {
+							return nil, errors.WithServerError(500, err, "failed to get jwt token")
+						}
+						jwtSecret, err := base64.StdEncoding.DecodeString(secret)
+						if err != nil {
+							return nil, errors.WithServerError(500, err, "failed to get jwt token")
+						}
+						jwtIssuer, err = jwtutils.NewJWTConfigBySecret(string(jwtSecret))
+						if err != nil {
+							return nil, errors.WithServerError(500, err, "failed to get jwt token")
+						}
 					}
-					if role, err := s.GetAppRoleByUserId(ctx, app.Id, user.Id); err != nil {
-						user.Role = ""
-						user.RoleId = ""
-					} else {
-						user.RoleId = role.Id
-						user.Role = role.Name
-					}
-					jwtIssuer := app.GetJWTIssuer(ctx)
 
-					user.ExtendedData = nil
-					at, err := s.CreateToken(ctx, tokenType, user)
-					if err != nil {
-						return "", errors.NewServerError(500, err.Error())
-					}
-					resp.ExpiresIn = int(time.Until(at.Expiry) / time.Minute)
-					resp.AccessToken, err = jwtIssuer.SignedString(ctx, &jwtutils.StandardClaims{
+					token, err := jwtIssuer.SignedString(ctx, &jwtutils.StandardClaims{
 						Id:        at.Id,
 						ExpiresAt: at.Expiry.Unix(),
 						IssuedAt:  time.Now().UTC().Unix(),
@@ -270,51 +188,139 @@ func MakeOAuthTokensEndpoint(s service.Service) endpoint.Endpoint {
 					if err != nil {
 						return "", errors.NewServerError(500, err.Error())
 					}
-
-					if !req.DisableRefreshToken {
-						rt, err := s.CreateToken(ctx, models.TokenTypeRefreshToken, user)
-						if err != nil {
-							return "", errors.NewServerError(500, err.Error())
+					resp.Cookies = append(resp.Cookies, (&gohttp.Cookie{
+						Name:  proxyConfig.JwtCookieName,
+						Path:  "/",
+						Value: token,
+					}).String())
+				}
+				return &resp, nil
+			case OAuthGrantType_authorization_code:
+				if app.GrantType&models.AppMeta_authorization_code == 0 {
+					return nil, errors.NewServerError(500, "Unsupported authorization type.")
+				}
+				err = s.GetSessionByToken(ctx, req.Code, models.TokenTypeCode, user)
+				if err == nil {
+					_ = s.DeleteToken(ctx, models.TokenTypeCode, req.Code)
+				}
+			case OAuthGrantType_password:
+				defer func() {
+					if app == nil {
+						app = new(models.App)
+					}
+					if user == nil {
+						user = new(models.User)
+					}
+					status := true
+					logContent := fmt.Sprintf("[OAuth2] Authorize login password mode to %s application", app.Name)
+					if err != nil {
+						status = false
+						logContent += ":" + err.Error()
+					}
+					eventId := logs.GetTraceId(ctx)
+					if u, e := uuid.FromString(eventId); e == nil {
+						eventId = u.String()
+					}
+					took := time.Since(begin)
+					if e := s.PostEventLog(ctx, eventId, user.Id, user.Username, "", "Authorize", logContent, status, took, logContent); e != nil {
+						level.Error(logs.GetContextLogger(ctx)).Log("failed to post event log", "err", e)
+					}
+				}()
+				if app.GrantType&models.AppMeta_password == 0 {
+					return nil, errors.NewServerError(500, "Unsupported authorization type.")
+				}
+				user, err = s.VerifyPassword(ctx, req.Username, string(req.Password), false)
+				if user.IsForceMfa() {
+					if len(req.Code) > 0 {
+						if err = user.VerifyTOTP(req.Code); err != nil {
+							return nil, err
 						}
-						resp.RefreshToken, err = jwtIssuer.SignedString(ctx, &jwtutils.StandardClaims{
-							Id:        rt.Id,
-							ExpiresAt: rt.Expiry.Unix(),
+					} else {
+						resp.NextMethod = []LoginType{LoginType_mfa_totp}
+						resp.Error = "TOTP code needs to be provided"
+						return resp, nil
+					}
+				}
+			case OAuthGrantType_client_credentials:
+				if app.GrantType&models.AppMeta_client_credentials == 0 {
+					return nil, errors.NewServerError(500, "Unsupported authorization type.")
+				}
+				if username, password, ok := restfulReq.Request.BasicAuth(); ok {
+					user, err = s.VerifyPassword(ctx, username, password, false)
+				}
+			}
+			if err == nil && user != nil && len(user.Id) > 0 {
+				if err = s.VerifyUserStatus(ctx, user, false); err != nil {
+					return nil, err
+				}
+				if role, err := s.GetAppRoleByUserId(ctx, app.Id, user.Id); err != nil {
+					user.Role = ""
+					user.RoleId = ""
+				} else {
+					user.RoleId = role.Id
+					user.Role = role.Name
+				}
+				jwtIssuer := app.GetJWTIssuer(ctx)
+
+				user.ExtendedData = nil
+				at, err := s.CreateToken(ctx, tokenType, user)
+				if err != nil {
+					return "", errors.NewServerError(500, err.Error())
+				}
+				resp.ExpiresIn = int(time.Until(at.Expiry) / time.Minute)
+				resp.AccessToken, err = jwtIssuer.SignedString(ctx, &jwtutils.StandardClaims{
+					Id:        at.Id,
+					ExpiresAt: at.Expiry.Unix(),
+					IssuedAt:  time.Now().UTC().Unix(),
+					NotBefore: time.Now().UTC().Unix(),
+					Subject:   user.Username,
+				})
+				if err != nil {
+					return "", errors.NewServerError(500, err.Error())
+				}
+
+				if !req.DisableRefreshToken {
+					rt, err := s.CreateToken(ctx, models.TokenTypeRefreshToken, user)
+					if err != nil {
+						return "", errors.NewServerError(500, err.Error())
+					}
+					resp.RefreshToken, err = jwtIssuer.SignedString(ctx, &jwtutils.StandardClaims{
+						Id:        rt.Id,
+						ExpiresAt: rt.Expiry.Unix(),
+						IssuedAt:  time.Now().UTC().Unix(),
+						NotBefore: time.Now().UTC().Unix(),
+					})
+					if err != nil {
+						return "", errors.NewServerError(500, err.Error())
+					}
+				}
+
+				if app.GrantType&models.AppMeta_oidc == models.AppMeta_oidc {
+					resp.IdToken, err = jwtIssuer.SignedString(ctx, &UserToken{
+						StandardClaims: &jwtutils.StandardClaims{
+							Id:        w.M(uuid.NewV4()).String(),
+							Audience:  w.DefaultString(tokenClientID, req.ClientId),
+							ExpiresAt: time.Now().UTC().Add(time.Minute * 10).Unix(),
+							Issuer:    w.M(common.GetURL(ctx, common.WithAPI("v1", "oauth"))),
 							IssuedAt:  time.Now().UTC().Unix(),
 							NotBefore: time.Now().UTC().Unix(),
-						})
-						if err != nil {
-							return "", errors.NewServerError(500, err.Error())
-						}
+							Subject:   user.Username,
+						},
+						Username: user.Username,
+						Email:    user.Email,
+						FullName: user.FullName,
+						Azp:      w.DefaultString(tokenClientID, req.ClientId),
+					})
+
+					if err != nil {
+						return "", errors.NewServerError(500, err.Error())
 					}
-
-					if app.GrantType&models.AppMeta_oidc == models.AppMeta_oidc {
-						resp.IdToken, err = jwtIssuer.SignedString(ctx, &UserToken{
-							StandardClaims: &jwtutils.StandardClaims{
-								Id:        w.M(uuid.NewV4()).String(),
-								Audience:  app.Name,
-								ExpiresAt: time.Now().UTC().Add(time.Minute * 10).Unix(),
-								Issuer:    w.M(common.GetURL(ctx, common.WithAPI("v1", "oauth"))),
-								IssuedAt:  time.Now().UTC().Unix(),
-								NotBefore: time.Now().UTC().Unix(),
-								Subject:   user.Username,
-							},
-							Username: user.Username,
-							Email:    user.Email,
-							FullName: user.FullName,
-							Azp:      req.ClientId,
-						})
-
-						if err != nil {
-							return "", errors.NewServerError(500, err.Error())
-						}
-					}
-
-					return &resp, nil
 				}
-				return nil, errors.UnauthorizedError()
-			}
-		}
 
+				return &resp, nil
+			}
+			return nil, errors.UnauthorizedError()
+		}
 		if err != nil {
 			resp.Error = err.Error()
 			if restfulResp := request.(RestfulRequester).GetRestfulResponse(); restfulResp != nil {
@@ -499,7 +505,7 @@ func MakeOAuthAuthorizeEndpoint(s service.Service) endpoint.Endpoint {
 					idToken, err := jwtIssuer.SignedString(ctx, &UserToken{
 						StandardClaims: &jwtutils.StandardClaims{
 							Id:        w.M(uuid.NewV4()).String(),
-							Audience:  app.Name,
+							Audience:  req.ClientId,
 							ExpiresAt: time.Now().UTC().Add(time.Minute * 10).Unix(),
 							Issuer:    w.M(common.GetURL(ctx, common.WithAPI("v1", "oauth"))),
 							IssuedAt:  time.Now().UTC().Unix(),
