@@ -55,7 +55,7 @@ func (s Set) GetApps(ctx context.Context, keywords string, filter map[string]int
 		}
 		app.I18N.DisplayName = i18n
 	}
-	if len(filter) == 0 {
+	if len(filter) == 0 && len(keywords) != 0 {
 		appIds, count2 := s.commonService.FindAppByKeywords(ctx, keywords, (current-1)*pageSize-count, pageSize-int64(len(apps)))
 		if count2 > 0 {
 			count += count2
