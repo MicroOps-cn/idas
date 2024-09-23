@@ -222,7 +222,7 @@ const RoleList: React.FC = () => {
             <div>
               {intl.t('chosen', 'Chosen')}{' '}
               <a style={{ fontWeight: 600 }}>{selectedRowsState.length}</a>{' '}
-              {intl.t('item', 'Items')}
+              {intl.t('item', 'Item(s)')}
             </div>
           }
         >

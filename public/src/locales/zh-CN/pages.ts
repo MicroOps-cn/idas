@@ -105,6 +105,7 @@ export default {
   'pages.events.timeRange.lastMonth': '最近一月',
   'pages.events.timeRange.thisWeek': '本周',
   'pages.events.timeRange.thisMonth': '本月',
+  'pages.events.took.second': '{took} 秒',
   'user.settings.sessions.session.title.lastSeen': '最近活动',
   'user.settings.sessions.session.title.expiry': '过期时间',
   'user.settings.sessions.session.title.loggedOn': '登陆时间',

@@ -1,7 +1,16 @@
 export default {
-  'pages.users.status.value.disabled': 'disabled',
-  'pages.users.status.value.user_inactive': 'not active',
-  'pages.users.status.value.password_expired': 'Password has expired',
-  'pages.users.form.apps.appList.delete': 'delete',
-  'pages.users.form.grant.appList.grant': 'authorization',
-};
+  "pages.users.status.value.disabled": "disabled",
+  "pages.users.status.value.user_inactive": "not active",
+  "pages.users.status.value.password_expired": "Password has expired",
+  "pages.users.form.apps.appList.delete": "delete",
+  "pages.users.form.grant.appList.grant": "authorization",
+  "pages.users.button.disable": "Disable",
+  "pages.users.button.delete": "Delete",
+  "pages.users.chosen": "Chosen",
+  "pages.users.item": "Item(s)",
+  "pages.users.batchDeletion": "Batch deletion",
+  "pages.users.batchDisable": "Batch disable",
+  "pages.users.batchEnable": "Batch enable",
+  "pages.users.button.cancel": "Cancel",
+  "pages.users.button.more": "more",
+}

@@ -15,4 +15,7 @@ export default {
   'pages.roles.button.delete': '删除',
   'pages.roles.form.title.roleUpdate': '修改角色',
   'pages.roles.form.cancel?': '取消编辑?',
+  'pages.roles.chosen': '已选择',
+  'pages.roles.item': '项',
+  'pages.roles.button.batchDeletion': '批量删除',
 };

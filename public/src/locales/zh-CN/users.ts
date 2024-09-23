@@ -46,4 +46,13 @@ export default {
   'pages.users.grant.appList.grant': '授权',
   'pages.users.form.apps.appList.delete': '删除',
   'pages.users.form.grant.appList.grant': '授权',
+  'pages.users.button.disable': '禁用',
+  'pages.users.button.delete': '删除',
+  'pages.users.chosen': '已选择',
+  'pages.users.item': '项',
+  'pages.users.batchDeletion': '批量删除',
+  'pages.users.batchDisable': '批量禁用',
+  'pages.users.batchEnable': '批量启用',
+  'pages.users.button.more': '更多',
+  'pages.users.button.cancel': '取消',
 };
