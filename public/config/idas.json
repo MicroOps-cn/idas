@@ -3119,16 +3119,16 @@
  "definitions": {
   "config.RuntimeSecurityConfig": {
    "required": [
-    "forceEnableMfa",
-    "passwordComplexity",
-    "passwordMinLength",
-    "passwordExpireTime",
-    "passwordFailedLockThreshold",
-    "passwordFailedLockDuration",
-    "passwordHistory",
     "accountInactiveLock",
+    "forceEnableMfa",
     "loginSessionInactivityTime",
-    "loginSessionMaxTime"
+    "loginSessionMaxTime",
+    "passwordComplexity",
+    "passwordExpireTime",
+    "passwordFailedLockDuration",
+    "passwordFailedLockThreshold",
+    "passwordHistory",
+    "passwordMinLength"
    ],
    "properties": {
     "accountInactiveLock": {
@@ -3175,8 +3175,8 @@
   },
   "endpoint.ActivateAccountRequest": {
    "required": [
-    "userId",
-    "newPassword"
+    "newPassword",
+    "userId"
    ],
    "properties": {
     "newPassword": {
@@ -3192,15 +3192,15 @@
   },
   "endpoint.AppInfo": {
    "required": [
-    "id",
-    "name",
-    "grantType",
-    "grantMode",
-    "status",
-    "url",
-    "updateTime",
     "createTime",
-    "isDelete"
+    "grantMode",
+    "grantType",
+    "id",
+    "isDelete",
+    "name",
+    "status",
+    "updateTime",
+    "url"
    ],
    "properties": {
     "avatar": {
@@ -3271,14 +3271,14 @@
   },
   "endpoint.AppKeyInfo": {
    "required": [
-    "id",
-    "updateTime",
-    "createTime",
-    "name",
     "appId",
+    "createTime",
+    "id",
     "key",
+    "name",
+    "privateKey",
     "secret",
-    "privateKey"
+    "updateTime"
    ],
    "properties": {
     "appId": {
@@ -3332,14 +3332,14 @@
   "endpoint.AppProxyInfo": {
    "required": [
     "domain",
-    "upstream",
-    "urls",
+    "hstsOffload",
     "insecureSkipVerify",
-    "transparentServerName",
-    "jwtProvider",
     "jwtCookieName",
+    "jwtProvider",
     "jwtSecret",
-    "hstsOffload"
+    "transparentServerName",
+    "upstream",
+    "urls"
    ],
    "properties": {
     "domain": {
@@ -3377,8 +3377,8 @@
   "endpoint.AppProxyUrlInfo": {
    "required": [
     "id",
-    "name",
     "method",
+    "name",
     "url"
    ],
    "properties": {
@@ -3440,11 +3440,11 @@
   },
   "endpoint.BaseListResponse": {
    "required": [
-    "traceId",
+    "current",
+    "pageSize",
     "success",
     "total",
-    "current",
-    "pageSize"
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -3475,8 +3475,8 @@
   },
   "endpoint.BaseResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "errorCode": {
@@ -3495,9 +3495,9 @@
   },
   "endpoint.BaseTotalResponse": {
    "required": [
-    "traceId",
     "success",
-    "total"
+    "total",
+    "traceId"
    ],
    "properties": {
     "errorCode": {
@@ -3534,8 +3534,8 @@
   },
   "endpoint.CreateAppKeyResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -3558,8 +3558,8 @@
   "endpoint.CreateAppRequest": {
    "required": [
     "name",
-    "url",
-    "oAuth2"
+    "oAuth2",
+    "url"
    ],
    "properties": {
     "avatar": {
@@ -3667,9 +3667,9 @@
   },
   "endpoint.CreateTOTPRequest": {
    "required": [
-    "token",
     "firstCode",
-    "secondCode"
+    "secondCode",
+    "token"
    ],
    "properties": {
     "firstCode": {
@@ -3685,8 +3685,8 @@
   },
   "endpoint.CreateTOTPSecretResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -3758,8 +3758,8 @@
   },
   "endpoint.DeleteAppKeysRequest": {
    "required": [
-    "id",
-    "appId"
+    "appId",
+    "id"
    ],
    "properties": {
     "appId": {
@@ -3802,17 +3802,17 @@
   },
   "endpoint.Event": {
    "required": [
-    "id",
-    "updateTime",
-    "createTime",
-    "userId",
-    "username",
     "action",
     "client_ip",
+    "createTime",
+    "id",
+    "location",
+    "message",
     "status",
     "took",
-    "message",
-    "location"
+    "updateTime",
+    "userId",
+    "username"
    ],
    "properties": {
     "action": {
@@ -3853,11 +3853,11 @@
   },
   "endpoint.EventLog": {
    "required": [
-    "id",
-    "updateTime",
     "createTime",
-    "userId",
-    "log"
+    "id",
+    "log",
+    "updateTime",
+    "userId"
    ],
    "properties": {
     "createTime": {
@@ -3879,10 +3879,10 @@
   },
   "endpoint.FileUploadResponse": {
    "required": [
-    "total",
-    "traceId",
+    "data",
     "success",
-    "data"
+    "total",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -3911,8 +3911,8 @@
   },
   "endpoint.ForgotUserPasswordRequest": {
    "required": [
-    "username",
-    "email"
+    "email",
+    "username"
    ],
    "properties": {
     "email": {
@@ -3925,10 +3925,10 @@
   },
   "endpoint.GetAppIconsResponse": {
    "required": [
-    "success",
-    "total",
     "current",
     "pageSize",
+    "success",
+    "total",
     "traceId"
    ],
    "properties": {
@@ -3966,8 +3966,8 @@
   },
   "endpoint.GetAppKeysResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -3992,8 +3992,8 @@
   },
   "endpoint.GetAppResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -4015,11 +4015,11 @@
   },
   "endpoint.GetAppsResponse": {
    "required": [
-    "traceId",
-    "total",
     "current",
     "pageSize",
-    "success"
+    "success",
+    "total",
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -4056,11 +4056,11 @@
   },
   "endpoint.GetCurrentUserEventLogsResponse": {
    "required": [
-    "traceId",
-    "total",
     "current",
     "pageSize",
-    "success"
+    "success",
+    "total",
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -4097,10 +4097,10 @@
   },
   "endpoint.GetCurrentUserEventsResponse": {
    "required": [
-    "total",
     "current",
     "pageSize",
     "success",
+    "total",
     "traceId"
    ],
    "properties": {
@@ -4138,11 +4138,11 @@
   },
   "endpoint.GetEventLogsResponse": {
    "required": [
-    "total",
     "current",
     "pageSize",
-    "traceId",
-    "success"
+    "success",
+    "total",
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -4179,11 +4179,11 @@
   },
   "endpoint.GetEventsResponse": {
    "required": [
+    "current",
     "pageSize",
-    "traceId",
     "success",
     "total",
-    "current"
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -4220,8 +4220,8 @@
   },
   "endpoint.GetPageDataResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -4243,11 +4243,11 @@
   },
   "endpoint.GetPageDatasResponse": {
    "required": [
-    "total",
-    "traceId",
-    "success",
     "current",
-    "pageSize"
+    "pageSize",
+    "success",
+    "total",
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -4284,8 +4284,8 @@
   },
   "endpoint.GetPageResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -4307,11 +4307,11 @@
   },
   "endpoint.GetPagesResponse": {
    "required": [
-    "total",
-    "traceId",
-    "success",
     "current",
-    "pageSize"
+    "pageSize",
+    "success",
+    "total",
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -4348,11 +4348,11 @@
   },
   "endpoint.GetPermissionsResponse": {
    "required": [
+    "current",
+    "pageSize",
     "success",
     "total",
-    "traceId",
-    "current",
-    "pageSize"
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -4389,11 +4389,11 @@
   },
   "endpoint.GetRolesResponse": {
    "required": [
-    "traceId",
+    "current",
+    "pageSize",
     "success",
     "total",
-    "current",
-    "pageSize"
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -4430,8 +4430,8 @@
   },
   "endpoint.GetSecurityConfigResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -4456,8 +4456,8 @@
     "current",
     "pageSize",
     "success",
-    "traceId",
-    "total"
+    "total",
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -4494,8 +4494,8 @@
   },
   "endpoint.GetUserResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -4517,11 +4517,11 @@
   },
   "endpoint.GetUsersResponse": {
    "required": [
-    "total",
-    "traceId",
-    "success",
     "current",
-    "pageSize"
+    "pageSize",
+    "success",
+    "total",
+    "traceId"
    ],
    "properties": {
     "current": {
@@ -4558,8 +4558,8 @@
   },
   "endpoint.GlobalConfig": {
    "required": [
-    "loginType",
-    "defaultLoginType"
+    "defaultLoginType",
+    "loginType"
    ],
    "properties": {
     "copyright": {
@@ -4592,8 +4592,8 @@
   },
   "endpoint.GlobalConfigResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -4768,8 +4768,8 @@
   },
   "endpoint.OAuthTokenResponse": {
    "required": [
-    "token_type",
-    "expires_in"
+    "expires_in",
+    "token_type"
    ],
    "properties": {
     "access_token": {
@@ -4888,11 +4888,11 @@
   },
   "endpoint.PageConfig": {
    "required": [
-    "id",
-    "updateTime",
     "createTime",
+    "id",
+    "isDisable",
     "name",
-    "isDisable"
+    "updateTime"
    ],
    "properties": {
     "createTime": {
@@ -4926,10 +4926,10 @@
   },
   "endpoint.PageData": {
    "required": [
+    "createTime",
     "id",
     "pageId",
-    "updateTime",
-    "createTime"
+    "updateTime"
    ],
    "properties": {
     "createTime": {
@@ -5010,8 +5010,8 @@
   },
   "endpoint.PatchPageDataRequest": {
    "required": [
-    "pageId",
-    "id"
+    "id",
+    "pageId"
    ],
    "properties": {
     "data": {
@@ -5130,9 +5130,9 @@
   },
   "endpoint.PermissionInfo": {
    "required": [
+    "createTime",
     "id",
-    "updateTime",
-    "createTime"
+    "updateTime"
    ],
    "properties": {
     "createTime": {
@@ -5160,8 +5160,8 @@
   },
   "endpoint.ResetUserPasswordRequest": {
    "required": [
-    "userId",
-    "newPassword"
+    "newPassword",
+    "userId"
    ],
    "properties": {
     "newPassword": {
@@ -5183,10 +5183,10 @@
   },
   "endpoint.RoleInfo": {
    "required": [
-    "id",
-    "updateTime",
     "createTime",
-    "name"
+    "id",
+    "name",
+    "updateTime"
    ],
    "properties": {
     "createTime": {
@@ -5245,8 +5245,8 @@
   },
   "endpoint.SendLoginCaptchaResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -5275,9 +5275,9 @@
   },
   "endpoint.SessionInfo": {
    "required": [
-    "id",
     "createTime",
-    "expiry"
+    "expiry",
+    "id"
    ],
    "properties": {
     "createTime": {
@@ -5296,12 +5296,12 @@
   },
   "endpoint.SimpleAppKeyInfo": {
    "required": [
-    "id",
-    "updateTime",
-    "createTime",
-    "name",
     "appId",
-    "key"
+    "createTime",
+    "id",
+    "key",
+    "name",
+    "updateTime"
    ],
    "properties": {
     "appId": {
@@ -5328,9 +5328,9 @@
    "required": [
     "id",
     "name",
+    "oAuth2",
     "status",
-    "url",
-    "oAuth2"
+    "url"
    ],
    "properties": {
     "avatar": {
@@ -5395,8 +5395,8 @@
   },
   "endpoint.UpdatePageDataRequest": {
    "required": [
-    "pageId",
-    "id"
+    "id",
+    "pageId"
    ],
    "properties": {
     "data": {
@@ -5413,8 +5413,8 @@
   "endpoint.UpdatePageRequest": {
    "required": [
     "id",
-    "name",
-    "isDisable"
+    "isDisable",
+    "name"
    ],
    "properties": {
     "description": {
@@ -5539,12 +5539,12 @@
   },
   "endpoint.UserInfo": {
    "required": [
+    "createTime",
     "id",
-    "username",
+    "isDelete",
     "status",
     "updateTime",
-    "createTime",
-    "isDelete"
+    "username"
    ],
    "properties": {
     "apps": {
@@ -5640,8 +5640,8 @@
   },
   "endpoint.UserLoginResponse": {
    "required": [
-    "traceId",
-    "success"
+    "success",
+    "traceId"
    ],
    "properties": {
     "data": {
@@ -5876,16 +5876,16 @@
   },
   "models.App": {
    "required": [
+    "avatar",
+    "description",
+    "grantMode",
+    "grantType",
+    "i18n",
     "id",
     "name",
-    "description",
-    "avatar",
-    "grantType",
-    "grantMode",
+    "oAuth2",
     "status",
-    "url",
-    "i18n",
-    "oAuth2"
+    "url"
    ],
    "properties": {
     "avatar": {
@@ -6001,18 +6001,18 @@
   },
   "models.AppProxy": {
    "required": [
-    "id",
     "appId",
     "domain",
-    "upstream",
-    "urls",
+    "hstsOffload",
+    "id",
     "insecureSkipVerify",
-    "transparentServerName",
-    "jwtProvider",
     "jwtCookieName",
+    "jwtProvider",
     "jwt_secret",
     "jwt_secret_salt",
-    "hstsOffload"
+    "transparentServerName",
+    "upstream",
+    "urls"
    ],
    "properties": {
     "appId": {
@@ -6070,8 +6070,8 @@
   "models.AppProxyUrl": {
    "required": [
     "id",
-    "name",
     "method",
+    "name",
     "url"
    ],
    "properties": {
@@ -6109,8 +6109,8 @@
   },
   "models.AppRole": {
    "required": [
-    "id",
     "appId",
+    "id",
     "name",
     "urls",
     "users"
@@ -6223,14 +6223,14 @@
   },
   "models.User": {
    "required": [
-    "id",
-    "username",
-    "email",
-    "phoneNumber",
-    "fullName",
     "avatar",
+    "email",
+    "fullName",
+    "id",
+    "loginTime",
+    "phoneNumber",
     "status",
-    "loginTime"
+    "username"
    ],
    "properties": {
     "apps": {
@@ -6293,14 +6293,14 @@
   },
   "models.UserExt": {
    "required": [
-    "userId",
     "ForceMFA",
+    "activationTime",
     "emailAsMFA",
+    "loginTime",
+    "passwordModifyTime",
     "smsAsMFA",
     "totpAsMFA",
-    "passwordModifyTime",
-    "loginTime",
-    "activationTime"
+    "userId"
    ],
    "properties": {
     "ForceMFA": {
