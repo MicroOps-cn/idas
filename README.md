@@ -35,5 +35,5 @@ cd dist &&  ./idas --security.secret=GzOWcPU86JWOzTRtEoiX
 5. Use authorized users to log in to the IDAS system to complete authentication
 
 ### Thanks
-[![GoLand](./examples/images/goland.svg))](https://www.jetbrains.com/go/)
+[![GoLand](./examples/images/goland.svg)](https://www.jetbrains.com/go/)
 [![Visual Studio Code](./examples/images/vscode.png)](https://code.visualstudio.com/)
