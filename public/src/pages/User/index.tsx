@@ -3,6 +3,7 @@ import moment from 'moment';
 import React, { useState, useRef, useEffect } from 'react';
 import { useIntl } from 'umi';
 
+import ButtonGroup from '@/components/ButtonGroup';
 import { UserStatus } from '@/services/idas/enums';
 import { getSessions as getUserSessions, deleteSession } from '@/services/idas/sessions';
 import {
@@ -33,7 +34,7 @@ import ProTable from '@ant-design/pro-table';
 import type { FormValueType } from './components/CreateOrUpdateForm';
 import CreateOrUpdateForm from './components/CreateOrUpdateForm';
 import GrantView from './components/GrantView';
-import MultiStatusButton from './components/MultiStatusButton';
+import styles from './index.less';
 
 /**
  * @en-US Add node
@@ -353,42 +354,111 @@ const UserList: React.FC = () => {
       dataIndex: 'option',
       valueType: 'option',
       render: (_, record) => {
-        const options: JSX.Element[] = [
-          <a
-            style={{ flex: 'unset' }}
-            key="config"
-            onClick={() => {
-              handleModalVisible(true);
-              setCurrentRow(record);
-            }}
-          >
-            {intl.t('button.edit', 'Edit')}
-          </a>,
-          <MultiStatusButton
-            type="link"
-            key="activate"
-            style={{ flex: 'unset' }}
-            success={<CheckOutlined color="green" />}
-            onClick={async () => {
-              if (!record.email) {
-                throw new Error(intl.t('activate.no-email', ' The user has no email.'));
-              }
-              const resp = await sendActivateMail({
-                userId: record.id,
-              });
-              if (resp.success) {
-                message.success(intl.t('activate.succcess', 'Email sent successfully.'));
-              } else {
-                throw new Error('Email sent failed.');
-              }
-            }}
-            hidden={record.status !== UserStatus.user_inactive}
-          >
-            {intl.t('button.activate', 'Activate')}
-          </MultiStatusButton>,
+        return [
+          <ButtonGroup
+            maxItems={2}
+            moreLabel={intl.t('button.more', 'More')}
+            items={[
+              {
+                key: 'edit',
+                label: intl.t('button.edit', 'Edit'),
+                style: { flex: 'unset' },
+                onClick: async () => {
+                  handleModalVisible(true);
+                  setCurrentRow(record);
+                },
+              },
+              {
+                key: 'activate',
+                label: intl.t('button.activate', 'Activate'),
+                hidden: record.status !== UserStatus.user_inactive,
+                success: <CheckOutlined color="green" />,
+                style: { flex: 'unset' },
+                onClick: async () => {
+                  if (!record.email) {
+                    throw new Error(intl.t('activate.no-email', ' The user has no email.'));
+                  }
+                  const resp = await sendActivateMail({
+                    userId: record.id,
+                  });
+                  if (resp.success) {
+                    message.success(intl.t('activate.succcess', 'Email sent successfully.'));
+                  } else {
+                    throw new Error(intl.t('activate.failed', 'Email sent failed.'));
+                  }
+                },
+              },
+              {
+                key: 'delete',
+                label: intl.t('button.delete', 'Delete'),
+                style: { flex: 'unset' },
+                onClick: () => {
+                  Modal.confirm({
+                    title: intl.t(
+                      'deleteConfirm',
+                      'Are you sure you want to delete the following users?            ',
+                    ),
+                    icon: <ExclamationCircleOutlined />,
+                    async onOk() {
+                      await handleRemove([record]);
+                    },
+                    content: (
+                      <List<API.UserInfo>
+                        dataSource={[record]}
+                        rowKey={'id'}
+                        renderItem={(item) => (
+                          <List.Item>
+                            {item.username}
+                            {item.fullName
+                              ? `(${item.fullName})`
+                              : item.email
+                              ? `(${item.email})`
+                              : ''}
+                          </List.Item>
+                        )}
+                      />
+                    ),
+                  });
+                },
+              },
+              {
+                key: 'disable',
+                label: intl.t('button.disable', 'Disable'),
+                hidden: record.status === UserStatus.disabled,
+                style: { flex: 'unset' },
+                onClick: () => {
+                  Modal.confirm({
+                    title: intl.t(
+                      'disableConfirm',
+                      'Are you sure you want to disable the following users?',
+                    ),
+                    icon: <ExclamationCircleOutlined />,
+                    async onOk() {
+                      await handleDisable([record]);
+                      actionRef.current?.reloadAndRest?.();
+                    },
+                    content: (
+                      <List<API.UserInfo>
+                        dataSource={[record].filter((user) => user.status !== UserStatus.disabled)}
+                        rowKey={'id'}
+                        renderItem={(item) => (
+                          <List.Item>
+                            {item.username}
+                            {item.fullName
+                              ? `(${item.fullName})`
+                              : item.email
+                              ? `(${item.email})`
+                              : ''}
+                          </List.Item>
+                        )}
+                      />
+                    ),
+                  });
+                },
+              },
+            ]}
+          />,
         ];
-
-        return options;
       },
     },
   ];
@@ -399,6 +469,7 @@ const UserList: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         search={false}
+        tableAlertRender={false}
         toolbar={{
           search: {
             onSearch: (kws) => {
@@ -633,6 +704,7 @@ const UserList: React.FC = () => {
               params={{
                 id: currentRow?.id,
               }}
+              className={styles.UserDetails}
               extra={
                 <>
                   <a
@@ -663,6 +735,16 @@ const UserList: React.FC = () => {
                     hidden={!granting}
                   >
                     {intl.t('button.save', 'Save')}
+                  </a>
+                  <a
+                    key="cancel"
+                    onClick={async () => {
+                      setGranting(false);
+                    }}
+                    style={{ flex: 'unset' }}
+                    hidden={!granting}
+                  >
+                    {intl.t('button.cancel', 'Cancel')}
                   </a>
                 </>
               }
