@@ -24,6 +24,7 @@ import (
 	stdlog "log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"strings"
@@ -36,6 +37,7 @@ import (
 	"github.com/MicroOps-cn/fuck/log"
 	"github.com/MicroOps-cn/fuck/log/flag"
 	"github.com/MicroOps-cn/fuck/signals"
+	w "github.com/MicroOps-cn/fuck/wrapper"
 	"github.com/go-kit/kit/metrics"
 	"github.com/go-kit/kit/metrics/prometheus"
 	kitlog "github.com/go-kit/log"
@@ -65,6 +67,7 @@ var (
 	configDisplay   bool
 	debugAddr       string
 	httpExternalURL httputil.URL
+	HTTPBase        string
 	webPrefix       string
 	httpAddr        string
 	proxyHTTPAddr   string
@@ -277,13 +280,15 @@ func init() {
 	rootCmd.Flags().StringVar(&openapiPath, "http.openapi-path", "", "path of openapi")
 	rootCmd.Flags().StringVar(&swaggerPath, "http.swagger-path", "/apidocs/", "path of swagger ui. If the value is empty, the swagger UI is disabled.")
 	rootCmd.Flags().Var(&httpExternalURL, "http.external-url", "The URL under which IDAS is externally reachable (for example, if IDAS is served via a reverse proxy). Used for generating relative and absolute links back to IDAS itself. If the URL has a path portion, it will be used to prefix all HTTP endpoints served by IDAS. If omitted, relevant URL components will be derived automatically.")
-	rootCmd.Flags().StringVar(&webPrefix, "http.web-prefix", "/admin/", "The path prefix of the static page. The default is the path of http.external-url.")
+	rootCmd.Flags().StringVar(&webPrefix, "http.web-prefix", w.M(url.JoinPath(HTTPBase, "/admin/")), "The path prefix of the static page. The default is the path of http.external-url.")
 	rootCmd.Flags().StringVar(&swaggerFilePath, "swagger.file-path", "", "path of swagger ui local file. If the value is empty, the swagger UI is disabled.")
 }
 
 func initParameter() {
 	logger := log.NewTraceLogger()
-
+	if httpExternalURL.String() == "" {
+		httpExternalURL.Path = HTTPBase
+	}
 	if httpExternalURL.Scheme == "" {
 		httpExternalURL.Scheme = "http"
 	}

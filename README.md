@@ -10,18 +10,20 @@ Based on the Go language development, the overall use of the go kit framework, t
 ### How to use?
 #### Build
 ```bash
-mkdir -p dist && make ui idas
+mkdir -p dist && make ui idas BASE_PATH=/idas
 # The compiled output file is dist/idas
 ```
 #### Initialization
 ```bash
 dist/idas init
+# username/password: admin/idas
 ```
+!!! The default username for initialization creation is `admin`, and the password is `idas`. Please change it as soon as possible after logging in.
 #### Run
 ```bash
 cd dist &&  ./idas --security.secret=GzOWcPU86JWOzTRtEoiX
 ```
-!!! For security reasons, please change the value of the parameter -- security.secret. Please do not change the value of -- security.secret arbitrarily after initialization, as changing it may cause some encrypted historical data to be unable to be decrypted.
+!!! For security reasons, please change the value of the parameter --security.secret. Please do not change the value of --security.secret arbitrarily after initialization, as changing it may cause some encrypted historical data to be unable to be decrypted.
 
 #### OAuth2
 1. Create an Application (Grant Type: Authorization Code)

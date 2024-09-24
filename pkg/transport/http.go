@@ -471,7 +471,7 @@ func NewSimpleWebService(rootPath string, doc string) *restful.WebService {
 	return &webservice
 }
 
-const rootPath = "/api"
+var RootPath = "/api"
 
 func StructToQueryParams(obj interface{}, nameFilter ...string) []*restful.Parameter {
 	var params []*restful.Parameter

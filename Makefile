@@ -66,6 +66,8 @@ LDFlags     += -X 'github.com/MicroOps-cn/idas/pkg/utils/version.BuildDate=$(Bui
 LDFlags     += -X 'github.com/MicroOps-cn/idas/pkg/utils/version.GoVersion=$(GoVersion)'
 LDFlags     += -X 'github.com/MicroOps-cn/idas/pkg/utils/version.Platform=$(Platform)'
 LDFlags     += -X 'github.com/MicroOps-cn/idas/pkg/utils/version.Version=$(Version).$(GitCommit)'
+LDFlags     += -X 'github.com/MicroOps-cn/idas/cmd/idas/cmd.HTTPBase=$(BASE_PATH)'
+LDFlags     += -X 'github.com/MicroOps-cn/idas/pkg/transport.RootPath=$(BASE_PATH)/api'
 
 info:
 	@echo "Version: $(Version)"

@@ -48,7 +48,7 @@ var apiServiceSet = []func(ctx context.Context, options []httptransport.ServerOp
 func UserService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "users", Description: "Managing users"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
@@ -134,7 +134,7 @@ func UserService(ctx context.Context, options []httptransport.ServerOption, endp
 func AppService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "apps", Description: "Application manager"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("/icons").
@@ -247,7 +247,7 @@ func AppService(ctx context.Context, options []httptransport.ServerOption, endpo
 func FileService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "files", Description: "Managing files"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.POST("").
@@ -274,7 +274,7 @@ func FileService(ctx context.Context, options []httptransport.ServerOption, endp
 func PageService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "pages", Description: "Managing pages"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
@@ -389,7 +389,7 @@ func PageService(ctx context.Context, options []httptransport.ServerOption, endp
 func SessionService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "sessions", Description: "Managing sessions"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
@@ -414,7 +414,7 @@ func SessionService(ctx context.Context, options []httptransport.ServerOption, e
 func OAuthService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "oauth", Description: "OAuth2.0 Support"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 
 	// https://www.ruanyifeng.com/blog/2019/04/oauth-grant-types.html
 	v1ws.Route(v1ws.POST("/token").
@@ -482,7 +482,7 @@ func OAuthService(ctx context.Context, options []httptransport.ServerOption, end
 func CurrentUserService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "user", Description: "Current user service"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.POST("/login").
@@ -653,7 +653,7 @@ func CurrentUserService(ctx context.Context, options []httptransport.ServerOptio
 func PermissionService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "permissions", Description: "permissions service"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
@@ -670,7 +670,7 @@ func PermissionService(ctx context.Context, options []httptransport.ServerOption
 func RoleService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "roles", Description: "role service"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
@@ -722,7 +722,7 @@ func RoleService(ctx context.Context, options []httptransport.ServerOption, endp
 func ConfigService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "config", Description: "config service"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("security").
@@ -747,7 +747,7 @@ func ConfigService(ctx context.Context, options []httptransport.ServerOption, en
 func EventService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "events", Description: "event service"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("").
@@ -774,7 +774,7 @@ func EventService(ctx context.Context, options []httptransport.ServerOption, end
 func GlobalService(ctx context.Context, options []httptransport.ServerOption, endpoints endpoint.Set) (spec.Tag, []*restful.WebService) {
 	tag := spec.Tag{TagProps: spec.TagProps{Name: "global", Description: "Global service"}}
 	tags := []string{tag.Name}
-	v1ws := NewWebService(rootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
+	v1ws := NewWebService(RootPath, schema.GroupVersion{Group: tag.Name, Version: "v1"}, tag.Description)
 	v1ws.Filter(HTTPAuthenticationFilter(endpoints))
 
 	v1ws.Route(v1ws.GET("config").
