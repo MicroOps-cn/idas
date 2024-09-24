@@ -21,7 +21,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	jwtutils "github.com/MicroOps-cn/idas/pkg/utils/jwt"
 	"io"
 	"net"
 	gohttp "net/http"
@@ -43,6 +42,8 @@ import (
 	"github.com/MicroOps-cn/idas/pkg/service/ldapservice"
 	"github.com/MicroOps-cn/idas/pkg/service/models"
 	"github.com/MicroOps-cn/idas/pkg/service/opts"
+	"github.com/MicroOps-cn/idas/pkg/utils/image"
+	jwtutils "github.com/MicroOps-cn/idas/pkg/utils/jwt"
 	"github.com/MicroOps-cn/idas/pkg/utils/sign"
 )
 
@@ -312,8 +313,17 @@ func (s Set) InitData(ctx context.Context, username string) error {
 		adminUser = &models.User{
 			Username: username,
 			Password: sql.RawBytes("idas"),
+			Status:   models.UserMeta_password_expired,
+		}
+		if avatar, err := image.GenerateAvatar(ctx, username); err == nil {
+			if fileKey, err := s.UploadFile(ctx, username+".png", "image/png", avatar); err == nil {
+				adminUser.Avatar = fileKey
+			}
 		}
 		err = s.CreateUser(ctx, adminUser)
+		if adminUser.Avatar != "" && adminUser.Id != "" {
+			s.commonService.UpdateFileOwner(ctx, adminUser.Avatar, fmt.Sprintf("user:avatar:%s", adminUser.Id))
+		}
 		if err != nil {
 			return err
 		}
