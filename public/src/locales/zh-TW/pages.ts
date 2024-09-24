@@ -107,4 +107,5 @@ export default {
   "pages.resetPassword.resetPassword": "重置密碼",
   "pages.resetPassword.username.placeholder": "請輸入用戶名",
   "pages.resetPassword.username.required": "請輸入用戶名！",
+  "pages.events.took.second": "{took}秒",
 }

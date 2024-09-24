@@ -7,6 +7,7 @@ import pwa from './en-US/pwa';
 import settingDrawer from './en-US/settingDrawer';
 import settings from './en-US/settings';
 import users from './en-US/users';
+import roles from './en-US/roles';
 
 export default {
   'navBar.lang': 'Languages',
@@ -26,4 +27,5 @@ export default {
   ...pages,
   ...app,
   ...users,
+  ...roles,
 };

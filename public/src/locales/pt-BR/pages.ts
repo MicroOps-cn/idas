@@ -107,4 +107,5 @@ export default {
   "pages.resetPassword.resetPassword": "repor a senha",
   "pages.resetPassword.username.placeholder": "indique um nome de utilizador",
   "pages.resetPassword.username.required": "Por favor introduza o seu nome de utilizador!",
+  "pages.events.took.second": "{took} segundos",
 }

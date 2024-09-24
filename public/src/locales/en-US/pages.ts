@@ -290,4 +290,5 @@ export default {
   "pages.resetPassword.resetPassword": "reset password ",
   "pages.resetPassword.username.placeholder": "enter one user name",
   "pages.resetPassword.username.required": "Please enter your username!",
+  "pages.events.took.second": "{took} seconds",
 }

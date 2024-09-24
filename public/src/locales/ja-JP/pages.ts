@@ -107,4 +107,5 @@ export default {
   "pages.resetPassword.resetPassword": "パスワードをリセット",
   "pages.resetPassword.username.placeholder": "ユーザー名を入力してください",
   "pages.resetPassword.username.required": "ユーザー名を入力してください！",
+  "pages.events.took.second": "{took}秒",
 }
