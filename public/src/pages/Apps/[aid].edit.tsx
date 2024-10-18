@@ -1,5 +1,4 @@
 import { message } from 'antd';
-import 'antd/es/form/style/index.less';
 import { useEffect, useState } from 'react';
 import { useIntl, useParams, history } from 'umi';
 

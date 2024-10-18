@@ -1,16 +1,12 @@
-@import (reference) '~antd/es/style/themes/index';
-
 .container {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: auto;
-  background: @layout-body-background;
-  :global(.ant-input-affix-wrapper-lg) {
-    border-radius: 8px;
+  :global .ant-pro-form-login-page-desc {
+    color: rgb(255, 255, 255, 0.65);
   }
-  :global(.ant-btn-lg) {
-    border-radius: 8px;
+  :global .ant-pro-form-login-page-title {
+    color: #fff;
+  }
+  :global .ant-tabs-tab-btn {
+    color: rgb(255, 255, 255, 0.88);
   }
 }
 
@@ -29,95 +25,6 @@
   text-align: right;
   :global(.ant-dropdown-trigger) {
     margin-right: 24px;
-  }
-}
-
-.content {
-  flex: 1;
-  padding: 32px 0;
-  :global(.login-container:has(.mfa-code-description)) {
-    :global(.ant-pro-form-login-main) {
-      width: 328px;
-    }
-  }
-
-  :global(.login-container) {
-    display: grid;
-    :global(.ant-pro-form-login-container) {
-      display: inline-flex;
-      margin: 0 auto;
-      padding: 0;
-      background-color: #f0f2f5;
-      border-radius: 12px;
-      box-shadow: 0 0 6px 0 rgba(0, 0, 0, 0.2);
-    }
-    :global(.ant-pro-form-login-main) {
-      width: 328px;
-      margin: 30px 45px;
-    }
-
-    @media (max-width: 441px) {
-      :global(.ant-pro-form-login-main) {
-        width: 228px !important;
-        min-width: 228px !important;
-      }
-    }
-    @media (max-width: 322px) {
-      :global(.ant-pro-form-login-main) {
-        margin: 45px 10px;
-      }
-    }
-    :global(.ant-pro-form-login-top) {
-      display: block;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 120px;
-      background-image: linear-gradient(180deg, #00a1ff 0, #0087b7 100%),
-        linear-gradient(126deg, #3eb4ff 15%, #28b8ed 100%);
-      border-radius: 12px 12px 0 0;
-      box-shadow: 0 2px 7px 0 #1870a5;
-      @media (max-width: 322px) {
-        :global(.ant-pro-form-login-header) {
-          display: grid;
-        }
-      }
-      :global(.ant-pro-form-login-header) {
-        margin-top: 20px;
-        :global(.ant-pro-form-login-title) {
-          color: rgb(212, 216, 221);
-          font-family: monospace;
-        }
-
-        @media (max-width: 441px) {
-          :global(.ant-pro-form-login-title) {
-            font-size: x-large;
-          }
-        }
-      }
-      @media (max-width: 322px) {
-        :global(.ant-pro-form-login-desc) {
-          display: none;
-        }
-      }
-      :global(.ant-pro-form-login-desc) {
-        color: rgb(212, 216, 221);
-        font-family: monospace;
-      }
-    }
-  }
-}
-
-@media (min-width: @screen-md-min) {
-  .container {
-    background-image: url('https://gw.alipayobjects.com/zos/rmsportal/TVYTbAXWheQpRcWDaDMu.svg');
-    background-repeat: no-repeat;
-    background-position: center 110px;
-    background-size: 100%;
-  }
-
-  .content {
-    padding: 32px 0 24px;
   }
 }
 
@@ -147,23 +54,6 @@
 
 .oauthIconButton:hover {
   box-shadow: 0 0 20px #c7c7c7;
-}
-.container:has(.loginTypeTabs :global(.ant-tabs-tab)) {
-  .oauthIconButton {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-  }
-  .oauthIconButton:hover {
-    box-shadow: none;
-  }
-  .oauthIcon {
-    width: 24px;
-    height: 24px;
-  }
-  .loginByOtherBtn {
-    display: none;
-  }
 }
 
 :global(.ant-pro-form-login-logo) {

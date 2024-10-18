@@ -1,5 +1,4 @@
 import { Button, message } from 'antd';
-import 'antd/es/form/style/index.less';
 import type { StoreValue } from 'antd/lib/form/interface';
 import { parse } from 'query-string';
 import React, { useState } from 'react';
@@ -66,28 +65,36 @@ const ResetPassword: React.FC = () => {
             },
           }}
           onFinish={async (values) => {
-            setLoading(true);
-            if (
-              await handleResetPassword({
-                newPassword: values.newPassword,
-                oldPassword: values.oldPassword,
-                userId: query.userId,
-                token: query.token,
-                username: query.username,
-              })
-            ) {
-              history.push(loginPath);
+            try {
+              console.log(query, values);
+              setLoading(true);
+              if (
+                await handleResetPassword({
+                  newPassword: values.newPassword,
+                  oldPassword: values.oldPassword,
+                  userId: query.userId as string | undefined,
+                  token: query.token as string | undefined,
+                  username: (query.username ?? values.username) as string | undefined,
+                })
+              ) {
+                history.push(loginPath);
+              }
+            } catch (error) {
+              message.error(`${error}`);
+            } finally {
+              setLoading(false);
             }
-            setLoading(false);
           }}
         >
           <ProFormText
             fieldProps={{
-              value: query.username,
+              value: query.username as string | undefined,
               size: 'large',
+              autoComplete: 'username',
               disabled: Boolean(query.username),
               prefix: <UserOutlined className={styles.prefixIcon} />,
             }}
+            name={'username'}
             placeholder={intl.t('username.placeholder', 'Please enter your username')}
             rules={[
               {
@@ -101,6 +108,7 @@ const ResetPassword: React.FC = () => {
             fieldProps={{
               size: 'large',
               prefix: <LockOutlined className={styles.prefixIcon} />,
+              autoComplete: 'current-password',
             }}
             hidden={Boolean(query.token)}
             placeholder={intl.t('oldPassword.placeholder', 'Please enter current password')}
@@ -116,6 +124,7 @@ const ResetPassword: React.FC = () => {
             fieldProps={{
               size: 'large',
               prefix: <LockOutlined className={styles.prefixIcon} />,
+              autoComplete: 'new-password',
             }}
             placeholder={intl.t('password.placeholder', 'Please enter a new password')}
             rules={[
@@ -130,6 +139,7 @@ const ResetPassword: React.FC = () => {
             fieldProps={{
               size: 'large',
               prefix: <LockOutlined className={styles.prefixIcon} />,
+              autoComplete: 'new-password',
             }}
             placeholder={intl.t('confirmPassword.placeholder', 'Confirm new password.')}
             rules={[

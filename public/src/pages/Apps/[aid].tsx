@@ -287,8 +287,7 @@ const AppDetail: React.FC = ({}) => {
             {appInfo?.avatar ? <Avatar size={64} src={appInfo?.avatar} /> : null}
           </div>
           <Card
-            bodyStyle={{ padding: 0 }}
-            headStyle={{ padding: 0 }}
+            styles={{ body: { padding: 0 }, header: { padding: 0 } }}
             title={<b>{intl.t('title.keys', 'Key-pairs')}</b>}
             bordered={false}
             extra={
@@ -352,8 +351,7 @@ const AppDetail: React.FC = ({}) => {
             dataSource={appInfo?.proxy}
           />
           <Card
-            bodyStyle={{ padding: 0 }}
-            headStyle={{ padding: 0 }}
+            styles={{ body: { padding: 0 }, header: { padding: 0 } }}
             title={<b>{intl.t('title.urls', 'URLs')}</b>}
             bordered={false}
           >
@@ -444,7 +442,7 @@ const AppDetail: React.FC = ({}) => {
         ];
       } else {
         buttons.push(
-          <Button type="primary" onClick={() => setGranting(true)}>
+          <Button type="primary" key={'grant'} onClick={() => setGranting(true)}>
             {intl.t('button.grant', 'Grant')}
           </Button>,
         );
@@ -454,14 +452,15 @@ const AppDetail: React.FC = ({}) => {
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTabKey, granting, grantedUserList, updating]);
-
   return (
     <>
       <Card
         style={{
           height: '100%',
         }}
-        bodyStyle={{ height: '100%' }}
+        styles={{
+          body: { height: '100%' },
+        }}
       >
         <Tabs
           items={tabsItems}

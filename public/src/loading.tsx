@@ -1,3 +1,3 @@
-import { PageLoading } from '@ant-design/pro-components';
+import PageLoading from './components/PageLoading';
 
 export default PageLoading;

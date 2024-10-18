@@ -356,6 +356,7 @@ const UserList: React.FC = () => {
       render: (_, record) => {
         return [
           <ButtonGroup
+            key={'options'}
             maxItems={2}
             moreLabel={intl.t('button.more', 'More')}
             items={[

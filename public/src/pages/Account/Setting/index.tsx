@@ -1,5 +1,4 @@
 import { Menu } from 'antd';
-import 'antd/es/form/style/index.less';
 import React, { useEffect, useRef, useState } from 'react';
 
 import defaultSettings from '@/../config/defaultSettings';

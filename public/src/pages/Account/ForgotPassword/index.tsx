@@ -1,5 +1,4 @@
 import { Button, message } from 'antd';
-import 'antd/es/form/style/index.less';
 import React, { useState } from 'react';
 import { useIntl, useModel } from 'umi';
 

@@ -42,7 +42,7 @@ type PatchRequst = (
 ) => Promise<any>;
 type StatusSwitchRequest = (body: { id: string }[], options?: Record<string, any>) => Promise<any>;
 
-interface ListProps<T extends ListItem> extends Omit<ProListProps, 'request' | 'metas'> {
+interface ListProps<T extends ListItem> extends Omit<ProListProps<T>, 'request' | 'metas'> {
   intl: IntlContext;
   request:
     | ListRequest<T>
@@ -176,7 +176,6 @@ const List = <T extends ListItem>({
   useEffect(() => {
     actionRef.current?.reload();
   }, [fetchList]);
-
   return (
     <ProList<T>
       pagination={

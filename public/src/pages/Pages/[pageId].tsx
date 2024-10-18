@@ -1,4 +1,5 @@
 import { Card, Row, message } from 'antd';
+import { RcFile } from 'antd/es/upload';
 import React, { useRef } from 'react';
 
 import { AvatarUploadField } from '@/components/Avatar';
@@ -69,7 +70,9 @@ const PageForm: React.FC = ({}) => {
       style={{
         height: '100%',
       }}
-      bodyStyle={{ height: '100%' }}
+      styles={{
+        body: { height: '100%' },
+      }}
     >
       <ProForm<API.PageConfig>
         style={{ maxWidth: 800, margin: '8px auto auto' }}

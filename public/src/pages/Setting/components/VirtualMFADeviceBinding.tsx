@@ -3,7 +3,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { useState } from 'react';
 import { useIntl } from 'umi';
 
-import { bindingTOTP, getTOTPSecret } from '@/services/idas/user';
+import { bindingTotp as bindingTOTP, getTotpSecret as getTOTPSecret } from '@/services/idas/user';
 import { IntlContext } from '@/utils/intl';
 import { LoadingOutlined } from '@ant-design/icons';
 import { ModalForm, ProFormText } from '@ant-design/pro-components';

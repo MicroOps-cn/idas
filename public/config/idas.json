@@ -2479,7 +2479,6 @@
     "parameters": [
      {
       "example": {
-       "userId": "",
        "newPassword": null
       },
       "name": "body",
@@ -5160,8 +5159,7 @@
   },
   "endpoint.ResetUserPasswordRequest": {
    "required": [
-    "newPassword",
-    "userId"
+    "newPassword"
    ],
    "properties": {
     "newPassword": {

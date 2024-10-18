@@ -43,6 +43,7 @@ interface AvatarUploadProps {
   onError?: (error: any) => void;
   onChange?: (url?: string) => void;
   value?: string;
+  request?: (filename: string, fileObj: RcFile | string | Blob) => Promise<string>;
 }
 const getBase64 = (file: RcFile): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -52,28 +53,19 @@ const getBase64 = (file: RcFile): Promise<string> =>
     reader.onerror = (error) => reject(error);
   });
 
-const handleUploadFile = async (
-  filename: string,
-  fileObj: RcFile | string | Blob,
-  onError?: (err: any) => void,
-): Promise<string> => {
-  try {
+export const AvatarUpload: React.FC<AvatarUploadProps> = ({
+  onError,
+  onChange,
+  value,
+  request: handleUploadFile = async (filename: string, fileObj: RcFile | string | Blob) => {
     const formData = new FormData();
     formData.append(filename, fileObj);
     const resp = await postFile({ data: formData, requestType: 'form' });
     if (resp.data) {
       return resp.data[filename];
     }
-  } catch (error) {
-    onError?.(error);
-  }
-  return '';
-};
-
-export const AvatarUpload: React.FC<AvatarUploadProps> = ({
-  onError,
-  onChange,
-  value,
+    return '';
+  },
   ...props
 }: AvatarUploadProps) => {
   const [avatar, setAvatar] = useState<UploadFile>();
@@ -105,14 +97,18 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
       <ImgCrop
         beforeCrop={async (file: RcFile): Promise<boolean> => {
           if (file.type === 'image/svg+xml') {
-            const fileId = await handleUploadFile(file.name, file, onError);
-            if (fileId) {
-              setAvatar({
-                uid: fileId,
-                name: file.name,
-                url: getAvatarSrc(fileId),
-              });
-              onChange?.(fileId);
+            try {
+              const fileId = await handleUploadFile(file.name, file);
+              if (fileId) {
+                setAvatar({
+                  uid: fileId,
+                  name: file.name,
+                  url: getAvatarSrc(fileId),
+                });
+                onChange?.(fileId);
+              }
+            } catch (error) {
+              onError?.(error);
             }
             return false;
           }
@@ -139,7 +135,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
               }
               filename = filename ?? new Date().getTime().toString();
               filename = filename.substring(0, filename.lastIndexOf('.')) + '.png';
-              const fileId = await handleUploadFile(filename, options.file, onError);
+              const fileId = await handleUploadFile(filename, options.file);
               if (fileId) {
                 setAvatar({
                   uid: fileId,
@@ -164,7 +160,7 @@ export const AvatarUpload: React.FC<AvatarUploadProps> = ({
   );
 };
 
-interface ProAvatarUploadProps extends ProFormFieldItemProps {
+interface ProAvatarUploadProps extends Omit<ProFormFieldItemProps, 'request'> {
   onError?: (error: any) => void;
   optionsRequest?: (
     params: {
@@ -174,12 +170,22 @@ interface ProAvatarUploadProps extends ProFormFieldItemProps {
     },
     props: any,
   ) => Promise<RequestData<{ id: string }>>;
+  request?: (filename: string, fileObj: RcFile | string | Blob) => Promise<string>;
 }
 
-export const ProAvatarUpload: React.FC<ProFormFieldItemProps<ProAvatarUploadProps>> = ({
+export const ProAvatarUpload: React.FC<ProAvatarUploadProps> = ({
   fieldProps: { onError, ...fieldProps } = { onError: undefined },
   proFieldProps,
   optionsRequest,
+  request: handleUploadFile = async (filename: string, fileObj: RcFile | string | Blob) => {
+    const formData = new FormData();
+    formData.append(filename, fileObj);
+    const resp = await postFile({ data: formData, requestType: 'form' });
+    if (resp.data) {
+      return resp.data[filename];
+    }
+    return '';
+  },
 }: ProAvatarUploadProps) => {
   const [avatar, setAvatar] = useState<UploadFile>();
 
@@ -238,17 +244,6 @@ export const ProAvatarUpload: React.FC<ProFormFieldItemProps<ProAvatarUploadProp
       }
     }
   };
-  // const setPopupVisible = (v: boolean) => {
-  //   if (!v || optionsRequest) {
-  //     if (v) {
-  //       loadMoreIconList();
-  //     } else {
-  //       setIconListHasMore(true);
-  //       setIconListPageNumber(0);
-  //     }
-  //   }
-  //   _setPopupVisible(v);
-  // };
   return (
     <>
       <ProField
@@ -262,14 +257,18 @@ export const ProAvatarUpload: React.FC<ProFormFieldItemProps<ProAvatarUploadProp
                 <ImgCrop
                   beforeCrop={async (file: RcFile): Promise<boolean> => {
                     if (file.type === 'image/svg+xml') {
-                      const fileId = await handleUploadFile(file.name, file, onError);
-                      if (fileId) {
-                        setAvatar({
-                          uid: fileId,
-                          name: file.name,
-                          url: getAvatarSrc(fileId),
-                        });
-                        onChange?.(fileId);
+                      try {
+                        const fileId = await handleUploadFile(file.name, file);
+                        if (fileId) {
+                          setAvatar({
+                            uid: fileId,
+                            name: file.name,
+                            url: getAvatarSrc(fileId),
+                          });
+                          onChange?.(fileId);
+                        }
+                      } catch (error) {
+                        onError?.(error);
                       }
                       return false;
                     }
@@ -300,7 +299,7 @@ export const ProAvatarUpload: React.FC<ProFormFieldItemProps<ProAvatarUploadProp
                         }
                         filename = filename ?? new Date().getTime().toString();
                         filename = filename.substring(0, filename.lastIndexOf('.')) + '.png';
-                        const fileId = await handleUploadFile(filename, file, onError);
+                        const fileId = await handleUploadFile(filename, file);
                         if (fileId) {
                           setAvatar({
                             uid: fileId,

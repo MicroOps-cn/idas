@@ -2,7 +2,7 @@ import { Dropdown, Button as AntdButton, DropdownProps, Space } from 'antd';
 import type { ButtonProps as AntdButtonProps } from 'antd';
 import { message } from 'antd';
 import { ButtonType } from 'antd/lib/button';
-import { MenuItemType } from 'antd/lib/menu/hooks/useItems';
+import { MenuItemType } from 'antd/lib/menu/interface';
 import { isBoolean } from 'lodash';
 import { MenuInfo } from 'rc-menu/lib/interface';
 import { ReactNode } from 'react';
@@ -47,7 +47,7 @@ export const Button: React.FC<ButtonProps> = ({ success, failed, onClick, ...pro
   );
 };
 
-interface ButtonItemType extends MenuItemType {
+interface ButtonItemType extends Omit<MenuItemType, 'type'> {
   hidden?: boolean;
   failed?: React.ReactElement;
   success?: React.ReactElement;
@@ -114,7 +114,10 @@ export const ButtonGroup: React.FC<ButtonGroupProps> = ({
   return (
     <Space>
       {visibleItems.slice(0, maxItems - 1).map(GroupButtonItem)}
-      <Dropdown menu={{ items: dropdownItems }} trigger={['click']}>
+      <Dropdown
+        menu={{ items: dropdownItems.map((item) => ({ ...item, type: 'item' })) }}
+        trigger={['click']}
+      >
         <a onClick={(e) => e.preventDefault()} style={{ gap: 3, display: 'inline-flex' }}>
           {moreLabel}
           <DownOutlined />

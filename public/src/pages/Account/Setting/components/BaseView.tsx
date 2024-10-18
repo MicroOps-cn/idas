@@ -1,7 +1,9 @@
 import { Button, Input, Modal, Form, message } from 'antd';
+import { RcFile } from 'antd/es/upload';
 import { Component } from 'react';
 
 import { AvatarUpload } from '@/components/Avatar';
+import { uploadFile as postFile } from '@/services/idas/files';
 import { updateCurrentUser } from '@/services/idas/user';
 import type { IntlContext } from '@/utils/intl';
 

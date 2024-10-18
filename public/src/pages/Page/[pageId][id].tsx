@@ -79,7 +79,9 @@ const PageDataForm: React.FC = ({}) => {
       style={{
         height: '100%',
       }}
-      bodyStyle={{ height: '100%' }}
+      styles={{
+        body: { height: '100%' },
+      }}
     >
       <Row>
         <Space size="large">

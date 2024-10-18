@@ -6,8 +6,7 @@ import { useIntl } from 'umi';
 import { getTotpSecret as getTOTPSecret } from '@/services/idas/user';
 import { IntlContext } from '@/utils/intl';
 import { LoadingOutlined } from '@ant-design/icons';
-import { ProFormText } from '@ant-design/pro-components';
-import { GridContent } from '@ant-design/pro-components';
+import { ProFormText, GridContent } from '@ant-design/pro-components';
 
 interface VirtualMFABindingProps {
   parentIntl?: IntlContext;

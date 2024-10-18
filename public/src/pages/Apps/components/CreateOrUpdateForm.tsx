@@ -1,8 +1,7 @@
-import type { FormInstance } from 'antd';
 import { Input, Space, Tabs, message } from 'antd';
-import 'antd/dist/antd.css';
+import { RcFile } from 'antd/es/upload';
 import type { DefaultOptionType } from 'antd/lib/select';
-import { isArray, isFunction, isNumber, isString, toInteger } from 'lodash';
+import { isArray, isFunction, isString, toInteger } from 'lodash';
 import React, { useEffect, useState } from 'react';
 
 import { AvatarUploadField } from '@/components/Avatar';
@@ -24,11 +23,13 @@ import {
   ProFormTextArea,
   StepsForm,
 } from '@ant-design/pro-form';
-import { history } from '@umijs/max';
+import { createHashHistory } from '@umijs/max';
 
 import GrantView from './GrantView';
 import ProxySetting from './ProxySetting';
 import { RoleView } from './RoleView';
+
+const history = createHashHistory();
 
 const TextArea = Input.TextArea;
 

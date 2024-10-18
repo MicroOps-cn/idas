@@ -1,5 +1,4 @@
 import { Alert, Button, Divider, message, Space, Tabs } from 'antd';
-import 'antd/es/form/style/index.less';
 import { useForm } from 'antd/lib/form/Form';
 import classNames from 'classnames';
 import { isArray, isNumber } from 'lodash';
@@ -18,7 +17,7 @@ import { enumToOptions } from '@/utils/enum';
 import { IntlContext } from '@/utils/intl';
 import { getApiPath, getPublicPath } from '@/utils/request';
 import { LockOutlined, MailOutlined, MobileOutlined, UserOutlined } from '@ant-design/icons';
-import { ProFormCaptcha, ProFormCheckbox, ProFormText, LoginForm } from '@ant-design/pro-form';
+import { ProFormCaptcha, ProFormCheckbox, ProFormText, LoginFormPage } from '@ant-design/pro-form';
 
 import VirtualMFADeviceBinding from './components/VirtualMFADeviceBinding';
 import styles from './index.less';
@@ -209,360 +208,366 @@ const Login: React.FC = ({}) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allowLoginTypes]);
   return (
-    <div className={styles.container}>
-      <div className={styles.lang} data-lang>
-        {SelectLang && <SelectLang />}
-      </div>
-      <div className={styles.content}>
-        <div className="login-container">
-          <LoginForm<API.UserLoginRequest>
-            logo={globalConfig?.logo ?? getPublicPath('logo.svg')}
-            title={globalConfig?.title ?? 'IDAS'}
-            subTitle={globalConfig?.subTitle ?? 'Identity authentication service'}
-            initialValues={{
-              autoLogin: true,
-            }}
-            contentStyle={{ width: 'unset' }}
-            form={form}
-            actions={
-              oauthLoginTypes.length > 0 ? (
-                <div className="ant-pro-form-login-page-other">
-                  <div key={'loginWith'}>
-                    <Divider plain>{intl.t('loginWith', 'Login with')}</Divider>
-                  </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      flexDirection: 'column',
-                    }}
-                  >
-                    <Space align="center" size={24} key="loginMethod">
-                      {oauthLoginTypes.map((item) => (
-                        <div
-                          key={item.name}
-                          className={classNames(styles.oauthIconButton)}
-                          title={intl.t('signInWith', 'Sign in with {name}', '', {
-                            name: item.name,
-                          })}
-                          onClick={() => {
-                            let gotoURI = getApiPath(`/api/v1/user/oauth/${item.id}`);
-                            if (redirect_uri) {
-                              gotoURI = `${gotoURI}?redirect_uri=${encodeURIComponent(
-                                isArray(redirect_uri) ? redirect_uri[0] : redirect_uri,
-                              )}`;
-                            }
-                            window.location.href = gotoURI;
-                          }}
-                        >
-                          <img src={item.icon} className={styles.oauthIcon} />
-                        </div>
-                      ))}
-                    </Space>
-                  </div>
-                  <div className={styles.loginByOtherBtn}>
-                    <Button
-                      style={{ display: otherLoginTypes.length === 0 ? 'none' : 'unset' }}
-                      type="link"
+    <div
+      className={styles.container}
+      style={{
+        backgroundColor: 'white',
+        height: '100vh',
+        display: 'flex',
+        flexFlow: 'column',
+      }}
+    >
+      <SelectLang />
+      <LoginFormPage<API.UserLoginRequest>
+        logo={globalConfig?.logo ?? getPublicPath('logo.svg')}
+        title={globalConfig?.title ?? 'IDAS'}
+        subTitle={globalConfig?.subTitle ?? 'Identity authentication service'}
+        initialValues={{
+          autoLogin: true,
+        }}
+        containerStyle={{
+          backgroundColor: 'rgba(0, 0, 0,0.65)',
+          backdropFilter: 'blur(4px)',
+          color: '#FFFFFF',
+        }}
+        backgroundImageUrl="https://gw.alipayobjects.com/zos/rmsportal/TVYTbAXWheQpRcWDaDMu.svg"
+        form={form}
+        actions={
+          oauthLoginTypes.length > 0 ? (
+            <div className="ant-pro-form-login-page-other">
+              <div key={'loginWith'}>
+                <Divider plain>{intl.t('loginWith', 'Login with')}</Divider>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  flexDirection: 'column',
+                }}
+              >
+                <Space align="center" size={24} key="loginMethod">
+                  {oauthLoginTypes.map((item) => (
+                    <div
+                      key={item.name}
+                      className={classNames(styles.oauthIconButton)}
+                      title={intl.t('signInWith', 'Sign in with {name}', '', {
+                        name: item.name,
+                      })}
                       onClick={() => {
-                        if (globalConfig) {
-                          setAllowLoginTypes(
-                            globalConfig.loginType
-                              .map((item) => item.type)
-                              .filter(
-                                (item) => item !== LoginType.oauth2 && item !== undefined,
-                              ) as LoginTypeValue[],
-                          );
+                        let gotoURI = getApiPath(`/api/v1/user/oauth/${item.id}`);
+                        if (redirect_uri) {
+                          gotoURI = `${gotoURI}?redirect_uri=${encodeURIComponent(
+                            isArray(redirect_uri) ? redirect_uri[0] : redirect_uri,
+                          )}`;
                         }
+                        window.location.href = gotoURI;
                       }}
                     >
-                      {intl.t('loginByOther', 'More login methods')}
-                    </Button>
-                  </div>
-                </div>
-              ) : undefined
-            }
-            submitter={allowLoginTypes.length > 0 ? undefined : false}
-            onFinish={async (values) => {
-              return handleSubmit(values);
-            }}
-          >
-            <Tabs
-              activeKey={loginType}
-              onChange={(key) => {
-                setLoginType(key as LoginTypeName);
-                setUserLoginState({ success: true });
-              }}
-              className={styles.loginTypeTabs}
-              items={tabsItem}
-              centered
-            />
-            <LoginFormComponent
-              hidden={hiddenNormal}
-              loginType={loginType}
-              allows={['normal', ...mfaLoginTypes]}
-            >
-              <LoginMessage
-                hidden={success}
-                content={intl.t(`${errorCode ?? 'normal'}.errorMessage`, errorMessage)}
-              />
-              <ProFormText
-                name="username"
-                fieldProps={{
-                  size: 'large',
-                  prefix: <UserOutlined className={styles.prefixIcon} />,
-                  autoFocus: true,
-                }}
-                placeholder={intl.t('username.placeholder', 'Please enter a username')}
-                rules={[
-                  {
-                    required: true,
-                    message: intl.t('username.required', 'Please enter a username!'),
-                  },
-                ]}
-              />
-              <ProFormText.Password
-                name="password"
-                fieldProps={{
-                  size: 'large',
-                  prefix: <LockOutlined className={styles.prefixIcon} />,
-                }}
-                placeholder={intl.t('password.placeholder', 'Please input a password')}
-                rules={[
-                  {
-                    required: true,
-                    message: intl.t('password.required', 'Please input a password!'),
-                  },
-                ]}
-              />
-            </LoginFormComponent>
-
-            <LoginFormComponent loginType={loginType} allows={['mfa_totp']}>
-              <LoginMessage
-                hidden={success}
-                content={intl.t('totp.errorMessage', 'verification code error')}
-              />
-            </LoginFormComponent>
-            <LoginFormComponent loginType={loginType} allows={['email', 'mfa_email']}>
-              <LoginMessage
-                hidden={success}
-                content={intl.t('email.errorMessage', 'Email verification code error')}
-              />
-              <ProFormText
-                fieldProps={{
-                  size: 'large',
-                  prefix: <MailOutlined className={styles.prefixIcon} />,
-                }}
-                name="email"
-                placeholder={`${intl.t('email.placeholder', 'Please enter your email')} ${
-                  email ? `: ${email}` : ''
-                }`}
-                rules={[
-                  {
-                    required: true,
-                    message: intl.t('email.required', 'Please enter your email!'),
-                  },
-                ]}
-              />
-            </LoginFormComponent>
-            <LoginFormComponent loginType={loginType} allows={['sms', 'mfa_sms']}>
-              <LoginMessage
-                hidden={success}
-                content={intl.t('sms.errorMessage', 'SMS verification code error')}
-              />
-              <ProFormText
-                fieldProps={{
-                  size: 'large',
-                  prefix: <MobileOutlined className={styles.prefixIcon} />,
-                }}
-                name="phone"
-                placeholder={intl.t('phoneNumber.placeholder', 'Please enter your phone number')}
-                rules={[
-                  {
-                    required: true,
-                    message: intl.t('phoneNumber.required', 'Please enter your phone number!'),
-                  },
-                  {
-                    pattern: /^1\d{10}$/,
-                    message: intl.t('phoneNumber.invalid', 'Mobile phone number format error!'),
-                  },
-                ]}
-              />
-            </LoginFormComponent>
-
-            <LoginFormComponent
-              loginType={loginType}
-              allows={['enable_mfa_email', 'enable_mfa_sms', 'enable_mfa_totp']}
-              style={{ width: 550, display: 'block' }}
-            >
-              <Alert
-                style={{ marginBottom: 24 }}
-                message={intl.t(
-                  'mfa.errorMessage',
-                  'Because your user is set to enable multiple factor authentication (MFA), you need to enable at least one MFA authentication method.',
-                )}
-                type="info"
-                showIcon
-              />
-            </LoginFormComponent>
-
-            <LoginFormComponent
-              loginType={loginType}
-              allows={['enable_mfa_sms']}
-              style={{ width: 550, display: 'block' }}
-            >
-              <Alert
-                style={{ marginBottom: 24 }}
-                message={intl.t(
-                  'enableMfa.smsMessage',
-                  'Click Login to automatically enable email as the second authentication factor.',
-                )}
-                type="info"
-                showIcon
-              />
-            </LoginFormComponent>
-
-            <LoginFormComponent
-              loginType={loginType}
-              allows={['enable_mfa_email']}
-              style={{ width: 550, display: 'block' }}
-            >
-              <Alert
-                style={{ marginBottom: 24 }}
-                message={intl.t(
-                  'enableMfa.emailMessage',
-                  'Click Login to automatically enable email as the second authentication factor.',
-                )}
-                type="info"
-                showIcon
-              />
-              <LoginMessage
-                hidden={success}
-                content={intl.t('email.errorMessage', 'Email verification code error')}
-              />
-              <ProFormText
-                fieldProps={{
-                  size: 'large',
-                  prefix: <MailOutlined className={styles.prefixIcon} />,
-                }}
-                name="email"
-                initialValue={email}
-                placeholder={intl.t('email.placeholder', 'Please enter your email')}
-                rules={[
-                  {
-                    required: true,
-                    message: intl.t('email.required', 'Please enter your email!'),
-                  },
-                ]}
-              />
-            </LoginFormComponent>
-
-            <LoginFormComponent
-              loginType={loginType}
-              allows={[
-                'sms',
-                'mfa_sms',
-                'mfa_email',
-                'email',
-                'mfa_totp',
-                'enable_mfa_email',
-                'enable_mfa_sms',
-              ]}
-            >
-              <ProFormCaptcha
-                fieldProps={{
-                  size: 'large',
-                  prefix: <LockOutlined className={styles.prefixIcon} />,
-                }}
-                captchaProps={{
-                  size: 'large',
-                  hidden: loginType === 'mfa_totp',
-                }}
-                placeholder={intl.t('captcha.placeholder', 'Please enter the verification code')}
-                captchaTextRender={(timing, count) => {
-                  if (timing) {
-                    return `${count} ${intl.t('getCaptchaSecondText', 'Get verification code')}`;
-                  }
-                  return intl.t('phone.getVerificationCode', 'Get verification code');
-                }}
-                name="code"
-                rules={[
-                  {
-                    required: true,
-                    message: intl.t('captcha.required', 'Please enter the verification code!'),
-                  },
-                ]}
-                onGetCaptcha={async () => {
-                  const req: API.SendLoginCaptchaRequest = { type: loginType };
-                  switch (loginType) {
-                    case 'enable_mfa_email':
-                    case 'mfa_email':
-                      form.validateFields(['username']);
-                      req.username = form.getFieldValue('username');
-                    case 'email':
-                      form.validateFields(['email']);
-                      req.email = form.getFieldValue('email');
-                      break;
-                    case 'enable_mfa_sms':
-                    case 'mfa_sms':
-                      form.validateFields(['username']);
-                      req.username = form.getFieldValue('username');
-                    case 'sms':
-                      form.validateFields(['phone']);
-                      req.phone = form.getFieldValue('phone');
-                    default:
-                      break;
-                  }
-                  const result = await sendLoginCaptcha(req, { intl });
-                  if (!result.success) {
-                    return;
-                  }
-                  console.log(loginType);
-                  switch (loginType) {
-                    case 'enable_mfa_email':
-                    case 'enable_mfa_sms':
-                      setBindingToken(result.data?.token);
-                      break;
-                    default:
-                      setToken(result.data?.token);
-                      break;
-                  }
-                  message.success(intl.t('captcha.sent', 'Verification code sent successfully.'));
-                }}
-              />
-            </LoginFormComponent>
-
-            <LoginFormComponent
-              style={{ width: 550, display: 'block' }}
-              loginType={loginType}
-              allows={['enable_mfa_totp']}
-            >
-              <VirtualMFADeviceBinding token={token} setBindingToken={setBindingToken} />
-            </LoginFormComponent>
-            <div
-              style={{
-                marginBottom: 10,
-                display: allowLoginTypes.length > 0 ? 'block' : 'none',
-              }}
-            >
-              <ProFormCheckbox noStyle name="autoLogin">
-                {intl.t('rememberMe', 'Automatic login')}
-              </ProFormCheckbox>
-              <LoginFormComponent loginType={loginType} allows={['normal']}>
-                <Link
-                  style={{
-                    float: 'right',
+                      <img src={item.icon} className={styles.oauthIcon} />
+                    </div>
+                  ))}
+                </Space>
+              </div>
+              <div className={styles.loginByOtherBtn}>
+                <Button
+                  style={{ display: otherLoginTypes.length === 0 ? 'none' : 'unset' }}
+                  type="link"
+                  onClick={() => {
+                    if (globalConfig) {
+                      setAllowLoginTypes(
+                        globalConfig.loginType
+                          .map((item) => item.type)
+                          .filter(
+                            (item) => item !== LoginType.oauth2 && item !== undefined,
+                          ) as LoginTypeValue[],
+                      );
+                    }
                   }}
-                  to={forgotPasswordPath}
                 >
-                  {intl.t('forgotPassword', 'Forgot password')}
-                </Link>
-              </LoginFormComponent>
+                  {intl.t('loginByOther', 'More login methods')}
+                </Button>
+              </div>
             </div>
-          </LoginForm>
+          ) : undefined
+        }
+        submitter={allowLoginTypes.length > 0 ? undefined : false}
+        onFinish={async (values) => {
+          return handleSubmit(values);
+        }}
+      >
+        <Tabs
+          activeKey={loginType}
+          onChange={(key) => {
+            setLoginType(key as LoginTypeName);
+            setUserLoginState({ success: true });
+          }}
+          className={styles.loginTypeTabs}
+          items={tabsItem}
+          centered
+        />
+        <LoginFormComponent
+          hidden={hiddenNormal}
+          loginType={loginType}
+          allows={['normal', ...mfaLoginTypes]}
+        >
+          <LoginMessage
+            hidden={success}
+            content={intl.t(`${errorCode ?? 'normal'}.errorMessage`, errorMessage)}
+          />
+          <ProFormText
+            name="username"
+            fieldProps={{
+              size: 'large',
+              prefix: <UserOutlined className={styles.prefixIcon} />,
+              autoFocus: true,
+            }}
+            placeholder={intl.t('username.placeholder', 'Please enter a username')}
+            rules={[
+              {
+                required: true,
+                message: intl.t('username.required', 'Please enter a username!'),
+              },
+            ]}
+          />
+          <ProFormText.Password
+            name="password"
+            fieldProps={{
+              size: 'large',
+              prefix: <LockOutlined className={styles.prefixIcon} />,
+            }}
+            placeholder={intl.t('password.placeholder', 'Please input a password')}
+            rules={[
+              {
+                required: true,
+                message: intl.t('password.required', 'Please input a password!'),
+              },
+            ]}
+          />
+        </LoginFormComponent>
+
+        <LoginFormComponent loginType={loginType} allows={['mfa_totp']}>
+          <LoginMessage
+            hidden={success}
+            content={intl.t('totp.errorMessage', 'verification code error')}
+          />
+        </LoginFormComponent>
+        <LoginFormComponent loginType={loginType} allows={['email', 'mfa_email']}>
+          <LoginMessage
+            hidden={success}
+            content={intl.t('email.errorMessage', 'Email verification code error')}
+          />
+          <ProFormText
+            fieldProps={{
+              size: 'large',
+              prefix: <MailOutlined className={styles.prefixIcon} />,
+            }}
+            name="email"
+            placeholder={`${intl.t('email.placeholder', 'Please enter your email')} ${
+              email ? `: ${email}` : ''
+            }`}
+            rules={[
+              {
+                required: true,
+                message: intl.t('email.required', 'Please enter your email!'),
+              },
+            ]}
+          />
+        </LoginFormComponent>
+        <LoginFormComponent loginType={loginType} allows={['sms', 'mfa_sms']}>
+          <LoginMessage
+            hidden={success}
+            content={intl.t('sms.errorMessage', 'SMS verification code error')}
+          />
+          <ProFormText
+            fieldProps={{
+              size: 'large',
+              prefix: <MobileOutlined className={styles.prefixIcon} />,
+            }}
+            name="phone"
+            placeholder={intl.t('phoneNumber.placeholder', 'Please enter your phone number')}
+            rules={[
+              {
+                required: true,
+                message: intl.t('phoneNumber.required', 'Please enter your phone number!'),
+              },
+              {
+                pattern: /^1\d{10}$/,
+                message: intl.t('phoneNumber.invalid', 'Mobile phone number format error!'),
+              },
+            ]}
+          />
+        </LoginFormComponent>
+
+        <LoginFormComponent
+          loginType={loginType}
+          allows={['enable_mfa_email', 'enable_mfa_sms', 'enable_mfa_totp']}
+          style={{ width: 550, display: 'block' }}
+        >
+          <Alert
+            style={{ marginBottom: 24 }}
+            message={intl.t(
+              'mfa.errorMessage',
+              'Because your user is set to enable multiple factor authentication (MFA), you need to enable at least one MFA authentication method.',
+            )}
+            type="info"
+            showIcon
+          />
+        </LoginFormComponent>
+
+        <LoginFormComponent
+          loginType={loginType}
+          allows={['enable_mfa_sms']}
+          style={{ width: 550, display: 'block' }}
+        >
+          <Alert
+            style={{ marginBottom: 24 }}
+            message={intl.t(
+              'enableMfa.smsMessage',
+              'Click Login to automatically enable email as the second authentication factor.',
+            )}
+            type="info"
+            showIcon
+          />
+        </LoginFormComponent>
+
+        <LoginFormComponent
+          loginType={loginType}
+          allows={['enable_mfa_email']}
+          style={{ width: 550, display: 'block' }}
+        >
+          <Alert
+            style={{ marginBottom: 24 }}
+            message={intl.t(
+              'enableMfa.emailMessage',
+              'Click Login to automatically enable email as the second authentication factor.',
+            )}
+            type="info"
+            showIcon
+          />
+          <LoginMessage
+            hidden={success}
+            content={intl.t('email.errorMessage', 'Email verification code error')}
+          />
+          <ProFormText
+            fieldProps={{
+              size: 'large',
+              prefix: <MailOutlined className={styles.prefixIcon} />,
+            }}
+            name="email"
+            initialValue={email}
+            placeholder={intl.t('email.placeholder', 'Please enter your email')}
+            rules={[
+              {
+                required: true,
+                message: intl.t('email.required', 'Please enter your email!'),
+              },
+            ]}
+          />
+        </LoginFormComponent>
+
+        <LoginFormComponent
+          loginType={loginType}
+          allows={[
+            'sms',
+            'mfa_sms',
+            'mfa_email',
+            'email',
+            'mfa_totp',
+            'enable_mfa_email',
+            'enable_mfa_sms',
+          ]}
+        >
+          <ProFormCaptcha
+            fieldProps={{
+              size: 'large',
+              prefix: <LockOutlined className={styles.prefixIcon} />,
+            }}
+            captchaProps={{
+              size: 'large',
+              hidden: loginType === 'mfa_totp',
+            }}
+            placeholder={intl.t('captcha.placeholder', 'Please enter the verification code')}
+            captchaTextRender={(timing, count) => {
+              if (timing) {
+                return `${count} ${intl.t('getCaptchaSecondText', 'Get verification code')}`;
+              }
+              return intl.t('phone.getVerificationCode', 'Get verification code');
+            }}
+            name="code"
+            rules={[
+              {
+                required: true,
+                message: intl.t('captcha.required', 'Please enter the verification code!'),
+              },
+            ]}
+            onGetCaptcha={async () => {
+              const req: API.SendLoginCaptchaRequest = { type: loginType };
+              switch (loginType) {
+                case 'enable_mfa_email':
+                case 'mfa_email':
+                  form.validateFields(['username']);
+                  req.username = form.getFieldValue('username');
+                case 'email':
+                  form.validateFields(['email']);
+                  req.email = form.getFieldValue('email');
+                  break;
+                case 'enable_mfa_sms':
+                case 'mfa_sms':
+                  form.validateFields(['username']);
+                  req.username = form.getFieldValue('username');
+                case 'sms':
+                  form.validateFields(['phone']);
+                  req.phone = form.getFieldValue('phone');
+                default:
+                  break;
+              }
+              const result = await sendLoginCaptcha(req, { intl });
+              if (!result.success) {
+                return;
+              }
+              switch (loginType) {
+                case 'enable_mfa_email':
+                case 'enable_mfa_sms':
+                  setBindingToken(result.data?.token);
+                  break;
+                default:
+                  setToken(result.data?.token);
+                  break;
+              }
+              message.success(intl.t('captcha.sent', 'Verification code sent successfully.'));
+            }}
+          />
+        </LoginFormComponent>
+
+        <LoginFormComponent
+          style={{ width: 550, display: 'block' }}
+          loginType={loginType}
+          allows={['enable_mfa_totp']}
+        >
+          <VirtualMFADeviceBinding token={token} setBindingToken={setBindingToken} />
+        </LoginFormComponent>
+        <div
+          style={{
+            marginBottom: 10,
+            display: allowLoginTypes.length > 0 ? 'block' : 'none',
+          }}
+        >
+          <ProFormCheckbox noStyle name="autoLogin">
+            {intl.t('rememberMe', 'Automatic login')}
+          </ProFormCheckbox>
+          <LoginFormComponent loginType={loginType} allows={['normal']}>
+            <Link
+              style={{
+                float: 'right',
+              }}
+              to={forgotPasswordPath}
+            >
+              {intl.t('forgotPassword', 'Forgot password')}
+            </Link>
+          </LoginFormComponent>
         </div>
-      </div>
+      </LoginFormPage>
       <Footer />
     </div>
   );

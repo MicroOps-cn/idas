@@ -1173,7 +1173,7 @@ declare namespace API {
                 'newPassword': string;
                 'oldPassword'?: string;
                 'token'?: string;
-                'userId': string;
+                'userId'?: string;
                 'username'?: string;
           }
         
