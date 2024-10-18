@@ -485,6 +485,7 @@ func (s Set) ResetPassword(ctx context.Context, id string, password string) (err
 			level.Error(logs.GetContextLogger(ctx)).Log("failed to post event log", "err", e)
 		}
 	}()
+	level.Info(logger).Log("msg", "Reset password", "id", id)
 	userExtendedData, err := s.commonService.GetUserExtendedData(ctx, id)
 	if err != nil {
 		return errors.WithServerError(http.StatusInternalServerError, err, "Failed to obtain user. ")

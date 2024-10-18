@@ -63,7 +63,7 @@ message PatchUserRequest{
 message ResetUserPasswordRequest{
   string token = 1[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.Secret"];
   string old_password = 2[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.Secret", (gogoproto.jsontag) = "oldPassword,omitempty"];
-  string user_id = 3[(gogoproto.jsontag) = "userId", (gogoproto.moretags) = 'valid:"optional,uuid"'];
+  string user_id = 3[(gogoproto.jsontag) = "userId,omitempty", (gogoproto.moretags) = 'valid:"optional,uuid"'];
   string new_password = 5[(gogoproto.customtype) = "github.com/MicroOps-cn/idas/pkg/service/models.Secret", (gogoproto.jsontag) = "newPassword", (gogoproto.moretags) = 'valid:"required"'];
   string username = 6[(gogoproto.moretags) = 'valid:"optional,matches(^[-_A-Za-z0-9]+$)"'];
 }
