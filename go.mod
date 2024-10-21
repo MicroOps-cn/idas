@@ -1,13 +1,15 @@
 module github.com/MicroOps-cn/idas
 
-go 1.18
+go 1.21
+
+toolchain go1.22.5
 
 require (
-	github.com/MicroOps-cn/fuck v1.2.16
+	github.com/MicroOps-cn/fuck v1.3.1
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/disintegration/letteravatar v0.0.0-20160912210445-1a457b860450
 	github.com/docker/docker v20.10.24+incompatible
-	github.com/emicklei/go-restful-openapi/v2 v2.9.1-rc3
+	github.com/emicklei/go-restful-openapi/v2 v2.9.1
 	github.com/emicklei/go-restful/v3 v3.8.1
 	github.com/emicklei/proto v1.11.1
 	github.com/go-kit/kit v0.12.0
@@ -19,7 +21,7 @@ require (
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/gogo/protobuf v1.3.2
-	github.com/golang-jwt/jwt/v4 v4.0.0
+	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/howeyc/gopass v0.0.0-20210920133722-c8aef6fb66ef
 	github.com/moby/term v0.0.0-20220808134915-39b0c02b01ae
@@ -36,7 +38,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4
 	github.com/tidwall/gjson v1.14.4
-	github.com/tredoe/osutil v1.0.6
+	github.com/tredoe/osutil v1.5.0
 	github.com/xlzd/gotp v0.1.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.42.0
 	go.opentelemetry.io/otel v1.21.0
@@ -137,7 +139,7 @@ require (
 )
 
 replace (
-	github.com/emicklei/go-restful-openapi/v2 v2.9.0 => github.com/MicroOps-cn/go-restful-openapi/v2 v2.9.1-1
+	github.com/emicklei/go-restful-openapi/v2 v2.9.0 => github.com/MicroOps-cn/go-restful-openapi/v2 v2.9.1-rc3
 	github.com/emicklei/go-restful/v3 v3.8.1 => github.com/MicroOps-cn/go-restful/v3 v3.8.1
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df => github.com/MicroOps-cn/gomail/v2 v2.0.1
 	layeh.com/radius => ./pkg/transport/radius
