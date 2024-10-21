@@ -6,6 +6,7 @@ github.com/Azure/go-ntlmssp v0.0.0-20220621081337-cb9428e4ac1e/go.mod h1:chxPXzS
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/MicroOps-cn/fuck v1.3.1 h1:S1cfDyamFJpNge+iTZgmGMlCsJngdNPFxnCYPdfckFE=
 github.com/MicroOps-cn/fuck v1.3.1/go.mod h1:QLp7iXe6lwYRpluX6/q3eCipD3Axsb/axMhJvdS97w8=
+github.com/MicroOps-cn/go-restful-openapi/v2 v2.9.1-rc3/go.mod h1:jPp0Y4Uak2Qd8YueQb2qy9ZHhjKMVjDZzmBPafNZkps=
 github.com/MicroOps-cn/go-restful/v3 v3.8.1 h1:mZZHtRGQVYg53nwROh+qVv+ll+GdRO2AAkjcdxUYl8w=
 github.com/MicroOps-cn/go-restful/v3 v3.8.1/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
 github.com/MicroOps-cn/gomail/v2 v2.0.1 h1:exypliTNnsC87J7slNqkZenzATWiAkniWL37tCkzhvc=
