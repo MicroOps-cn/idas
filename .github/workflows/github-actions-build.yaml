@@ -23,7 +23,7 @@ jobs:
         run: dist/idas --config examples/simple.yaml --config.display
       - name: Start service
         run: |        # 启动一个监听端口的进程，例如一个简单的 HTTP 服务器
-          dist/idas --config examples/simple.yaml
+          nohup dist/idas --config examples/simple.yaml &> server.log &
           echo $! > server.pid
         shell: bash
       - name: Wait for service to start
