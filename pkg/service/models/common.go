@@ -119,7 +119,7 @@ type EventLog struct {
 }
 
 type I18nTranslate struct {
-	Id       int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	AutoIncrementModel
 	Source   string `gorm:"type:varchar(20)"`
 	SourceId string `gorm:"type:varchar(36)"`
 	Field    string `gorm:"type:varchar(50)"`

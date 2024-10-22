@@ -648,39 +648,42 @@ func (c CommonService) BatchPatchI18n(ctx context.Context, i18ns []models.I18nTr
 	return nil
 }
 
-func (c *CommonService) DeleteAppProxy(ctx context.Context, ids ...string) error {
-	if deleted := c.Session(ctx).Model(&models.AppRoleURL{}).
-		Where("app_id in ?", ids).
-		Update("delete_time", time.Now().UTC()); deleted.Error != nil {
-		return deleted.Error
+const deleteAppRoleURLSql = `UPDATE t_app_role_url set delete_time = ? WHERE app_proxy_url_id in (
+    SELECT id FROM t_app_proxy_url WHERE app_proxy_id in (
+        SELECT id FROM t_app_proxy WHERE app_id in ?
+    )
+)`
+const deleteAppProxyURLSql = `UPDATE t_app_proxy_url set delete_time = ? WHERE app_proxy_id in (
+	SELECT id FROM t_app_proxy WHERE app_id in ?
+)`
+
+func (c *CommonService) DeleteAppProxy(ctx context.Context, ids ...string) (err error) {
+	tx := c.Session(ctx)
+	if err = tx.Exec(deleteAppRoleURLSql, time.Now().UTC(), ids).Error; err != nil {
+		return err
 	}
-	if deleted := c.Session(ctx).Model(&models.AppProxyUrl{}).
-		Where("app_id in ?", ids).
-		Update("delete_time", time.Now().UTC()); deleted.Error != nil {
-		return deleted.Error
+	if err = tx.Exec(deleteAppProxyURLSql, time.Now().UTC(), ids).Error; err != nil {
+		return err
 	}
-	deleted := c.Session(ctx).Model(&models.AppProxy{}).Where("app_id in ?", ids).Update("delete_time", time.Now().UTC())
-	return deleted.Error
+	if deleteErr := tx.Delete(&models.AppProxy{}, "app_id in ?", ids).Error; deleteErr != nil {
+		return deleteErr
+	}
+	return nil
 }
 
 func (c *CommonService) DeleteAppAccessControl(ctx context.Context, ids ...string) error {
-	if deleted := c.Session(ctx).Model(&models.AppUser{}).
-		Where("app_id in ?", ids).
-		Update("delete_time", time.Now().UTC()); deleted.Error != nil {
+	tx := c.Session(ctx)
+	if deleted := tx.Delete(&models.AppUser{}, "app_id in ?", ids); deleted.Error != nil {
 		return deleted.Error
 	}
-	if deleted := c.Session(ctx).Model(&models.AppRole{}).
-		Where("app_id in ?", ids).
-		Update("delete_time", time.Now().UTC()); deleted.Error != nil {
+	if deleted := tx.Delete(&models.AppRole{}, "app_id in ?", ids); deleted.Error != nil {
 		return deleted.Error
 	}
 	return nil
 }
 
 func (c *CommonService) DeleteI18nBySourceId(ctx context.Context, ids ...string) error {
-	if deleted := c.Session(ctx).Model(&models.I18nTranslate{}).
-		Where("source_id in ?", ids).
-		Update("delete_time", time.Now().UTC()); deleted.Error != nil {
+	if deleted := c.Session(ctx).Delete(&models.I18nTranslate{}, "source_id in ?", ids); deleted.Error != nil {
 		return deleted.Error
 	}
 	return nil

@@ -35,7 +35,7 @@ type UserAndAppService struct {
 }
 
 func (s UserAndAppService) AutoMigrate(ctx context.Context) error {
-	err := s.Session(ctx).AutoMigrate(&models.App{}, &models.User{})
+	err := s.Session(ctx).AutoMigrate(&models.App{}, &models.User{}, &models.AppRoleURL{})
 	if err != nil {
 		return err
 	}

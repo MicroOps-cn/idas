@@ -28,6 +28,7 @@ import (
 )
 
 type AppRoleURL struct {
+	Model
 	AppRoleId     string `json:"app_role_id"`
 	AppRoleName   string `json:"app_role_name"`
 	AppProxyURLId string `json:"app_proxy_url_id"`

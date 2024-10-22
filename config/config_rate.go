@@ -81,6 +81,9 @@ func (s stdLimiterWrapper) String() string {
 
 func (x *Config) GetRateLimit(name string) Allower {
 	var allower Allowers
+	if x.Security == nil || x.Security.RateLimit == nil {
+		return nil
+	}
 	for _, limit := range x.Security.RateLimit {
 		if limit.Name.Contains(name) {
 			if name == "" {

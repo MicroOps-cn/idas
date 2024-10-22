@@ -32,6 +32,21 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+func (m *AutoIncrementModel) BeforeCreate(db *gorm.DB) error {
+	if m.UpdateTime.IsZero() {
+		db.Statement.SetColumn("UpdateTime", time.Now().UTC())
+	}
+	if m.CreateTime.IsZero() {
+		db.Statement.SetColumn("CreateTime", time.Now().UTC())
+	}
+	return nil
+}
+
+func (m *AutoIncrementModel) BeforeSave(db *gorm.DB) error {
+	db.Statement.SetColumn("UpdateTime", time.Now().UTC())
+	return nil
+}
+
 func (m *Model) BeforeCreate(db *gorm.DB) error {
 	if m.Id == "" {
 		id := g.NewUUID(db.Statement.Table).String()

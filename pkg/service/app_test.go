@@ -19,6 +19,7 @@ package service
 import (
 	"context"
 	g "github.com/MicroOps-cn/fuck/generator"
+	uuid "github.com/satori/go.uuid"
 	"sort"
 	"strconv"
 	"strings"
@@ -169,41 +170,59 @@ func testAppService(ctx context.Context, t *testing.T, svc Service) {
 					}
 				}
 
-				var proxy [][5]string
+				var proxy [][6]string
 				app := &models.App{
 					Name:        rand.String(rand.IntnRange(1, 20)) + "_" + strconv.Itoa(i),
 					Description: rand.String(rand.Intn(20)),
 					Avatar:      rand.String(rand.Intn(20)),
-					GrantType:   models.AppMeta_GrantType(rand.Intn(len(models.AppMeta_GrantType_value))),
+					GrantType:   models.AppMeta_GrantType(rand.Intn(128)),
 					GrantMode:   models.AppMeta_GrantMode(rand.Intn(len(models.AppMeta_GrantMode_value))),
 					Status:      models.AppMeta_Status(rand.Intn(len(models.AppMeta_Status_value))),
 					Users:       users,
 					Roles:       roles,
+					I18N: &models.AppI18NOptions{
+						DisplayName: map[string]string{
+							"zh-CN": rand.String(rand.IntnRange(1, 20)),
+							"en-US": rand.String(rand.IntnRange(1, 20)),
+						},
+						Description: map[string]string{
+							"zh-CN": rand.String(rand.IntnRange(1, 20)),
+							"en-US": rand.String(rand.IntnRange(1, 20)),
+						},
+					},
+					Url: rand.String(rand.IntnRange(1, 20)),
+					OAuth2: &models.AppOAuth2{
+						AppId:              rand.String(rand.IntnRange(1, 20)),
+						JwtSignatureMethod: models.AppMeta_JWTSignatureMethod(rand.Intn(len(models.AppMeta_JWTSignatureMethod_value))),
+					},
 				}
 				if app.GrantType&models.AppMeta_proxy == models.AppMeta_proxy {
 					app.Proxy = &models.AppProxy{
-						Domain:   rand.String(rand.Intn(20)),
-						Upstream: rand.String(rand.Intn(20)),
+						Domain:   rand.String(rand.IntnRange(10, 20)),
+						Upstream: rand.String(rand.IntnRange(10, 20)),
 					}
 					for j := 0; j < rand.IntnRange(1, 10); j++ {
 						app.Proxy.Urls = append(app.Proxy.Urls, &models.AppProxyUrl{
-							Model:  models.Model{Id: rand.String(rand.Intn(20))},
+							Model:  models.Model{Id: w.M(uuid.NewV4()).String()},
 							Method: "GET",
 							Url:    rand.String(10),
 							Name:   rand.String(10),
 						})
 					}
 					for _, url := range app.Proxy.Urls {
-						proxy = append(proxy, [5]string{app.Proxy.Domain, app.Proxy.Upstream, url.Method, url.Url, url.Name})
-						for j := 0; j < 3; j++ {
-							role := app.Roles[rand.Intn(len(app.Roles))]
-							role.UrlsId = append(role.UrlsId, url.Id)
+						proxy = append(proxy, [6]string{app.Proxy.Domain, app.Proxy.Upstream, url.Method, url.Url, url.Name, url.Id})
+						if len(app.Roles) > 0 {
+
+							for j := 0; j < 3; j++ {
+								role := app.Roles[rand.Intn(len(app.Roles))]
+								role.UrlsId = append(role.UrlsId, url.Id)
+							}
 						}
 					}
 				}
 				for _, role := range app.Roles {
 					if len(role.UrlsId) != 0 {
-						roleURL[role.Id] = role.UrlsId
+						roleURL[role.Name] = role.UrlsId
 						sort.Strings(roleURL[role.Id])
 					}
 				}
@@ -221,19 +240,21 @@ func testAppService(ctx context.Context, t *testing.T, svc Service) {
 				for _, user := range info.Users {
 					userRoles1[user.Id] = user.Role
 				}
-				var proxy2 [][5]string
+				var proxy2 [][6]string
 				if info.Proxy != nil {
 					for _, url := range info.Proxy.Urls {
-						proxy2 = append(proxy2, [5]string{info.Proxy.Domain, info.Proxy.Upstream, url.Method, url.Url, url.Id})
+						proxy2 = append(proxy2, [6]string{info.Proxy.Domain, info.Proxy.Upstream, url.Method, url.Url, url.Name, url.Id})
 					}
-
 					for _, role := range app.Roles {
 						if len(role.UrlsId) != 0 {
-							roleURL[role.Id] = role.UrlsId
-							sort.Strings(roleURL[role.Id])
+							roleURL1[role.Name] = role.UrlsId
+							sort.Strings(roleURL1[role.Id])
 						}
 					}
 				}
+				require.NotNil(t, info.I18N)
+				require.NotEmpty(t, info.I18N.DisplayName)
+				require.NotEmpty(t, info.I18N.Description)
 
 				sort.Strings(roleNames)
 				sort.Strings(roleNames1)
@@ -337,14 +358,15 @@ func testAppService(ctx context.Context, t *testing.T, svc Service) {
 	})
 
 	t.Run("Test Delete App", func(t *testing.T) {
-		err := svc.DeleteApp(ctx, appIds[rand.Intn(len(appIds))])
+		deleteCount := rand.Intn(len(appIds))
+		count, err := svc.DeleteApps(ctx, appIds[0:deleteCount]...)
 		require.NoError(t, err)
-
+		require.Equal(t, deleteCount, int(count))
 		t.Run("Test List App", func(t *testing.T) {
 			count, apps, err := svc.GetApps(ctx, "", nil, 1, 1024)
 			require.NoError(t, err)
-			require.Truef(t, len(apps) == len(appIds)-1, "Failed to obtain the information of all current apps: the number of users (%d) is not equal %d.", len(apps), len(appIds)-1)
-			require.Truef(t, int(count) == len(appIds)-1, "Failed to obtain the information of all current apps: the number of users (%d) is not equal %d.", len(apps), len(appIds)-1)
+			require.Truef(t, len(apps) == len(appIds)-deleteCount, "Failed to obtain the information of all current apps: the number of users (%d) is not equal %d.", len(apps), len(appIds)-deleteCount)
+			require.Truef(t, int(count) == len(appIds)-deleteCount, "Failed to obtain the information of all current apps: the number of users (%d) is not equal %d.", len(apps), len(appIds)-deleteCount)
 		})
 	})
 }

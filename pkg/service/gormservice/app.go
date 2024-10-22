@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"time"
 
 	"gorm.io/gorm/clause"
 
@@ -102,7 +101,7 @@ func (s UserAndAppService) DeleteApps(ctx context.Context, id ...string) (total 
 	if idasCount > 0 {
 		return 0, errors.NewServerError(400, "can't delete the idas app", errors.CodeAppCannotBeDelete)
 	}
-	deleted := s.Session(ctx).Model(&models.App{}).Where("`id` in ? and `name` != 'IDAS'", id).Update("delete_time", time.Now().UTC())
+	deleted := s.Session(ctx).Delete(&models.App{}, "`id` in ? and `name` != 'IDAS'", id)
 	if err = deleted.Error; err != nil {
 		return deleted.RowsAffected, err
 	}

@@ -383,9 +383,11 @@ func (s Set) CreateApp(ctx context.Context, app *models.App) (err error) {
 	}
 
 	if app.GrantType&models.AppMeta_authorization_code > 0 {
+		if app.OAuth2 == nil {
+			app.OAuth2 = &models.AppOAuth2{}
+		}
 		app.OAuth2.AppId = app.Id
 		if err = s.commonService.PatchAppOAuthConfig(ctx, app.OAuth2); err != nil {
-			logger := logs.GetContextLogger(ctx)
 			level.Error(logger).Log("err", err, "msg", "failed to update oauth config")
 		}
 		issuerCache.Remove(app.Id)
