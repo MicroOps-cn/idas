@@ -122,6 +122,5 @@
   },
   "gitHooks": {
     "commit-msg": "fabric verify-commit"
-  },
-  "packageManager": "yarn@3.8.6"
+  }
 }
