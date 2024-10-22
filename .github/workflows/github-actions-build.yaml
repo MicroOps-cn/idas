@@ -15,3 +15,30 @@ jobs:
           node-version: 20
       - run: make ui
       - run: make test idas
+      - name: "Test init command"
+        run: dist/idas --config examples/simple.yaml init
+      - name: "Test migrate command"
+        run: dist/idas --config examples/simple.yaml migrate
+      - name: "Test config display"
+        run: dist/idas --config examples/simple.yaml --config.display
+      - name: Start service
+        run: |        # 启动一个监听端口的进程，例如一个简单的 HTTP 服务器
+          dist/idas --config examples/simple.yaml
+          echo $! > server.pid
+        shell: bash
+      - name: Wait for service to start
+        run: sleep 5
+      - name: "Test login action"
+        run: |
+          errorCode=$(curl http://192.168.100.65:8081/api/v1/user/login -H 'Content-Type: application/json' -d '{"username":"admin","password":"idas","type":"normal"}'|jq ".errorCode" -r)
+          if [ "$errorCode" != "E0004" ]; then
+            echo "Login result code is not E0004"
+            exit 1
+          fi
+        shell: bash
+      - name: Stop service
+        if: always()
+        run: |        # 停止服务
+          kill $(cat server.pid)
+          rm server.pid
+        shell: bash
