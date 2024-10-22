@@ -121,8 +121,13 @@ common-check_license:
                exit 1; \
        fi
 
+.PHONY: tidy
+tidy:
+	@echo ">> running go mod tidy"
+	go mod tidy
+
 .PHONY: idas
-idas:
+idas:tidy
 	CGO_ENABLED=0 go build -ldflags="-s -w $(LDFlags)" -o dist/idas ./cmd/idas
 
 .PHONY: common-lint
@@ -141,7 +146,7 @@ $(GOLANGCI_LINT):
 endif
 
 .PHONY: test
-test:
+test:tidy
 	go test -tags make_test -cover -race -count=1 ./...
 
 .PHONY: openapi
