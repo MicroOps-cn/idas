@@ -30,7 +30,7 @@ jobs:
         run: sleep 5
       - name: "Test login action"
         run: |
-          errorCode=$(curl http://192.168.100.65:8081/api/v1/user/login -H 'Content-Type: application/json' -d '{"username":"admin","password":"idas","type":"normal"}'|jq ".errorCode" -r)
+          errorCode=$(curl http://127.0.0.1:8081/api/v1/user/login -H 'Content-Type: application/json' -d '{"username":"admin","password":"idas","type":"normal"}'|jq ".errorCode" -r)
           if [ "$errorCode" != "E0004" ]; then
             echo "Login result code is not E0004"
             exit 1
